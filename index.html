@@ -1719,9 +1719,26 @@ hr.divider { border: none; border-top: 1px solid var(--border); margin: 8px 0; }
 
       <!-- ── INVENTORY TAB ── -->
       <div id="tab-inventory" class="tab-content">
-        <div class="inv-silver-bar">
-          <span class="inv-silver-label">◈ Coins</span>
-          <span id="inv-silver" class="inv-silver-num">0S</span>
+        <div class="inv-silver-bar" style="flex-direction:column;align-items:flex-start;gap:4px;padding:10px 12px">
+          <div style="font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:2px">Currency</div>
+          <div style="display:flex;gap:14px;align-items:center">
+            <div style="display:flex;align-items:center;gap:4px">
+              <span style="font-size:10px;color:#c8a820">◈G</span>
+              <span id="inv-gold" class="inv-silver-num" style="color:#ffd700;font-size:16px">0</span>
+              <span style="font-size:9px;color:var(--dim)">gold</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:4px">
+              <span style="font-size:10px;color:var(--gold)">◈S</span>
+              <span id="inv-silver" class="inv-silver-num">0</span>
+              <span style="font-size:9px;color:var(--dim)">silver</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:4px">
+              <span style="font-size:10px;color:#cd7f32">◈C</span>
+              <span id="inv-copper" class="inv-silver-num" style="color:#cd7f32;font-size:16px">0</span>
+              <span style="font-size:9px;color:var(--dim)">copper</span>
+            </div>
+          </div>
+          <div style="font-size:10px;color:var(--dim);margin-top:1px">20 copper = 1 silver · 10 silver = 1 gold</div>
         </div>
 
         <div class="sect-label">Equipped</div>
@@ -5603,8 +5620,8 @@ function useMAInNarrative(id) {
 // ================================================================
 function updateInventoryTab() {
   const c = GS.char;
-  const invSilverEl = document.getElementById('inv-silver');
-  if(invSilverEl) invSilverEl.textContent = (typeof formatCoins === 'function') ? formatCoins(c.silver) : c.silver;
+  // Currency display handled by updateCurrencyDisplay()
+  if(typeof updateCurrencyDisplay === 'function') updateCurrencyDisplay();
   // Equipment slots
   const slots = ['head','body','hands','feet','weapon','offhand','acc1','acc2'];
   slots.forEach(slot => {
@@ -7269,19 +7286,109 @@ function updateWorldTab() {
     edContent.innerHTML = html || '<span class="text-muted italic text-xs">No educational institutions known.</span>';
   }
 
-  // Politics
+  // Politics — show current location's kingdom, not hardcoded Azure Empire
   const polContent = document.getElementById('w-politics-content');
   if(polContent) {
-    const yr = w.year;
-    let html = '';
-    if(yr < 130) html += `<p><strong>Azure Empire:</strong> Under Reo Yamamoto's guiding influence. Tazar is a functioning safe haven — unusual by any standard.<br><strong>Note:</strong> Ichiro Katsumi and Reo Yamamoto are both alive. Qi is still young in the world.</p>`;
-    if(yr >= 130 && yr < 150) html += `<p><strong>Azure Empire:</strong> Ichiro has died (Year 130). Reo still lives, but Tazar shows early cracks. His discipline kept it clean.<br><strong>Luo-Tin Dynasty:</strong> Stable. Expansionist by nature, patient by practice.</p>`;
-    if(yr >= 150 && yr < 154) html += `<p><strong>Azure Empire:</strong> Reo Yamamoto died in Year 150. Tazar has begun its decline rapidly. Corruption fills the space left by vision.<br><strong>Buo-Luo-Tin War (Year 144–present):</strong> Láng the Warlord leads Luo-Tin mercenary forces. Trade disrupted. Refugees moving.</p>`;
-    if(yr >= 154) html += `<p><strong>Post-Láng Era:</strong> The Warlord died Year 154 — overdose. The Buo-Luo-Tin War shifts without its driving force.<br><strong>Azure Empire:</strong> Tazar is deeply corrupt. The other Azure cities function with varying degrees of neglect from the capital.</p>`;
-    if(w.wars.filter(ww=>ww.active).length) {
-      html += w.wars.filter(ww=>ww.active).map(ww => `<p style="margin-top:8px;color:var(--red)"><strong>Active War: ${ww.name}</strong> — Since Year ${ww.startYear}.</p>`).join('');
+    const yr        = w.year;
+    const curKgdm   = LOCATIONS[w.location]?.kingdom || 'azure_empire';
+    const kgdmName  = KINGDOMS[curKgdm]?.name || curKgdm;
+    const locTempl  = POLITICAL_TEMPLATES[w.location]; // location-specific factions
+    let html = `<div style="font-size:11px;color:var(--dim);margin-bottom:8px">Viewing: <strong style="color:var(--text)">${kgdmName}</strong> politics</div>`;
+
+    // ── Kingdom-level historical context ─────────────────────────
+    const KINGDOM_POLITICS = {
+      azure_empire: {
+        eras:[
+          { until:130, text:'Under Reo Yamamoto\'s influence, the Azure Empire is the closest thing the world has to a functioning example of good governance. This will not last.' },
+          { until:150, text:'Ichiro died Year 130. Reo is aging. The empire holds, but cracks show. His discipline kept the rot out. The discipline is weakening.' },
+          { until:154, text:'Reo died Year 150. What followed was not dramatic — it was administrative. The first bribe in weeks. The first appointment made on politics instead of merit. The descent is quiet and total. The Buo-Luo-Tin War (Year 144) complicates everything.' },
+          { until:9999, text:'The Azure Empire is a declining power that uses Reo\'s name to justify decisions he would have opposed. Tazar is corrupt. The outer cities function with varying degrees of neglect. The lower districts govern themselves because the official government stopped being present.' },
+        ],
+      },
+      luo_tin: {
+        eras:[
+          { until:130, text:'The Luo-Tin Dynasty is stable, expansionist by patience, and currently watching the Azure Empire\'s experiment with something between curiosity and contempt.' },
+          { until:144, text:'Luo-Tin is stable. It has been watching the Azure Empire\'s slow decline and drawing conclusions. Its military is well-funded. Its nobles are ambitious.' },
+          { until:154, text:'Luo-Tin hired Láng the Warlord in Year 139. He started a war with Buo in Year 144. The Dynasty is the primary external power in an active conflict. The military command has more influence than it should.' },
+          { until:9999, text:'Post-war Luo-Tin is reorganizing. The military command is powerful after the Buo conflict. Reform factions argue this is dangerous. The Imperial Court manages the tension between these interests.' },
+        ],
+      },
+      buo: {
+        eras:[
+          { until:139, text:'The Buo Kingdom is proud, isolated, and watching. It has survived long enough to be wary of everyone. This wariness will shortly prove justified.' },
+          { until:154, text:'The Buo-Luo-Tin War (Year 144) has reshaped the kingdom. Láng the Warlord\'s forces did serious damage. Cities were taken. People displaced. The kingdom is in active conflict and the population is angry.' },
+          { until:9999, text:'Post-war Buo is scarred. The war ended with Láng\'s death in Year 154, but the damage is real. The kingdom is rebuilding — slowly, with resentment, and with a very long memory.' },
+        ],
+      },
+    };
+
+    const kgdmHistory = KINGDOM_POLITICS[curKgdm];
+    if(kgdmHistory) {
+      const era = kgdmHistory.eras.find(e => yr < e.until);
+      if(era) {
+        html += `<div style="margin-bottom:10px;padding:8px 10px;background:var(--s2);border-left:3px solid var(--border2);border-radius:0 4px 4px 0;font-size:12px;color:var(--muted);line-height:1.7">${era.text}</div>`;
+      }
     }
-    if(!html) html = '<p class="text-muted italic">The political landscape is stable — or too complex to read from where you stand.</p>';
+
+    // ── Location-specific faction politics ───────────────────────
+    if(locTempl) {
+      html += `<div style="margin-bottom:6px">
+        <span style="font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted)">Local Power Structure</span>
+        ${locTempl.ruler ? `<span style="font-size:11px;color:var(--text);margin-left:8px">${locTempl.ruler.title} (${locTempl.ruler.faction})</span>` : ''}
+      </div>`;
+
+      if(locTempl.current_issue) {
+        html += `<div style="margin-bottom:10px;padding:8px;background:rgba(180,140,40,.08);border:1px solid rgba(180,140,40,.2);border-radius:5px;font-size:12px;line-height:1.6">
+          <span style="font-size:10px;color:var(--gold);text-transform:uppercase;letter-spacing:.08em">Current Situation</span><br>
+          ${locTempl.current_issue}
+        </div>`;
+      }
+
+      if(locTempl.factions?.length) {
+        html += `<div style="font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:6px">Active Factions</div>`;
+        html += locTempl.factions.map(f => {
+          const alignColor = { orthodox:'var(--teal)', neutral:'var(--muted)', demonic:'var(--red)', chaotic:'var(--purple)' }[f.alignment] || 'var(--muted)';
+          const powerBar = `<div style="flex:1;height:3px;background:var(--s4);border-radius:3px"><div style="width:${f.power}%;height:100%;background:${alignColor};border-radius:3px"></div></div>`;
+          return `<div style="margin-bottom:8px;padding:8px;background:var(--s2);border:1px solid var(--border);border-radius:5px">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;gap:8px">
+              <span style="font-size:12px;font-weight:700;color:var(--text)">${f.name}</span>
+              <span style="font-size:9px;color:${alignColor};white-space:nowrap">${f.alignment}</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
+              <span style="font-size:9px;color:var(--dim)">Power</span>${powerBar}<span style="font-size:10px;color:var(--muted)">${f.power}</span>
+            </div>
+            <div style="font-size:11px;color:var(--muted)"><em>Wants:</em> ${f.wants}</div>
+            ${f.fears ? `<div style="font-size:11px;color:var(--dim)"><em>Fears:</em> ${f.fears}</div>` : ''}
+            ${f.rivals?.length ? `<div style="font-size:10px;color:var(--dim)"><em>Rivals:</em> ${f.rivals.join(', ')}</div>` : ''}
+          </div>`;
+        }).join('');
+      }
+
+      if(locTempl.mood) {
+        const moodColor = { volatile:'var(--red)', tense:'#c49a30', stable:'var(--teal)', fragile:'var(--purple)' }[locTempl.mood] || 'var(--muted)';
+        html += `<div style="font-size:11px;color:${moodColor};margin-top:6px">Political mood: <strong>${locTempl.mood}</strong></div>`;
+      }
+    } else {
+      // No template for this location — show generic kingdom situation
+      html += `<div style="font-size:12px;color:var(--dim);font-style:italic">No detailed faction map for ${LOCATIONS[w.location]?.name || w.location} yet. The ${kgdmName} exerts influence here.</div>`;
+    }
+
+    // Active wars
+    if(w.wars?.filter(ww=>ww.active).length) {
+      html += w.wars.filter(ww=>ww.active).map(ww =>
+        `<div style="margin-top:10px;padding:8px;background:rgba(180,40,40,.1);border:1px solid rgba(180,40,40,.3);border-radius:5px;font-size:12px;color:var(--red)"><strong>⚔ Active War: ${ww.name}</strong> — Since Year ${ww.startYear}.</div>`
+      ).join('');
+    }
+
+    // Political domino events
+    if(w.politicalState?.events?.length) {
+      const recent = w.politicalState.events.slice(-3);
+      html += `<div style="margin-top:10px;font-size:10px;color:var(--dim)">${recent.map(e=>`<div style="padding:2px 0">· ${e}</div>`).join('')}</div>`;
+    }
+
+    if(!html.trim() || html === `<div style="font-size:11px;color:var(--dim);margin-bottom:8px">Viewing: <strong style="color:var(--text)">${kgdmName}</strong> politics</div>`) {
+      html += '<p class="text-muted italic">The political landscape here is quiet — or too complex to read from where you stand.</p>';
+    }
     polContent.innerHTML = html;
   }
 
@@ -18046,53 +18153,107 @@ sendToAI = async function(overrideMsg) {
 };
 
 // Override the DOMContentLoaded injections to remove static shop/alchemy from inventory
-// Alchemy renders only into the Skills tab alchemy-pane.
-// No inventory injection, no fallback to alchemy-panel-content.
-const _origRenderAlchemy = renderAlchemyPanel;
-renderAlchemyPanel = function() {
-  const target = document.getElementById('alchemy-pane');
-  if(!target) return;
+// ── ALCHEMY WORKBENCH — clean authoritative definition ────────────
+// This is the canonical renderAlchemyPanel. It renders directly into
+// the alchemy-pane subtab (Skills → Alchemy).
+function renderAlchemyPanel() {
+  const pane = document.getElementById('alchemy-pane');
+  if(!pane) return;
 
   const c         = GS.char;
   const alchSkill = getSkillLevel('alchemy');
-  const ingredients = c.inventory.filter(i => i.type === 'misc' || i.ingredientKey || INGREDIENTS[i.name?.toLowerCase().replace(/\s/g,'_')]);
+  const loc       = GS.world.location;
+
+  // Detect ingredients: cultivation resources, herbs, misc items, forage finds
+  const KNOWN_ING_NAMES = new Set(Object.values(INGREDIENTS).map(v => v.name.toLowerCase()));
+  const ingredients = c.inventory.filter(i => {
+    if(!i || !i.name) return false;
+    if(i.ingredientKey) return true;
+    if(INGREDIENTS[i.name.toLowerCase().replace(/\s+/g,'_')]) return true;
+    if(KNOWN_ING_NAMES.has(i.name.toLowerCase())) return true;
+    // Misc items with no slot and no other purpose are potential ingredients
+    return i.type === 'misc' && !i.isTome;
+  });
+
   const discoveries = getAlchemyDiscoveries();
+  const forageable  = FORAGEABLE_BY_LOCATION[loc];
 
-  const status = document.getElementById('alchemy-skill-status');
-  if(status) status.textContent = `Alchemy Lv${alchSkill} — Combine ingredients to discover what they produce. Nothing is pre-labeled.`;
+  pane.innerHTML = `
+    <div style="font-size:11px;color:var(--muted);margin-bottom:10px;line-height:1.6">
+      <span style="color:var(--gold);font-weight:700">Alchemy Lv${alchSkill}</span>
+      ${alchSkill === 0 ? ' — No skill yet. You can still experiment, but results will be unpredictable.' : ''}
+      ${alchSkill >= 3 ? ' — You understand ingredient properties.' : ''}
+      ${alchSkill >= 7 ? ' — You can reliably produce consistent results.' : ''}
+      <br>Select 2–5 ingredients and combine. Nothing is pre-labeled. Results are learned through experimentation.
+    </div>
 
-  const ingEl = document.getElementById('alchemy-ingredients');
-  if(ingEl) {
-    if(!ingredients.length) {
-      ingEl.textContent = 'No ingredients in inventory.';
-    } else {
-      ingEl.innerHTML = ingredients.map(ing =>
-        `<label style="display:flex;align-items:center;gap:8px;padding:4px 0;cursor:pointer">
-           <input type="checkbox" class="alchemy-ing-check" data-id="${ing.id}" style="accent-color:var(--gold)">
-           <span style="font-size:12px">${ing.name}</span>
-         </label>`
-      ).join('');
-    }
-  }
+    <!-- Ingredient checklist -->
+    <div style="font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:6px">
+      Ingredients in Bag (${ingredients.length})
+    </div>
+    <div id="alch-ing-list" style="margin-bottom:10px;max-height:180px;overflow-y:auto;background:var(--s2);border:1px solid var(--border);border-radius:6px;padding:6px">
+      ${ingredients.length
+        ? ingredients.map(ing => {
+            const ingDef = INGREDIENTS[ing.name?.toLowerCase().replace(/\s+/g,'_')] || {};
+            const tooltip = ingDef.desc ? `title="${ingDef.desc}"` : '';
+            return `<label style="display:flex;align-items:center;gap:8px;padding:4px 0;cursor:pointer;border-bottom:1px solid var(--border)">
+              <input type="checkbox" class="alchemy-ing-check" data-id="${ing.id}" style="accent-color:var(--gold)">
+              <span style="font-size:12px;flex:1" ${tooltip}>${ing.name}</span>
+              ${ingDef.qi_affinity ? `<span style="font-size:9px;color:var(--dim)">${ingDef.qi_affinity}</span>` : ''}
+            </label>`;
+          }).join('')
+        : `<div style="font-size:12px;color:var(--dim);text-align:center;padding:12px">
+             No ingredients. Buy herbs and materials from cultivation shops, or forage.
+           </div>`
+      }
+    </div>
 
-  const recipesEl = document.getElementById('alchemy-recipes');
-  if(recipesEl) {
-    let html = `<button class="btn-primary btn-sm" style="margin-bottom:10px" onclick="attemptAlchemyCombine()">⊕ Combine Selected</button>`;
-    if(discoveries.length) {
-      html += `<div style="font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:6px">Discovered (${discoveries.length})</div>`;
-      html += discoveries.map(d => {
-        const qc = {excellent:'var(--gold)',good:'var(--green)',accident:'var(--purple)',basic:'var(--muted)',failure:'var(--red)'}[d.quality]||'var(--muted)';
-        return `<div style="font-size:11px;padding:3px 0;border-bottom:1px solid var(--border)"><span style="color:${qc}">[${d.quality}]</span> ${d.ingredients.join(' + ')} → ${(d.result||'').slice(0,55)}</div>`;
-      }).join('');
-    }
-    const loc = GS.world.location;
-    const forageable = FORAGEABLE_BY_LOCATION[loc];
-    html += `<div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--border)">
-      <div style="font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:4px">Forage (${LOCATIONS[loc]?.name||loc})</div>
-      ${forageable ? `<button class="btn-secondary btn-sm" onclick="sendToAI('I forage carefully for anything useful in this area.')">Search for Ingredients</button>` : '<div style="font-size:11px;color:var(--dim)">Nothing to forage here.</div>'}
-    </div>`;
-    recipesEl.innerHTML = html;
-  }
+    <!-- Action buttons -->
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
+      <button class="btn-primary btn-sm" onclick="attemptAlchemyCombine()">⊕ Combine Selected (2–5)</button>
+      <button class="btn-secondary btn-sm" onclick="alchemyClearSelection()">Clear</button>
+      ${forageable
+        ? `<button class="btn-secondary btn-sm" onclick="sendToAI('I search this area carefully for anything useful — herbs, roots, materials.')">🌿 Forage (${LOCATIONS[loc]?.name||loc})</button>`
+        : ''}
+    </div>
+
+    <!-- Discovery log -->
+    ${discoveries.length ? `
+      <div style="font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:6px">
+        Discovered Combinations (${discoveries.length})
+      </div>
+      <div style="background:var(--s2);border:1px solid var(--border);border-radius:6px;padding:6px;max-height:200px;overflow-y:auto">
+        ${discoveries.map(d => {
+          const qc = { excellent:'var(--gold)', good:'var(--green)', accident:'#9944cc', basic:'var(--muted)', failure:'var(--red)' }[d.quality] || 'var(--muted)';
+          return `<div style="font-size:11px;padding:4px 0;border-bottom:1px solid var(--border);display:flex;gap:6px;align-items:flex-start">
+            <span style="color:${qc};font-size:9px;text-transform:uppercase;padding-top:1px;flex-shrink:0">[${d.quality}]</span>
+            <span style="color:var(--dim)">${d.ingredients.join(' + ')} →</span>
+            <span style="color:var(--text)">${(d.result||'unknown').slice(0,60)}</span>
+          </div>`;
+        }).join('')}
+      </div>
+    ` : `
+      <div style="font-size:12px;color:var(--dim);text-align:center;padding:12px;border:1px dashed var(--border);border-radius:6px">
+        No discoveries yet. Combine ingredients to learn what they produce.
+      </div>
+    `}
+
+    <!-- Pill recipe reference (if alchemy skill high enough) -->
+    ${alchSkill >= 2 ? `
+      <div style="margin-top:14px;padding-top:10px;border-top:1px solid var(--border)">
+        <div style="font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:6px">Known Recipes</div>
+        <div style="font-size:11px;color:var(--dim);line-height:1.8">
+          ${Object.entries(PILL_TYPES).filter(([,p]) => alchSkill >= Math.floor(p.reqStage * 0.5)).map(([,p]) =>
+            `<div><span style="color:var(--gold)">${p.name}</span> — ${p.ingredients.map(k=>INGREDIENTS[k]?.name||k).join(' + ')}</div>`
+          ).join('') || 'Study more combinations to learn established recipes.'}
+        </div>
+      </div>
+    ` : ''}
+  `;
+}
+
+window.alchemyClearSelection = function() {
+  document.querySelectorAll('.alchemy-ing-check').forEach(cb => cb.checked = false);
 };
 
 // Update alchemy pane when skills tab alchemy subtab is clicked
@@ -21839,11 +22000,38 @@ function formatCoins(silverAmt) {
 
 function updateCurrencyDisplay() {
   if(!GS?.char) return;
-  const str = formatCoins(GS.char.silver || 0);
-  const el  = document.getElementById('char-silver');
-  if(el) el.textContent = str;
+  const s      = Math.max(0, GS.char.silver || 0);
+  const gold   = Math.floor(s / 10);
+  const silver = Math.floor(s % 10);
+  const copper = Math.round((s % 1) * 20);
+
+  // Char tab (combined display)
+  const charEl = document.getElementById('char-silver');
+  if(charEl) {
+    const parts = [];
+    if(gold > 0)                         parts.push(`${gold}G`);
+    if(silver > 0 || (gold === 0 && copper === 0)) parts.push(`${silver}S`);
+    if(copper > 0)                       parts.push(`${copper}C`);
+    charEl.textContent = parts.join(' · ') || '0S';
+  }
+
+  // Topbar (compact combined)
   const tbEl = document.getElementById('tb-silver');
-  if(tbEl) tbEl.textContent = '◈ ' + str;
+  if(tbEl) {
+    const parts = [];
+    if(gold > 0)   parts.push(`${gold}G`);
+    if(silver > 0 || (gold === 0 && copper === 0)) parts.push(`${silver}S`);
+    if(copper > 0) parts.push(`${copper}C`);
+    tbEl.textContent = '◈ ' + (parts.join(' ') || '0S');
+  }
+
+  // Inventory tab (separate elements)
+  const invGold   = document.getElementById('inv-gold');
+  const invSilver = document.getElementById('inv-silver');
+  const invCopper = document.getElementById('inv-copper');
+  if(invGold)   invGold.textContent   = gold;
+  if(invSilver) invSilver.textContent = silver;
+  if(invCopper) invCopper.textContent = copper;
 }
 
 // Override addSilver + spendSilver to use unified display
