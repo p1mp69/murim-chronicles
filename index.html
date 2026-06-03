@@ -1442,7 +1442,11 @@ hr.divider { border: none; border-top: 1px solid var(--border); margin: 8px 0; }
       <span id="tb-age" style="color:var(--muted);font-size:11px;margin-left:5px"></span>
     </div>
     <div id="tb-right">
-      <span id="tb-silver">◈ 0</span>
+      <span id="tb-coins" style="font-size:11px;display:flex;gap:5px;align-items:center;background:var(--s2);border:1px solid var(--border);padding:2px 9px;border-radius:10px;">
+        <span id="tb-gold" style="color:#ffd700;display:none"></span>
+        <span id="tb-silver" style="color:var(--gold)">0S</span>
+        <span id="tb-copper" style="color:#cd7f32;display:none"></span>
+      </span>
       <button id="btn-settings" class="icon-btn" title="Settings">⚙</button>
       <button id="btn-admin" class="icon-btn admin-btn hidden">🪬</button>
     </div>
@@ -5300,10 +5304,9 @@ function buildNPCCard(r) {
         <div class="npc-name" style="${nameColor}">${r.name} ${badges.join(' ')}</div>
         <div style="font-size:11px;color:${isFamily?'#c49a30':isHostile?'var(--red)':'var(--dim)'};margin-top:1px">${relLabel}</div>
         ${r.title ? `<div class="npc-title">${r.title}</div>` : ''}
-        ${stage ? `<div class="npc-title" style="color:var(--dim)">${stage}</div>` : ''}
       </div>
       <div style="text-align:right;flex-shrink:0">
-        <span class="npc-rel-type" title="${bondStage.desc}" style="cursor:help">${bondStage.label}</span>
+        ${stage ? `<div style="font-size:10px;color:var(--dim)">${stage}</div>` : ''}
       </div>
     </div>
     ${buildBondDisplay(r, npc)}
@@ -21791,109 +21794,151 @@ extractParentsFromOpening = function(narrativeText) {
   const w = GS.world;
   if(!w._openingCharacters) w._openingCharacters = {};
 
+  // ── Very large exclusion set — anything that isn't a personal name ──
   const EXCL = new Set([
-    'You','Your','He','She','They','His','Her','Their','Him','Them',
-    'The','This','That','A','An','When','With','From','After','Before','Into',
-    'Some','Many','Most','Few','All','Both','Each','Every',
-    'Year','Month','Day','Morning','Night','Dawn','Evening','Week',
-    'What','Who','Where','Why','How','Which','And','But','Or','So',
-    'Old','New','Young','Small','Large','Big','Good','Bad','Long',
-    'Tazar','Jade','Ooina','Buo','Azure','Luo','Tin','Zeret',
-    'Empire','Kingdom','Dynasty','District','Street','Gate',
+    // Pronouns
+    'You','Your','He','She','They','His','Her','Their','Him','Them','It','Who',
+    'I','Me','My','We','Our','Us',
+    // Articles/conjunctions
+    'The','This','That','These','Those','A','An','And','But','Or','So','Yet',
+    'When','With','From','After','Before','Into','Over','Under','Above','Below',
+    'Some','Many','Most','Few','All','Both','Each','Every','Any',
+    // Time words
+    'Year','Month','Day','Morning','Night','Dawn','Evening','Week','Winter',
+    'Spring','Summer','Autumn','Today','Yesterday','Tomorrow',
+    // Question words
+    'What','Where','Why','How','Which',
+    // Common English words that start sentences
+    'Still','Also','Just','Only','Even','Already','Always','Never','Then',
+    'Now','Here','There','Up','Down','In','Out','Back','No','Not','For',
+    'But','If','As','At','By','On','Of','To','Do','Did','Was','Were',
+    'Has','Had','Have','Will','Would','Could','Should','May','Might',
+    'Is','Are','Am','Be','Been','Being',
+    'Old','New','Young','Small','Large','Big','Good','Bad','Long','Short',
+    'First','Last','Next','Same','Other','Another','Such',
+    'One','Two','Three','Four','Five','Six','Seven','Eight','Nine','Ten',
+    // Location words (common in murim narratives)
+    'Tazar','Jade','Ooina','Buo','Azure','Luo','Tin','Zeret','Iron',
+    'Empire','Kingdom','Dynasty','District','Street','Gate','Canal',
     'Province','Capital','City','Market','Bridge','River','Mountain',
-    'North','South','East','West',
-    'One','Two','Three','First','Second','Third','Last',
-    'Still','Also','Just','Only','Even','Already','Always','Never',
+    'North','South','East','West','Bridge','Beggar','Rest','Stone',
+    'Port','Road','Lane','Row','Path','Way','Field',
+    // Common words that get capitalized at sentence starts
+    'Just','What','Nothing','Something','Everything','Anything',
+    'That','This','There','Here','They','Those','These',
+    'His','Her','Its','Their','Your','Our','My',
+    'She','He','It','We','You',
+    // Generic relationship words that aren't names
+    'Mother','Father','Brother','Sister','Grandmother','Grandfather',
+    'Aunt','Uncle','Teacher','Master','Elder','Lord','Lady',
+    // Verbs that start sentences
+    'Stone','Copper','Silver','Gold','Iron','Water','Fire','Wind','Earth',
+    'Her','His',
   ]);
 
-  // Bond level by relationship type
+  // ── Only look for EXPLICIT naming patterns ─────────────────────
+  // These are patterns where the narrative specifically introduces
+  // someone with their actual name. No heuristics, no frequency counting.
+  const EXPLICIT_NAME_PATTERNS = [
+    // "your mother, [Name]" or "your mother [Name]"
+    { r:/your\s+mother[,\s]+([A-Z][a-z]{1,14}(?:\s+[A-Z][a-z]{1,14})?)/gi,      role:'mother'     },
+    { r:/your\s+father[,\s]+([A-Z][a-z]{1,14}(?:\s+[A-Z][a-z]{1,14})?)/gi,       role:'father'     },
+    // "mother's name is [Name]" / "father's name was [Name]"
+    { r:/mother['']s\s+name\s+(?:is|was)\s+([A-Z][a-z]{1,14}(?:\s+[A-Z][a-z]{1,14})?)/gi, role:'mother' },
+    { r:/father['']s\s+name\s+(?:is|was)\s+([A-Z][a-z]{1,14}(?:\s+[A-Z][a-z]{1,14})?)/gi, role:'father' },
+    // "[Name], your mother/father"
+    { r:/([A-Z][a-z]{1,14}(?:\s+[A-Z][a-z]{1,14})?),\s+your\s+mother/gi, role:'mother' },
+    { r:/([A-Z][a-z]{1,14}(?:\s+[A-Z][a-z]{1,14})?),\s+your\s+father/gi, role:'father' },
+    // Siblings, grandparents
+    { r:/your\s+(?:older\s+|younger\s+)?sister[,\s]+([A-Z][a-z]{1,14}(?:\s+[A-Z][a-z]{1,14})?)/gi, role:'sister' },
+    { r:/your\s+(?:older\s+|younger\s+)?brother[,\s]+([A-Z][a-z]{1,14}(?:\s+[A-Z][a-z]{1,14})?)/gi, role:'brother' },
+    { r:/your\s+grandmother[,\s]+([A-Z][a-z]{1,14}(?:\s+[A-Z][a-z]{1,14})?)/gi, role:'grandmother' },
+    { r:/your\s+grandfather[,\s]+([A-Z][a-z]{1,14}(?:\s+[A-Z][a-z]{1,14})?)/gi, role:'grandfather' },
+    { r:/your\s+aunt[,\s]+([A-Z][a-z]{1,14}(?:\s+[A-Z][a-z]{1,14})?)/gi, role:'aunt' },
+    { r:/your\s+uncle[,\s]+([A-Z][a-z]{1,14}(?:\s+[A-Z][a-z]{1,14})?)/gi, role:'uncle' },
+    // "Auntie [Name]" / "Uncle [Name]"
+    { r:/Auntie\s+([A-Z][a-z]{1,14})/gi, role:'caregiver' },
+    { r:/Uncle\s+([A-Z][a-z]{1,14})/gi,  role:'caregiver' },
+    // "a woman everyone calls [Name]" / "a man named [Name]" / "called [Name]"
+    { r:/(?:woman|man|person|woman|girl|boy)\s+(?:everyone\s+calls|they\s+call|called|known\s+as|named)\s+([A-Z][a-z]{1,14}(?:\s+[A-Z][a-z]{1,14})?)/gi, role:'caregiver' },
+    // Explicit name statement: "Her name is [Name]" / "His name was [Name]"
+    { r:/(?:her|his|their|your\s+mother's|your\s+father's)\s+name\s+(?:is|was)\s+([A-Z][a-z]{1,14}(?:\s+[A-Z][a-z]{1,14})?)/gi, role:'mentioned' },
+    // "[Name], a [occupation]" — someone introduced with an occupation
+    { r:/([A-Z][a-z]{2,14}(?:\s+[A-Z][a-z]{2,14})?),\s+(?:a|an|the)\s+(?:physician|merchant|guard|teacher|farmer|smith|carpenter|sailor|soldier|monk|cultivator|elder|healer|doctor|cook|innkeeper)\b/gi, role:'acquaintance' },
+    // "a man named [Name]" / "a woman named [Name]"
+    { r:/(?:a|an|the)\s+(?:man|woman|person|child|boy|girl|cultivator)\s+named\s+([A-Z][a-z]{2,14}(?:\s+[A-Z][a-z]{2,14})?)/gi, role:'encountered' },
+  ];
+
   const BOND_BY_ROLE = {
     mother:78, father:78, grandmother:68, grandfather:68,
     aunt:55, uncle:55, sister:62, brother:62,
     caregiver:72, teacher:50, mentor:55,
-    neighbor:28, acquaintance:18, friend:45,
-    mentioned:12, encountered:10,
+    neighbor:28, acquaintance:18, mentioned:12, encountered:10,
   };
 
-  const PATTERNS = [
-    // Direct family
-    { r:/your\s+mother[,\s]+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/gi,          role:'mother'    },
-    { r:/your\s+father[,\s]+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/gi,           role:'father'    },
-    { r:/your\s+mother['']s?\s+name\s+(?:is|was)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/gi, role:'mother' },
-    { r:/your\s+father['']s?\s+name\s+(?:is|was)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/gi, role:'father' },
-    { r:/([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)[,\s]+(?:his|her|their|your)\s+mother/gi, role:'mother'},
-    { r:/([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)[,\s]+(?:his|her|their|your)\s+father/gi, role:'father'},
-    { r:/your\s+grandmother[,\s]+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/gi,      role:'grandmother'},
-    { r:/your\s+grandfather[,\s]+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/gi,      role:'grandfather'},
-    { r:/your\s+(?:older\s+|younger\s+)?sister[,\s]+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/gi, role:'sister'},
-    { r:/your\s+(?:older\s+|younger\s+)?brother[,\s]+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/gi,role:'brother'},
-    { r:/your\s+aunt[,\s]+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/gi,            role:'aunt'      },
-    { r:/your\s+uncle[,\s]+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/gi,           role:'uncle'     },
-    // Caregivers / guardians
-    { r:/([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s+(?:raised|took\s+you\s+in|cared\s+for\s+you|fed\s+you|watched\s+over\s+you|looked\s+after\s+you)/gi, role:'caregiver'},
-    { r:/Auntie\s+([A-Z][a-z]+)/gi,                                          role:'caregiver' },
-    { r:/Uncle\s+([A-Z][a-z]+)/gi,                                           role:'caregiver' },
-    { r:/a\s+(?:woman|man|person)\s+(?:everyone\s+calls|they\s+call|called|named)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/gi, role:'caregiver' },
-    // Teachers / mentors
-    { r:/([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s+(?:taught\s+you|showed\s+you|instructed\s+you|trained\s+you)/gi, role:'teacher'},
-    // Neighbors / regulars
-    { r:/([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)[,\s]+(?:a\s+)?(?:your\s+)?(?:neighbor|the\s+man\s+next\s+door|the\s+woman\s+next\s+door|who\s+lived\s+nearby)/gi, role:'neighbor'},
-    // Tradespeople the character dealt with directly
-    { r:/([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)[,\s]+(?:a|an|the)\s+(?:butcher|baker|physician|healer|merchant|guard|warden|smith|carpenter|farmer|innkeeper|cook|fisherman|seller)/gi, role:'acquaintance'},
-    // Anyone the character spoke to / met
-    { r:/([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s+(?:said\s+to\s+you|spoke\s+to\s+you|told\s+you|asked\s+you|looked\s+at\s+you|handed\s+you|gave\s+you|offered\s+you)/gi, role:'encountered'},
-    // Named in quoted dialogue context
-    { r:/(?:you\s+(?:asked|told|said\s+to)|with)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\b/gi, role:'encountered'},
-    // Any capitalized name appearing 2+ times gets added as 'mentioned'
-  ];
+  // Track extracted roles so we only have ONE entry per role (one mother, one father, etc.)
+  const rolesSeen    = new Set();
+  const found        = new Map(); // name → { role, sentences, isDeceased, isAbsent }
+  const sentences    = narrativeText.split(/(?<=[.!?])\s+/);
 
-  const found = new Map();
-  const sentences = narrativeText.split(/(?<=[.!?])\s+/);
+  // Validate that a string looks like an actual personal name
+  function looksLikeName(str) {
+    if(!str || str.length < 2 || str.length > 28) return false;
+    if(EXCL.has(str)) return false;
+    if(EXCL.has(str.split(' ')[0])) return false; // first word excluded
+    // Must start with uppercase
+    if(!/^[A-Z]/.test(str)) return false;
+    // No all-uppercase (acronyms)
+    if(str === str.toUpperCase()) return false;
+    // Must be mostly lowercase after first char
+    const lowerRatio = (str.match(/[a-z]/g)||[]).length / str.length;
+    if(lowerRatio < 0.5) return false;
+    // Common English words that get capitalized — blocklist
+    const COMMON_WORDS = /^(The|This|That|She|He|It|They|We|I|My|Your|His|Her|Their|Our|Was|Were|Had|Has|Have|Will|Could|Would|Should|May|Might|Being|Been|When|Where|What|How|Why|Which|And|But|Or|So|Not|No|If|As|By|At|On|Of|To|In|Out|Up|Down|For|With|From|Into|Through|Among|Between|Stone|Iron|Steel|Copper|Silver|Gold|Water|Fire|Wind|Earth|Wood|Metal|Jade|Dragon|Tiger|Phoenix|Heaven|Sky|Cloud|Sea|River|Mountain|Bridge|Gate|Wall|Road|Market|Canal|District|Street|Lane|Row|Road|Path|Way|Beggar|Rest|Mine|Field|Farm|Camp|Fort|Palace|Temple|School|House|Home|Room|Door|Window|Floor|Roof)$/;
+    if(COMMON_WORDS.test(str)) return false;
+    // Only allow Chinese-style names (consonant-vowel patterns typical of romanized names)
+    // OR standard Western name patterns
+    return true;
+  }
 
-  PATTERNS.forEach(({ r, role }) => {
+  EXPLICIT_NAME_PATTERNS.forEach(({ r, role }) => {
     r.lastIndex = 0;
     let m;
     while((m = r.exec(narrativeText)) !== null) {
-      const name = (m[1] || '').trim();
-      if(!name || EXCL.has(name) || name === c.firstName || name === c.lastName) continue;
-      if(name.length < 2 || name.length > 30) continue;
-      const existing = found.get(name);
-      // Higher-weight roles win
+      const raw  = (m[1] || '').trim();
+      // Clean up any leading/trailing non-name chars
+      const name = raw.replace(/^(a|an|the)\s+/i, '').trim();
+
+      if(!looksLikeName(name)) continue;
+      if(name === c.firstName || name === c.lastName || `${c.firstName} ${c.lastName}` === name) continue;
+
+      // Only one entry per family role
+      const FAMILY_ROLES = ['mother','father','grandmother','grandfather','sister','brother','aunt','uncle'];
+      if(FAMILY_ROLES.includes(role) && rolesSeen.has(role)) continue;
+
+      const existing  = found.get(name);
       const roleWeight = { mother:10, father:10, grandmother:9, grandfather:9, sister:8, brother:8,
         aunt:7, uncle:7, caregiver:8, teacher:7, mentor:8, neighbor:5,
-        acquaintance:4, encountered:3, mentioned:1 };
+        acquaintance:4, mentioned:2, encountered:2 };
+
       if(!existing || (roleWeight[role]||0) > (roleWeight[existing.role]||0)) {
         const nameSentences = sentences.filter(s => s.includes(name));
-        const isDeceased = nameSentences.some(s => /\b(died|dead|passed|killed|murder|grave|buried|execution)\b/i.test(s));
-        const isAbsent   = !isDeceased && nameSentences.some(s => /\b(left|gone|missing|disappeared|never\s+came\s+back|stopped|no\s+longer)\b/i.test(s));
+        const isDeceased = nameSentences.some(s => /\b(died|dead|passed|killed|murder|grave|buried|execution|drowned)\b/i.test(s));
+        const isAbsent   = !isDeceased && nameSentences.some(s => /\b(left|gone|missing|disappeared|never\s+came\s+back|stopped|away)\b/i.test(s));
         found.set(name, { role, nameSentences, isDeceased, isAbsent });
+        if(FAMILY_ROLES.includes(role)) rolesSeen.add(role);
       }
     }
   });
 
-  // Pass 2: any capitalized name appearing 2+ times not already found
-  const nameFreq = new Map();
-  const rawNames = narrativeText.match(/\b[A-Z][a-z]{1,12}(?:\s+[A-Z][a-z]{1,12})?\b/g) || [];
-  rawNames.forEach(n => {
-    if(EXCL.has(n) || n === c.firstName || n === c.lastName) return;
-    nameFreq.set(n, (nameFreq.get(n)||0)+1);
-  });
-  nameFreq.forEach((count, name) => {
-    if(count < 2 || found.has(name)) return;
-    const nameSentences = sentences.filter(s => s.includes(name));
-    const isDeceased = nameSentences.some(s => /\b(died|dead|passed|killed|grave)\b/i.test(s));
-    found.set(name, { role:'mentioned', nameSentences, isDeceased, isAbsent:false });
-  });
-
-  // ── Add everyone found to relationships AND npcRegistry ─────────
+  // ── Create relationships for found people ──────────────────────
   let added = 0;
   found.forEach(({ role, nameSentences, isDeceased, isAbsent }, name) => {
-    // Skip if already in relationships
+    // Skip duplicates
     if(c.relationships.find(r => r.name === name)) return;
 
     const npcId = `opening_${name.toLowerCase().replace(/\s+/g,'_').replace(/[^a-z0-9_]/g,'')}_${uid().slice(0,4)}`;
 
-    // Register NPC
     if(!w.npcRegistry[npcId]) {
       w.npcRegistry[npcId] = {
         id:npcId, name, title:'', alive:!isDeceased, isLore:false, glowColor:null,
@@ -21906,21 +21951,21 @@ extractParentsFromOpening = function(narrativeText) {
       };
     }
 
-    // Build summary from most relevant sentences
-    const summaryRaw = (nameSentences.sort((a,b)=>b.length-a.length).slice(0,2).join(' ')).trim();
-    const summary = summaryRaw.slice(0,140) + (summaryRaw.length>140?'…':'');
-    const fullMemory = nameSentences.join(' ').trim().slice(0,500);
+    // Find the most descriptive sentence mentioning this person
+    const bestSentence = nameSentences
+      .filter(s => s.length > 20) // skip trivial one-liners
+      .sort((a,b) => b.length - a.length)[0] || nameSentences[0] || '';
+    const summary   = bestSentence.slice(0,130) + (bestSentence.length > 130 ? '…' : '');
+    const fullMemory = nameSentences.join(' ').trim().slice(0, 500);
 
     const bondBase = BOND_BY_ROLE[role] || 12;
-    const bond = isAbsent ? Math.floor(bondBase * 0.7) : bondBase;
+    const bond     = isAbsent ? Math.floor(bondBase * 0.7) : bondBase;
 
     const rel = {
-      npcId, name, title:'',
-      type: role,
-      summary: summary || `${REL_TYPE_LABELS[role] || 'Someone'} from your early life.`,
+      npcId, name, title:'', type:role,
+      summary:    summary || `${REL_TYPE_LABELS[role] || 'Someone'} from your early life.`,
       fullMemory: fullMemory || `From ${c.firstName}'s earliest years.`,
-      trust: bond,
-      bond_level: bond,
+      trust: bond, bond_level: bond,
       alive: !isDeceased,
       isZeret:false, isLore:false, glowColor:null,
       lastSeen: isDeceased ? `Deceased — Year ${w.year}` : isAbsent ? 'Whereabouts unknown' : `Year ${w.year}`,
@@ -21933,13 +21978,7 @@ extractParentsFromOpening = function(narrativeText) {
     }
 
     c.relationships.push(rel);
-
-    // Also store background context for AI
-    w._openingCharacters[npcId] = {
-      name, role, npcId, isDeceased, isAbsent,
-      context: summaryRaw.slice(0, 280),
-    };
-
+    w._openingCharacters[npcId] = { name, role, npcId, isDeceased, isAbsent, context: fullMemory.slice(0,280) };
     added++;
   });
 
@@ -22149,15 +22188,13 @@ function updateCurrencyDisplay() {
     charEl.textContent = parts.join(' · ') || '0S';
   }
 
-  // Topbar (compact combined)
-  const tbEl = document.getElementById('tb-silver');
-  if(tbEl) {
-    const parts = [];
-    if(gold > 0)   parts.push(`${gold}G`);
-    if(silver > 0 || (gold === 0 && copper === 0)) parts.push(`${silver}S`);
-    if(copper > 0) parts.push(`${copper}C`);
-    tbEl.textContent = '◈ ' + (parts.join(' ') || '0S');
-  }
+  // Topbar — separate G / S / C spans
+  const tbGold   = document.getElementById('tb-gold');
+  const tbSilver = document.getElementById('tb-silver');
+  const tbCopper = document.getElementById('tb-copper');
+  if(tbGold)   { tbGold.textContent   = gold   + 'G'; tbGold.style.display   = gold   > 0 ? '' : 'none'; }
+  if(tbSilver) { tbSilver.textContent = silver + 'S'; }
+  if(tbCopper) { tbCopper.textContent = copper + 'C'; tbCopper.style.display = copper > 0 ? '' : 'none'; }
 
   // Inventory tab (separate elements)
   const invGold   = document.getElementById('inv-gold');
@@ -22635,6 +22672,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // ── World tab: show Maligned Lords panel ────────────────────────
 // Patch updateWorldTab to inject a Lords status block
+// Lords are HIDDEN from the world tab by design.
+// They only surface as ambient hints when a seed-holder senses them
+// or when the player stumbles across them in narrative.
+// The explicit panel is removed. Lore-panel only shows when player
+// has a seed AND the lord is active — even then it's a vague sense,
+// not a directory listing.
 const _updateWorldTabWithLords = updateWorldTab;
 updateWorldTab = function() {
   try { _updateWorldTabWithLords(); } catch(e) {}
@@ -22642,53 +22685,79 @@ updateWorldTab = function() {
     ensureMalignedState();
     const w  = GS.world;
     const ml = w.malignedLords;
+    const c  = GS.char;
 
-    // Find or create the lords section
-    let section = document.getElementById('w-maligned-lords');
-    if(!section) {
-      const worldTab = document.getElementById('tab-world');
-      if(!worldTab) return;
+    // Only show a subtle "presence" hint if:
+    // 1. Player has a seed for this lord's domain
+    // 2. That lord is currently active
+    // Do NOT name them, do NOT show their location explicitly
+    const SEED_TO_DOMAIN = {
+      seed_lust:'lust', sapling_lust:'lust', tree_lust:'lust', servant_lust:'lust',
+      seed_envy:'envy', sapling_envy:'envy', tree_envy:'envy',
+      seed_pride:'pride', sapling_pride:'pride', tree_pride:'pride',
+      seed_greed:'greed', sapling_greed:'greed', tree_greed:'greed',
+      seed_sloth:'sloth', sapling_sloth:'sloth', tree_sloth:'sloth',
+      seed_wrath:'wrath', sapling_wrath:'wrath', tree_wrath:'wrath', vessel_wrath:'wrath',
+      seed_gluttony:'gluttony', sapling_gluttony:'gluttony', tree_gluttony:'gluttony', vessel_gluttony:'gluttony',
+    };
 
-      const wrap = document.createElement('div');
-      wrap.className = 'char-section';
-      wrap.style.marginTop = '12px';
-      wrap.innerHTML = `
-        <div class="collapsible-header" data-target="w-maligned-lords-body">
-          <span style="color:#cc9900">The Five Maligned Lords</span><span class="collapse-arrow">▼</span>
-        </div>
-        <div id="w-maligned-lords-body" class="collapsible-body" style="display:none">
-          <div id="w-maligned-lords"></div>
-        </div>`;
-      worldTab.appendChild(wrap);
-      section = document.getElementById('w-maligned-lords');
+    const playerSeeds = (c.traits || []).map(t => SEED_TO_DOMAIN[t.id]).filter(Boolean);
+    const hints = [];
+
+    // Zeret hints
+    if(playerSeeds.includes('lust') || playerSeeds.includes('envy')) {
+      if(w.zeret?.active) {
+        hints.push(`Something familiar is awake in the world. The seed in your chest knows it.`);
+      }
     }
 
-    const allLords = [
-      { key:'zeret',  stateObj: w.zeret,   name:'Zeret',   loreId:'zeret_lust',   isZeret:true },
-      { key:'xelaad', stateObj: ml.xelaad, name:'Xelaad',  loreId:'xelaad_pride', isZeret:false },
-      { key:'iasiba', stateObj: ml.iasiba, name:'Iasiba',  loreId:'iasiba_envy',  isZeret:false },
-      { key:'dranoel',stateObj: ml.dranoel,name:'Dranoel', loreId:'dranoel_greed',isZeret:false },
-      { key:'normac', stateObj: ml.normac, name:'Normac',  loreId:'normac_sloth', isZeret:false },
-    ];
+    // Other lords
+    Object.entries(ml || {}).forEach(([key, lord]) => {
+      if(!lord?.active) return;
+      const domain = lord.sin;
+      if(playerSeeds.includes(domain)) {
+        const SENSE_PHRASES = {
+          pride:  'A weight is somewhere in the world — not yours. The seed recognizes it.',
+          envy:   'Something aches faintly. Not your ache. The seed is responding to something.',
+          greed:  'A pull, like a current. The seed is aware of something it wants to move toward.',
+          sloth:  'A stillness that isn\'t yours. The seed feels it like pressure from a distance.',
+          wrath:  'Heat. Not weather. The vacant domain you carry is vibrating faintly.',
+          gluttony:'A hunger that sharpens. Something consuming is near. The domain notices.',
+        };
+        hints.push(SENSE_PHRASES[domain] || 'Something stirs in the world. The seed knows.');
+      }
+    });
 
-    section.innerHTML = allLords.map(lord => {
-      const s     = lord.stateObj;
-      if(!s) return '';
-      const sin   = s.sin || 'unknown';
-      const color = LORD_SIN_COLORS[sin] || '#888';
-      const label = LORD_SIN_LABELS[sin]  || sin;
-      const locName = s.location ? (LOCATIONS[s.location]?.name || s.location) : '—';
-      const shifted = s.sinShifted ? ` <span style="font-size:9px;color:#ff88cc;margin-left:4px">SHIFTED</span>` : '';
+    // Sin shift hint
+    if(w.sinShiftOccurred && playerSeeds.length > 0) {
+      hints.push('The seeds feel different than they did. Something in the world changed that the seeds are still adjusting to.');
+    }
 
-      return `<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--border);font-size:12px">
-        <span style="color:${color};font-weight:700">${lord.name}</span>
-        <span style="color:var(--dim);font-size:11px">of ${label}${shifted}</span>
-        <span style="font-size:10px;color:${s.active?'var(--gold)':'var(--dim)'}">${s.active ? '● '+locName : 'dormant'}</span>
-      </div>`;
-    }).join('') + (w.sinShiftOccurred
-      ? `<div style="margin-top:8px;font-size:11px;font-style:italic;color:#cc88aa;line-height:1.6">The Sin Shift has occurred. Zeret is Envy. Iasiba has moved toward Lust. The order has changed.</div>`
-      : `<div style="margin-top:8px;font-size:11px;color:var(--dim);font-style:italic">Mortals who witness two Lords are cursed. Three is the end of an age.</div>`
-    );
+    // Remove old lords panel if it somehow exists
+    document.getElementById('w-maligned-lords')?.closest('.char-section')?.remove();
+
+    // Only show the hints panel if there are any
+    let hintSection = document.getElementById('w-lords-hint');
+    if(hints.length > 0) {
+      if(!hintSection) {
+        const worldTab = document.getElementById('tab-world');
+        if(worldTab) {
+          const zeretSect = document.getElementById('zeret-section');
+          const wrap = document.createElement('div');
+          wrap.id = 'w-lords-hint-wrap';
+          wrap.style.cssText = 'margin-top:8px;padding:8px 10px;background:rgba(30,10,50,.4);border:1px solid rgba(150,50,200,.2);border-radius:6px;';
+          wrap.innerHTML = `<div id="w-lords-hint" style="font-size:11px;color:#9966cc;font-style:italic;line-height:1.7"></div>`;
+          if(zeretSect) zeretSect.parentNode.insertBefore(wrap, zeretSect);
+          else worldTab.appendChild(wrap);
+          hintSection = document.getElementById('w-lords-hint');
+        }
+      }
+      if(hintSection) hintSection.innerHTML = hints.map(h => `<div>· ${h}</div>`).join('');
+    } else {
+      document.getElementById('w-lords-hint-wrap')?.remove();
+    }
+
+    // No explicit lord panel rendered — only hints above
   } catch(e) {}
 };
 
