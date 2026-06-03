@@ -3930,13 +3930,24 @@ function advanceMAStage(maId) {
 // EQUIPMENT SYSTEM
 // ================================================================
 function spawnItem(item) {
-  // item: { name, type, slot, rarity, desc, value, effects, isTome, techUnlock }
+  // item: { name, type, slot, rarity, desc, value, effects, isTome, techUnlock, pillId, consumable }
+  if(!item?.name) return null;
+  const isTome = !!(item.isTome || item.type === 'tome');
+  const isConsumable = !!(item.consumable || item.type === 'consumable');
+  const type = item.type || (isTome ? 'tome' : isConsumable ? 'consumable' : item.slot ? 'equipment' : 'misc');
+
   const itm = {
-    id:uid(), name:item.name, type:item.type||'misc',
-    slot:item.slot||null, rarity:item.rarity||'common',
-    desc:item.desc||'', value:item.value||0,
-    effects:item.effects||{}, isTome:item.type==='tome',
-    techUnlock:item.techUnlock||null,
+    id: uid(),
+    name: item.name,
+    type,
+    slot: item.slot || null,
+    rarity: item.rarity || 'common',
+    desc: item.desc || '',
+    value: item.value || 0,
+    effects: item.effects || {},
+    isTome,
+    techUnlock: item.techUnlock || null,
+    pillId: item.pillId || null,
   };
   GS.char.inventory.push(itm);
   updateInventoryTab();
@@ -3980,8 +3991,16 @@ function dropItem(itemId) {
 }
 
 function applyItemEffects(effects, sign) {
-  Object.entries(effects).forEach(([k,v]) => {
-    if(GS.char[k]!==undefined) GS.char[k] += v*sign;
+  if(!effects || typeof effects !== 'object') return;
+  Object.entries(effects).forEach(([k, v]) => {
+    if(typeof v !== 'number') return;
+    if(GS.char[k] !== undefined) {
+      GS.char[k] = Math.max(0, GS.char[k] + v * sign);
+      // If maxHp changes, clamp current hp
+      if(k === 'maxHp' && sign < 0) {
+        GS.char.hp = Math.min(GS.char.hp, GS.char.maxHp);
+      }
+    }
   });
   updateCharacterTab();
 }
@@ -5256,28 +5275,43 @@ function openItemModal(itemId, isEquipped) {
   if(!item) return;
   selectedItemForModal = { item, isEquipped };
   const rc = rarityColor(item.rarity);
+
+  // Human-readable type labels
+  const TYPE_LABELS = {
+    weapon:'Weapon', armor:'Armor', offhand:'Off-hand', accessory:'Accessory',
+    equipment:'Equipment', consumable:'Consumable', tome:'Tome', misc:'Misc', clothing:'Clothing',
+  };
+  const typeLabel = TYPE_LABELS[item.type] || item.type || 'Item';
+
   document.getElementById('item-modal-name').textContent = item.name;
   document.getElementById('item-modal-name').style.color = rc;
   document.getElementById('item-modal-content').innerHTML = `
-    <div style="margin-bottom:6px"><span class="${rarityText(item.rarity)}" style="font-size:11px">${RARITIES[item.rarity]?.name||'Common'}</span> · <span style="font-size:11px;color:var(--muted)">${item.type}</span></div>
+    <div style="margin-bottom:6px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <span class="${rarityText(item.rarity)}" style="font-size:11px">${RARITIES[item.rarity]?.name||'Common'}</span>
+      <span style="font-size:11px;color:var(--muted)">· ${typeLabel}${item.slot ? ' · '+item.slot : ''}</span>
+    </div>
     <div class="item-modal-desc">${item.desc || 'No description.'}</div>
-    ${item.value ? `<div class="text-xs text-muted">Value: ◈ ${item.value} silver</div>` : ''}
-    ${Object.keys(item.effects||{}).length ? `<div class="text-xs" style="margin-top:6px;color:var(--gold)">Effects: ${Object.entries(item.effects).map(([k,v])=>`${k} ${v>0?'+':''}${v}`).join(', ')}</div>` : ''}
-    ${item.isTome ? '<div class="text-xs" style="margin-top:6px;color:var(--purple)">This is a tome. Reading it may grant techniques.</div>' : ''}`;
-  // Buttons
+    ${item.value ? `<div class="text-xs text-muted" style="margin-top:6px">Sell value: ~${(typeof formatCoins==='function'?formatCoins(item.value):item.value+'◈')}</div>` : ''}
+    ${Object.keys(item.effects||{}).length
+      ? `<div class="text-xs" style="margin-top:6px;color:var(--gold)">
+          Effects when equipped: ${Object.entries(item.effects).map(([k,v])=>`<span style="color:${v>0?'var(--green)':'var(--red)'}">${k} ${v>0?'+':''}${v}</span>`).join(' · ')}
+         </div>`
+      : ''}
+    ${item.isTome || item.type==='tome' ? '<div class="text-xs" style="margin-top:6px;color:#aa88ff">📜 Tome — reading it may grant a technique or knowledge.</div>' : ''}
+    ${item.type==='consumable' ? '<div class="text-xs" style="margin-top:6px;color:var(--teal)">💊 Consumable — using it applies effects and triggers a narrative.</div>' : ''}`;
+
+  // Buttons — visibility driven by item state, not onclick
   document.getElementById('item-equip-btn').classList.toggle('hidden', !item.slot || isEquipped);
   document.getElementById('item-unequip-btn').classList.toggle('hidden', !isEquipped);
+
   const useBtn = document.getElementById('item-use-btn');
   if(useBtn) {
-    const showUse = item.isTome || item.type === 'consumable';
+    const showUse = item.isTome || item.type === 'tome' || item.type === 'consumable';
     useBtn.classList.toggle('hidden', !showUse);
     useBtn.textContent = item.type === 'consumable' ? 'Consume' : 'Read';
-    if(item.type === 'consumable') {
-      useBtn.onclick = () => { takePill(item.id); hideModal('modal-item'); };
-    } else if(item.isTome) {
-      useBtn.onclick = () => { useTome(item.id); hideModal('modal-item'); };
-    }
+    // Don't set onclick here — the addEventListener in initAdmin handles routing
   }
+
   document.getElementById('item-drop-btn').classList.toggle('hidden', isEquipped);
   showModal('modal-item');
 }
@@ -6483,7 +6517,15 @@ function initModals() {
     }
   });
   document.getElementById('item-use-btn').addEventListener('click', () => {
-    if(selectedItemForModal) useTome(selectedItemForModal.item.id);
+    if(!selectedItemForModal) return;
+    const item = selectedItemForModal.item;
+    // Route to the right handler based on type — never double-fire
+    if(item.type === 'consumable') {
+      takePill(item.id);
+      hideModal('modal-item');
+    } else if(item.isTome || item.type === 'tome') {
+      useTome(item.id);
+    }
   });
   document.getElementById('item-drop-btn').addEventListener('click', () => {
     if(selectedItemForModal && !selectedItemForModal.isEquipped) dropItem(selectedItemForModal.item.id);
@@ -15748,16 +15790,18 @@ function buyItem(itemKey, itemName, price, slot, isTome, rarity, isConsumable) {
     toast(`Can't afford ${itemName} — need ${check.shortfall}◈ more`, 'error', 3000);
     return;
   }
+  const slotTypeMap = { weapon:'weapon', offhand:'offhand', head:'armor', body:'armor', hands:'armor', feet:'armor', acc1:'accessory', acc2:'accessory' };
+  const itemType = isConsumable ? 'consumable' : isTome ? 'tome' : slot ? (slotTypeMap[slot] || 'equipment') : 'misc';
+  const priceDisplay = (typeof formatCoins === 'function') ? formatCoins(price) : price + '◈';
   const item = spawnItem({
-    name: itemName, type: isConsumable ? 'consumable' : (isTome ? 'tome' : slot ? 'weapon' : 'misc'),
+    name: itemName, type: itemType,
     slot: slot || null, rarity: rarity || 'common',
-    desc: `Purchased in ${LOCATIONS[GS.world.location]?.name||GS.world.location} for ${price}◈.`,
+    desc: `Purchased in ${LOCATIONS[GS.world.location]?.name||GS.world.location} for ${priceDisplay}.`,
     value: Math.floor(price * 0.6), isTome: !!isTome,
   });
-  toast(`Bought: ${itemName} for ${price}◈`, 'gold', 2000);
+  toast(`Bought: ${itemName} for ${priceDisplay}`, 'gold', 2000);
   updateInventoryTab();
-  // Inject purchase into narrative
-  sendToAI(`I purchase ${itemName} for ${price}◈.`);
+  sendToAI(`I purchase ${itemName} for ${priceDisplay}.`);
 }
 
 function sellItem(itemId) {
@@ -15781,7 +15825,7 @@ function renderShopPanel(locKey) {
     <div style="font-size:13px;font-weight:700;color:var(--text)">${LOCATIONS[locKey]?.name||locKey} — Market</div>
     <div style="font-size:11px;color:var(--muted);margin-top:3px">${shop.note}</div>
     ${infamyBlocked ? '<div style="font-size:11px;color:var(--red);margin-top:4px">⚠ Your reputation precedes you. Some vendors refuse service. Others charge more.</div>' : ''}
-    <div style="font-size:12px;color:var(--gold);margin-top:5px">Your silver: ${c.silver}◈</div>
+    <div style="font-size:12px;color:var(--gold);margin-top:5px">Coins: ${(typeof formatCoins==='function'?formatCoins(c.silver):c.silver+'◈')}</div>
   </div>`;
 
   const byCategory = {};
@@ -17421,7 +17465,7 @@ function renderShopModal(shopType, shopName) {
       return `<div class="shop-item">
         <span class="shop-item-name" style="color:${rc}">${item.name}</span>
         ${item.note ? `<span class="shop-item-note">${item.note}</span>` : ''}
-        <span class="shop-item-price">${item.price}◈</span>
+        <span class="shop-item-price">${(typeof formatCoins==='function'?formatCoins(item.price):item.price+'◈')}</span>
         ${item.scarce
           ? `<span style="font-size:10px;color:var(--red)">Out of stock</span>`
           : `<button class="shop-buy-btn" ${!canAfford?'disabled':''} onclick="shopBuyItem('${item.key}','${item.name.replace(/'/g,"\\'")}',${item.price},'${item.slot||''}',${!!item.isTome},'${item.rarity||'common'}',${!!item.consumable})">Buy</button>`}
@@ -17440,7 +17484,7 @@ function renderShopModal(shopType, shopName) {
       return `<div class="shop-item">
         <span class="shop-item-name">${item.name}</span>
         <span class="shop-item-price" style="color:${refusal?'var(--red)':'var(--green)'}">
-          ${refusal ? 'Refused' : `+${sellPrice}◈`}
+          ${refusal ? 'Refused' : `+${(typeof formatCoins==='function'?formatCoins(sellPrice):sellPrice+'◈')}`}
         </span>
         ${refusal
           ? `<span class="shop-item-note">${refusal}</span>`
@@ -17455,9 +17499,12 @@ function renderShopModal(shopType, shopName) {
 function shopBuyItem(key, name, price, slot, isTome, rarity, isConsumable) {
   const check = validateAndSpendSilver(price, `buy ${name}`);
   if(!check.ok) { toast(`Can't afford ${name} — need ${check.shortfall}◈ more`, 'error', 3000); return; }
-  spawnItem({ name, type:isConsumable?'consumable':(isTome?'tome':slot?'weapon':'misc'), slot:slot||null, rarity:rarity||'common', desc:`Purchased for ${price}◈.`, value:Math.floor(price*0.6), isTome:!!isTome });
+  // Determine item type properly by slot
+  const slotTypeMap = { weapon:'weapon', offhand:'offhand', head:'armor', body:'armor', hands:'armor', feet:'armor', acc1:'accessory', acc2:'accessory' };
+  const itemType = isConsumable ? 'consumable' : isTome ? 'tome' : slot ? (slotTypeMap[slot] || 'equipment') : 'misc';
+  spawnItem({ name, type:itemType, slot:slot||null, rarity:rarity||'common', desc:`Purchased for ${formatCoins(price)}.`, value:Math.floor(price*0.6), isTome:!!isTome });
   document.getElementById('shop-modal-silver').textContent = `◈ ${formatCoins(GS.char.silver)}`;
-  toast(`Bought: ${name} for ${price}◈`, 'gold', 2000);
+  toast(`Bought: ${name} for ${formatCoins(price)}`, 'gold', 2000);
   updateInventoryTab();
 }
 
@@ -22092,6 +22139,60 @@ buildSystemPrompt = function() {
     );
   } catch(e) {}
   return prompt;
+};
+
+// ================================================================
+// ── ITEM SYSTEM INTEGRITY CHECK
+// ── Runs on startGame to fix any malformed items from older saves
+// ── or AI responses that returned items with bad types
+// ================================================================
+
+function repairInventory() {
+  const c = GS.char;
+  if(!c?.inventory) return;
+
+  const SLOT_TO_TYPE = {
+    weapon:'weapon', offhand:'offhand',
+    head:'armor', body:'armor', hands:'armor', feet:'armor',
+    acc1:'accessory', acc2:'accessory',
+  };
+
+  // Repair inventory items
+  c.inventory = c.inventory.filter(i => i && i.name); // drop nulls
+  c.inventory.forEach(item => {
+    // Fix type from slot if type is wrong
+    if(item.slot && item.type === 'misc' && SLOT_TO_TYPE[item.slot]) {
+      item.type = SLOT_TO_TYPE[item.slot];
+    }
+    // Ensure isTome flag matches type
+    if(item.type === 'tome') item.isTome = true;
+    if(item.isTome && item.type !== 'tome') item.type = 'tome';
+    // Ensure id exists
+    if(!item.id) item.id = uid();
+    // Ensure effects is an object
+    if(!item.effects || typeof item.effects !== 'object') item.effects = {};
+    // Ensure value is a number
+    if(typeof item.value !== 'number') item.value = 0;
+  });
+
+  // Repair equipped items
+  Object.entries(c.equipment || {}).forEach(([slot, item]) => {
+    if(!item) return;
+    if(!item.id) item.id = uid();
+    if(!item.slot) item.slot = slot;
+    if(!item.effects || typeof item.effects !== 'object') item.effects = {};
+    if(item.type === 'misc' && SLOT_TO_TYPE[slot]) item.type = SLOT_TO_TYPE[slot];
+  });
+}
+
+// Hook into startGame
+const _startWithInventoryRepair = startGame;
+startGame = function(isLoad=false) {
+  _startWithInventoryRepair(isLoad);
+  try {
+    repairInventory();
+    updateInventoryTab();
+  } catch(e) {}
 };
 
 console.log('Murim Chronicles fully loaded.');
