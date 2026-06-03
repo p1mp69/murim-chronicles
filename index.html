@@ -1214,6 +1214,18 @@ hr.divider { border: none; border-top: 1px solid var(--border); margin: 8px 0; }
 .npc-card.unreachable .npc-card-footer { opacity: .35; pointer-events: none; }
 /* ── CURRENCY DISPLAY ── */
 #tb-silver { font-size: 12px; }
+/* ── BARBER STYLES ── */
+.barber-style-row {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 8px 10px; border-radius: 7px;
+  border: 1px solid var(--border); background: var(--s2);
+  cursor: pointer; transition: border-color .15s;
+}
+.barber-style-row:hover { border-color: var(--border2); }
+.barber-style-row.current { border-color: var(--gold); opacity:.6; cursor:default; }
+.barber-style-name { font-size: 13px; color: var(--text); font-weight: 600; }
+.barber-style-desc { font-size: 11px; color: var(--muted); line-height: 1.5; margin-top: 2px; }
+.barber-style-price { font-size: 11px; color: var(--gold); margin-left: auto; flex-shrink: 0; white-space: nowrap; padding-top: 2px; }
 </style>
 </head>
 <body>
@@ -2103,6 +2115,27 @@ hr.divider { border: none; border-top: 1px solid var(--border); margin: 8px 0; }
         <button id="item-use-btn" class="btn-secondary btn-sm hidden">Use</button>
         <button id="item-drop-btn" class="btn-danger btn-sm">Drop</button>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- Barbershop / Hair Modal -->
+<div id="modal-barber" class="modal-overlay hidden">
+  <div class="modal-card" style="max-width:480px">
+    <div class="modal-header">
+      <h2 id="barber-modal-title">Barbershop</h2>
+      <button class="modal-close" data-modal="modal-barber">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="barber-intro" style="font-size:12px;color:var(--muted);line-height:1.7;margin-bottom:12px"></div>
+      <div id="barber-current-hair" style="font-size:11px;color:var(--dim);margin-bottom:14px;padding:8px;background:var(--s3);border-radius:6px;border-left:2px solid var(--border2)"></div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:.08em">Choose a style</div>
+      <div id="barber-styles" style="display:flex;flex-direction:column;gap:6px;max-height:300px;overflow-y:auto"></div>
+      <div id="barber-custom-row" style="margin-top:12px;display:flex;gap:6px">
+        <input id="barber-custom-input" placeholder="Describe what you want..." style="flex:1;font-size:12px;padding:6px 8px;background:var(--s3);border:1px solid var(--border);border-radius:6px;color:var(--text)">
+        <button id="barber-custom-btn" class="btn-secondary btn-sm">Request</button>
+      </div>
+      <div style="margin-top:10px;font-size:10px;color:var(--dim);text-align:right" id="barber-price-note"></div>
     </div>
   </div>
 </div>
@@ -3222,6 +3255,7 @@ const LORE_NPCS = {
     relationships:'Complicated bond with Xelaad — envy fuels pride, pride justifies envy. Views Dranoel\'s greed as primitive. Sees Normac as emotionally stagnant. Regards Zeret with something he would not call envy but which looks exactly like it from the outside.',
     publicPerception:'"The shadow behind the throne." Things disappear when he visits — not people, usually. More often: confidence, affection, talent, the quality of light in a room.',
     sinShiftNote:'When Zeret shifts to Envy, Iasiba loses his domain to someone else. This is the most devastating thing that has ever happened to him. The irony — that he, of all beings, is the one who loses something to someone else — is not lost on him. He does not react with grief. He shifts toward Lust: the one domain he had never examined. He begins to covet what Zeret had felt.',
+    shiftedLustNote:'As Iasiba of Lust he is categorically more dangerous and more vile than Zeret ever was. Zeret was lust as it naturally occurs — chaos, warmth, the bypassing of thought. Iasiba is lust approached by someone who spent 980 years studying desire from the outside as an object of envy. He dissects it. He understands what people want with a precision that Zeret, who simply embodied it, never possessed. Where Zeret made people feel beautiful and wanted, Iasiba makes people feel seen — which is worse, because it is more specific. He does not inspire broad desire. He finds the exact thing each person has always needed and gives it to them in a way that cannot be undone. He is not charming. He is irresistible. The distinction matters. Charisma can be resisted. What Iasiba offers cannot, because it is tailored. He is still seen as attractive in public — this has not changed. But anyone who has been close to him describes something that does not fully match the word attraction. More like completing a sentence you did not know you were saying. Stronger than Zeret of Lust. Not to be confused with Zeret of Envy, who has moved to a different domain entirely.',
   },
 
   dranoel_greed: {
@@ -5480,7 +5514,12 @@ WORLD LORE:
   3. Dranoel of Greed (~955 yrs): Dark ebony skin, cornrows, lean despite having consumed kingdoms' worth of resources. Views everything as asset or obstacle. Consumed a pig god in Year 112 — its divine appetite merged with his. True form is a void that devours matter and essence. Spawn years: 270,360,440,560,680,790,920.
   4. Normac of Sloth (~910 yrs): Towering, blond-tipped dreads, inhuman musculature, completely still until he isn't. Singular obsession with physical perfection. Survived a cave collapse by consuming arch-demon blood. Speaks only when necessary. True form is colossal — his presence alone generates crushing pressure. Spawn years: 310,420,500,620,720,850,950.
   5. Zeret of Lust: Lightskin, freeform dreads, always wears glasses. His beauty bypasses the mind entirely. Charismatic, sneaky, sometimes reborn as a child. Spawn years: 166,188,199,255,574,678,666,738,800. Can become Zeret of Envy if he meets Aym (Year 500+ only) — this triggers THE SIN SHIFT.
-- THE SIN SHIFT (when Zeret meets Aym): Zeret abandons Lust for Envy. The cascade: Iasiba loses his Envy domain to Zeret and shifts toward Lust — he covets what Zeret felt, which is the only thing he's ever envied that he cannot simply destroy. Xelaad's Pride curdles toward Wrath at the disruption of his carefully maintained hierarchy. Dranoel immediately begins acquiring aspects of both vacated domains. Normac is externally unmoved but a faint Wrath stirs in the stillness for the first time in centuries. The world feels this shift.
+- THE SIN SHIFT (when Zeret meets Aym): Zeret abandons Lust for Envy. The cascade:
+  - Iasiba shifts to LUST — and is CATEGORICALLY MORE VILE AND POWERFUL than Zeret of Lust ever was. Zeret embodied lust naturally; Iasiba approaches it having coveted it for 980 years. He is not charming — he is irresistible. He does not inspire broad desire; he finds the precise thing each person needs and gives it to them in a way that cannot be undone. Seen as attractive in public but those close describe something more like completing a sentence they didn't know they were saying. Stronger than Zeret of Lust. Not the same as Zeret of Envy.
+  - Xelaad's Pride curdles toward Wrath at the disruption of his carefully maintained hierarchy.
+  - Dranoel immediately begins acquiring aspects of both vacated domains.
+  - Normac is externally unmoved but a faint Wrath stirs in the stillness for the first time in centuries.
+  The world feels this shift. IMPORTANT: "Zeret of Lust" no longer exists. There is Zeret of Envy and Iasiba of Lust. These are different entities at different power levels.
 - Maligned Lords status: ${(() => { const ml = GS.world.malignedLords||{}; const z = GS.world.zeret; const parts = [`Zeret:${z.active?'ACTIVE('+z.sin+') in '+(LOCATIONS[z.location]?.name||z.location):'dormant'}`]; ['xelaad','iasiba','dranoel','normac'].forEach(k=>{ const l=ml[k]; if(l) parts.push(`${k}:${l.active?'ACTIVE('+l.sin+') in '+(LOCATIONS[l.location]?.name||l.location):'dormant'}`); }); if(GS.world.sinShiftOccurred) parts.push('SIN SHIFT HAS OCCURRED'); return parts.join(' | '); })()}
 - KINGDOMS: Azure Empire (Tazar-capital, Jade Province-merchants, Beggar's Rest-slum, Wheat Capital-farming, Ooina-Ichiro's harsh forest), Luo-Tin Dynasty (Imperial Capital, Farm City, The Great Defensive Giant-fortress), Buo Kingdom (Buo Capital, scarred by war).
 
@@ -17250,6 +17289,7 @@ function detectShopType(msg) {
     { patterns: [/tool.*shop|hardware|equipment.*shop/i],                                         type:'tools',     name:'Tool Shop' },
     { patterns: [/cultivation.*shop|spiritual.*shop|Qi.*shop|cultivat.*supply/i],                 type:'cultivation',name:'Cultivation Supply' },
     { patterns: [/market|bazaar|trading.*post|merchants.*row/i],                                   type:'general',   name:'Market' },
+    { patterns: [/barber|barbershop|haircut|cut.*hair|hair.*cut|loctician|loc.*technician|hair.*shop|hair.*salon|hair.*stylist|groomer|trim.*hair|hair.*trim/i], type:'barber', name:'Barbershop' },
   ];
 
   for(const entry of shopTypes) {
@@ -17443,6 +17483,10 @@ sendToAI = async function(overrideMsg) {
   const rawMsg = overrideMsg || document.getElementById('action-input')?.value?.trim() || '';
   const shopEntry = detectShopType(rawMsg);
   if(shopEntry) {
+    if(shopEntry.type === 'barber') {
+      openBarberShop();
+      return _withShopDetect(rawMsg + `\n\n[BARBERSHOP VISIT: The player is visiting a barber, loctician, or hair specialist. Describe the place and the person who works there — give them a name, a personality, and a specialty. This is a real person with a craft and a life, not just a service. They should feel like a genuine NPC the player might build a relationship with over time. Time advance: 0 days — just arriving.]`);
+    }
     document.getElementById('shop-modal-name').dataset.shopType = shopEntry.type;
     renderShopModal(shopEntry.type, shopEntry.name);
     // Also let the AI describe the shop
@@ -19113,6 +19157,10 @@ updateCharacterTab = function() {
     safeInject('shop', msg => {
       const shopEntry = detectShopType(msg);
       if(shopEntry) {
+        if(shopEntry.type === 'barber') {
+          setTimeout(() => openBarberShop(), 100);
+          return `[BARBERSHOP VISIT: Player is visiting a barber or hair specialist. Give them a name and describe their craft. Real person, not just a service.]`;
+        }
         document.getElementById('shop-modal-name').dataset.shopType = shopEntry.type;
         setTimeout(() => renderShopModal(shopEntry.type, shopEntry.name), 100);
         return `[SHOP VISIT: Player entering ${shopEntry.name}. Describe the shop and proprietor.]`;
@@ -21488,13 +21536,14 @@ function triggerSinShift() {
   w.zeret.sin           = 'envy';
   w.zeret.metAym        = true;
 
-  // Iasiba loses Envy to Zeret — shifts toward Lust (coveting what Zeret felt)
+  // Iasiba loses Envy to Zeret — becomes Lust, and is MORE dangerous than Zeret of Lust ever was
   if(ml.iasiba) {
     ml.iasiba.sin        = 'lust';
     ml.iasiba.sinShifted = true;
+    ml.iasiba._lustNote  = 'Iasiba of Lust is more vile and more powerful than Zeret of Lust ever was. Zeret embodied lust naturally — chaos, warmth, desire that bypasses thought. Iasiba approaches Lust as someone who coveted it for 980 years. He understands what people want with surgical precision. He does not inspire broad desire — he finds the exact thing each person has always needed and gives it to them in a way that cannot be undone. He is irresistible, not merely charming. Stronger than Zeret of Lust. Not to be confused with Zeret of Envy.';
     // Update LORE_NPCS entry
     if(LORE_NPCS.iasiba_envy) {
-      LORE_NPCS.iasiba_envy.title = 'Of Lust (shifted) — Maligned Lord';
+      LORE_NPCS.iasiba_envy.title = 'Of Lust (shifted) — Maligned Lord, More Dangerous Than Zeret of Lust';
       LORE_NPCS.iasiba_envy.sin   = 'lust';
     }
   }
@@ -21681,7 +21730,7 @@ buildSystemPrompt = function() {
     if(GS.world.sinShiftOccurred) {
       const ml = GS.world.malignedLords || {};
       const shifts = [];
-      if(ml.iasiba?.sinShifted) shifts.push('Iasiba: was Envy, now claims Lust — coveting what Zeret had felt');
+      if(ml.iasiba?.sinShifted) shifts.push('Iasiba: now OF LUST — more powerful and more vile than Zeret of Lust ever was. His lust is surgical, not chaotic. He finds the precise need in each person and fills it in a way that cannot be undone. He is irresistible, not merely charming. Do NOT write him as Zeret — he is colder, more methodical, and more dangerous in this domain');
       if(ml.xelaad?.sinShifted) shifts.push('Xelaad: Pride unchanged but Wrath simmers beneath — the disruption of order is an insult');
       if(ml.dranoel?.sinShifted) shifts.push('Dranoel: Greed expands to collect both Lust and Envy residue');
       if(ml.normac?.sinShifted) shifts.push('Normac: still Sloth but a faint Wrath has stirred for the first time in centuries');
@@ -21691,6 +21740,356 @@ buildSystemPrompt = function() {
         );
       }
     }
+  } catch(e) {}
+  return prompt;
+};
+
+// ================================================================
+// ── BARBER / HAIR SYSTEM
+// ── Barbers, locticians, and hair specialists can be found in
+// ── cities. They change your hair style/color for a fee.
+// ── The AI can generate a real NPC barber with a personality.
+// ================================================================
+
+const HAIR_MENU = [
+  // ── SHORT / CLEAN ────────────────────────────────────────────
+  {
+    id:'close_crop',   name:'Close Crop',
+    desc:'Short, clean, maintained. Practical and intentional.',
+    style:'close-cropped', price:1, time:'quick',
+    barberNote:'Most barbers can do this. No specialization needed.',
+  },
+  {
+    id:'shaved',       name:'Shaved Clean',
+    desc:'All of it gone. Clean scalp. Takes maybe ten minutes.',
+    style:'shaved clean', price:0.5, time:'quick',
+  },
+  {
+    id:'tapered',      name:'Tapered Cut',
+    desc:'Faded sides, length kept on top. Sharp.',
+    style:'tapered sides, length on top', price:1.5, time:'quick',
+  },
+  {
+    id:'buzz_cut',     name:'Buzz Cut',
+    desc:'Even, short all over. Uniform and deliberate.',
+    style:'buzzed even', price:0.5, time:'quick',
+  },
+
+  // ── MEDIUM / VERSATILE ───────────────────────────────────────
+  {
+    id:'shoulder',     name:'Shoulder Length',
+    desc:'Grown out, shoulder length. Can be left loose or tied.',
+    style:'shoulder-length', price:0, time:'grow', growTime:true,
+    growNote:'You\'d need to grow this out.',
+  },
+  {
+    id:'tied_back',    name:'Tied Back',
+    desc:'Long enough to tie. Simple, functional, clean.',
+    style:'tied back', price:1, time:'quick',
+    note:'Requires hair already at some length.',
+  },
+  {
+    id:'topknot',      name:'Topknot',
+    desc:'Gathered at the crown. Cultivator standard in some circles.',
+    style:'topknot', price:1.5, time:'medium',
+  },
+  {
+    id:'loose_wild',   name:'Loose and Natural',
+    desc:'Kept but not controlled. Grows where it grows.',
+    style:'loose and natural', price:1, time:'quick',
+  },
+
+  // ── LOCS / TEXTURE WORK ─────────────────────────────────────
+  {
+    id:'freeform_locs',  name:'Freeform Locs',
+    desc:'Started and left to form on their own. Takes time. Can\'t be rushed.',
+    style:'freeform dreads', price:3, time:'long',
+    specialist:true, specialistNote:'Needs a loctician or someone experienced in locs.',
+    growNote:'This takes months to properly form.',
+  },
+  {
+    id:'starter_locs',   name:'Starter Locs',
+    desc:'Locs twisted and started properly from the beginning. Foundation matters.',
+    style:'starter locs, freshly twisted', price:4, time:'medium',
+    specialist:true, specialistNote:'Needs a loctician.',
+  },
+  {
+    id:'maintained_locs',name:'Maintained Locs',
+    desc:'Existing locs retightened and freshened at the root. Keeps them looking intentional.',
+    style:'maintained locs', price:3, time:'medium',
+    specialist:true, specialistNote:'Needs a loctician.',
+    requiresLocs:true,
+  },
+  {
+    id:'loc_tips',       name:'Dyed Loc Tips',
+    desc:'Just the ends colored. Distinctive without committing the whole thing.',
+    style:'locs with dyed tips', price:5, time:'medium',
+    specialist:true, specialistNote:'Needs a skilled loctician. Not every barber can do this.',
+    requiresLocs:true,
+    colorPick:true,
+  },
+
+  // ── BRAIDS ──────────────────────────────────────────────────
+  {
+    id:'cornrows',       name:'Cornrows',
+    desc:'Flat against the scalp. Geometric, deliberate, keeps everything in place.',
+    style:'cornrows', price:3, time:'medium',
+    specialist:true, specialistNote:'Needs someone who works with braids.',
+  },
+  {
+    id:'two_braids',     name:'Two Braids',
+    desc:'Split down the middle, braided on each side. Simple and defined.',
+    style:'two braids', price:2, time:'medium',
+  },
+  {
+    id:'single_braid',   name:'Single Braid',
+    desc:'All pulled back and woven together. Practical for travel or cultivation.',
+    style:'long single braid', price:1.5, time:'quick',
+  },
+
+  // ── COLOR ───────────────────────────────────────────────────
+  {
+    id:'dye_black',      name:'Dye — Jet Black',
+    desc:'Ink-black. Covers everything.',
+    style:null, colorChange:'jet black', price:3, time:'medium',
+    note:'Color change only. Hair cut not included.',
+  },
+  {
+    id:'dye_grey',       name:'Dye — Silver-Grey',
+    desc:'Prematurely grey. Either unsettling or distinguished depending who\'s looking.',
+    style:null, colorChange:'silver-grey', price:4, time:'medium',
+    note:'Color change only.',
+  },
+  {
+    id:'dye_natural',    name:'Restore Natural Color',
+    desc:'Back to whatever you started with before any dye.',
+    style:null, colorChange:'natural', price:2, time:'medium',
+  },
+];
+
+// Barber types: who you might find
+const BARBER_TYPES = [
+  {
+    type:'general_barber', label:'Barber',
+    desc:'Handles most standard cuts. Quick, reliable, not interested in complicated requests.',
+    canDo:['close_crop','shaved','tapered','buzz_cut','tied_back','topknot','loose_wild','two_braids','single_braid'],
+    priceNote:'Standard rates.',
+  },
+  {
+    type:'loctician', label:'Loctician',
+    desc:'Specializes in locs. Will work with braids too. Knows what they\'re doing and expects you to sit still.',
+    canDo:['close_crop','freeform_locs','starter_locs','maintained_locs','loc_tips','cornrows','two_braids','single_braid'],
+    priceNote:'Specialist rates. Worth it.',
+  },
+  {
+    type:'street_barber', label:'Street Barber',
+    desc:'A crate, a stool, and a decent pair of scissors. Charges almost nothing. Results depend on the day.',
+    canDo:['close_crop','shaved','buzz_cut','two_braids','single_braid'],
+    priceMult:0.5, priceNote:'Very cheap. No frills.',
+    qualityNote:'May not go exactly as planned.',
+  },
+  {
+    type:'master_stylist', label:'Master Stylist',
+    desc:'Trained, expensive, opinionated. Will tell you what they think looks better and they\'re usually right.',
+    canDo:['close_crop','shaved','tapered','buzz_cut','shoulder','tied_back','topknot','loose_wild',
+           'freeform_locs','starter_locs','maintained_locs','loc_tips','cornrows','two_braids','single_braid',
+           'dye_black','dye_grey','dye_natural'],
+    priceMult:1.8, priceNote:'Premium rates. The result reflects it.',
+  },
+];
+
+// Pick a barber type based on location type
+function getLocationBarberType() {
+  const locType = LOCATIONS[GS.world.location]?.type || 'general';
+  const roll = Math.random();
+  if(locType === 'slum' || locType === 'farming_city') {
+    return roll < 0.7 ? BARBER_TYPES[2] : BARBER_TYPES[0]; // street or general
+  } else if(locType === 'capital' || locType === 'merchant_city') {
+    if(roll < 0.25) return BARBER_TYPES[3]; // master
+    if(roll < 0.55) return BARBER_TYPES[1]; // loctician
+    return BARBER_TYPES[0];
+  }
+  return roll < 0.4 ? BARBER_TYPES[1] : BARBER_TYPES[0];
+}
+
+function getCurrentHairDesc() {
+  const ap = typeof GS.char.appearance === 'object' ? GS.char.appearance : null;
+  if(!ap) return 'Unknown';
+  const parts = [ap.hair_color, ap.hair_style, ap.hair_state].filter(Boolean);
+  return parts.join(', ') || ap.hair || 'Unknown';
+}
+
+function hasLocs() {
+  const ap = typeof GS.char.appearance === 'object' ? GS.char.appearance : null;
+  if(!ap) return false;
+  const style = (ap.hair_style || '').toLowerCase();
+  return style.includes('loc') || style.includes('dread');
+}
+
+function openBarberShop(barberTypeOverride) {
+  const barberType = barberTypeOverride || getLocationBarberType();
+  const priceMult  = barberType.priceMult || 1;
+  const currentHair = getCurrentHairDesc();
+
+  // Title
+  document.getElementById('barber-modal-title').textContent = barberType.label;
+
+  // Intro
+  document.getElementById('barber-intro').innerHTML =
+    `<strong style="color:var(--text)">${barberType.label}</strong> · ${barberType.desc}` +
+    (barberType.priceNote ? `<br><span style="font-size:10px;color:var(--dim)">${barberType.priceNote}</span>` : '');
+
+  // Current hair
+  document.getElementById('barber-current-hair').innerHTML =
+    `<span style="color:var(--dim);font-size:10px;text-transform:uppercase;letter-spacing:.06em">Your hair now</span><br>` +
+    `<span style="color:var(--text);font-size:12px">${currentHair}</span>`;
+
+  // Build style list
+  const container = document.getElementById('barber-styles');
+  container.innerHTML = '';
+
+  const available = HAIR_MENU.filter(style => {
+    if(style.requiresLocs && !hasLocs()) return false;
+    if(style.specialist && !barberType.canDo.includes(style.id)) return false;
+    if(!style.specialist && !barberType.canDo.includes(style.id) && barberType.type !== 'master_stylist') return false;
+    return true;
+  });
+
+  available.forEach(style => {
+    const price   = Math.round((style.price * priceMult) * 10) / 10;
+    const isCurrent = getCurrentHairDesc().toLowerCase().includes((style.style||'').toLowerCase().slice(0,8));
+
+    const row = document.createElement('div');
+    row.className = 'barber-style-row' + (isCurrent ? ' current' : '');
+    row.innerHTML = `
+      <div style="flex:1;min-width:0">
+        <div class="barber-style-name">${style.name}${isCurrent ? ' <span style="font-size:9px;color:var(--gold)">Current</span>' : ''}</div>
+        <div class="barber-style-desc">${style.desc}${style.specialistNote ? `<br><span style="font-size:10px;color:var(--teal)">${style.specialistNote}</span>` : ''}${style.growNote ? `<br><span style="font-size:10px;color:var(--dim)">${style.growNote}</span>` : ''}</div>
+      </div>
+      <div class="barber-style-price">${price > 0 ? formatCoins(price) : 'Free'}</div>`;
+
+    if(!isCurrent) {
+      row.onclick = () => requestHairChange(style, price, barberType);
+    }
+    container.appendChild(row);
+  });
+
+  if(!available.length) {
+    container.innerHTML = `<div style="font-size:12px;color:var(--dim);text-align:center;padding:20px">This barber doesn't have the skills for what you need. Find a specialist.</div>`;
+  }
+
+  // Price note
+  document.getElementById('barber-price-note').textContent =
+    `Your coins: ${formatCoins(GS.char.silver)}`;
+
+  // Custom request button
+  document.getElementById('barber-custom-btn').onclick = () => {
+    const req = document.getElementById('barber-custom-input').value.trim();
+    if(!req) return;
+    requestCustomHair(req, priceMult, barberType);
+  };
+
+  showModal('modal-barber');
+}
+
+function requestHairChange(style, price, barberType) {
+  if(GS.char.silver < price) {
+    toast(`Not enough — this costs ${formatCoins(price)}. You have ${formatCoins(GS.char.silver)}.`, 'error', 3500);
+    return;
+  }
+
+  hideModal('modal-barber');
+
+  // Deduct price
+  if(price > 0) addSilver(-price);
+
+  // Apply hair change
+  const ap = typeof GS.char.appearance === 'object' ? GS.char.appearance : null;
+  if(ap) {
+    if(style.style) ap.hair_style = style.style;
+    if(style.colorChange && style.colorChange !== 'natural') ap.hair_color = style.colorChange;
+    if(style.colorChange === 'natural') {
+      // Restore natural color from origin pool
+      const naturalColors = ['jet black','dark brown','medium brown','warm brown','reddish-brown'];
+      ap.hair_color = rand(naturalColors);
+    }
+    // Rebuild full appearance string
+    const hairFull = [ap.hair_color, ap.hair_style, ap.hair_state].filter(Boolean).join(', ');
+    const oldFull  = ap.full || '';
+    ap.full = oldFull.replace(/[^.]+hair[^.]*\./i, `${hairFull.charAt(0).toUpperCase()+hairFull.slice(1)} hair.`) || oldFull;
+    updateCharacterTab();
+    updateAppearanceDisplay?.();
+  }
+
+  // Let the AI narrate the haircut
+  const timeNote = style.time === 'long' ? '(this takes several months to properly form — time skip appropriately)'
+    : style.time === 'medium' ? '(takes a couple of hours)'
+    : '(quick — maybe 20 minutes)';
+  const qualNote = barberType.qualityNote || '';
+
+  sendToAI(`I sit down with the ${barberType.label.toLowerCase()} and get my hair done — I want ${style.name}. ${style.desc} ${timeNote} ${qualNote}${price > 0 ? ` Cost: ${formatCoins(price)}` : ''}.`);
+}
+
+function requestCustomHair(request, priceMult, barberType) {
+  hideModal('modal-barber');
+  const estPrice = Math.round(3 * priceMult * 10) / 10;
+
+  if(GS.char.silver < estPrice) {
+    toast(`Might not have enough — bring at least ${formatCoins(estPrice)}.`, 'warning', 3000);
+  }
+
+  sendToAI(`I tell the ${barberType.label.toLowerCase()}: "${request}". I want to get my hair done exactly like this. The barber listens and either can or can't do it — their honest reaction, then the result. Update my hair in "appearanceChanges" if they do it. Include the cost in statChanges.silver (negative).`);
+}
+
+// ── Wire up to action input: recognize hair-related language ─────
+// Also allow typing "I need a haircut" or "barber" in the action box
+// This is handled by the detectShopType patch above.
+// Additionally, allow the AI to open the barber shop via applyAIResponse.
+
+// ── applyAIResponse: handle appearanceChanges for hair ──────────
+const _applyWithHairChanges = applyAIResponse;
+applyAIResponse = function(res) {
+  _applyWithHairChanges(res);
+  try {
+    if(res?.appearanceChanges) {
+      const ap = typeof GS.char.appearance === 'object' ? GS.char.appearance : null;
+      if(ap && res.appearanceChanges) {
+        const ch = res.appearanceChanges;
+        if(ch.hair_style) ap.hair_style = ch.hair_style;
+        if(ch.hair_color) ap.hair_color = ch.hair_color;
+        if(ch.hair_state !== undefined) ap.hair_state = ch.hair_state;
+        if(ch.beard !== undefined) ap.beard = ch.beard;
+        // Rebuild full description
+        const hairFull = [ap.hair_color, ap.hair_style, ap.hair_state].filter(Boolean).join(', ');
+        if(hairFull && ap.full) {
+          ap.full = ap.full.replace(/[^.]*hair[^.]*/i, `${hairFull.charAt(0).toUpperCase()+hairFull.slice(1)} hair`) || ap.full;
+        }
+        updateCharacterTab();
+      }
+    }
+  } catch(e) {}
+};
+
+// ── Tell the AI about appearanceChanges format ──────────────────
+const _bspWithHair = buildSystemPrompt;
+buildSystemPrompt = function() {
+  let prompt = _bspWithHair();
+  try {
+    const ap = typeof GS.char.appearance === 'object' ? GS.char.appearance : null;
+    const hairLine = ap
+      ? `Player's current hair: ${[ap.hair_color, ap.hair_style, ap.hair_state].filter(Boolean).join(', ') || 'not specified'}`
+      : '';
+
+    // Inject near the character state block
+    if(hairLine) {
+      prompt = prompt.replace('- Injuries:', `${hairLine}\n- Injuries:`);
+    }
+
+    // Add to response schema note — if the AI changes hair (barber, dye, ritual, age, combat)
+    prompt = prompt.replace(
+      '"newItems"',
+      '"appearanceChanges": { "hair_style": "", "hair_color": "", "hair_state": "", "beard": "" }, // OPTIONAL — only include if hair/beard actually changes. Leave fields empty if unchanged.\n  "newItems"'
+    );
   } catch(e) {}
   return prompt;
 };
