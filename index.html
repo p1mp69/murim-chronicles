@@ -4,6 +4,24 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Murim Chronicles</title>
+
+<!-- Favicon & App Icons -->
+<link rel="icon" type="image/png" href="icon.png">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="shortcut icon" href="icon.png">
+
+<!-- PWA manifest -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#080810">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Murim Chronicles">
+
+<!-- Open Graph (for link sharing) -->
+<meta property="og:title" content="Murim Chronicles">
+<meta property="og:description" content="A cultivation life in a world that doesn't care.">
+<meta property="og:image" content="icon.png">
+<meta property="og:type" content="website">
 <style>
 /* ============================================================
    ROOT VARIABLES
@@ -187,6 +205,20 @@ a { color: var(--gold); text-decoration: none; }
   display: flex; flex-direction: column;
   align-items: center; gap: 0;
   padding: 40px 20px;
+}
+.menu-logo-wrap {
+  display: flex; flex-direction: column; align-items: center;
+  margin-bottom: 40px;
+}
+.menu-logo-img {
+  width: min(340px, 80vw); height: auto;
+  border-radius: 24px;
+  filter: drop-shadow(0 0 30px rgba(196,154,48,.25)) drop-shadow(0 4px 20px rgba(0,0,0,.8));
+  animation: logoFloat 4s ease-in-out infinite;
+}
+@keyframes logoFloat {
+  0%,100% { transform: translateY(0); filter: drop-shadow(0 0 30px rgba(196,154,48,.25)) drop-shadow(0 4px 20px rgba(0,0,0,.8)); }
+  50%      { transform: translateY(-6px); filter: drop-shadow(0 0 45px rgba(196,154,48,.4)) drop-shadow(0 10px 30px rgba(0,0,0,.7)); }
 }
 .menu-title {
   font-size: 2.8rem; color: var(--gold);
@@ -1347,8 +1379,11 @@ hr.divider { border: none; border-top: 1px solid var(--border); margin: 8px 0; }
 <div id="screen-menu" class="screen hidden">
   <div class="menu-bg"></div>
   <div class="menu-wrap">
-    <div class="menu-title">Murim Chronicles</div>
-    <div class="menu-subtitle">A cultivation life in a world that doesn't care</div>
+    <div class="menu-logo-wrap">
+      <img src="icon.png" alt="Murim Chronicles" class="menu-logo-img"
+        onerror="this.style.display='none';document.getElementById('menu-title-text').style.display='block'">
+      <div id="menu-title-text" class="menu-title" style="display:none">Murim Chronicles</div>
+    </div>
     <div class="menu-options">
       <button class="menu-btn primary" id="menu-newgame">New Game</button>
       <button class="menu-btn" id="menu-continue">Continue</button>
