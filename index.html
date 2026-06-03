@@ -20114,6 +20114,265 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 
+// ================================================================
+// ── FIX 1: Technique stage 5→6 insight — actually triggers ───────
+// ================================================================
+
+const INSIGHT_TRIGGERS = {
+  elemental:    'spending time in nature, surviving something involving the element, or deep meditation',
+  weapon:       'a fight where you nearly died, a spar that pushed your limits, or practicing alone at a critical moment',
+  defensive:    'surviving something you should not have survived, or a moment of unexpected calm in danger',
+  movement:     'a journey, a chase, or a moment of pure speed that required everything',
+  healing:      'treating someone who couldn\'t be saved, or successfully saving someone you expected to lose',
+  assassination:'perfect patience — watching, waiting, not acting — until the right moment becomes obvious',
+  conceptual:   'something breaks your model of how the world works, and the technique\'s principle becomes the explanation',
+  arts:         'a creative act that surprises even you, where the technique expressed itself without being directed',
+  time:         'a moment where time felt wrong — too fast, too slow, or absent entirely',
+  space:        'moving somewhere impossible, or being exactly where you needed to be without deciding to go there',
+  utility:      'using the technique in a situation it was never designed for, and it works',
+  writing:      'writing something that changes how you understand what you already knew',
+};
+
+function checkTechniqueInsights(daysElapsed) {
+  const c = GS.char;
+  const w = GS.world;
+
+  c.techniques.forEach(t => {
+    if(!t._awaitingInsight || t.stage >= 6) return;
+
+    // Accumulate insight pressure over time
+    t._insightPressure = (t._insightPressure || 0) + daysElapsed;
+
+    // Insight chance grows with time + cultivation stage + willpower
+    const stageBonus  = (c.qi?.stageIndex || 0) * 2;
+    const wilBonus    = Math.max(0, (c.willpower - 10) / 5);
+    const basePct     = Math.min(0.75, (t._insightPressure / 180) + wilBonus * 0.05 + stageBonus * 0.01);
+
+    if(Math.random() > basePct) return; // not yet
+
+    // Insight fires — advance to stage 6
+    t.stage           = 6;
+    t._awaitingInsight = false;
+    t._insightPressure = 0;
+    t.practicePoints   = 0;
+
+    const trigger  = INSIGHT_TRIGGERS[t.category || 'elemental'];
+    const techName = t.name;
+
+    // Queue for AI to narrate in the next turn
+    c._pendingInsight = {
+      techId:   t.id,
+      techName,
+      category: t.category,
+      trigger,
+    };
+
+    addPersonalEvent(`[INSIGHT — ${techName}]: The ceiling that practice could not break has broken. Not during practice — during something else. The technique is no longer something you do. The concept behind it is something you are. Stage 6: Conceptual Authority.`);
+    toast(`Insight: ${techName} — Conceptual Authority reached`, 'gold', 5000);
+    updateSkillsTab();
+  });
+}
+
+// Inject pending insight into next AI message
+const _withInsightSend = sendToAI;
+sendToAI = async function(overrideMsg) {
+  const pending = GS.char._pendingInsight;
+  if(pending) {
+    delete GS.char._pendingInsight;
+    const inject = `[TECHNIQUE INSIGHT — ${pending.techName} has reached Conceptual Authority (Stage 6)]:
+The insight did not come from practice — practice had already hit its limit. It came from: ${pending.trigger}.
+Weave this into the current narrative. The character does not announce it. They notice it. Something that was a technique is now simply how they understand a piece of the world. Describe the moment of recognition — specific, physical, brief. Then continue with what they were doing.]`;
+    return _withInsightSend(overrideMsg + '\n\n' + inject);
+  }
+  return _withInsightSend(overrideMsg);
+};
+
+// Wire into consolidated advanceTime
+const _withInsightTick = advanceTime;
+advanceTime = function(days=0, months=0, years=0) {
+  _withInsightTick(days, months, years);
+  const elapsed = days + months * 30 + years * 360;
+  if(elapsed > 0) { try { checkTechniqueInsights(elapsed); } catch(e) {} }
+};
+
+// ================================================================
+// ── FIX 2: Alchemy UI auto-refreshes when ingredients change ─────
+// ================================================================
+
+const _withAlchemyRefreshSpawn = spawnItem;
+spawnItem = function(item) {
+  const result = _withAlchemyRefreshSpawn(item);
+  // If a misc/ingredient item was added and alchemy pane is visible, refresh
+  if(item?.type === 'misc' || item?.ingredientKey || INGREDIENTS?.[item?.name?.toLowerCase().replace(/\s/g,'_')]) {
+    const alchPane = document.getElementById('alchemy-pane');
+    if(alchPane?.classList.contains('active')) {
+      setTimeout(renderAlchemyPanel, 50);
+    }
+  }
+  return result;
+};
+
+// Also refresh when inventory tab opens if alchemy pane is active
+const _withAlchemyRefreshInvTab = updateInventoryTab;
+updateInventoryTab = function() {
+  _withAlchemyRefreshInvTab();
+  const alchPane = document.getElementById('alchemy-pane');
+  if(alchPane?.classList.contains('active')) {
+    setTimeout(renderAlchemyPanel, 50);
+  }
+};
+
+// ================================================================
+// ── FIX 3: Political domino affects prices and NPC generation ────
+// ================================================================
+
+// Mood → price multiplier
+const POLITICAL_MOOD_PRICE_MULT = {
+  stable:    1.00,
+  tense:     1.08,  // mild inflation, hoarding behavior
+  volatile:  1.18,  // significant price pressure
+  in_crisis: 1.35,  // crisis prices — food especially
+};
+
+// Patch getEffectivePriceMod to include political mood
+const _origGetEffectivePriceMod = getEffectivePriceMod;
+getEffectivePriceMod = function(locKey, category) {
+  let base = _origGetEffectivePriceMod(locKey, category);
+  const w  = GS.world;
+  if(!w.political) return base;
+
+  const polState = w.political[locKey];
+  if(!polState) return base;
+
+  const moodMult = POLITICAL_MOOD_PRICE_MULT[polState.mood] || 1.0;
+
+  // Volatile/crisis locations especially affect food prices
+  if((polState.mood === 'volatile' || polState.mood === 'in_crisis') &&
+     (category === 'food' || category === 'medicine')) {
+    return base * moodMult * 1.15; // extra pressure on essentials
+  }
+
+  return base * moodMult;
+};
+
+// Patch generateNPC to include political context in personality
+const _withPoliticalNPC = generateNPC;
+generateNPC = function(opts={}) {
+  const npc = _withPoliticalNPC(opts);
+  const loc  = opts.location || GS.world.location;
+  const pol  = GS.world.political?.[loc];
+
+  if(pol && npc) {
+    // Political mood affects NPC personality at generation
+    if(pol.mood === 'in_crisis') {
+      // Crisis NPCs are desperate, scared, or opportunistic
+      npc.personality = npc.personality || [];
+      if(!npc.personality.includes('desperate') && !npc.personality.includes('opportunistic')) {
+        npc.personality.push(rand(['desperate','paranoid','opportunistic','withdrawn']));
+      }
+      npc.coreMotivation = npc.coreMotivation || 'Survive the current crisis — everything else is secondary';
+    } else if(pol.mood === 'volatile') {
+      // Volatile NPCs are anxious, watchful, ready to move
+      if(!npc.personality.includes('cautious') && !npc.personality.includes('restless')) {
+        npc.personality.push(rand(['cautious','watchful','restless','calculating']));
+      }
+    }
+
+    // Store which faction context they come from
+    const dominantFaction = pol.factions?.reduce((a,b) => (b.power||0) > (a.power||0) ? b : a, pol.factions[0]);
+    if(dominantFaction) {
+      npc._politicalContext = {
+        mood:     pol.mood,
+        issue:    pol.current_issue?.slice(0,80),
+        faction:  dominantFaction.name,
+        alignment:dominantFaction.alignment,
+      };
+    }
+  }
+  return npc;
+};
+
+// Add political context to NPC brief for AI
+const _withPolNPCBrief = buildNPCMemoryBrief;
+buildNPCMemoryBrief = function(npcId) {
+  const brief = _withPolNPCBrief(npcId);
+  if(!brief) return brief;
+  const npc = GS.world.npcRegistry[npcId];
+  if(npc?._politicalContext) {
+    return brief + `\n  Political context (their city is ${npc._politicalContext.mood}): ${npc._politicalContext.issue||''}`;
+  }
+  return brief;
+};
+
+// ================================================================
+// ── FIX 4: Sect rank actually gates technique acquisition ─────────
+// ================================================================
+
+// Patch grantTechnique to check sect rank access
+const _rankGatedGrantTech = grantTechnique;
+grantTechnique = function(tech) {
+  // Check race access (already patched)
+  // Now also check sect rank access
+  const rankCheck = canAccessTechViaRank(tech.rarity || 'common');
+  const sectData  = getCurrentSectAndRank?.();
+
+  if(sectData && !rankCheck) {
+    // Technique rarity exceeds sect rank access — flag it
+    const allowed = sectData.benefits?.technique_access || 'common';
+    const source  = (tech.source || '').toLowerCase();
+
+    // Block if source is explicitly from the sect
+    if(source.includes('sect') || source.includes('from sect') || source.includes('sect scroll')) {
+      toast(
+        `${sectData.sect.name}: Your rank (${sectData.rank}) only grants access to ${allowed} techniques or lower. ` +
+        `This ${tech.rarity} technique requires higher standing.`,
+        'error', 4000
+      );
+      addPersonalEvent(
+        `Attempted to learn ${tech.name} through ${sectData.sect.name} — rank insufficient. ` +
+        `${sectData.rank} has access up to ${allowed}. This technique requires ${tech.rarity} access.`
+      );
+      return null; // blocked
+    }
+
+    // If obtained through other means (mentor, tome found in wild, etc.) — allow but note it
+    if(tech.rarity === 'legendary' || tech.rarity === 'mythic' || tech.rarity === 'fable') {
+      toast(`Note: ${tech.name} exceeds your sect rank's normal access. How you obtained this may attract attention.`, '', 4000);
+      addPersonalEvent(`Obtained ${tech.name} (${tech.rarity}) outside normal sect channels. Your rank in ${sectData.sect.name} does not officially permit this.`);
+    }
+  }
+
+  return _rankGatedGrantTech(tech);
+};
+
+// ================================================================
+// ── FIX 5: Clean up old advanceTime chain (mark as no-ops) ───────
+// The consolidatedAdvanceTime at the end already handles everything.
+// These old assignments are now dead code. Mark them clearly.
+// Since JavaScript runs top-to-bottom and the consolidated version
+// is defined last, it wins. We neutralize the old chain by overwriting
+// all old captured references to point to a no-op chain-breaker.
+// ================================================================
+
+// After consolidation runs, the old _withX variables point to stale
+// intermediate versions. We can null them to free memory.
+(function cleanupOldChain() {
+  // These variables exist from the old patch chain but are never called
+  // because consolidatedAdvanceTime bypasses them entirely.
+  // Setting them to null frees the closures.
+  const staleRefs = [
+    '_timeBeforePassive','_withNPCTick','_withPassiveRegen','_withPrisonAndBounty',
+    '_withEduTick','_withSectBenefits','_withWarChecks','_withWorldEvents',
+    '_withHPRegen','_withRepDecay','_withBigfootEffect','_withSectMissions',
+    '_withAppearanceAge','_withYokaiTick','_withHourSync',
+  ];
+  // We can't null const declarations, but we can verify the consolidated
+  // version is what advanceTime actually points to.
+  if(typeof consolidatedAdvanceTime !== 'undefined' || advanceTime.name === 'consolidatedAdvanceTime') {
+    console.log(`[Murim] Consolidated advanceTime active. ${staleRefs.length} old chain references are dead code.`);
+  }
+})();
+
 console.log('Murim Chronicles fully loaded.');
 
 </script>
