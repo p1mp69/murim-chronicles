@@ -1177,6 +1177,43 @@ body.mobile-mode #side-panel { flex: 1; }
 .text-xs   { font-size: 11px; }
 .w-full    { width: 100%; }
 hr.divider { border: none; border-top: 1px solid var(--border); margin: 8px 0; }
+
+/* ── RELATIONS FILTER BAR ── */
+#rel-filter-bar {
+  padding: 8px 0 10px;
+  display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
+  border-bottom: 1px solid var(--border); margin-bottom: 10px;
+  position: sticky; top: 0; background: var(--bg); z-index: 2;
+}
+.rel-filter-btn {
+  font-size: 10px; padding: 3px 10px; border-radius: 10px;
+  border: 1px solid var(--border2); background: var(--s3);
+  color: var(--muted); cursor: pointer; font-family: inherit;
+  transition: all .12s;
+}
+.rel-filter-btn:hover  { color: var(--text); border-color: var(--dim); }
+.rel-filter-btn.active { border-color: var(--gold); color: var(--gold); background: rgba(196,154,48,.1); }
+#rel-search {
+  flex: 1; min-width: 80px; font-size: 11px; padding: 4px 8px;
+  background: var(--s3); border: 1px solid var(--border);
+  border-radius: 6px; color: var(--text);
+}
+#rel-search:focus { border-color: var(--border2); outline: none; }
+#rel-sort {
+  font-size: 10px; padding: 3px 6px;
+  background: var(--s3); border: 1px solid var(--border);
+  border-radius: 6px; color: var(--muted); cursor: pointer;
+}
+.npc-loc-badge {
+  font-size: 10px; margin: 3px 0 4px;
+  display: flex; align-items: center; gap: 3px;
+  color: var(--dim);
+}
+.npc-loc-badge.out-of-reach { color: var(--red); }
+.npc-card.unreachable .npc-quick-actions,
+.npc-card.unreachable .npc-card-footer { opacity: .35; pointer-events: none; }
+/* ── CURRENCY DISPLAY ── */
+#tb-silver { font-size: 12px; }
 </style>
 </head>
 <body>
@@ -1650,8 +1687,8 @@ hr.divider { border: none; border-top: 1px solid var(--border); margin: 8px 0; }
       <!-- ── INVENTORY TAB ── -->
       <div id="tab-inventory" class="tab-content">
         <div class="inv-silver-bar">
-          <span class="inv-silver-label">◈ Silver</span>
-          <span id="inv-silver" class="inv-silver-num">0</span>
+          <span class="inv-silver-label">◈ Coins</span>
+          <span id="inv-silver" class="inv-silver-num">0S</span>
         </div>
 
         <div class="sect-label">Equipped</div>
@@ -5026,7 +5063,8 @@ function useMAInNarrative(id) {
 // ================================================================
 function updateInventoryTab() {
   const c = GS.char;
-  document.getElementById('inv-silver').textContent = c.silver;
+  const invSilverEl = document.getElementById('inv-silver');
+  if(invSilverEl) invSilverEl.textContent = (typeof formatCoins === 'function') ? formatCoins(c.silver) : c.silver;
   // Equipment slots
   const slots = ['head','body','hands','feet','weapon','offhand','acc1','acc2'];
   slots.forEach(slot => {
@@ -5785,7 +5823,7 @@ function fullReset(goToCreation = true) {
   // 2. Wipe all tabs
   setHTML('char-appearance', '—');
   setHTML('stats-grid', '');
-  setEl('char-hp', 100); setEl('char-maxhp', 100); setEl('char-silver', 0);
+  setEl('char-hp', 100); setEl('char-maxhp', 100); setEl('char-silver', '0S');
   setEl('qi-stage-name', 'Mortal'); setEl('qi-cur', 0); setEl('qi-max', 100); setEl('qi-break', 100);
   const qiBar = document.getElementById('qi-bar');
   if(qiBar) { qiBar.style.width = '0%'; qiBar.className = 'qi-bar none'; }
@@ -5821,7 +5859,7 @@ function fullReset(goToCreation = true) {
   setHTML('ma-list','<div class="empty-state">No martial arts learned.</div>');
 
   // Inventory
-  setEl('inv-silver', 0);
+  setEl('inv-silver', '0S');
   ['head','body','hands','feet','weapon','offhand','acc1','acc2'].forEach(slot => {
     const el = document.getElementById(`eslot-${slot}`);
     if(el) {
@@ -6129,9 +6167,8 @@ function initAdmin() {
   document.getElementById('btn-admin-silver').addEventListener('click', () => {
     const v = parseInt(document.getElementById('admin-silver').value)||0;
     GS.char.silver = v;
-    updateTopbar(); updateInventoryTab();
-    document.getElementById('char-silver').textContent = v;
-    toast(`Silver set to ${v}`, '', 2000);
+    updateTopbar(); updateInventoryTab(); updateCurrencyDisplay();
+    toast(`Silver set to ${v} (${formatCoins(v)})`, '', 2000);
   });
   document.getElementById('btn-admin-silver-add').addEventListener('click', () => {
     const v = parseInt(document.getElementById('admin-silver').value)||0;
@@ -17213,7 +17250,7 @@ function renderShopModal(shopType, shopName) {
 
   // Header
   document.getElementById('shop-modal-name').textContent = shopName;
-  document.getElementById('shop-modal-silver').textContent = `◈ ${c.silver}`;
+  document.getElementById('shop-modal-silver').textContent = `◈ ${formatCoins(c.silver)}`;
   document.getElementById('shop-modal-desc').textContent = infamyBlocked
     ? 'The shopkeeper eyes you but doesn\'t throw you out. Prices reflect their caution.'
     : `${LOCATIONS[GS.world.location]?.name || GS.world.location} — ${LOCATIONS[GS.world.location]?.desc?.slice(0,60)||''}`;
@@ -17264,7 +17301,7 @@ function shopBuyItem(key, name, price, slot, isTome, rarity, isConsumable) {
   const check = validateAndSpendSilver(price, `buy ${name}`);
   if(!check.ok) { toast(`Can't afford ${name} — need ${check.shortfall}◈ more`, 'error', 3000); return; }
   spawnItem({ name, type:isConsumable?'consumable':(isTome?'tome':slot?'weapon':'misc'), slot:slot||null, rarity:rarity||'common', desc:`Purchased for ${price}◈.`, value:Math.floor(price*0.6), isTome:!!isTome });
-  document.getElementById('shop-modal-silver').textContent = `◈ ${GS.char.silver}`;
+  document.getElementById('shop-modal-silver').textContent = `◈ ${formatCoins(GS.char.silver)}`;
   toast(`Bought: ${name} for ${price}◈`, 'gold', 2000);
   updateInventoryTab();
 }
@@ -17275,7 +17312,7 @@ function shopSellItem(itemId, price) {
   if(!itm) return;
   c.inventory = c.inventory.filter(i => i.id !== itemId);
   addSilver(price);
-  document.getElementById('shop-modal-silver').textContent = `◈ ${c.silver}`;
+  document.getElementById('shop-modal-silver').textContent = `◈ ${formatCoins(c.silver)}`;
   toast(`Sold: ${itm.name} for +${price}◈`, 'green', 2000);
   updateInventoryTab();
   // Refresh sell list
@@ -20708,6 +20745,535 @@ startGame = function(isLoad=false) {
     }
   });
 };
+
+// ================================================================
+// ════════════════════════════════════════════════════════════════
+// ── FOUR MAJOR SYSTEM PATCHES ───────────────────────────────────
+// 1. Relationship tab rule — NO auto-add from opening narrative
+// 2. Relationship tab filter/clutter fix
+// 3. Three-tier currency (Copper → Silver → Gold)
+// 4. NPC location gating + movement
+// ════════════════════════════════════════════════════════════════
+// ================================================================
+
+// ───────────────────────────────────────────────────────────────
+// [1] RELATIONSHIP RULE: People only appear when you meet them
+// ───────────────────────────────────────────────────────────────
+// Completely override both extraction functions.
+// Characters from the opening narrative are seeded into
+// npcRegistry and world._openingCharacters (background context
+// for the AI) but are NEVER pushed into relationships.
+// They only enter relationships via addOrUpdateRelationship()
+// which the AI calls when an actual encounter happens.
+
+extractParentsFromOpening = function(narrativeText) {
+  if(!narrativeText) return;
+  const c = GS.char;
+  const w = GS.world;
+  if(!w._openingCharacters) w._openingCharacters = {};
+
+  const EXCL = new Set([
+    'You','Your','He','She','They','His','Her','Their','Him','Them',
+    'The','This','That','A','An','When','With','From','After','Before','Into',
+    'Some','Many','Most','Few','All','Both','Each','Every',
+    'Year','Month','Day','Morning','Night','Dawn','Evening','Week',
+    'What','Who','Where','Why','How','Which','And','But','Or','So',
+    'Old','New','Young','Small','Large','Big','Good','Bad','Long',
+    'Tazar','Jade','Ooina','Buo','Azure','Luo','Tin','Zeret',
+    'Empire','Kingdom','Dynasty','District','Street','Gate',
+    'Province','Capital','City','Market','Bridge','River','Mountain',
+    'North','South','East','West',
+    'One','Two','Three','First','Second','Third','Last',
+    'Still','Also','Just','Only','Even','Already','Always','Never',
+  ]);
+
+  const PATTERNS = [
+    { r:/your\s+mother[,\s]+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/gi,         role:'mother'     },
+    { r:/your\s+father[,\s]+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/gi,          role:'father'     },
+    { r:/your\s+grandmother[,\s]+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/gi,     role:'grandmother'},
+    { r:/your\s+grandfather[,\s]+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/gi,     role:'grandfather'},
+    { r:/your\s+(?:older\s+)?sister[,\s]+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/gi, role:'sister'},
+    { r:/your\s+(?:older\s+)?brother[,\s]+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/gi, role:'brother'},
+    { r:/your\s+aunt[,\s]+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/gi,           role:'aunt'       },
+    { r:/your\s+uncle[,\s]+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/gi,          role:'uncle'      },
+    { r:/([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)[,\s]+(?:his|her|their|your)\s+mother/gi, role:'mother'},
+    { r:/([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)[,\s]+(?:his|her|their|your)\s+father/gi, role:'father'},
+    { r:/([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s+(?:raised|took you in|cared for you|fed you)/gi, role:'caregiver'},
+    { r:/([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s+(?:taught you|instructed you|showed you)/gi, role:'teacher'},
+    { r:/Auntie\s+([A-Z][a-z]+)/gi, role:'caregiver' },
+    { r:/Uncle\s+([A-Z][a-z]+)/gi,  role:'caregiver' },
+    { r:/a\s+(?:woman|man|person)\s+(?:everyone\s+calls|called|named)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/gi, role:'caregiver'},
+    { r:/named\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)[,\s.]/gi, role:'mentioned' },
+  ];
+
+  const found = new Map();
+  PATTERNS.forEach(({ r, role }) => {
+    r.lastIndex = 0;
+    let m;
+    while((m = r.exec(narrativeText)) !== null) {
+      const name = (m[1] || '').trim();
+      if(!name || EXCL.has(name) || name === c.firstName || name.length < 2 || name.length > 30) continue;
+      if(!found.has(name) || found.get(name).role === 'mentioned') {
+        const sentences = narrativeText.split(/(?<=[.!?])\s+/).filter(s => s.includes(name));
+        const isDeceased = sentences.some(s => /\b(died|dead|passed|killed|grave|burial)\b/i.test(s));
+        const isAbsent   = !isDeceased && sentences.some(s => /\b(left|gone|missing|disappeared|never came|stopped writing)\b/i.test(s));
+        found.set(name, { role, sentences, isDeceased, isAbsent });
+      }
+    }
+  });
+
+  // Seed npcRegistry + _openingCharacters ONLY — no relationships
+  found.forEach(({ role, sentences, isDeceased, isAbsent }, name) => {
+    const npcId = `bg_${name.toLowerCase().replace(/\s+/g,'_').replace(/[^a-z0-9_]/g,'')}`;
+    if(!w.npcRegistry[npcId]) {
+      w.npcRegistry[npcId] = {
+        id:npcId, name, title:'', alive:!isDeceased, isLore:false, glowColor:null,
+        qiStageIndex:0, strength:8, agility:8, endurance:8,
+        intelligence:8, perception:8, willpower:8, charisma:8, luck:8,
+        memoriesOfPlayer:[`From ${c.firstName}'s earliest years.`],
+        personality:[], alignment:'orthodox', hiddenHistory:[],
+        location: isAbsent ? 'unknown' : (c.birthCity || w.location),
+        homeLocation: c.birthCity || w.location,
+      };
+    }
+    // Background characters context for AI
+    w._openingCharacters[npcId] = {
+      name, role, npcId, isDeceased, isAbsent,
+      context: sentences.join(' ').trim().slice(0, 280),
+    };
+  });
+  // DO NOT call updateRelationsTab — nothing changed in relationships
+};
+
+// ───────────────────────────────────────────────────────────────
+// Patch buildSystemPrompt to tell the AI about background people
+// ───────────────────────────────────────────────────────────────
+const _bspWithBG = buildSystemPrompt;
+buildSystemPrompt = function() {
+  let prompt = _bspWithBG();
+  try {
+    const bg = GS.world._openingCharacters;
+    if(bg && Object.keys(bg).length > 0) {
+      const lines = Object.values(bg).map(b =>
+        `- ${b.name} (${b.role}${b.isDeceased ? ', deceased' : b.isAbsent ? ', whereabouts unknown' : ''}): ${b.context || 'part of the player\'s early life'}`
+      ).join('\n');
+      const section = `BACKGROUND PEOPLE (known from the player's past — NOT yet encountered in-game, do NOT add to relationships unless the player actually seeks them out or runs into them):
+${lines}
+IF the player encounters one of these people: include them in "newRelationships" with their correct role and a realistic bond level. They have aged and changed since the opening years.`;
+      prompt = prompt.replace('## ABSOLUTE RULES', section + '\n\n## ABSOLUTE RULES');
+    }
+  } catch(e) {}
+  return prompt;
+};
+
+// ───────────────────────────────────────────────────────────────
+// [2] RELATIONSHIP TAB: Filter bar + organized display
+// ───────────────────────────────────────────────────────────────
+window._relFilter = window._relFilter || { category:'all', search:'', sort:'bond', deceasedOpen:false };
+
+window.setRelFilter = function(cat) {
+  window._relFilter.category = cat;
+  updateRelationsTab();
+};
+window.setRelSearch = function(val) {
+  window._relFilter.search = val;
+  updateRelationsTab();
+};
+window.setRelSort = function(val) {
+  window._relFilter.sort = val;
+  updateRelationsTab();
+};
+
+updateRelationsTab = function() {
+  const grid  = document.getElementById('relations-grid');
+  const empty = document.getElementById('relations-empty');
+  if(!grid) return;
+  const rels  = GS.char.relationships || [];
+  const F     = window._relFilter;
+
+  // ── Ensure filter bar is injected ──────────────────────────
+  const tabEl = document.getElementById('tab-relations');
+  if(tabEl && !document.getElementById('rel-filter-bar')) {
+    const bar = document.createElement('div');
+    bar.id = 'rel-filter-bar';
+    bar.innerHTML = `
+      <div style="display:flex;gap:4px;flex-wrap:wrap">
+        <button class="rel-filter-btn" onclick="setRelFilter('all')">All</button>
+        <button class="rel-filter-btn" onclick="setRelFilter('family')">Family</button>
+        <button class="rel-filter-btn" onclick="setRelFilter('close')">Close</button>
+        <button class="rel-filter-btn" onclick="setRelFilter('hostile')">Hostile</button>
+      </div>
+      <input id="rel-search" placeholder="Search by name..." oninput="setRelSearch(this.value)">
+      <select id="rel-sort" onchange="setRelSort(this.value)">
+        <option value="bond">Closest first</option>
+        <option value="name">A → Z</option>
+        <option value="recent">Recently seen</option>
+      </select>`;
+    tabEl.insertBefore(bar, grid);
+  }
+
+  // ── Update filter button active states ─────────────────────
+  document.querySelectorAll('.rel-filter-btn').forEach(btn => {
+    const target = btn.getAttribute('onclick')?.match(/setRelFilter\('(.+?)'\)/)?.[1];
+    btn.classList.toggle('active', target === F.category);
+  });
+  const sortEl = document.getElementById('rel-sort');
+  if(sortEl) sortEl.value = F.sort;
+
+  // ── Clear grid cards ────────────────────────────────────────
+  grid.querySelectorAll('.npc-card, .deceased-section, .rel-no-match').forEach(el => el.remove());
+
+  // ── Helpers ─────────────────────────────────────────────────
+  const FAMILY_TYPES = new Set(['mother','father','grandmother','grandfather','aunt','uncle',
+    'sister','brother','family','caregiver','guardian']);
+  const isFamily  = r => FAMILY_TYPES.has(r.type);
+  const isClose   = r => (r.bond_level || r.trust || 0) >= 52;
+  const isHostile = r => (GS.world.npcRegistry[r.npcId]?.grudgeLevel || 0) > 40;
+  const bondOf    = r => r.bond_level || r.trust || 0;
+
+  // ── Separate living / deceased ──────────────────────────────
+  let living   = rels.filter(r => r.alive !== false);
+  const deceased = rels.filter(r => r.alive === false);
+
+  // ── Category filter ─────────────────────────────────────────
+  if(F.category === 'family')  living = living.filter(isFamily);
+  else if(F.category === 'close')   living = living.filter(r => isClose(r) && !isFamily(r));
+  else if(F.category === 'hostile') living = living.filter(isHostile);
+  // 'all' shows everything
+
+  // ── Search filter ───────────────────────────────────────────
+  const q = F.search.trim().toLowerCase();
+  if(q) {
+    living = living.filter(r =>
+      r.name?.toLowerCase().includes(q) ||
+      r.type?.toLowerCase().includes(q) ||
+      r.summary?.toLowerCase().includes(q)
+    );
+  }
+
+  // ── Sort ─────────────────────────────────────────────────────
+  if(F.sort === 'bond') living.sort((a,b) => bondOf(b) - bondOf(a));
+  else if(F.sort === 'name')   living.sort((a,b) => (a.name||'').localeCompare(b.name||''));
+  else if(F.sort === 'recent') living.sort((a,b) => (b.lastSeen||'').localeCompare(a.lastSeen||''));
+
+  // ── Empty state ──────────────────────────────────────────────
+  if(!living.length && !deceased.length) {
+    empty?.classList.remove('hidden');
+    return;
+  }
+  empty?.classList.add('hidden');
+
+  // ── Render living ────────────────────────────────────────────
+  if(living.length === 0) {
+    const msg = document.createElement('div');
+    msg.className = 'rel-no-match';
+    msg.style.cssText = 'font-size:12px;color:var(--dim);text-align:center;padding:20px 0;';
+    msg.textContent = q ? 'No matches for that search.' : 'No one in this category yet.';
+    grid.appendChild(msg);
+  } else {
+    living.forEach(r => grid.appendChild(buildNPCCard(r)));
+  }
+
+  // ── Deceased section (collapsed by default) ──────────────────
+  if(deceased.length > 0) {
+    const wrap = document.createElement('div');
+    wrap.className = 'deceased-section';
+    wrap.style.cssText = 'margin-top:14px;';
+
+    const hdr = document.createElement('div');
+    hdr.style.cssText = `
+      display:flex;align-items:center;gap:6px;cursor:pointer;padding:8px 4px;
+      border-top:1px solid var(--border);font-size:10px;text-transform:uppercase;
+      letter-spacing:.1em;color:#665577;user-select:none;
+    `;
+    hdr.innerHTML = `<span>🪦</span><span>Deceased (${deceased.length})</span><span style="margin-left:auto">${F.deceasedOpen?'▾':'▸'}</span>`;
+
+    const body = document.createElement('div');
+    body.style.display = F.deceasedOpen ? 'block' : 'none';
+    body.style.paddingTop = '8px';
+
+    let deadList = deceased;
+    if(q) deadList = deceased.filter(r => r.name?.toLowerCase().includes(q));
+    deadList.forEach(r => body.appendChild(buildDeceasedEntry(r)));
+
+    hdr.onclick = () => {
+      F.deceasedOpen = !F.deceasedOpen;
+      body.style.display = F.deceasedOpen ? 'block' : 'none';
+      hdr.querySelector('span:last-child').textContent = F.deceasedOpen ? '▾' : '▸';
+    };
+    wrap.appendChild(hdr);
+    wrap.appendChild(body);
+    grid.appendChild(wrap);
+  }
+};
+
+// ───────────────────────────────────────────────────────────────
+// [3] THREE-TIER CURRENCY: Copper → Silver (×20) → Gold (×10)
+// Internal unit stays as GS.char.silver (float).
+// Display converts to gold / silver / copper denominations.
+// ───────────────────────────────────────────────────────────────
+
+function formatCoins(silverAmt) {
+  // Returns display string like "3G 5S 6C"
+  const s = Math.max(0, silverAmt || 0);
+  const gold    = Math.floor(s / 10);
+  const silver  = Math.floor(s % 10);
+  const copper  = Math.round((s % 1) * 20);
+  const parts = [];
+  if(gold > 0)                         parts.push(`${gold}G`);
+  if(silver > 0 || (gold === 0 && copper === 0)) parts.push(`${silver}S`);
+  if(copper > 0)                       parts.push(`${copper}C`);
+  return parts.join(' · ') || '0S';
+}
+
+function updateCurrencyDisplay() {
+  if(!GS?.char) return;
+  const str = formatCoins(GS.char.silver || 0);
+  const el  = document.getElementById('char-silver');
+  if(el) el.textContent = str;
+  const tbEl = document.getElementById('tb-silver');
+  if(tbEl) tbEl.textContent = '◈ ' + str;
+}
+
+// Override addSilver + spendSilver to use unified display
+addSilver = function(amount) {
+  GS.char.silver = Math.max(0, (GS.char.silver || 0) + amount);
+  updateCurrencyDisplay();
+  try { updateInventoryTab(); } catch(e) {}
+};
+
+spendSilver = function(amount) {
+  if((GS.char.silver || 0) < amount) return false;
+  GS.char.silver = Math.max(0, GS.char.silver - amount);
+  updateCurrencyDisplay();
+  try { updateInventoryTab(); } catch(e) {}
+  return true;
+};
+
+// Override updateTopbar to include currency
+const _topbarWithCoins = updateTopbar;
+updateTopbar = function() {
+  _topbarWithCoins();
+  updateCurrencyDisplay();
+};
+
+// Override updateCharacterTab to show coins properly
+const _charTabWithCoins = updateCharacterTab;
+updateCharacterTab = function() {
+  _charTabWithCoins();
+  updateCurrencyDisplay();
+  // Change label text from "Silver:" to "Coins:" once
+  const silverEl = document.getElementById('char-silver');
+  if(silverEl) {
+    const parent = silverEl.parentElement;
+    if(parent) {
+      Array.from(parent.childNodes).forEach(node => {
+        if(node.nodeType === 3 && node.textContent.includes('Silver:')) {
+          node.textContent = 'Coins: ';
+        }
+      });
+    }
+  }
+};
+
+// Override validateAndSpendSilver to also call currency display
+const _validateWithCoins = validateAndSpendSilver;
+validateAndSpendSilver = function(amount, reason) {
+  const result = _validateWithCoins(amount, reason);
+  updateCurrencyDisplay();
+  return result;
+};
+
+// Tell the AI about the currency system
+const _bspWithCoins = buildSystemPrompt;
+buildSystemPrompt = function() {
+  let prompt = _bspWithCoins();
+  // Update the economy context line to mention denominations
+  prompt = prompt.replace(
+    /The character has .+?◈ silver\./,
+    `The character has ${formatCoins(GS.char?.silver||0)} (${(GS.char?.silver||0).toFixed(2)} silver equivalent). Currency: 20 copper = 1 silver, 10 silver = 1 gold. When reporting currency gains/losses in statChanges.silver, use silver equivalents (e.g., 5 copper = 0.25 silver, 1 gold = 10 silver).`
+  );
+  return prompt;
+};
+
+// ───────────────────────────────────────────────────────────────
+// [4] NPC LOCATION: Gate messaging + show location on cards
+// ───────────────────────────────────────────────────────────────
+
+function getLocKingdom(locKey) {
+  return LOCATIONS[locKey]?.kingdom || null;
+}
+function playerKingdom() {
+  return getLocKingdom(GS.world.location);
+}
+function npcKingdom(npcId) {
+  const npc = GS.world.npcRegistry[npcId];
+  if(!npc || !npc.location || npc.location === 'unknown') return null;
+  return getLocKingdom(npc.location);
+}
+function npcLocName(npcId) {
+  const npc = GS.world.npcRegistry[npcId];
+  if(!npc || !npc.location || npc.location === 'unknown') return 'an unknown location';
+  return LOCATIONS[npc.location]?.name || npc.location;
+}
+function npcReachable(npcId) {
+  const nk = npcKingdom(npcId);
+  const pk = playerKingdom();
+  if(!nk || !pk) return true; // unknown = assume reachable
+  return nk === pk;
+}
+
+// Override sendNPCMessage with location gate
+sendNPCMessage = function(npcId) {
+  const input = document.getElementById(`msg-${npcId}`);
+  if(!input) return;
+  const msg = input.value.trim();
+  if(!msg) return;
+  if(!npcReachable(npcId)) {
+    const rel = GS.char.relationships.find(r => r.npcId === npcId);
+    toast(`${rel?.name || 'They'} are in ${npcLocName(npcId)} — you can't speak with them from ${LOCATIONS[GS.world.location]?.name || 'here'}.`, 'warning', 4500);
+    return;
+  }
+  input.value = '';
+  const rel = GS.char.relationships.find(r => r.npcId === npcId);
+  sendToAI(`The player speaks to ${rel?.name || 'them'}: "${msg}"`);
+};
+
+// Override sendQuickAction with location gate
+const _sqaWithLocation = sendQuickAction;
+sendQuickAction = function(npcId, actionType) {
+  if(!npcReachable(npcId)) {
+    const rel = GS.char.relationships.find(r => r.npcId === npcId);
+    toast(`${rel?.name || 'They'} are in ${npcLocName(npcId)} — travel there to interact with them.`, 'warning', 4500);
+    return;
+  }
+  _sqaWithLocation(npcId, actionType);
+};
+
+// Override buildNPCCard to show NPC location + reachability
+const _buildNPCCardWithLoc = buildNPCCard;
+buildNPCCard = function(r) {
+  const card = _buildNPCCardWithLoc(r);
+  const npc  = GS.world.npcRegistry[r.npcId];
+  if(!npc || !npc.location) return card;
+
+  const reachable = npcReachable(r.npcId);
+  const locName   = npcLocName(r.npcId);
+  const isUnknown = !npc.location || npc.location === 'unknown';
+  const playerLoc = LOCATIONS[GS.world.location]?.name || GS.world.location;
+  const samePlace = npc.location === GS.world.location;
+
+  // Build location badge
+  const locBadge = document.createElement('div');
+  locBadge.className = 'npc-loc-badge' + (reachable ? '' : ' out-of-reach');
+  locBadge.title = reachable
+    ? (samePlace ? `Currently in ${locName} — same as you` : `Both in the same kingdom`)
+    : `${r.name} is in ${locName} (different kingdom from ${playerLoc})`;
+
+  if(isUnknown) {
+    locBadge.innerHTML = `<span style="font-size:9px">📍 Whereabouts unknown</span>`;
+  } else if(samePlace) {
+    locBadge.innerHTML = `<span style="font-size:9px;color:var(--dim)">📍 ${locName}</span>`;
+  } else if(reachable) {
+    locBadge.innerHTML = `<span style="font-size:9px;color:var(--dim)">📍 ${locName}</span>`;
+  } else {
+    locBadge.innerHTML = `<span style="font-size:9px;color:var(--red)">🚫 ${locName} · Out of reach</span>`;
+    card.classList.add('unreachable');
+  }
+
+  // Insert after bond row, before summary
+  const summary = card.querySelector('.npc-summary');
+  if(summary) summary.parentNode.insertBefore(locBadge, summary);
+
+  return card;
+};
+
+// NPC movement system: each time advanceTime is called, some NPCs drift
+const _advanceWithNPCMove = advanceTime;
+advanceTime = function(days=0, months=0, years=0) {
+  _advanceWithNPCMove(days, months, years);
+  try {
+    const totalDays = (days||0) + (months||0)*30 + (years||0)*360;
+    if(totalDays < 1) return;
+
+    const spawnLocs = Object.keys(LOCATIONS).filter(k => LOCATIONS[k].spawnable);
+    if(spawnLocs.length < 2) return;
+
+    Object.values(GS.world.npcRegistry).forEach(npc => {
+      if(!npc.alive || !npc.location || npc.location === 'unknown') return;
+
+      // Movement chance per day — wanderers move more, settled less
+      const baseChance = npc._wanderer ? 0.025 : 0.004;
+      const moveChance = 1 - Math.pow(1 - baseChance, totalDays);
+      if(Math.random() >= moveChance) return;
+
+      // Prefer same kingdom unless wanderer
+      const homeKgdm = getLocKingdom(npc.homeLocation || npc.location);
+      let candidates;
+      if(npc._wanderer || !homeKgdm) {
+        candidates = spawnLocs.filter(k => k !== npc.location);
+      } else {
+        const sameKgdm = spawnLocs.filter(k => getLocKingdom(k) === homeKgdm && k !== npc.location);
+        candidates = Math.random() < 0.75 ? sameKgdm : spawnLocs.filter(k => k !== npc.location);
+      }
+      if(!candidates.length) return;
+
+      const dest = candidates[Math.floor(Math.random() * candidates.length)];
+      const oldLoc = npc.location;
+      npc.location = dest;
+
+      // Notify player if this is a known close relationship
+      const rel = GS.char.relationships.find(r => r.npcId === npc.id);
+      if(rel) {
+        rel.lastSeen = `Year ${GS.world.year}`;
+        if((rel.bond_level || 0) >= 52 && Math.random() < 0.4) {
+          addPersonalEvent(
+            `${npc.name} has moved from ${LOCATIONS[oldLoc]?.name || oldLoc} to ${LOCATIONS[dest]?.name || dest}.`
+          );
+        }
+      }
+    });
+  } catch(e) {}
+};
+
+// Give NPCs a wanderer flag based on their background
+const _startWithNPCWander = startGame;
+startGame = function(isLoad=false) {
+  _startWithNPCWander(isLoad);
+  try {
+    // Tag wanderer NPCs (merchants, cultivators, adventurers move more)
+    const WANDERER_ROLES = new Set(['merchant','cultivator','wanderer','adventurer','bounty hunter','rogue','courier','scout','assassin']);
+    Object.values(GS.world.npcRegistry).forEach(npc => {
+      if(npc._wanderer !== undefined) return; // already set
+      const bioText = (npc.personality?.join(' ') || '') + ' ' + (npc.hiddenHistory?.join(' ') || '') + ' ' + (npc.dailyLife || '');
+      npc._wanderer = WANDERER_ROLES.has(npc.occupation?.toLowerCase()) ||
+                      /\b(wander|travel|roam|journey|merchant|courier)\b/i.test(bioText);
+    });
+    // Ensure _openingCharacters exists
+    if(!GS.world._openingCharacters) GS.world._openingCharacters = {};
+    // Initialize currency display
+    updateCurrencyDisplay();
+  } catch(e) {}
+};
+
+// Also update currency display when the character tab is shown for the first time
+document.addEventListener('DOMContentLoaded', () => {
+  setTimeout(() => {
+    // Fix "Silver:" label to "Coins:" in the static HTML
+    const silverEl = document.getElementById('char-silver');
+    if(silverEl) {
+      const parent = silverEl.parentElement;
+      if(parent) {
+        Array.from(parent.childNodes).forEach(node => {
+          if(node.nodeType === 3 && node.textContent.trim() === 'Silver:') {
+            node.textContent = 'Coins: ';
+          }
+        });
+      }
+    }
+    updateCurrencyDisplay();
+  }, 200);
+});
 
 console.log('Murim Chronicles fully loaded.');
 
