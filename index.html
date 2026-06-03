@@ -7492,7 +7492,10 @@ async function generateOpeningNarrative() {
   const apiKey = GS.settings.apiKey;
   if(!apiKey) {
     placeholder.remove();
-    appendNarrative(buildFallbackOpening(c, loc, kingdom, originDef, pronoun, possessive));
+    const fallbackText = buildFallbackOpening(c, loc, kingdom, originDef, pronoun, possessive);
+    appendNarrative(fallbackText);
+    extractParentsFromOpening(fallbackText);
+    extractSkillsFromNarrative(fallbackText);
     return;
   }
 
@@ -18262,87 +18265,157 @@ startGame = function(isLoad=false) {
 // Enhanced extraction: find ALL named people in opening narrative, not just parents
 function extractAllCharactersFromOpening(text) {
   if(!text) return;
-  const c   = GS.char;
-  const w   = GS.world;
-  const lower = text.toLowerCase();
+  const c = GS.char;
+  const w = GS.world;
 
-  // Named person patterns — any capitalized name near a role/relationship indicator
-  // Extended beyond just parents
-  const rolePatterns = [
-    { role:'family',      keywords:['mother','father','parent','grandmother','grandfather','aunt','uncle','sister','brother','guardian'] },
-    { role:'caregiver',   keywords:['raised','took in','took you in','cared for','watched over','kept you','fed you'] },
-    { role:'employer',    keywords:['master','mistress','employer','shop owner','runs the stall','who hired','workshop'] },
-    { role:'neighbor',    keywords:['neighbor','next door','across the street','down the street'] },
-    { role:'teacher',     keywords:['teacher','tutor','instructor','taught you','learned from'] },
-    { role:'stranger',    keywords:['stranger','unknown person','someone who'] },
+  // Words that look like names but aren't
+  const EXCLUDED_WORDS = new Set([
+    'You','Your','He','She','They','His','Her','Their','Him','Them',
+    'The','This','That','These','Those','A','An',
+    'When','With','From','After','Before','Into','Over','Under','Above',
+    'Some','Many','Most','Few','All','Both','Each','Every',
+    'Year','Month','Day','Morning','Night','Dawn','Evening','Week',
+    'What','Who','Where','Why','How','Which','And','But','Or','So',
+    'Old','New','Young','Small','Large','Big','Good','Bad','Long',
+    'Tazar','Jade','Ooina','Buo','Azure','Luo','Tin',
+    'Empire','Kingdom','Dynasty','District','Street','Gate',
+    'Province','Capital','City','Market','Bridge','River','Mountain',
+    'North','South','East','West',
+    'One','Two','Three','First','Second','Third','Last',
+    'Still','Also','Just','Only','Even','Already','Always','Never',
+  ]);
+
+  // Split into sentences for context analysis
+  const sentences = text.split(/(?<=[.!?])\s+/);
+
+  // ── PASS 1: Explicit role+name patterns (most reliable) ──────────
+  // "your mother, Mei Lin" / "your father Wei Fu" / "a woman named Bao"
+  const foundPeople = new Map(); // name → {role, sentences, isDeceased}
+
+  const explicitPatterns = [
+    { regex:/your\s+mother[,\s]+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/gi,       role:'mother'    },
+    { regex:/your\s+father[,\s]+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/gi,        role:'father'    },
+    { regex:/your\s+mother['']s?\s+name\s+(?:is|was)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/gi, role:'mother' },
+    { regex:/your\s+father['']s?\s+name\s+(?:is|was)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/gi, role:'father' },
+    { regex:/([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)[,\s]+(?:his|her|their|your)\s+mother/gi, role:'mother' },
+    { regex:/([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)[,\s]+(?:his|her|their|your)\s+father/gi, role:'father' },
+    { regex:/your\s+grandmother[,\s]+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/gi,   role:'grandmother'},
+    { regex:/your\s+grandfather[,\s]+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/gi,   role:'grandfather'},
+    { regex:/your\s+aunt[,\s]+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/gi,          role:'aunt'      },
+    { regex:/your\s+uncle[,\s]+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/gi,         role:'uncle'     },
+    { regex:/your\s+(?:older\s+)?sister[,\s]+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/gi, role:'sister' },
+    { regex:/your\s+(?:older\s+)?brother[,\s]+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/gi, role:'brother' },
+    { regex:/a\s+(?:woman|man|person)\s+(?:everyone\s+calls|called|named|they\s+call)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/gi, role:'caregiver' },
+    { regex:/(?:named|called)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)[,\s]/gi,   role:'mentioned' },
+    { regex:/([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)[,\s]+(?:a|an)\s+(?:stockman|carpenter|guard|warden|merchant|cook|farmer|physician|teacher|soldier|smith|clerk)/gi, role:'acquaintance' },
+    { regex:/([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s+(?:raised|took\s+you\s+in|cared\s+for\s+you|fed\s+you|watched\s+over\s+you)/gi, role:'caregiver' },
+    { regex:/([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s+(?:taught\s+you|showed\s+you|instructed)/gi, role:'teacher' },
+    { regex:/([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?),\s+(?:your\s+)?(?:neighbor|the\s+man\s+next\s+door|the\s+woman\s+next)/gi, role:'neighbor' },
+    { regex:/Auntie\s+([A-Z][a-z]+)/gi,  role:'caregiver' },
+    { regex:/Uncle\s+([A-Z][a-z]+)/gi,   role:'caregiver' },
+    { regex:/"([A-Z][a-z]+)"/g,          role:'mentioned' }, // Names in quotes/dialog
   ];
 
-  // Find capitalized names (2+ letters, followed by space + capitalized word optionally)
-  const nameRegex = /\b([A-Z][a-z]{1,14}(?:\s+[A-Z][a-z]{1,14})?)\b/g;
-  const candidateNames = new Set();
-  let m;
-  while((m = nameRegex.exec(text)) !== null) {
-    const name = m[1].trim();
-    // Filter out common non-name words
-    const exclude = new Set(['You','Your','The','This','That','They','Their','When','With','From',
-      'After','Before','Some','Many','Most','First','Last','Each','Both','Into','Over',
-      'Year','Month','Day','Tazar','Jade','Ooina','Buo','Azure','Luo','Tin','Empire',
-      'Kingdom','Dynasty','District','Street','Gate','Province','Capital','City']);
-    if(!exclude.has(name) && name.length >= 2) candidateNames.add(name);
-  }
+  explicitPatterns.forEach(({ regex, role }) => {
+    let m;
+    regex.lastIndex = 0;
+    while((m = regex.exec(text)) !== null) {
+      const name = m[1]?.trim();
+      if(!name || EXCLUDED_WORDS.has(name) || name === c.firstName || name === c.lastName) continue;
+      if(name.length < 2 || name.length > 30) continue;
 
-  // For each candidate name, determine their role by context
-  candidateNames.forEach(name => {
-    if(c.relationships.find(r => r.name === name)) return; // already added
-
-    // Find the sentence(s) containing this name
-    const nameLow = name.toLowerCase();
-    const sentences = text.split(/[.!?]/).filter(s => s.toLowerCase().includes(nameLow));
-    if(!sentences.length) return;
-
-    // Determine relationship type from context
-    let relType = 'mentioned';
-    let isDeceased = false;
-    let summary = '';
-
-    for(const { role, keywords } of rolePatterns) {
-      if(sentences.some(s => keywords.some(kw => s.toLowerCase().includes(kw)))) {
-        relType = role;
-        break;
+      const existing = foundPeople.get(name);
+      if(!existing || existing.role === 'mentioned') {
+        // Get all sentences mentioning this name
+        const nameSentences = sentences.filter(s => s.includes(name));
+        const isDeceased = nameSentences.some(s =>
+          /\b(died|dead|passed|killed|murder|execution|drowned|buried|grave|is\s+gone|was\s+gone)\b/i.test(s)
+        );
+        const isAbsent = !isDeceased && nameSentences.some(s =>
+          /\b(left|gone|missing|disappeared|never\s+came|didn'?t\s+come|hasn'?t\s+come|stopped\s+writing|stopped\s+coming|no\s+longer)\b/i.test(s)
+        );
+        foundPeople.set(name, { role, nameSentences, isDeceased, isAbsent });
       }
     }
+  });
 
-    // Check if deceased in the narrative
-    const deathIndicators = ['died','dead','passed','killed','murder','execution','drowned','buried','grave'];
-    if(sentences.some(s => deathIndicators.some(di => s.toLowerCase().includes(di)))) {
-      isDeceased = true;
-    }
+  // ── PASS 2: Any remaining capitalized names that appear 2+ times ─
+  const nameRegex = /\b([A-Z][a-z]{1,12}(?:\s+[A-Z][a-z]{1,12})?)\b/g;
+  const nameCounts = new Map();
+  let m2;
+  while((m2 = nameRegex.exec(text)) !== null) {
+    const name = m2[1].trim();
+    if(EXCLUDED_WORDS.has(name)) continue;
+    if(name === c.firstName || name === c.lastName || name === `${c.firstName} ${c.lastName}`) continue;
+    if(name.length < 2) continue;
+    nameCounts.set(name, (nameCounts.get(name) || 0) + 1);
+  }
 
-    // Build summary from first mention sentence
-    summary = sentences[0]?.trim().slice(0, 120) || '';
+  // Add names that appear 2+ times and aren't already found
+  nameCounts.forEach((count, name) => {
+    if(count < 2) return;
+    if(foundPeople.has(name)) return;
+    const nameSentences = sentences.filter(s => s.includes(name));
+    const isDeceased = nameSentences.some(s => /\b(died|dead|passed|killed|grave)\b/i.test(s));
+    foundPeople.set(name, { role:'mentioned', nameSentences, isDeceased, isAbsent:false });
+  });
 
-    // Create NPC
-    const npcId = `opening_${name.toLowerCase().replace(/\s+/g,'_')}_${uid().slice(0,4)}`;
+  // ── Create relationships for all found people ─────────────────
+  foundPeople.forEach(({ role, nameSentences, isDeceased, isAbsent }, name) => {
+    if(c.relationships.find(r => r.name === name)) return;
+
+    // Build meaningful summary — use the most descriptive sentence
+    const summaryRaw = nameSentences
+      .sort((a,b) => b.length - a.length) // longer = more descriptive
+      .slice(0,2).join(' ').trim();
+    const summary = summaryRaw.slice(0, 130) + (summaryRaw.length > 130 ? '…' : '');
+
+    // Full memory = all sentences about them
+    const fullMemory = nameSentences.join(' ').trim().slice(0, 600);
+
+    // Role → display type
+    const typeMap = {
+      mother:'family', father:'family', grandmother:'family', grandfather:'family',
+      aunt:'family', uncle:'family', sister:'family', brother:'family',
+      caregiver:'caregiver', teacher:'teacher', neighbor:'neighbor',
+      acquaintance:'acquaintance', mentioned:'from the opening',
+    };
+    const relType = typeMap[role] || role;
+
+    // Trust based on role
+    const trustMap = {
+      family:70, caregiver:65, teacher:55, neighbor:45, acquaintance:35, mentioned:30,
+    };
+
+    const npcId = `opening_${name.toLowerCase().replace(/\s+/g,'_').replace(/[^a-z0-9_]/g,'')}_${uid().slice(0,4)}`;
     const npc = {
-      id: npcId, name, title:'', alive: !isDeceased, isLore: false, glowColor: null,
-      qiStageIndex: 0, strength:8, agility:8, endurance:8, intelligence:8,
+      id:npcId, name, title:'', alive:!isDeceased, isLore:false, glowColor:null,
+      qiStageIndex:0, strength:8, agility:8, endurance:8, intelligence:8,
       perception:8, willpower:8, charisma:8, luck:8,
-      memoriesOfPlayer:[`Present in ${c.firstName}'s earliest memories.`],
+      memoriesOfPlayer:[`From ${c.firstName}'s earliest years.`],
       personality:[], alignment:'orthodox', hiddenHistory:[],
+      location: isAbsent ? 'unknown' : c.birthCity,
+      homeLocation: c.birthCity,
     };
     w.npcRegistry[npcId] = npc;
 
     const rel = {
-      npcId, name, title:'', type: relType,
-      summary: summary || `Mentioned in the opening years of ${c.firstName}'s life.`,
-      fullMemory: text.includes(name) ? sentences.join(' ').trim().slice(0,500) : '',
-      trust:40, alive:!isDeceased, isZeret:false, isLore:false, glowColor:null,
-      lastSeen:`Year ${w.year}`,
+      npcId, name, title:'',
+      type: relType,
+      summary: summary || `${role === 'mother' ? 'Your mother.' : role === 'father' ? 'Your father.' : `Someone from your earliest years.`}`,
+      fullMemory: fullMemory || `Mentioned in ${c.firstName}'s opening years.`,
+      trust: trustMap[relType] || 35,
+      alive: !isDeceased,
+      isZeret:false, isLore:false, glowColor:null,
+      lastSeen: isAbsent ? 'Last seen before the story begins' : `Year ${w.year}`,
     };
+
     if(isDeceased) {
-      rel.deathYear = w.year; // approximate — before game start
-      rel.deathCause = 'cause unknown';
+      rel.deathYear = w.year;
+      rel.deathCause = 'cause unknown — from the opening narrative';
+      npc.alive = false;
     }
+
     c.relationships.push(rel);
   });
 
