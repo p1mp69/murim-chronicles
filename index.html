@@ -2952,10 +2952,10 @@ const TRAITS_CATALOG = {
   seed_lust: {
     name: 'Seed of Lust',
     type: 'sin_seed', rarity: 'epic', inherited: false,
-    desc: 'A dormant seed planted in the soul — not by your choosing. When Zeret of Lust walks the world, you feel it before anyone else does.',
+    desc: 'A dormant seed directly connected to the domain of Lust — and to whoever holds it. Pre-shift: Zeret. Post-shift: Iasiba. The seed follows the domain, not the person. The holder can sense you through it.',
     flavor: 'There was a warmth in your chest that didn\'t belong to the season.\n\nYou stood there for a long moment.\n\nThen you walked in the direction it was pulling.',
-    gameplay: 'Sense Zeret\'s presence when he\'s active in the world. Techniques of desire become more accessible as the seed develops. The seed wants to grow. Ignoring Zeret\'s presence accelerates evolution. Engaging with him may also change you.',
-    aiHint: "SEED OF LUST: When Zeret is active, this character feels it — a warmth, a pull, something out of season. Surface this as ambient sensation. The seed is dormant but not inert — in situations involving desire, longing, or beauty, it stirs faintly. Don't announce it. Just let it color the moment.",
+    gameplay: 'Directly connected to the current Lord of Lust. Pre-shift: Zeret feels you when the seed stirs. Post-shift: Iasiba holds the domain — the connection shifts to him, and what comes through the seed changes. Warmth becomes something sharper. The lord can reach through the seed if they choose. The seed develops toward that lord\'s nature.',
+    aiHint: "SEED OF LUST: This character has a live connection to whoever holds the Lust domain. PRE-SHIFT: Zeret — surface as warmth, pull, something chaotic and beautiful. He might reach through occasionally. POST-SHIFT: Iasiba now holds Lust — the seed feels different now. What comes through is colder, more specific, more precise. He knows exactly what this character wants and occasionally surfaces it with uncomfortable accuracy. In either case, the lord is AWARE of this character through the seed.",
     effects: {}, evolves: ['sapling_lust'],
   },
 
@@ -2992,10 +2992,10 @@ const TRAITS_CATALOG = {
   seed_wrath: {
     name: 'Seed of Wrath',
     type: 'sin_seed', rarity: 'epic', inherited: false,
-    desc: 'A dormant seed of fury. This is not ordinary anger — it is the potential to become something that violence fears. Those born with it carry a ceiling other cultivators cannot reach.',
+    desc: 'The Wrath domain has no lord. No Maligned Lord claims it. This seed connects to a vacuum — and a vacuum pulls. Full development of this seed leads somewhere no one has been: you can become the Maligned Lord of Wrath. The position is vacant. The power is waiting.',
     flavor: 'When you were angry — really angry — something shifted.\n\nNot something you chose.\n\nSomething that chose you.',
-    gameplay: 'In rage, Qi output spikes and physical power surges beyond what your stage should allow. This seed is a cultivation ceiling others cannot touch. Path: Seed → Sapling (rage-based breakthrough) → Tree (living catastrophe) → Vessel of Wrath (what war looks like given a body). Without this seed, that ceiling does not exist.',
-    aiHint: 'SEED OF WRATH: This character has the potential to become something that warfare itself looks like from the outside. In genuine rage NOW, power spikes beyond their stage — harder to stop, Qi surges, physically more dangerous. But the real weight of this trait is what it means for their ceiling: with cultivation, they can reach a form of martial power that is simply not available to cultivators without this seed. Surface the rage surge when appropriate, but occasionally let them sense something enormous waiting underneath it.',
+    gameplay: 'No lord attached — this seed connects to a vacant domain, which means no ceiling imposed from above. Rage surges in combat beyond normal stage limits. The path: Seed → Sapling → Tree (living catastrophe) → Vessel of Wrath (you become the Maligned Lord — the domain is claimed, the position is yours). The other Four will respond to this.',
+    aiHint: 'SEED OF WRATH — VACANT DOMAIN: This character is connected to an unclaimed domain. No lord watches them through it, but the domain itself pulls. In rage, power spikes beyond their stage. Occasionally surface a sense of something vast and unclaimed that the rage is touching — not a person on the other end, but a presence like an empty throne. The path ends in lordship. Surface this as the rage having a quality of destiny rather than just power.',
     effects: { strength: 3, willpower: -2 },
     evolves: ['sapling_wrath'],
   },
@@ -3024,10 +3024,10 @@ const TRAITS_CATALOG = {
   seed_envy: {
     name: 'Seed of Envy',
     type: 'sin_seed', rarity: 'epic', inherited: false,
-    desc: "You sense the strengths of others like wounds on your own skin. This is not jealousy. It is the beginning of something that can literally take what others have. Most cultivators can only earn their power. You were born with the potential to take it.",
+    desc: "Connected to whoever holds the Envy domain. Pre-shift: Iasiba. Post-shift: Zeret takes Envy — the seed now connects to him, and what reaches through it is his new nature: longing for what he had, what he lost. The seed follows the domain. The lord knows you have it.",
     flavor: 'You watched him move through the form and felt something you didn\'t have a clean name for.\n\nNot admiration.\n\nNot quite.',
-    gameplay: "Sense other cultivators' power levels instinctively. The seed is the foundation of a path where your power is not earned — it's taken. With full development, techniques, strengths, and abilities can be absorbed from those you defeat. This ceiling is not available without this seed.",
-    aiHint: "SEED OF ENVY: This character perceives others' strengths acutely — surface what they notice about another person's capability. It registers as specific pain. But the real weight of this trait: with full development, they can literally take power from those they defeat — absorbing technique fragments, capability, strength. Right now, surface the perception. Occasionally let them sense what this seed is pointing toward.",
+    gameplay: "Directly connected to the current Envy lord. Pre-shift: Iasiba — methodical, cold, he perceives you as interesting. Post-shift: Zeret now holds Envy, having lost what he was — the connection shifts to him and what comes through is grief-shaped longing, something you feel as ache rather than pull. Either lord knows you exist through this seed.",
+    aiHint: "SEED OF ENVY — LORD CONNECTION: PRE-SHIFT: Iasiba holds Envy. He is aware of this character through the seed and views them as someone worth watching — a mortal who senses power the way he does. Surface his presence as cold recognition, occasionally a sense of being observed with precision. POST-SHIFT: Zeret now holds Envy. What reaches through the seed is his new nature — longing, loss, the specific ache of wanting back what he had. Surface this as grief-shaped sensation in the character, something melancholy that isn't theirs.",
     effects: { perception: 3 },
     evolves: ['sapling_envy'],
   },
@@ -3056,10 +3056,10 @@ const TRAITS_CATALOG = {
   seed_sloth: {
     name: 'Seed of Sloth',
     type: 'sin_seed', rarity: 'epic', inherited: false,
-    desc: 'You need less than you should. This is the beginning of something that ends in perfect stillness — a state of rest so absolute that nothing in the world can move it. Normac reached his ceiling differently. You might reach a version he didn\'t.',
+    desc: 'Directly connected to Normac of Sloth. He knows you have it. He is not warm about it, but he notices — in the way that something completely still notices a disturbance. His domain touches yours through the seed. He may reach out. He may not.',
     flavor: 'You could go longer without sleep than was normal.\n\nYou noticed this the way you noticed rain — something that just was.',
-    gameplay: 'Reduced need for food and sleep. Faster recovery. Cultivation is slower — the seed conserves everything. But the ceiling: full development leads to a state of physical invincibility through perfect stillness. A body that cannot be moved, broken, or ended by ordinary means. This path is not available to those without this seed.',
-    aiHint: 'SEED OF SLOTH: This character needs less food, sleep, and rest than normal. Cultivation is slower. But occasionally surface what this seed is pointing toward — a depth of stillness they can achieve that others cannot. In moments of complete calm, describe a quality of immovability that registers on perceptive NPCs as something wrong. The seed is building toward something that doesn\'t break.',
+    gameplay: 'Directly connected to Normac of Sloth — he is aware this seed exists in the world. He may communicate through it (rarely, and in few words). Physical needs reduced, recovery faster, cultivation slower. Path leads to perfect stillness that mirrors Normac\'s own nature — and he finds that interesting, in the way that something absolutely still finds anything that resembles it interesting.',
+    aiHint: "SEED OF SLOTH — LORD CONNECTION: Normac of Sloth is aware of this character. He rarely communicates through the seed — but when he does, it's direct and brief. Surface his presence as a quality of vast stillness that isn't the character's own, a weight that isn't threatening but is enormous. In calm moments, let the character feel that stillness touching theirs. Normac would be more likely to seek this character out than any other seed-holder — they are becoming something adjacent to him.",
     effects: { endurance: 3 },
     qiCostMult: { cultivation_gain: 0.85 },
     evolves: ['sapling_sloth'],
@@ -3089,10 +3089,10 @@ const TRAITS_CATALOG = {
   seed_pride: {
     name: 'Seed of Pride',
     type: 'sin_seed', rarity: 'epic', inherited: false,
-    desc: "Your presence in a room is enormous. People notice before you speak. This is the seed of something that ends in a presence so absolute that lesser wills simply cannot function near it. Xelaad's path is one version. This is the raw material for another.",
+    desc: "Directly connected to Xelaad of Pride — and he knows it. He considers the existence of a Pride seed in a mortal both insulting and interesting. He does not reach through it warmly. What comes through is assessment. Ranking. The weight of being judged by something that has spent a thousand years cataloguing who matters.",
     flavor: 'There have been situations where you should have left.\n\nYou stayed.\n\nThis has not always ended well.',
-    gameplay: 'Presence commands attention. Social situations lean toward your authority. Retreat feels wrong — the seed resists. Full development: a presence that actively degrades the will of those around you. A room that reshapes itself around the fact of you. This ceiling is not available without this seed.',
-    aiHint: 'SEED OF PRIDE: This character commands attention — NPCs notice them entering a space. Social weight leans toward their authority. Retreat feels genuinely wrong and they resist it even when they shouldn\'t. But surface occasionally what this seed is building toward — a quality of presence that doesn\'t just attract attention but suppresses the capacity of lesser wills to oppose it.',
+    gameplay: 'Directly connected to Xelaad of Pride. He assesses this character through the seed — not warmly, but constantly. What reaches through is evaluation: are you worth his attention? The more pride develops, the more he engages. By Tree stage, Xelaad interacts with this character as a rival worth the effort of suppressing. He would prefer to end this seed before it matures.',
+    aiHint: "SEED OF PRIDE — LORD CONNECTION: Xelaad of Pride is aware of this character and is evaluating them. What comes through the seed is the sensation of being ranked — a cold, precise assessment from something that has ranked everyone and found them wanting. Occasionally surface this as a moment where the character feels judged and found: not wanting yet, but watched. As the seed grows, Xelaad's engagement escalates. By Tree stage, he may attempt to end the character directly — a developed Pride seed outside his control is a threat to his authority.",
     effects: { charisma: 4, willpower: 2 },
     evolves: ['sapling_pride'],
   },
@@ -3121,10 +3121,10 @@ const TRAITS_CATALOG = {
   seed_greed: {
     name: 'Seed of Greed',
     type: 'sin_seed', rarity: 'epic', inherited: false,
-    desc: "Items found tend toward quality. You sense silver and valuables nearby. The wanting doesn't stop — it redirects. This is the seed of a path that ends in acquisition without limit — resources, power, even cultivation itself, accumulating beyond what any normal cultivator can hold.",
+    desc: "Directly connected to Dranoel of Greed. He has already classified you as an investment — something with returns worth monitoring. This is not warmth. It is calculation. The seed exists and he knows it exists and he is watching what you do with it. He may send opportunities. He may try to collect you.",
     flavor: 'You found the coin in a crack in the floor that nobody else had looked at.\n\nYou didn\'t stop to think about why you looked there.\n\nYou just looked.',
-    gameplay: 'Items found tend higher quality. Passive sense of nearby valuables. The wanting never ends — goals shift as they\'re reached. Full development: the capacity to accumulate resources and power at a rate that normal cultivators cannot match, and hold more than they should be able to hold. The ceiling without this seed does not include this.',
-    aiHint: 'SEED OF GREED: This character senses value — lean item finds slightly better, let them notice opportunities others miss. The wanting never ends — when one goal is reached, another forms. But surface occasionally what this seed is building toward: an accumulation capacity that will eventually exceed what their stage should permit. Dranoel of Greed, if active, has registered this character the way he registers anything worth acquiring.',
+    gameplay: 'Directly connected to Dranoel of Greed. He monitors the seed\'s development and may interact with the player through opportunities — unusually good deals, unexpected resources, situations that seem like luck. Items found tend better quality. The wanting never ends. By Tree stage, Dranoel treats this character as a peer/rival worth direct engagement.',
+    aiHint: "SEED OF GREED — LORD CONNECTION: Dranoel of Greed monitors this character through the seed. He doesn't reach through it warmly — he sends things. Opportunities that seem like luck, resources that appear, deals that seem too good. Describe these occasionally as having a quality of being arranged rather than random. At higher stages, Dranoel's engagement becomes more direct — he may seek the character out to assess whether they're worth acquiring, partnering with, or eliminating before they become a problem.",
     effects: { luck: 4 },
     evolves: ['sapling_greed'],
   },
@@ -3148,6 +3148,72 @@ const TRAITS_CATALOG = {
     gameplay: 'Wealth accumulates at an anomalous rate. Qi maximum is now 50% above stage-appropriate ceiling. Items in your possession tend to improve over time — quality seeps in. Dranoel of Greed, if active, is aware of you personally.',
     aiHint: "TREE OF GREED: Resources simply accumulate around this character — describe silver appearing to go further, items improving subtly, Qi capacity that consistently exceeds what their stage explains. Dranoel of Greed, if active, is personally aware of them and has classified them as something between a resource and a rival. Any encounter with him is colored by this calculus.",
     effects: { luck: 8, intelligence: 3, willpower: 2 },
+  },
+
+  // ──────────────────────────────────────────────────────────
+  // WRATH ASCENSION — the vacant domain (no lord holds it)
+  // Full development = YOU become the Maligned Lord of Wrath
+  // ──────────────────────────────────────────────────────────
+
+  vessel_wrath: {
+    name: 'Vessel of Wrath — Maligned Lord',
+    type: 'sin_lord', rarity: 'fable', inherited: false,
+    desc: 'You have claimed the vacant domain. Wrath belongs to you now — not as a sin you carry, but as a domain you are. The other Four have noticed. There are Five again.',
+    flavor: 'There was a moment.\n\nAnd then there was a domain that had a holder.\n\nThe world reorganized itself slightly, the way it does when something important slots into place.',
+    gameplay: 'You are now a Maligned Lord — the sixth, and the one who was not born to it but fought to it. The other lords treat you differently: Normac with recognition, Xelaad with calculation, Dranoel with interest, Iasiba with complicated feelings. Mortals who are sensitive to the supernatural feel something change. The domain of Wrath gives you authority over rage itself — yours and others\'.',
+    aiHint: 'VESSEL OF WRATH (MALIGNED LORD): This character has claimed the domain of Wrath. They are now one of the Six Maligned Lords — a position seized rather than inherited. The other lords recognize this. Normac regards them as the only other being that reached power through something close to his own path. Xelaad is calculating how this changes the hierarchy. When this character enters true rage, describe something that is no longer just power — it is authority over a domain. Mortals nearby feel the weight of it. This should be treated as a genuine cosmological shift, not just a strong combat state.',
+    effects: { strength: 15, willpower: 15, endurance: 10, charisma: 5, perception: 5 },
+    isMalignedLord: true, lordDomain: 'wrath',
+  },
+
+  // ──────────────────────────────────────────────────────────
+  // GLUTTONY SEED CHAIN — the other vacant domain
+  // No lord holds Gluttony. Develops toward becoming one.
+  // Gluttony ≠ Greed. Greed acquires. Gluttony CONSUMES.
+  // ──────────────────────────────────────────────────────────
+
+  seed_gluttony: {
+    name: 'Seed of Gluttony',
+    type: 'sin_seed', rarity: 'epic', inherited: false,
+    desc: 'The hunger is not for any one thing. It is structural. There is no Maligned Lord of Gluttony — the domain is vacant. The seed knows this. It is looking for somewhere to go.',
+    flavor: 'You ate.\n\nYou were full.\n\nThe hunger didn\'t notice.',
+    gameplay: 'VACANT DOMAIN — no lord holds Gluttony, which means the seed has no ceiling forced on it from above. Everything you consume gives slightly more: food, cultivation resources, techniques studied, experiences lived. The hunger is not painful. It is just constant. Full development of this seed leads to a place no Maligned Lord has gone before — because there has never been one.',
+    aiHint: 'SEED OF GLUTTONY: This character consumes more than they should from everything — food goes further, cultivation resources grant slightly more Qi, techniques studied are absorbed deeper. The hunger is always present but rarely urgent. It is structural. There is no Maligned Lord tied to this seed because the domain is vacant — surface this occasionally as an ambient quality, something that has no anchor in the world yet. The seed is looking for a place to belong.',
+    effects: { endurance: 2, luck: 1 },
+    evolves: ['sapling_gluttony'],
+  },
+
+  sapling_gluttony: {
+    name: 'Sapling of Gluttony',
+    type: 'sin_seed', rarity: 'legendary', inherited: false,
+    desc: 'The consumption has become active. You can absorb Qi from defeated opponents, from environments rich in spiritual energy, from objects that have accumulated power. The vacant domain is getting a shape.',
+    flavor: 'After the fight, you did something without deciding to.\n\nYou absorbed what was left of his Qi.\n\nYou didn\'t mean to.\n\nBut you were hungrier after than before he started.',
+    gameplay: 'Can absorb ambient Qi from spiritually rich environments. After defeating strong opponents, absorbs a portion of their Qi. Cultivation resources give 30% more than normal. The vacant domain is beginning to organize around you.',
+    aiHint: 'SAPLING OF GLUTTONY: This character can absorb Qi passively from spiritually rich environments — describe them drawing in something when they\'re near ancient sites, powerful cultivators, or places where Qi is dense. After defeating strong opponents, a portion of the defeated\'s Qi transfers. Cultivation resources are more effective for them. Occasionally surface a quality of being noticed — not by a lord (there isn\'t one for Gluttony) but by the domain itself, as though something formless is tracking the development.',
+    effects: { endurance: 4, strength: 2, qi_mult: 1.3 },
+    evolves: ['tree_gluttony'],
+  },
+
+  tree_gluttony: {
+    name: 'Tree of Gluttony',
+    type: 'sin_seed', rarity: 'mythic', inherited: false,
+    desc: 'Fully grown. You devour technique, cultivation, power, experience — at a rate the world has no framework for, because the domain has never had a holder. The path ahead is uncharted. Something vast is organizing in the world\'s fabric around what you are becoming.',
+    flavor: 'You consumed the technique.\n\nNot learned it.\n\nConsumed it.\n\nThe distinction mattered in ways you were still understanding.',
+    gameplay: 'Techniques can be consumed directly — absorbed from tomes or briefly from opponents mid-combat. Power taken this way is partially retained. The ascension path is open. The vacant domain is yours to claim if you reach the threshold. No lord has this ability because there has never been a Lord of Gluttony.',
+    aiHint: 'TREE OF GLUTTONY: This character can now consume techniques directly — describe the act of absorption as physical, like eating something. Opponent techniques witnessed repeatedly can be partially consumed and retained. The world\'s fabric is organizing around what they\'re becoming — describe subtle wrongness in environments: Qi behaves differently near them, animals are instinctively wary, very old cultivators sense something forming that doesn\'t have a name yet. The ascension to Maligned Lord of Gluttony is one threshold away.',
+    effects: { endurance: 8, strength: 5, intelligence: 4, willpower: 3 },
+    evolves: ['vessel_gluttony'],
+  },
+
+  vessel_gluttony: {
+    name: 'Vessel of Gluttony — Maligned Lord',
+    type: 'sin_lord', rarity: 'fable', inherited: false,
+    desc: 'The first. There has never been a Maligned Lord of Gluttony before you. The domain did not exist in a held form until this moment. You are not filling a vacancy — you are creating the position.',
+    flavor: 'Something arrived in the world that had not been there before.\n\nNot physically.\n\nAs a fact.\n\nSomething that needed a name, and the name was already there, waiting.',
+    gameplay: 'You are the Maligned Lord of Gluttony — the first, the only, unbound by precedent. The other lords react: Dranoel is fascinated and unsettled (Gluttony and Greed are adjacent but you operate without his constraint). Xelaad is recalculating. Normac is still. What you can consume has no documented upper limit because no one has been here before.',
+    aiHint: 'VESSEL OF GLUTTONY (MALIGNED LORD): This character has created a new domain. They are the first Maligned Lord of Gluttony — not filling a role but establishing one. The other lords\' reactions: Dranoel is fascinated but unsettled by someone who consumes without strategic calculation; Xelaad is recalibrating his hierarchy with a new entry; Normac registers a new kind of power and is still about it. The domain of Gluttony is now real in the world. Describe the environment responding to this character differently — things near them feel the pull of consumption. There is no precedent for what they can do at this stage because no one has been here.',
+    effects: { endurance: 20, strength: 12, intelligence: 8, willpower: 10, perception: 5, luck: 5 },
+    isMalignedLord: true, lordDomain: 'gluttony',
   },
 
   // ──────────────────────────────────────────────────────────
@@ -5840,6 +5906,14 @@ WORLD LORE:
   3. Dranoel of Greed (~955 yrs): Dark ebony skin, cornrows, lean despite having consumed kingdoms' worth of resources. Views everything as asset or obstacle. Consumed a pig god in Year 112 — its divine appetite merged with his. True form is a void that devours matter and essence. Spawn years: 270,360,440,560,680,790,920.
   4. Normac of Sloth (~910 yrs): Towering, blond-tipped dreads, inhuman musculature, completely still until he isn't. Singular obsession with physical perfection. Survived a cave collapse by consuming arch-demon blood. Speaks only when necessary. True form is colossal — his presence alone generates crushing pressure. Spawn years: 310,420,500,620,720,850,950.
   5. Zeret of Lust: Lightskin, freeform dreads, always wears glasses. His beauty bypasses the mind entirely. Charismatic, sneaky, sometimes reborn as a child. Spawn years: 166,188,199,255,574,678,666,738,800. Can become Zeret of Envy if he meets Aym (Year 500+ only) — this triggers THE SIN SHIFT.
+- SEEDS OF SIN — DIRECT LORD CONNECTIONS (each seed creates a live channel to the lord who holds that domain):
+  - Seed of Lust → current Lust lord (pre-shift: Zeret; post-shift: Iasiba). The lord feels the seed stir.
+  - Seed of Envy → current Envy lord (pre-shift: Iasiba; post-shift: Zeret). Connection character changes with the lord.
+  - Seed of Pride → Xelaad. He monitors and ranks the holder. By Tree stage he may try to suppress them.
+  - Seed of Greed → Dranoel. He treats the holder as a monitored investment. Sends opportunities. May seek to collect.
+  - Seed of Sloth → Normac. He rarely communicates through it but notices the stillness developing.
+  - Seed of Wrath → VACANT DOMAIN. No lord watches through it. The domain itself pulls. Full development = holder BECOMES the Maligned Lord of Wrath.
+  - Seed of Gluttony → VACANT DOMAIN. No lord watches through it. First-ever path to Maligned Lord of Gluttony. A position that has never been held.
 - THE SIN SHIFT (when Zeret meets Aym): Zeret abandons Lust for Envy. The cascade:
   - Iasiba shifts to LUST — MORE VILE AND POWERFUL than Zeret of Lust ever was. THE DISTINCTION IS THIS: Zeret was freaky — the drive itself, raw elemental desire, the heat before thought. Iasiba is kinky turned up twenty notches — not the drive, but the specific dark and vile things the drive leads people toward. The shameful wants. The locked doors in the mind. He finds the exact thing each person has buried because it frightened or disgusted them and makes it present and real. Zeret made the world feel charged. Iasiba gives people the specific thing they cannot unremember. Still charming on the surface. What lives beneath has studied human darkness for 980 years. Stronger than Zeret of Lust. Different domain entirely from Zeret of Envy.
   - Xelaad's Pride curdles toward Wrath at the disruption of his carefully maintained hierarchy.
@@ -8842,7 +8916,14 @@ function generateRandomTraits() {
   // Pool of assignable traits (exclude sin seeds, evolution stages, gained-only)
   const excluded = new Set([
     'sapling_lust','tree_lust','servant_lust',
-    'seed_lust','seed_wrath','seed_envy','seed_sloth','seed_pride','seed_greed',
+    'sapling_wrath','tree_wrath','vessel_wrath',
+    'sapling_envy','tree_envy',
+    'sapling_sloth','tree_sloth',
+    'sapling_pride','tree_pride',
+    'sapling_greed','tree_greed',
+    'sapling_gluttony','tree_gluttony','vessel_gluttony',
+    'seed_lust','seed_wrath','seed_envy','seed_sloth','seed_pride','seed_greed','seed_gluttony',
+    'vessel_wrath','vessel_gluttony', // lord ascension — never randomly granted
     'marked_by_violence','once_dead','survivors_nerve','street_learned',
     'borrowed_time','oath_bound','name_in_fear',
     'bloodline_echo', // too epic to start with randomly
@@ -22686,6 +22767,142 @@ startGame = function(isLoad=false) {
   try {
     repairInventory();
     updateInventoryTab();
+  } catch(e) {}
+};
+
+// ================================================================
+// ── SEED OF SIN SYSTEM — lord connection + ascension tracking
+// ================================================================
+
+// Get the current lord for a given sin domain (respects sin shift)
+function getCurrentSinLord(sinDomain) {
+  const w = GS.world;
+  const ml = w.malignedLords || {};
+  const shifted = w.sinShiftOccurred;
+
+  const map = {
+    lust:    shifted ? 'iasiba' : 'zeret',
+    envy:    shifted ? 'zeret'  : 'iasiba',
+    pride:   'xelaad',
+    greed:   'dranoel',
+    sloth:   'normac',
+    wrath:   null,      // vacant
+    gluttony: null,     // vacant
+  };
+  return map[sinDomain] || null;
+}
+
+// Which sin does this seed connect to?
+const SEED_TO_SIN = {
+  seed_lust:'lust',    sapling_lust:'lust',    tree_lust:'lust',    servant_lust:'lust',
+  seed_envy:'envy',    sapling_envy:'envy',    tree_envy:'envy',
+  seed_pride:'pride',  sapling_pride:'pride',  tree_pride:'pride',
+  seed_greed:'greed',  sapling_greed:'greed',  tree_greed:'greed',
+  seed_sloth:'sloth',  sapling_sloth:'sloth',  tree_sloth:'sloth',
+  seed_wrath:'wrath',  sapling_wrath:'wrath',  tree_wrath:'wrath',  vessel_wrath:'wrath',
+  seed_gluttony:'gluttony', sapling_gluttony:'gluttony', tree_gluttony:'gluttony', vessel_gluttony:'gluttony',
+};
+
+// Build context about seeds the player currently has
+function buildSeedContext() {
+  const c   = GS.char;
+  const w   = GS.world;
+  const seeds = c.traits.filter(t => SEED_TO_SIN[t.id]);
+  if(!seeds.length) return '';
+
+  const lines = seeds.map(t => {
+    const sin    = SEED_TO_SIN[t.id];
+    const lordKey= getCurrentSinLord(sin);
+    const lordName = lordKey === 'zeret'   ? 'Zeret'
+                   : lordKey === 'iasiba'  ? 'Iasiba'
+                   : lordKey === 'xelaad'  ? 'Xelaad'
+                   : lordKey === 'dranoel' ? 'Dranoel'
+                   : lordKey === 'normac'  ? 'Normac'
+                   : null;
+
+    const isLord  = t.type === 'sin_lord';
+    const vacant  = !lordName && !isLord;
+    const stage   = t.name;
+
+    if(isLord) {
+      return `${stage}: PLAYER IS A MALIGNED LORD (domain: ${sin}). They are peers with the other lords now. Treat them as such.`;
+    } else if(vacant) {
+      return `${stage} → domain of ${sin} is VACANT. No lord monitors them through it. The domain itself pulls. Full development = lordship.`;
+    } else {
+      const lordState = w.malignedLords?.[lordKey] || (lordKey === 'zeret' ? w.zeret : null);
+      const active = lordState?.active ? ` (currently active in ${LOCATIONS[lordState.location]?.name || lordState.location})` : ' (currently dormant)';
+      return `${stage} → connected to ${lordName} of ${sin.charAt(0).toUpperCase()+sin.slice(1)}${active}. ${lordName} is AWARE of this character through the seed.`;
+    }
+  }).join('\n  ');
+
+  return `\nSEED OF SIN STATUS (player's active connections to Maligned Lords):\n  ${lines}\nSEED RULE: The lord connected to each seed can sense when it stirs. Write interactions with these lords as recognizing the player — not as strangers but as someone they've been monitoring. If the player has a vacant-domain seed (Wrath or Gluttony), the lord ascension path is open. A 'vessel_' trait means the player IS a Maligned Lord.`;
+}
+
+// Patch buildSystemPrompt to include seed context
+const _bspWithSeeds = buildSystemPrompt;
+buildSystemPrompt = function() {
+  let prompt = _bspWithSeeds();
+  try {
+    const seedCtx = buildSeedContext();
+    if(seedCtx) {
+      prompt = prompt.replace('## ABSOLUTE RULES', seedCtx + '\n\n## ABSOLUTE RULES');
+    }
+  } catch(e) {}
+  return prompt;
+};
+
+// When a vessel_ trait is gained, update the world state
+const _applyWithLordAscension = applyAIResponse;
+applyAIResponse = function(res) {
+  _applyWithLordAscension(res);
+  try {
+    const c = GS.char;
+    const w = GS.world;
+    // Check if player just became a lord
+    const isWrathLord    = c.traits.some(t => t.id === 'vessel_wrath');
+    const isGluttonyLord = c.traits.some(t => t.id === 'vessel_gluttony');
+
+    if(isWrathLord && !w._playerIsLord) {
+      w._playerIsLord = 'wrath';
+      w.worldHistory.push(`Year ${w.year}: A mortal claimed the vacant domain of Wrath. The Five Maligned Lords became Six. The world reorganized around a new fact.`);
+      w.activeWorldEvents.push({ id:'player_lord_wrath', year:w.year,
+        name:'A New Lord of Wrath',
+        desc:'A mortal has claimed the domain of Wrath. The balance has shifted.' });
+      toast('You have become a Maligned Lord.', 'gold', 8000);
+    }
+    if(isGluttonyLord && !w._playerIsLord) {
+      w._playerIsLord = 'gluttony';
+      w.worldHistory.push(`Year ${w.year}: The domain of Gluttony was created and claimed simultaneously. The first Maligned Lord of Gluttony has entered the world.`);
+      w.activeWorldEvents.push({ id:'player_lord_gluttony', year:w.year,
+        name:'The First Lord of Gluttony',
+        desc:'A new sin domain has a holder. This has never happened before.' });
+      toast('You are the first Maligned Lord of Gluttony.', 'gold', 8000);
+    }
+  } catch(e) {}
+};
+
+// Update the Maligned Lords world tab panel to also show the player if they're a lord
+const _updateWorldTabWithPlayer = updateWorldTab;
+updateWorldTab = function() {
+  try { _updateWorldTabWithPlayer(); } catch(e) {}
+  try {
+    const w = GS.world;
+    if(w._playerIsLord) {
+      const section = document.getElementById('w-maligned-lords');
+      if(section) {
+        const existing = section.querySelector('.player-lord-line');
+        if(!existing) {
+          const div = document.createElement('div');
+          div.className = 'player-lord-line';
+          div.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px;border-top:1px solid var(--gold);margin-top:4px;';
+          div.innerHTML = `
+            <span style="color:var(--gold);font-weight:700">${GS.char.firstName} ${GS.char.lastName}</span>
+            <span style="color:var(--dim);font-size:11px">of ${w._playerIsLord.charAt(0).toUpperCase()+w._playerIsLord.slice(1)} <span style="font-size:9px;color:var(--gold);margin-left:4px">YOU</span></span>
+            <span style="font-size:10px;color:var(--gold)">● Lord</span>`;
+          section.appendChild(div);
+        }
+      }
+    }
   } catch(e) {}
 };
 
