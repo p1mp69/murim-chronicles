@@ -8840,35 +8840,87 @@ function extractSkillsFromNarrative(text) {
   const lower = text.toLowerCase();
   const c     = GS.char;
 
-  // Skill detection patterns — what the narrative describes the character doing/knowing
-  const patterns = [
-    { pattern:/\b(can write|writes?\s+\w|knows?\s+(her|his|their|the)\s+letters?|learned\s+to\s+read|read\s+and\s+write)\b/i, skill:'literacy',      cat:'scholarly',  label:'Literacy' },
-    { pattern:/\b(can\s+read|reads?\s+\w|knows?\s+letters?)\b/i,                                                               skill:'literacy',      cat:'scholarly',  label:'Literacy' },
-    { pattern:/\b(count(ing)?\s+coin|count(ing)?\s+silver|arithmetic|numbers\s+came)\b/i,                                      skill:'commerce',      cat:'social',     label:'Commerce' },
-    { pattern:/\b(cooks?|cooking|prepared?\s+meals?|make\s+\w+\s+stew|in\s+the\s+kitchen)\b/i,                                 skill:'cooking',       cat:'craftsman',  label:'Cooking' },
-    { pattern:/\b(picks?\s+pockets?|lifts?\s+\w|quick\s+hands?|borrowed\s+without|stole?\s+from)\b/i,                          skill:'thievery',      cat:'misc',       label:'Thievery' },
-    { pattern:/\b(knows?\s+the\s+(streets?|alleys?|district|city)|moved?\s+through\s+the\s+city|city\'?s\s+rhythms?)\b/i,      skill:'observation',   cat:'passive',    label:'Observation' },
-    { pattern:/\b(farmed?|farming|works?\s+the\s+(land|field|soil)|harvest|crops?)\b/i,                                         skill:'farming',       cat:'survival',   label:'Farming' },
-    { pattern:/\b(survival|forag(ed?|ing)|lived?\s+(off|in)\s+the\s+(land|forest|streets?))\b/i,                               skill:'survival',      cat:'survival',   label:'Survival' },
-    { pattern:/\b(knows?\s+the\s+forest|tracked?|tracks?\s+\w|read(ing)?\s+trails?)\b/i,                                       skill:'tracking',      cat:'survival',   label:'Tracking' },
-    { pattern:/\b(calligraph|ink\s+brush|brushwork|wrote?\s+with\s+(brush|ink))\b/i,                                            skill:'calligraphy',   cat:'artistic',   label:'Calligraphy' },
-    { pattern:/\b(sew(ing)?|stitch(ing)?|mend(ing)?|needle\s+and\s+thread)\b/i,                                                 skill:'sewing',        cat:'craftsman',  label:'Sewing' },
-    { pattern:/\b(bargain(ing)?|negotiat(ed?|ing)|haggles?)\b/i,                                                               skill:'commerce',      cat:'social',     label:'Commerce' },
-    { pattern:/\b(law|wardens?|procedures?|what\'s\s+(legal|allowed)|courts?)\b/i,                                              skill:'law',           cat:'scholarly',  label:'Law' },
-    { pattern:/\b(meditat(ed?|ing)|breathwork|stillness|silence\s+of\s+mind)\b/i,                                              skill:'meditation',    cat:'cultivation', label:'Meditation' },
-    { pattern:/\b(weapons?|blade|knife|sword|spar(red?|ring))\b/i,                                                             skill:'weaponry',      cat:'combat',     label:'Weaponry' },
-  ];
-
-  patterns.forEach(({ pattern, skill, cat, label }) => {
-    if(!pattern.test(lower)) return;
-    if(c.skills[skill]) return; // already have it
-
+  const giveSkill = (skill, cat, label) => {
+    if(c.skills[skill]) return;
     c.skills[skill] = {
       label, category: cat, level: 1, xp: 0,
       firstUsed: `Year ${GS.world.year} (from upbringing)`,
       desc: `Learned through early life, before the story begins.`,
     };
-  });
+  };
+
+  // ── Literacy ──────────────────────────────────────────────────
+  if(/\b(can write|writes?\s+\w|knows?\s+(her|his|their|the)\s+letters?|learned\s+to\s+read|read\s+and\s+write|can\s+read|reads?\s+\w|knows?\s+letters?)\b/i.test(text))
+    giveSkill('literacy', 'scholarly', 'Literacy');
+
+  // ── Commerce / counting ───────────────────────────────────────
+  if(/\b(count(ing)?\s+coin|count(ing)?\s+silver|arithmetic|numbers\s+came|tallied?|ledger|accounts?)\b/i.test(text))
+    giveSkill('commerce', 'social', 'Commerce');
+
+  // ── Cooking ───────────────────────────────────────────────────
+  if(/\b(cooks?|cooking|prepared?\s+meals?|make\s+\w+\s+stew|in\s+the\s+kitchen|mixing\s+ingredients?|boiled|fried)\b/i.test(text))
+    giveSkill('cooking', 'craftsman', 'Cooking');
+
+  // ── Thievery ──────────────────────────────────────────────────
+  if(/\b(picks?\s+pockets?|lifts?\s+\w|quick\s+hands?|borrowed\s+without|stole?\s+from|petty\s+theft)\b/i.test(text))
+    giveSkill('thievery', 'misc', 'Thievery');
+
+  // ── Observation — city rhythms + watching as explicit skill ───
+  if(/\b(knows?\s+the\s+(streets?|alleys?|district|city)|city.{0,15}rhythms?|what\s+you.{0,20}good\s+at.{0,20}watch|good\s+at\s+watch|you\s+notice\s+things|eyes?\s+like\s+a\s+creditor|pays?\s+close\s+attention|you\s+notice\s+everything|catalogu|file\s+it\s+away|paying\s+attention)\b/i.test(text))
+    giveSkill('observation', 'passive', 'Observation');
+
+  // ── Farming ───────────────────────────────────────────────────
+  if(/\b(farmed?|farming|works?\s+the\s+(land|field|soil)|harvest|crops?)\b/i.test(text))
+    giveSkill('farming', 'survival', 'Farming');
+
+  // ── Survival / foraging ───────────────────────────────────────
+  if(/\b(survival|forag(ed?|ing)|lived?\s+(off|in)\s+the\s+(land|forest|streets?))\b/i.test(text))
+    giveSkill('survival', 'survival', 'Survival');
+
+  // ── Tracking ──────────────────────────────────────────────────
+  if(/\b(knows?\s+the\s+forest|tracked?|tracks?\s+\w|read(ing)?\s+trails?)\b/i.test(text))
+    giveSkill('tracking', 'survival', 'Tracking');
+
+  // ── Calligraphy ───────────────────────────────────────────────
+  if(/\b(calligraph|ink\s+brush|brushwork|wrote?\s+with\s+(brush|ink))\b/i.test(text))
+    giveSkill('calligraphy', 'artistic', 'Calligraphy');
+
+  // ── Sewing / mending ─────────────────────────────────────────
+  if(/\b(sew(ing)?|stitch(ing)?|mend(ing)?|needle\s+and\s+thread)\b/i.test(text))
+    giveSkill('sewing', 'craftsman', 'Sewing');
+
+  // ── Bargaining ────────────────────────────────────────────────
+  if(/\b(bargain(ing)?|negotiat(ed?|ing)|haggles?)\b/i.test(text))
+    giveSkill('commerce', 'social', 'Commerce');
+
+  // ── Law / administration ──────────────────────────────────────
+  if(/\b(law|wardens?|procedures?|what.s\s+(legal|allowed)|courts?|magistrate)\b/i.test(text))
+    giveSkill('law', 'scholarly', 'Law');
+
+  // ── Meditation / cultivation basics ──────────────────────────
+  if(/\b(meditat(ed?|ing)|breathwork|stillness\s+of\s+mind|silence\s+of\s+mind)\b/i.test(text))
+    giveSkill('meditation', 'cultivation', 'Meditation');
+
+  // ── Weaponry / martial basics ─────────────────────────────────
+  if(/\b(weapons?|blade|knife|sword|spar(red?|ring)|trained\s+to\s+fight|combat)\b/i.test(text))
+    giveSkill('weaponry', 'combat', 'Weaponry');
+
+  // ── Paper arts / origami ─────────────────────────────────────
+  // e.g. "Mei Shuang has been teaching you to make paper animals"
+  if(/\b(paper\s+animal|paper\s+crane|paper\s+frog|paper\s+fold|origami|fold.*paper|crease.*paper|paper.*craft|taught.*fold|folding.*paper|taught.*paper)\b/i.test(text))
+    giveSkill('origami', 'artistic', 'Paper Arts');
+
+  // ── Medicine / herb knowledge ─────────────────────────────────
+  if(/\b(herbs?\s+and|medicine|remedies?|poultice|tincture|treat\s+wounds?|physician|healer)\b/i.test(text))
+    giveSkill('medicine', 'medical', 'Medicine');
+
+  // ── Stealth / moving quietly ──────────────────────────────────
+  if(/\b(moved?\s+quietly|without\s+being\s+noticed|avoid(ing)?\s+attention|slipped?\s+(past|through)|nobody\s+noticed)\b/i.test(text))
+    giveSkill('stealth', 'misc', 'Stealth');
+
+  // ── Appraisal / market sense ──────────────────────────────────
+  if(/\b(quality\s+of\s+goods?|knows?\s+good\s+cloth|apprais|worth\s+more\s+than|market\s+sense|price\s+of\s+things)\b/i.test(text))
+    giveSkill('appraisal', 'social', 'Appraisal');
 }
 
 // ================================================================
@@ -8921,39 +8973,75 @@ function extractTraitsFromNarrative(text) {
   // ── Step 2: Read narrative and grant additional fitting traits ───
   // Patterns → trait they suggest. Cap at 2 narrative-extracted traits.
   const NARRATIVE_PATTERNS = [
-    // Violence / danger in upbringing
-    { re: /\b(fight(ing)?|beat(en)?|hit|struck|bruise|blood(ied)?|violence|fists?|brawl|attacked|assault|beaten)\b/i,
+    // ── OBSERVER / WATCHER ────────────────────────────────────────
+    // "eyes like a creditor" / "what you're good at: watching" /
+    // "you notice things" / "file it away" = stillwater_eyes
+    { re: /\b(eyes?\s+like\s+a\s+creditor|what\s+you.{0,25}good\s+at.{0,20}watch|good\s+at\s+watch|you\s+notice\s+things|notice\s+things\s+(other|that)|you\s+notice\s+everything|you\s+file\s+it\s+away|file\s+it\s+away|paying\s+attention|you\s+are\s+paying\s+attention|catalogu|you\s+remember\s+everything|you\s+have\s+always\s+watched)\b/i,
+      trait:'stillwater_eyes', note:'You read people the way others read words. A creditor\'s eye — you file away what others walk past.' },
+
+    // ── VIOLENCE / DANGER ─────────────────────────────────────────
+    { re: /\b(fight(ing)?|beat(en)?|struck|bruise|blood(ied)?|violence|fists?|brawl|attacked|assault|beaten)\b/i,
       trait:'raised_by_violence', note:'Your early years were marked by physical danger.' },
-    // Death witnessed
+
+    // ── DEATH WITNESSED ───────────────────────────────────────────
     { re: /\b(died|death|dead|passed|killed|burial|grave|body|corpse|last breath|never woke)\b/i,
       trait:'watched_someone_die', note:'Death was not abstract to you early.' },
-    // Debt / poverty
-    { re: /\b(debt|owed|borrow|coin(s)?\s+were|couldn\'t\s+afford|barely\s+(had|enough)|rent|landlord|short\s+on)\b/i,
+
+    // ── DEBT / POVERTY ────────────────────────────────────────────
+    { re: /\b(debt|owed|borrow|coin(s)?\s+were|couldn.t\s+afford|barely\s+(had|enough)|rent|landlord|short\s+on)\b/i,
       trait:'debt_born', note:'You grew up understanding what financial desperation feels like.' },
-    // Criminal / underground
-    { re: /\b(underground|criminal|gang|guild|smuggl|theft|stolen goods|black\s+market|shadow\s+work|no\s+questions\s+asked)\b/i,
+
+    // ── CRIMINAL / UNDERGROUND ────────────────────────────────────
+    { re: /\b(underground|criminal|gang|smuggl|stolen goods|black\s+market|shadow\s+work|no\s+questions\s+asked|off\s+the\s+books)\b/i,
       trait:'shadow_raised', note:'The grey world was familiar territory from the start.' },
-    // Disaster / war / catastrophe
+
+    // ── DISASTER / WAR ────────────────────────────────────────────
     { re: /\b(war|invasion|burned|razed|disaster|famine|siege|collapse|ruins?|rubble|occupied|soldiers\s+came)\b/i,
       trait:'child_of_disaster', note:'You came up in the shape disaster left behind.' },
-    // Something inhuman / spiritual
+
+    // ── SOMETHING INHUMAN / SPIRITUAL ────────────────────────────
     { re: /\b(spirit|creature|yokai|beast\s+in\s+the|the\s+thing\s+(in|near|at)|eyes\s+in\s+the|not\s+human|ancient\s+(presence|being)|forest\s+watched)\b/i,
       trait:'touched_by_something', note:'Something that was not human took notice of you early.' },
-    // Performance / entertaining
+
+    // ── PERFORMANCE ───────────────────────────────────────────────
     { re: /\b(perform(ed?|er|ance)|storytell|entertain|stage|crowd\s+(watched|gathered)|audiences?|singer|musician|dancer)\b/i,
       trait:'performer_blood', note:'Holding an audience was natural from the start.' },
-    // Language / travel exposure
-    { re: /\b(foreign\s+(tongue|accent|language|words?)|different\s+language|trade\s+tongue|merchants?\s+from|travelers?\s+from|port|crossroads)\b/i,
+
+    // ── LANGUAGE / TRAVEL EXPOSURE ───────────────────────────────
+    { re: /\b(foreign\s+(tongue|accent|language|words?)|different\s+language|trade\s+tongue|merchants?\s+from|travelers?\s+from|crossroads)\b/i,
       trait:'language_ear', note:'Languages and accents found you early.' },
-    // Old lineage / family history
-    { re: /\b(old\s+family|ancient\s+name|bloodline|our\s+ancestors?|generations?\s+back|lineage|family\s+name\s+once\s+meant|grandmother\'s\s+grandmother)\b/i,
+
+    // ── OLD LINEAGE ───────────────────────────────────────────────
+    { re: /\b(old\s+family|ancient\s+name|bloodline|our\s+ancestors?|generations?\s+back|lineage|family\s+name\s+once\s+meant)\b/i,
       trait:'old_blood', note:'There is something in the lineage that is older than recent memory.' },
-    // Extreme pressure / cornered situations
+
+    // ── CORNERED / PRESSURE ───────────────────────────────────────
     { re: /\b(cornered|no\s+way\s+out|desperate|last\s+option|nothing\s+left|backed\s+into|survival\s+instinct|refused\s+to\s+die)\b/i,
       trait:'pressure_cooker', note:'You\'ve been cornered before. You know what comes out.' },
-    // Body watching / mimicking movement
+
+    // ── MIRROR REFLEX — body learning by watching ─────────────────
     { re: /\b(watched\s+(them|him|her|the\s+(man|woman|fighter)|the\s+cultivator)\s+(move|fight|train)|memorized?\s+(the\s+movements?|how\s+he)|already\s+knew\s+the\s+movement)\b/i,
       trait:'mirror_reflex', note:'Your body learns by watching before your mind catches up.' },
+
+    // ── ONE TRACK — intense focus, misses ambient events ──────────
+    { re: /\b(loses?\s+track\s+of\s+time|worked\s+through\s+the\s+night|nothing\s+else\s+exist(s|ed)|forget\s+to\s+eat|entirely\s+absorbed|you\s+don.t\s+notice\s+(anything|others|time))\b/i,
+      trait:'one_track', note:'When you focus, everything else vanishes.' },
+
+    // ── TURBULENT HEART — emotion spikes power ────────────────────
+    { re: /\b(when\s+you\s+were\s+(angry|afraid|sad)|emotion(s)?\s+took\s+over|fury\s+that\s+you|something\s+surged|couldn.t\s+control\s+it|the\s+anger\s+became)\b/i,
+      trait:'turbulent_heart', note:'Strong emotion opens something in you that ordinary effort cannot.' },
+
+    // ── IRON WILL — mental wall, resists breaking ─────────────────
+    { re: /\b(didn.t\s+cry|wouldn.t\s+let\s+it\s+(show|land)|something\s+hardened|decided\s+then|made\s+a\s+decision\s+and\s+kept\s+it|you\s+held)\b/i,
+      trait:'iron_will', note:'There is something in you that does not break when pushed.' },
+
+    // ── HOLLOW FRAME — light, fast but fragile ────────────────────
+    { re: /\b(lighter\s+than|moved\s+faster\s+than|too\s+thin|not\s+eating\s+enough|slight\s+(frame|build)|small\s+for\s+age)\b/i,
+      trait:'hollow_frame', note:'Light and quick — though it cuts both ways.' },
+
+    // ── BORN LIAR — deception comes naturally ────────────────────
+    { re: /\b(told\s+a\s+story\s+without\s+thinking|the\s+lie\s+came\s+naturally|lie\s+came\s+out\s+fully\s+formed|didn.t\s+decide\s+to\s+lie|the\s+false\s+version\s+came\s+first)\b/i,
+      trait:'born_liar', note:'Deception comes before the decision to deceive.' },
   ];
 
   let added = 0;
@@ -21984,6 +22072,33 @@ extractParentsFromOpening = function(narrativeText) {
     { r:/([A-Z][a-z]{2,14}(?:\s+[A-Z][a-z]{2,14})?),\s+(?:a|an|the)\s+(?:physician|merchant|guard|teacher|farmer|smith|carpenter|sailor|soldier|monk|cultivator|elder|healer|doctor|cook|innkeeper)\b/gi, role:'acquaintance' },
     // "a man named [Name]" / "a woman named [Name]"
     { r:/(?:a|an|the)\s+(?:man|woman|person|child|boy|girl|cultivator)\s+named\s+([A-Z][a-z]{2,14}(?:\s+[A-Z][a-z]{2,14})?)/gi, role:'encountered' },
+
+    // ── INTERACTION-BASED PATTERNS ──────────────────────────────
+    // These require actual bidirectional or direct contact, not just observation.
+
+    // "you know that [Name]" — personal familiarity implies real contact
+    { r:/you\s+know\s+that\s+([A-Z][a-z]{2,14}(?:\s+[A-Z][a-z]{2,14})?)[,\s]/gi, role:'acquaintance' },
+    // "you know [Name]" — direct familiarity
+    { r:/you\s+know\s+([A-Z][a-z]{2,14}(?:\s+[A-Z][a-z]{2,14})?)[,\s]/gi, role:'acquaintance' },
+    // "[Name] will give you" / "[Name] gave you" / "[Name] gives you"
+    { r:/([A-Z][a-z]{2,14}(?:\s+[A-Z][a-z]{2,14})?)\s+(?:will\s+give|would\s+give|gave|gives)\s+you\b/gi, role:'acquaintance' },
+    // "if you bring [Name]" / "you bring [Name]"
+    { r:/(?:if\s+)?you\s+bring\s+([A-Z][a-z]{2,14}(?:\s+[A-Z][a-z]{2,14})?)\b/gi, role:'acquaintance' },
+    // "[Name] has been teaching you" / "[Name] taught you"
+    { r:/([A-Z][a-z]{2,14}(?:\s+[A-Z][a-z]{2,14})?)\s+has\s+been\s+teaching\s+you\b/gi, role:'teacher' },
+    { r:/([A-Z][a-z]{2,14}(?:\s+[A-Z][a-z]{2,14})?)\s+taught\s+you\b/gi, role:'teacher' },
+    // "you sit beside [Name]" / "you sit with [Name]"
+    { r:/you\s+sit\s+(?:beside|with|near|next\s+to)\s+([A-Z][a-z]{2,14}(?:\s+[A-Z][a-z]{2,14})?)\b/gi, role:'acquaintance' },
+    // "[Name] tells you" / "[Name] said to you"
+    { r:/([A-Z][a-z]{2,14}(?:\s+[A-Z][a-z]{2,14})?)\s+(?:tells?|told|said\s+to|says?\s+to)\s+you\b/gi, role:'acquaintance' },
+    // "you go to [Name]" — directed action toward person
+    { r:/you\s+(?:go|went|come|came)\s+to\s+([A-Z][a-z]{2,14}(?:\s+[A-Z][a-z]{2,14})?)\b/gi, role:'acquaintance' },
+    // "[Name] watches you / watched you" — someone paying you specific attention
+    { r:/([A-Z][a-z]{2,14}(?:\s+[A-Z][a-z]{2,14})?)\s+(?:watch(?:es|ed)|look(?:s|ed)\s+at)\s+you\b/gi, role:'acquaintance' },
+    // "[Name]'s name" directly attached to a parent reference already covered — add their name explicitly
+    // "your mother's name is [Name]" — redundant with above but good to have
+    { r:/your\s+mother(?:'s)?\s+name(?:\s+is|\s+was|\:)\s+([A-Z][a-z]{2,14}(?:\s+[A-Z][a-z]{2,14})?)/gi, role:'mother' },
+    { r:/your\s+father(?:'s)?\s+name(?:\s+is|\s+was|\:)\s+([A-Z][a-z]{2,14}(?:\s+[A-Z][a-z]{2,14})?)/gi, role:'father' },
   ];
 
   const BOND_BY_ROLE = {
@@ -22045,6 +22160,65 @@ extractParentsFromOpening = function(narrativeText) {
         found.set(name, { role, nameSentences, isDeceased, isAbsent });
         if(FAMILY_ROLES.includes(role)) rolesSeen.add(role);
       }
+    }
+  });
+
+  // ── NEGATIVE CONTEXT FILTER ─────────────────────────────────────
+  // Remove any name whose ALL occurrences in the text are in:
+  //   • "you notice that [Name]" — pure observation, no interaction
+  //   • "you watch [Name]" — distant watching
+  //   • "you see [Name]" — passive seeing
+  //   • "[you] heard [Name]" / "whispered [Name]" — overheard, second-hand
+  //   • "like [Name]'s situation" — mentioned in passing by others
+  // These are people the character watched or heard about — not met.
+
+  const OBSERVATION_ONLY_RE = /\b(?:notice(?:d)?\s+that|notice(?:d)?\s+\w{1,20}\s+\w{1,20}\s+(?:who|that)|watch(?:es|ed)?\s+(?:you|them|him|her)|you\s+see\s+|you\s+observed?|you\s+spotted?|you\s+glimpsed?|heard\s+(?:it|the\s+name|once|about|from|whispered?|that\s+name))\b/i;
+  const OVERHEARD_RE = /\b(?:you\s+heard\s+(?:it|once|the\s+name|it\s+once)|whispered\s+between|overhear|overhead)\b/i;
+
+  found.forEach((data, name) => {
+    // Check if every sentence mentioning this name is in an observation/overheard context
+    const mentioningSentences = sentences.filter(s => s.includes(name));
+    if(!mentioningSentences.length) { found.delete(name); return; }
+
+    // Check if ALL occurrences are in pure observation contexts
+    const allObservation = mentioningSentences.every(s => {
+      const idx = s.indexOf(name);
+      const before = s.slice(Math.max(0, idx - 60), idx).toLowerCase();
+      // Is "notice" or "watch" immediately before this name?
+      return /\b(notice\s+(that\s+)?|noticed?\s+(that\s+)?|watch(es|ed)?\s+|see\s+|saw\s+|spotted?\s+|glimpsed?\s+|observed?\s+)$/.test(before) ||
+             /you\s+notice\s+that/.test(before);
+    });
+
+    // Check if ALL occurrences are in overheard contexts (whispered, heard in passing)
+    const allOverheard = mentioningSentences.every(s => {
+      const lower = s.toLowerCase();
+      return OVERHEARD_RE.test(lower) ||
+             /\b(you\s+heard\s+(?:it|once|the\s+name)|whispered\s+between|like\s+\w+\s+\w*'?s?\s+situation)\b/.test(lower);
+    });
+
+    // If family role (mother/father etc.), keep regardless — they had interaction by definition
+    const isFamily = ['mother','father','grandmother','grandfather','sister','brother','aunt','uncle','caregiver'].includes(data.role);
+    if(isFamily) return; // always keep family
+
+    if(allObservation || allOverheard) {
+      // Still seed into background characters so AI knows about them
+      const npcId = `bg_${name.toLowerCase().replace(/\s+/g,'_').replace(/[^a-z0-9_]/g,'')}`;
+      if(!w.npcRegistry[npcId]) {
+        w.npcRegistry[npcId] = {
+          id:npcId, name, title:'', alive:true, isLore:false, glowColor:null,
+          qiStageIndex:0, strength:8, agility:8, endurance:8, intelligence:8,
+          perception:8, willpower:8, charisma:8, luck:8,
+          memoriesOfPlayer:[`Observed but not met in ${c.firstName}'s early life.`],
+          personality:[], alignment:'orthodox', hiddenHistory:[],
+          location: c.birthCity || w.location, homeLocation: c.birthCity || w.location,
+        };
+      }
+      w._openingCharacters[npcId] = {
+        name, role: data.role, npcId, isDeceased:false, isAbsent:false,
+        context: `Observed but not interacted with. ${mentioningSentences[0]?.slice(0,150)||''}`,
+        observedOnly: true, // flag: do NOT add unless player actually meets them
+      };
+      found.delete(name); // remove from the "add to relationships" set
     }
   });
 
