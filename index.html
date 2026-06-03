@@ -3041,6 +3041,188 @@ const TRAITS_CATALOG = {
   },
 
   // ──────────────────────────────────────────────────────────
+  // UPBRINGING TRAITS — granted from opening narrative
+  // ──────────────────────────────────────────────────────────
+
+  raised_by_violence: {
+    name: 'Raised by Violence',
+    type: 'upbringing', rarity: 'uncommon', inherited: false,
+    desc: 'Violence was not a shock in your upbringing. It was furniture. You learned its rhythms before you understood you were learning anything.',
+    flavor: 'Most people flinch at the first sign of it.\n\nYou don\'t.\n\nNot because you\'re brave. Because you were there before the flinch had time to form.',
+    gameplay: 'Fear-based intimidation has reduced effect on you. You read aggression before it surfaces — a micro-change in posture, a shift in breathing. Difficult to rattle in combat or social pressure.',
+    aiHint: 'RAISED BY VIOLENCE: This character was around violence from childhood — not as a target necessarily, just present. They are calm in situations where others panic. They read aggressive intent early. Fear-based tactics are less effective. They don\'t enjoy violence, but they also don\'t perform surprise at it.',
+    effects: { willpower: 2, perception: 2 },
+  },
+
+  debt_born: {
+    name: 'Debt-Born',
+    type: 'upbringing', rarity: 'common', inherited: false,
+    desc: 'You grew up with someone else\'s debt over the household. You know how it shapes a family — the silences, the careful spending, the particular shame of it.',
+    flavor: 'You learned to count before you learned to read.\n\nThe numbers that mattered were always the ones that were wrong.',
+    gameplay: 'You understand financial desperation from the inside. Merchants and moneylenders recognize something in you that gets you different treatment — sometimes better, sometimes worse. Commerce skill advances faster.',
+    aiHint: 'DEBT-BORN: This character understands financial desperation not as an abstract but as a childhood environment. When dealing with merchants, lenders, and poor people under financial pressure, describe a recognition — they know the texture of this. Commerce and negotiation in desperation contexts come naturally.',
+    effects: { intelligence: 2 },
+  },
+
+  shadow_raised: {
+    name: 'Shadow-Raised',
+    type: 'upbringing', rarity: 'rare', inherited: false,
+    desc: 'Someone in your upbringing operated in the grey or the dark. You didn\'t know what it was called. You just knew that certain questions didn\'t get asked, certain visitors didn\'t get named.',
+    flavor: 'The man came after dark and your guardian said nothing.\n\nIn the morning the box was gone.\n\nYou learned not to look at the box.',
+    gameplay: 'Criminal networks feel familiar rather than alien. You understand the unspoken codes without instruction. Underground contacts are easier to make. You know what information costs before you ask.',
+    aiHint: 'SHADOW-RAISED: This character grew up adjacent to illegal or underground activity. They understand criminal social codes instinctively — who not to stare at, when to not be present, how to ask for things sideways. Criminal NPCs recognize this background. Underground contacts form naturally. They\'re not necessarily criminal themselves, just fluent.',
+    effects: { charisma: 2, luck: 1 },
+  },
+
+  watched_someone_die: {
+    name: 'Watched Someone Die',
+    type: 'upbringing', rarity: 'uncommon', inherited: false,
+    desc: 'Death was not abstract to you early. You saw it. Not from far away.',
+    flavor: 'You remember the exact quality of the light.\n\nAnd the silence afterward.\n\nAnd the way people moved differently for weeks.',
+    gameplay: 'The fear response that stops most people in the face of death is less pronounced in you. Not gone — less. You can function in crisis where others lock up. Tending the dying or dead doesn\'t unsettle you the way it should.',
+    aiHint: 'WATCHED SOMEONE DIE: This character saw death up close in childhood. In situations involving death, injury, or crisis, they don\'t freeze. They may feel the weight of it, but their body keeps moving. Describe them as having a practical relationship with mortality — not callous, just functional in the face of it.',
+    effects: { willpower: 3 },
+  },
+
+  child_of_disaster: {
+    name: 'Child of Disaster',
+    type: 'upbringing', rarity: 'rare', inherited: false,
+    desc: 'You were born into, during, or shortly after something catastrophic. The shape of the world you came up in was a shape made by destruction.',
+    flavor: 'The story of how you came into the world was also the story of something ending.\n\nThis was mentioned sometimes.\n\nNever directly.',
+    gameplay: 'You adapt fast. Environments of chaos and loss are where you function best. Stability makes you vaguely uncomfortable — not enough to be a problem, but enough to notice. You find footing in crisis that others can\'t find.',
+    aiHint: 'CHILD OF DISASTER: Born into or shortly after a catastrophic event — war, collapse, fire, famine. This character\'s baseline is instability. They adapt to chaos faster than others, find footing in collapse, and are oddly calm when things fall apart. Stability and comfort sometimes feel slightly foreign. Not broken — calibrated differently.',
+    effects: { endurance: 2, willpower: 2, luck: 1 },
+  },
+
+  old_blood: {
+    name: 'Old Blood',
+    type: 'upbringing', rarity: 'rare', inherited: true,
+    desc: 'Something in your lineage is older than the current era. You may not know what — a name, a story, a thing someone mentioned once and didn\'t explain.',
+    flavor: 'Your grandmother\'s grandmother had a name people remembered.\n\nYou don\'t know what she did.\n\nBut sometimes when you do something, you wonder if you\'ve done it before.',
+    gameplay: 'Ancient cultivation methods and lost techniques have a slightly higher chance of clicking for you. Certain NPCs who are very old react to your family name or face with something they won\'t explain. The history may never be fully revealed.',
+    aiHint: 'OLD BLOOD: This character\'s lineage is older than the current era — pre-Year 1, possibly. Very old NPCs may have a reaction they can\'t quite explain: a slight pause, a look they control. Ancient techniques and lost cultivation methods resonate slightly more. This doesn\'t have to resolve into anything — the mystery is part of the trait.',
+    effects: { willpower: 1, intelligence: 1, luck: 2 },
+  },
+
+  touched_by_something: {
+    name: 'Touched by Something',
+    type: 'upbringing', rarity: 'epic', inherited: false,
+    desc: 'At some point in your early life, something that was not human noticed you. You don\'t know what it was. It didn\'t explain itself. But something was different after.',
+    flavor: 'You were very young.\n\nIt looked at you from the treeline for a long time.\n\nThen it left.\n\nYou never told anyone.',
+    gameplay: 'Spirits, Yokai, and non-human entities sense something different about you — not always positive, but always notable. Some are drawn to you, some are unsettled by you. The specific nature of what touched you may be revealed through play.',
+    aiHint: 'TOUCHED BY SOMETHING: An unknown entity noticed this character in early childhood. Non-human presences — Yokai, spirits, entities — respond to this character with something extra. They might be drawn to them, unsettled by them, or address them differently than they would a regular human. The exact nature of the original contact is unknown and may emerge over time.',
+    effects: { perception: 3, luck: 2 },
+  },
+
+  language_ear: {
+    name: 'Language Ear',
+    type: 'upbringing', rarity: 'uncommon', inherited: true,
+    desc: 'Languages and accents settle into you fast. Pronunciation, rhythm, the shape of a dialect. You pick it up without trying to pick it up.',
+    flavor: 'After two months you could pass.\n\nNot fluent — but the accent was right, and accent is what people trust.',
+    gameplay: 'New languages become accessible faster through play. Accents you\'ve heard can be replicated. Regional dialects can be identified and mimicked — useful for disguise, infiltration, and finding out where someone is from before they tell you.',
+    aiHint: 'LANGUAGE EAR: This character absorbs languages and accents quickly. After exposure to a dialect or tongue for some time, they can replicate it — describe this as accent slipping in naturally. When trying to disguise their origin or identify someone else\'s, this trait gives them an edge. Occasionally let them catch a regional accent and correctly identify where someone is from.',
+    effects: { charisma: 1, intelligence: 2 },
+  },
+
+  performer_blood: {
+    name: 'Performer\'s Blood',
+    type: 'upbringing', rarity: 'uncommon', inherited: true,
+    desc: 'There was showmanship somewhere in the family, or you discovered it young. Holding attention comes naturally. You know when a room is with you.',
+    flavor: 'You weren\'t doing anything particularly impressive.\n\nBut everyone was watching.\n\nYou noticed. You adjusted. They watched harder.',
+    gameplay: 'Public situations — persuasion, display, street performance, formal address — run in your favor. You naturally read an audience and adjust. Cultivation techniques with a visual component are stronger.',
+    aiHint: 'PERFORMER\'S BLOOD: This character has natural stage presence. In situations where they need attention, they have it. When they speak publicly, describe the room shifting toward them. Cultivation techniques with impressive visual output are slightly more powerful — they know how to use the display. Reading an audience for what they want to see is instinctive.',
+    effects: { charisma: 3 },
+  },
+
+  // ──────────────────────────────────────────────────────────
+  // COMBAT TRAITS
+  // ──────────────────────────────────────────────────────────
+
+  pressure_cooker: {
+    name: 'Pressure Cooker',
+    type: 'combat', rarity: 'rare', inherited: false,
+    desc: 'You don\'t rise to the challenge. You are worse until you\'re cornered, and then something else entirely.',
+    flavor: 'He had you where he wanted you.\n\nThe panic lasted three seconds.\n\nWhat replaced it was worse for him than the panic was for you.',
+    gameplay: 'When at a disadvantage — outnumbered, outclassed, cornered, low Qi — your effectiveness increases rather than decreases. Desperation is a power source. This does nothing during comfortable fights.',
+    aiHint: 'PRESSURE COOKER: When this character is cornered, outnumbered, or outmatched, something changes. Describe them as becoming more dangerous as the situation gets worse — not through luck, but through a kind of cold clarity that replaces panic. At their lowest, they are most dangerous. During easy fights, this does nothing.',
+    effects: { willpower: 3 },
+  },
+
+  mirror_reflex: {
+    name: 'Mirror Reflex',
+    type: 'combat', rarity: 'epic', inherited: true,
+    desc: 'Your body learns movement by watching. Not technique from a scroll — actual physical movement. See it done once and something in you files it.',
+    flavor: 'You didn\'t ask him to show you again.\n\nYou went home and it was already there.\n\nYou hadn\'t practiced. It was just there.',
+    gameplay: 'After watching an NPC perform a physical technique in combat or training, you have a chance to partially absorb the movement principle. Not the full technique — the foundation. Mentors can teach you in half the normal time.',
+    aiHint: 'MIRROR REFLEX: When this character watches someone perform a physical technique — in a fight, a training session, or even a casual demonstration — their body absorbs the movement pattern partially. After combat with a skilled opponent, they may have learned something from how that person moved, even without being taught. Describe this as the body understanding before the mind does.',
+    effects: { agility: 2, intelligence: 1 },
+  },
+
+  war_qi: {
+    name: 'War Qi',
+    type: 'combat', rarity: 'rare', inherited: false,
+    desc: 'Your Qi strengthens in actual combat — not training, not sparring, not meditation. The real thing. It knows the difference.',
+    flavor: 'In the training yard it was ordinary.\n\nIn the fight, something else came out.\n\nYour teacher noticed. He didn\'t know whether to be impressed or worried.',
+    gameplay: 'Qi output is higher in life-or-death situations than it is in training. Techniques that perform at a certain level in practice perform better in actual combat. The Qi is stronger when the stakes are real. Training advances more slowly as a result — it knows this isn\'t real.',
+    aiHint: 'WAR QI: This character\'s Qi responds to genuine danger. In real combat, their techniques perform above their training level — describe moments where something comes out stronger than they expected, or where a technique lands harder than they\'ve seen it land before. In training, they\'re ordinary. The power needs stakes.',
+    effects: { strength: 2 },
+  },
+
+  death_stare: {
+    name: 'Death Stare',
+    type: 'combat', rarity: 'uncommon', inherited: true,
+    desc: 'Something in your eyes unsettles people who have done dangerous things. They\'ve seen eyes like yours before, and they remember what that meant.',
+    flavor: 'The guard was ready to cause problems.\n\nThen he looked at your face.\n\nHe decided he had somewhere else to be.',
+    gameplay: 'In standoffs and intimidation, you win staring matches. Weak-willed opponents and low-level cultivators sometimes back down before anything happens. The effect doesn\'t work on people with genuinely powerful wills.',
+    aiHint: 'DEATH STARE: The character\'s gaze carries weight. In confrontations, weak or ordinary opponents often back down before anything happens — describe their eyes doing something that makes the other person reconsider. Against powerful cultivators or people with strong will, this does nothing. Against ordinary guards, gang members, or unconfident opponents, it often resolves things before they start.',
+    effects: { charisma: 2, willpower: 1 },
+  },
+
+  // ──────────────────────────────────────────────────────────
+  // CULTIVATION TRAITS
+  // ──────────────────────────────────────────────────────────
+
+  strange_meridian: {
+    name: 'Strange Meridian',
+    type: 'cultivation', rarity: 'rare', inherited: true,
+    desc: 'Your Qi pathways don\'t run the standard route. This creates a strength at one end and a gap at the other. Unique, not better — just different in ways that matter.',
+    flavor: 'The teacher looked at your meridian diagram for a long time.\n\n"Unusual," he said.\n\n"Not wrong. Just unusual."',
+    gameplay: 'One Qi path (determined at breakthrough) becomes significantly stronger. One element costs 50% more Qi for you specifically. This is fixed — it\'s the shape you were born with. Discover the specifics through cultivation.',
+    aiHint: 'STRANGE MERIDIAN: This character\'s Qi meridians are atypical. When their Qi path is revealed, one affinity comes naturally and powerfully — give it a 25% power boost. One opposing or adjacent element costs significantly more Qi for them. Teachers who examine their meridian react with "unusual but workable" — not broken, just a specific configuration.',
+    effects: { },
+  },
+
+  hungry_core: {
+    name: 'Hungry Core',
+    type: 'cultivation', rarity: 'uncommon', inherited: true,
+    desc: 'Your core absorbs Qi slowly but intensely. Recovery takes longer. Breakthroughs come faster. You\'re running a different kind of engine.',
+    flavor: 'Your Qi came back slower than the others after training.\n\nBut when the breakthrough came, it came clean.\n\nNo cracks. No compromise.',
+    gameplay: 'Qi recovery rate is 30% slower. But breakthrough chance is 40% higher when you reach the threshold. You push harder through bottlenecks than cultivators with normal cores.',
+    aiHint: 'HUNGRY CORE: This character\'s Qi recovers more slowly than normal — note this in cultivation descriptions. But when a breakthrough becomes available, the chance of success and the quality of the breakthrough is significantly higher. Describe their breakthroughs as cleaner and more complete than typical.',
+    effects: { willpower: 2 },
+  },
+
+  hollow_core: {
+    name: 'Hollow Core',
+    type: 'cultivation', rarity: 'uncommon', inherited: true,
+    desc: 'Less capacity, but what you have converts more efficiently. A smaller engine that runs cleaner.',
+    flavor: 'Your maximum was lower than the others.\n\nBut watch what you do with what you have.',
+    gameplay: 'Maximum Qi capacity is 20% lower. But every point of Qi generates 30% more technique output. Efficient at every stage. Not powerful — precise.',
+    aiHint: 'HOLLOW CORE: This character holds less Qi than others at their stage but uses it more efficiently — each Qi point generates stronger technique output. Describe them as technique-precise rather than power-dominant. Their ceiling is lower; their efficiency is higher. Against opponents who rely on overwhelming Qi volume, they still hold up through technique quality.',
+    effects: { intelligence: 2 },
+  },
+
+  blood_remembers: {
+    name: 'Blood Remembers',
+    type: 'cultivation', rarity: 'epic', inherited: true,
+    desc: 'Somewhere in your bloodline a cultivation path was walked. The Qi in your blood has memory. It wants to take you back there.',
+    flavor: 'The technique described in the scroll was unfamiliar.\n\nAnd yet your body already knew the first movement.\n\nYou stood there for a while before trying the second.',
+    gameplay: 'If a bloodline cultivation path exists in your family history, you may have early access to its base techniques. The path pulls — certain techniques click the first time you see them. The narrator will surface the bloodline through narrative over time.',
+    aiHint: 'BLOOD REMEMBERS: This character\'s cultivation has a bloodline pull — an ancestral Qi path that the blood carries memory of. Certain techniques from this unknown bloodline feel immediately right when encountered, even without instruction. Surface this as a technique clicking faster than expected, or a movement that comes naturally. The full bloodline may or may not be revealed.',
+    effects: { willpower: 2, perception: 1 },
+  },
+
+  // ──────────────────────────────────────────────────────────
   // GAINED TRAITS
   // ──────────────────────────────────────────────────────────
 
@@ -7849,6 +8031,7 @@ async function generateOpeningNarrative() {
     appendNarrative(fallbackText);
     extractParentsFromOpening(fallbackText);
     extractSkillsFromNarrative(fallbackText);
+    extractTraitsFromNarrative(fallbackText);
     return;
   }
 
@@ -8015,6 +8198,7 @@ Do not include JSON. Write narrative prose only.`;
       appendNarrative(text);
       extractParentsFromOpening(text);
       extractSkillsFromNarrative(text);
+      extractTraitsFromNarrative(text);
     } else {
       appendNarrative(buildFallbackOpening(c, loc, kingdom, originDef, pronoun, possessive));
     }
@@ -8259,6 +8443,113 @@ function extractSkillsFromNarrative(text) {
       desc: `Learned through early life, before the story begins.`,
     };
   });
+}
+
+// ================================================================
+// TRAIT EXTRACTION FROM OPENING NARRATIVE
+// ================================================================
+// Called after the opening narrative generates.
+// 1. Applies the origin card's preset traits (which were never applied before)
+// 2. Reads the narrative text and grants 1–2 additional traits that fit
+//    what actually happened in the character's early life.
+
+function extractTraitsFromNarrative(text) {
+  if(!text) return;
+  const c = GS.char;
+  const lower = text.toLowerCase();
+
+  const alreadyHas = id => c.traits.some(t => t.id === id || t.name === TRAITS_CATALOG[id]?.name);
+
+  function grant(traitId, source) {
+    if(alreadyHas(traitId)) return;
+    const def = TRAITS_CATALOG[traitId];
+    if(!def) return;
+    const trait = {
+      id: traitId,
+      name: def.name,
+      type: def.type || 'upbringing',
+      rarity: def.rarity || 'common',
+      desc: def.desc,
+      effects: def.effects || {},
+      source: source || 'From your upbringing',
+    };
+    c.traits.push(trait);
+    // Apply stat effects immediately
+    Object.entries(def.effects || {}).forEach(([k,v]) => {
+      if(c[k] !== undefined) c[k] = Math.max(1, c[k] + v);
+    });
+  }
+
+  // ── Step 1: Apply origin card preset traits ─────────────────────
+  // These were stored but never applied to the character. Fix that now.
+  const originDef = GS.selectedOrigin
+    ? Object.values(ORIGIN_CARDS).flat().find(o => o.id === GS.selectedOrigin)
+    : null;
+
+  if(originDef?.traits?.length) {
+    originDef.traits.forEach(traitId => {
+      grant(traitId, `Origin: ${originDef.name}`);
+    });
+  }
+
+  // ── Step 2: Read narrative and grant additional fitting traits ───
+  // Patterns → trait they suggest. Cap at 2 narrative-extracted traits.
+  const NARRATIVE_PATTERNS = [
+    // Violence / danger in upbringing
+    { re: /\b(fight(ing)?|beat(en)?|hit|struck|bruise|blood(ied)?|violence|fists?|brawl|attacked|assault|beaten)\b/i,
+      trait:'raised_by_violence', note:'Your early years were marked by physical danger.' },
+    // Death witnessed
+    { re: /\b(died|death|dead|passed|killed|burial|grave|body|corpse|last breath|never woke)\b/i,
+      trait:'watched_someone_die', note:'Death was not abstract to you early.' },
+    // Debt / poverty
+    { re: /\b(debt|owed|borrow|coin(s)?\s+were|couldn\'t\s+afford|barely\s+(had|enough)|rent|landlord|short\s+on)\b/i,
+      trait:'debt_born', note:'You grew up understanding what financial desperation feels like.' },
+    // Criminal / underground
+    { re: /\b(underground|criminal|gang|guild|smuggl|theft|stolen goods|black\s+market|shadow\s+work|no\s+questions\s+asked)\b/i,
+      trait:'shadow_raised', note:'The grey world was familiar territory from the start.' },
+    // Disaster / war / catastrophe
+    { re: /\b(war|invasion|burned|razed|disaster|famine|siege|collapse|ruins?|rubble|occupied|soldiers\s+came)\b/i,
+      trait:'child_of_disaster', note:'You came up in the shape disaster left behind.' },
+    // Something inhuman / spiritual
+    { re: /\b(spirit|creature|yokai|beast\s+in\s+the|the\s+thing\s+(in|near|at)|eyes\s+in\s+the|not\s+human|ancient\s+(presence|being)|forest\s+watched)\b/i,
+      trait:'touched_by_something', note:'Something that was not human took notice of you early.' },
+    // Performance / entertaining
+    { re: /\b(perform(ed?|er|ance)|storytell|entertain|stage|crowd\s+(watched|gathered)|audiences?|singer|musician|dancer)\b/i,
+      trait:'performer_blood', note:'Holding an audience was natural from the start.' },
+    // Language / travel exposure
+    { re: /\b(foreign\s+(tongue|accent|language|words?)|different\s+language|trade\s+tongue|merchants?\s+from|travelers?\s+from|port|crossroads)\b/i,
+      trait:'language_ear', note:'Languages and accents found you early.' },
+    // Old lineage / family history
+    { re: /\b(old\s+family|ancient\s+name|bloodline|our\s+ancestors?|generations?\s+back|lineage|family\s+name\s+once\s+meant|grandmother\'s\s+grandmother)\b/i,
+      trait:'old_blood', note:'There is something in the lineage that is older than recent memory.' },
+    // Extreme pressure / cornered situations
+    { re: /\b(cornered|no\s+way\s+out|desperate|last\s+option|nothing\s+left|backed\s+into|survival\s+instinct|refused\s+to\s+die)\b/i,
+      trait:'pressure_cooker', note:'You\'ve been cornered before. You know what comes out.' },
+    // Body watching / mimicking movement
+    { re: /\b(watched\s+(them|him|her|the\s+(man|woman|fighter)|the\s+cultivator)\s+(move|fight|train)|memorized?\s+(the\s+movements?|how\s+he)|already\s+knew\s+the\s+movement)\b/i,
+      trait:'mirror_reflex', note:'Your body learns by watching before your mind catches up.' },
+  ];
+
+  let added = 0;
+  const MAX_NARRATIVE_TRAITS = 2;
+
+  for(const { re, trait, note } of NARRATIVE_PATTERNS) {
+    if(added >= MAX_NARRATIVE_TRAITS) break;
+    if(!re.test(text)) continue;
+    if(alreadyHas(trait)) continue;
+    grant(trait, note);
+    added++;
+  }
+
+  // ── Step 3: Update UI and notify ───────────────────────────────
+  if(c.traits.length > 0) {
+    updateCharacterTab();
+    const newNames = c.traits.slice(-Math.max(1, added + (originDef?.traits?.length||0)))
+      .map(t => t.name).join(', ');
+    if(newNames) {
+      setTimeout(() => toast(`Traits from your story: ${newNames}`, 'gold', 5000), 1500);
+    }
+  }
 }
 
 // ================================================================
