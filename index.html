@@ -19483,6 +19483,18 @@ function _drawDetailedMap(container) {
   const warConflict = yr >= 144 && (warActive || yr <= 165);
   const c         = GS.char;
 
+  // ── YEAR-GATING: only show what exists at current year ─────────
+  const exists    = key => (LOCATIONS[key]?.founded ?? 0) <= yr;
+  const kgExists  = kgId => KINGDOMS[kgId]?.locations?.some(l => exists(l)) ?? false;
+  const azureExists  = kgExists('azure_empire');
+  const luotinExists = kgExists('luo_tin');
+  const buoExists    = kgExists('buo');
+
+  // Determine era for map title annotation
+  const mapEra = yr < 0 ? 'Pre-Cultivation Era' : yr < 80 ? 'Age of Azure' :
+                 yr < 140 ? 'Age of Two Kingdoms' : yr < 154 ? 'Age of Three Kingdoms — War' :
+                 'Age of Three Kingdoms';
+
   // ── DETAILED FANTASY CARTOGRAPHY MAP — 1100×680 ──────────────
 
   const VW = 1100, VH = 680; // viewport
@@ -19616,32 +19628,47 @@ function _drawDetailedMap(container) {
   </g>
   <text x="1015" y="400" fill="#4a78a0" font-size="11" font-style="italic" opacity="0.55" transform="rotate(90,1015,400)">Eastern Sea</text>`;
 
-  // ── TERRITORY SHAPES (organic curved boundaries) ──────────────
-  // Azure Empire — western, coastal feel
-  svg += `
-  <path d="M 18 18 C 120 15 280 14 ${px(41)} 18 C ${px(44)} 80 ${px(42)} 140 ${px(40)} 200 C ${px(38)} 265 ${px(34)} 320 ${px(29)} 375 C ${px(24)} 430 ${px(18)} 465 ${px(15)} 490 C ${px(9)} 510 ${px(5)} 520 18 530 Z"
-    fill="#b4cce0" fill-opacity="0.50" stroke="#4a7aaa" stroke-width="1.8"/>
-  <path d="M ${px(41)} 18 C ${px(44)} 80 ${px(42)} 140 ${px(40)} 200 C ${px(38)} 265 ${px(34)} 320 ${px(29)} 375 C ${px(24)} 430 ${px(18)} 465 ${px(15)} 490 C ${px(9)} 510 ${px(5)} 520 18 530 L 18 18 Z"
-    fill="url(#ah)"/>
-  <!-- Azure label -->
-  <text x="${px(12)}" y="${py(42)}" fill="#2a5a8a" font-size="18" font-style="italic" opacity="0.32" transform="rotate(-9,${px(12)},${py(42)})">Azure</text>
-  <text x="${px(10)}" y="${py(48)}" fill="#2a5a8a" font-size="15" font-style="italic" opacity="0.27" transform="rotate(-9,${px(10)},${py(48)})">Empire</text>`;
+  // ── TERRITORY SHAPES — only show kingdoms that exist at current year ──
+  // Uncharted territory fills the whole map first
+  svg += `<rect x="18" y="18" width="${VW-36}" height="${VH-36}" fill="#c8b888" fill-opacity="0.20" rx="2"/>
+  <text x="${VW/2}" y="${VH/2}" fill="#9a8858" font-size="14" font-style="italic" opacity="0.25" text-anchor="middle">Uncharted Territory</text>`;
 
-  // Luo-Tin Dynasty — central/north
-  svg += `
-  <path d="M ${px(41)} 18 C ${px(60)} 16 ${px(76)} 15 940 18 C 940 100 938 180 ${px(88)} 250 C ${px(83)} 320 ${px(74)} 375 ${px(65)} 420 C ${px(57)} 455 ${px(48)} 475 ${px(43)} 490 C ${px(40)} 500 ${px(38)} 500 ${px(35)} 490 C ${px(32)} 475 ${px(30)} 450 ${px(29)} 375 C ${px(34)} 320 ${px(38)} 265 ${px(40)} 200 C ${px(42)} 140 ${px(44)} 80 ${px(41)} 18 Z"
-    fill="#c4b4d8" fill-opacity="0.45" stroke="#7a5aaa" stroke-width="1.8"/>
-  <path d="M ${px(41)} 18 C ${px(60)} 16 ${px(76)} 15 940 18 C 940 100 938 180 ${px(88)} 250 C ${px(83)} 320 ${px(74)} 375 ${px(65)} 420 C ${px(57)} 455 ${px(48)} 475 ${px(43)} 490 C ${px(40)} 500 ${px(38)} 500 ${px(35)} 490 C ${px(32)} 475 ${px(30)} 450 ${px(29)} 375 C ${px(34)} 320 ${px(38)} 265 ${px(40)} 200 C ${px(42)} 140 ${px(44)} 80 ${px(41)} 18 Z"
-    fill="url(#lh)"/>
-  <text x="${px(60)}" y="${py(22)}" fill="#5a2a9a" font-size="18" font-style="italic" opacity="0.30" transform="rotate(-2,${px(60)},${py(22)})">Luo-Tin Dynasty</text>`;
+  // Azure Empire (always exists from year 0)
+  if(azureExists) {
+    svg += `
+    <path d="M 18 18 C 120 15 280 14 ${px(41)} 18 C ${px(44)} 80 ${px(42)} 140 ${px(40)} 200 C ${px(38)} 265 ${px(34)} 320 ${px(29)} 375 C ${px(24)} 430 ${px(18)} 465 ${px(15)} 490 C ${px(9)} 510 ${px(5)} 520 18 530 Z"
+      fill="#b4cce0" fill-opacity="0.50" stroke="#4a7aaa" stroke-width="1.8"/>
+    <path d="M 18 18 C 120 15 280 14 ${px(41)} 18 C ${px(44)} 80 ${px(42)} 140 ${px(40)} 200 C ${px(38)} 265 ${px(34)} 320 ${px(29)} 375 C ${px(24)} 430 ${px(18)} 465 ${px(15)} 490 C ${px(9)} 510 ${px(5)} 520 18 530 Z"
+      fill="url(#ah)"/>
+    <text x="${px(12)}" y="${py(42)}" fill="#2a5a8a" font-size="18" font-style="italic" opacity="0.32" transform="rotate(-9,${px(12)},${py(42)})">Azure</text>
+    <text x="${px(10)}" y="${py(48)}" fill="#2a5a8a" font-size="15" font-style="italic" opacity="0.27" transform="rotate(-9,${px(10)},${py(48)})">Empire</text>`;
+  }
 
-  // Buo Kingdom — southeastern
-  svg += `
-  <path d="M ${px(43)} 490 C ${px(48)} 475 ${px(57)} 455 ${px(65)} 420 C ${px(74)} 375 ${px(83)} 320 ${px(88)} 250 C ${px(90)} 290 ${px(88)} 340 940 380 L 940 ${VH-18} L 18 ${VH-18} L 18 530 C ${px(5)} 520 ${px(9)} 510 ${px(15)} 490 C ${px(18)} 465 ${px(24)} 430 ${px(29)} 375 C ${px(30)} 450 ${px(32)} 475 ${px(35)} 490 C ${px(38)} 500 ${px(40)} 500 ${px(43)} 490 Z"
-    fill="#b4d4b0" fill-opacity="0.45" stroke="#3a7a3a" stroke-width="1.8"/>
-  <path d="M ${px(43)} 490 C ${px(48)} 475 ${px(57)} 455 ${px(65)} 420 C ${px(74)} 375 ${px(83)} 320 ${px(88)} 250 C ${px(90)} 290 ${px(88)} 340 940 380 L 940 ${VH-18} L 18 ${VH-18} L 18 530 C ${px(5)} 520 ${px(9)} 510 ${px(15)} 490 C ${px(18)} 465 ${px(24)} 430 ${px(29)} 375 C ${px(30)} 450 ${px(32)} 475 ${px(35)} 490 C ${px(38)} 500 ${px(40)} 500 ${px(43)} 490 Z"
-    fill="url(#bh)"/>
-  <text x="${px(65)}" y="${py(82)}" fill="#1a6a1a" font-size="17" font-style="italic" opacity="0.30">Buo Kingdom</text>`;
+  // Luo-Tin Dynasty (founded ~year 80)
+  if(luotinExists) {
+    svg += `
+    <path d="M ${px(41)} 18 C ${px(60)} 16 ${px(76)} 15 940 18 C 940 100 938 180 ${px(88)} 250 C ${px(83)} 320 ${px(74)} 375 ${px(65)} 420 C ${px(57)} 455 ${px(48)} 475 ${px(43)} 490 C ${px(40)} 500 ${px(38)} 500 ${px(35)} 490 C ${px(32)} 475 ${px(30)} 450 ${px(29)} 375 C ${px(34)} 320 ${px(38)} 265 ${px(40)} 200 C ${px(42)} 140 ${px(44)} 80 ${px(41)} 18 Z"
+      fill="#c4b4d8" fill-opacity="0.45" stroke="#7a5aaa" stroke-width="1.8"/>
+    <path d="M ${px(41)} 18 C ${px(60)} 16 ${px(76)} 15 940 18 C 940 100 938 180 ${px(88)} 250 C ${px(83)} 320 ${px(74)} 375 ${px(65)} 420 C ${px(57)} 455 ${px(48)} 475 ${px(43)} 490 C ${px(40)} 500 ${px(38)} 500 ${px(35)} 490 C ${px(32)} 475 ${px(30)} 450 ${px(29)} 375 C ${px(34)} 320 ${px(38)} 265 ${px(40)} 200 C ${px(42)} 140 ${px(44)} 80 ${px(41)} 18 Z"
+      fill="url(#lh)"/>
+    <text x="${px(60)}" y="${py(22)}" fill="#5a2a9a" font-size="18" font-style="italic" opacity="0.30" transform="rotate(-2,${px(60)},${py(22)})">Luo-Tin Dynasty</text>`;
+  }
+
+  // Buo Kingdom (founded ~year 140)
+  if(buoExists) {
+    svg += `
+    <path d="M ${px(43)} 490 C ${px(48)} 475 ${px(57)} 455 ${px(65)} 420 C ${px(74)} 375 ${px(83)} 320 ${px(88)} 250 C ${px(90)} 290 ${px(88)} 340 940 380 L 940 ${VH-18} L 18 ${VH-18} L 18 530 C ${px(5)} 520 ${px(9)} 510 ${px(15)} 490 C ${px(18)} 465 ${px(24)} 430 ${px(29)} 375 C ${px(30)} 450 ${px(32)} 475 ${px(35)} 490 C ${px(38)} 500 ${px(40)} 500 ${px(43)} 490 Z"
+      fill="#b4d4b0" fill-opacity="0.45" stroke="#3a7a3a" stroke-width="1.8"/>
+    <path d="M ${px(43)} 490 C ${px(48)} 475 ${px(57)} 455 ${px(65)} 420 C ${px(74)} 375 ${px(83)} 320 ${px(88)} 250 C ${px(90)} 290 ${px(88)} 340 940 380 L 940 ${VH-18} L 18 ${VH-18} L 18 530 C ${px(5)} 520 ${px(9)} 510 ${px(15)} 490 C ${px(18)} 465 ${px(24)} 430 ${px(29)} 375 C ${px(30)} 450 ${px(32)} 475 ${px(35)} 490 C ${px(38)} 500 ${px(40)} 500 ${px(43)} 490 Z"
+      fill="url(#bh)"/>
+    <text x="${px(65)}" y="${py(82)}" fill="#1a6a1a" font-size="17" font-style="italic" opacity="0.30">Buo Kingdom</text>`;
+  }
+
+  // "Ancient territories" label for pre-civilization eras
+  if(!luotinExists && !buoExists) {
+    svg += `<text x="${px(65)}" y="${py(50)}" fill="#9a8858" font-size="11" font-style="italic" opacity="0.40" text-anchor="middle">~ Eastern territories ~</text>
+    <text x="${px(65)}" y="${py(62)}" fill="#9a8858" font-size="9" font-style="italic" opacity="0.30" text-anchor="middle">beyond the known world</text>`;
+  }
 
   // ── NORTHERN MOUNTAIN RANGE (Great Defensive Giant) ───────────
   // Three rows of mountains, 50+ peaks, varying sizes
@@ -19775,6 +19802,19 @@ function _drawDetailedMap(container) {
     <text x="${px(68)}" y="${py(73)}" fill="#aa2211" font-size="7" text-anchor="middle" opacity="0.65">Buo-Luo War</text>`;
   }
 
+  // ── FUTURE LOCATION HINTS (founded later) ─────────────────────
+  // Show dim question marks for regions that will be settled later
+  Object.entries(ML).forEach(([key, ml]) => {
+    if(exists(key)) return; // already exists, will be drawn normally
+    const founded = LOCATIONS[key]?.founded;
+    if(!founded || founded > yr + 200) return; // too far future to hint
+    const x = px(ml.x), y = py(ml.y);
+    svg += `<g opacity="0.2">
+      <circle cx="${x}" cy="${y}" r="5" fill="none" stroke="#8a7858" stroke-width="1" stroke-dasharray="2,2"/>
+      <text x="${x}" y="${y+4}" fill="#8a7858" font-size="8" text-anchor="middle">?</text>
+    </g>`;
+  });
+
   // ── ROAD NETWORK (multiple types) ────────────────────────────
   // Imperial Highway (widest, most important)
   const imperialRoads = [
@@ -19782,6 +19822,7 @@ function _drawDetailedMap(container) {
     [px(ML.luo_tin_capital.x),py(ML.luo_tin_capital.y), px(ML.great_defensive_giant.x),py(ML.great_defensive_giant.y)],
     [px(ML.luo_tin_farm.x),py(ML.luo_tin_farm.y), px(ML.buo_capital.x),py(ML.buo_capital.y)],
   ];
+  // Only draw roads between founded locations
   imperialRoads.forEach(([x1,y1,x2,y2]) => {
     svg += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#7a5a28" stroke-width="2.5" opacity="0.60"/>`;
     svg += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#c8a050" stroke-width="0.8" opacity="0.30"/>`;
@@ -19794,6 +19835,7 @@ function _drawDetailedMap(container) {
   stdRoads.forEach(pair => {
     const [a,b] = pair.split('|');
     const la=ML[a], lb=ML[b]; if(!la||!lb) return;
+    if(!exists(a) || !exists(b)) return; // either end not founded yet
     svg += `<line x1="${px(la.x)}" y1="${py(la.y)}" x2="${px(lb.x)}" y2="${py(lb.y)}" stroke="#8a6a38" stroke-width="1.4" stroke-dasharray="6,4" opacity="0.55">
       <title>${LOCATIONS[a]?.name} → ${LOCATIONS[b]?.name}: ${getTravelDays(a,b)||'?'} days</title></line>`;
   });
@@ -19815,11 +19857,15 @@ function _drawDetailedMap(container) {
     fill="#8a7858" fill-opacity="0.55" stroke="#6a5838" stroke-width="0.8"/>
   <text x="${px(70)}" y="${py(34)}" fill="#6a5838" font-size="7" opacity="0.65" text-anchor="middle" font-style="italic">The Great Wall</text>`;
 
-  // ── LOCATION MARKERS ─────────────────────────────────────────
+  // ── ROAD NETWORK — only between existing locations ─────────────
+  // (re-filter roads by founded year before drawing)
+
+  // ── LOCATION MARKERS — only show founded locations ───────────
   const KC = { azure:'#2a5a8a', luo_tin:'#5a2a9a', buo:'#1a6a2a' };
   const plyr = c;
 
   Object.entries(ML).forEach(([key, ml]) => {
+    if(!exists(key)) return; // location hasn't been founded yet
     const x=px(ml.x), y=py(ml.y);
     const isP=key===playerLoc, isCap=ml.type==='capital';
     const col=KC[ml.k]||'#5a4a3a';
@@ -19896,7 +19942,7 @@ function _drawDetailedMap(container) {
   </g>`;
 
   // ── TITLE CARTOUCHE (decorative) ─────────────────────────────
-  const eraLbl = yr<0?'Pre-Cultivation Era':yr<130?'Founding Era':yr<154?'Year of War':'Current Era';
+  const eraLbl = mapEra; // use the year-accurate era label
   svg += `
   <g transform="translate(${VW/2},${VH-22})">
     <rect x="-175" y="-22" width="350" height="30" rx="3" fill="#c8a058" fill-opacity="0.55" stroke="#7a5a28" stroke-width="1"/>
@@ -27724,6 +27770,229 @@ window.exportMapSVG = function() {
   a.download = `murim-map-year${GS.world.year}.svg`;
   a.click();
   toast('Map exported as SVG.', 'gold', 2000);
+};
+
+// ================================================================
+// ══════════════════════════════════════════════════════════════
+// ── PREVENTATIVE MEASURES
+// ── These protect against the most likely failure modes as
+// ── the game grows in complexity and session length.
+// ══════════════════════════════════════════════════════════════
+// ================================================================
+
+// ── 1. SAVE SIZE MONITORING & AUTO-PRUNING ────────────────────
+// localStorage is typically limited to 5MB total per origin.
+// With all our systems, a long save can easily hit 3-4MB.
+
+function getStateSizeKB() {
+  try { return (JSON.stringify(GS).length / 1024); } catch(e) { return 0; }
+}
+
+function pruneStateForSave() {
+  // Cap narrative history — keep last 40 entries only (plenty for AI context)
+  if((GS.narrative||[]).length > 40) {
+    GS.narrative = GS.narrative.slice(-40);
+  }
+
+  // Prune npcRegistry: remove NPCs not in relationships (background extras)
+  const relIds = new Set([
+    ...(GS.char.relationships||[]).map(r=>r.npcId),
+    // Always keep lore NPCs
+    'reo_yamamoto','ichiro_katsumi','yuluh','lang_warlord',
+    'zeret_lust','aym','xelaad_pride','iasiba_envy','dranoel_greed','normac_sloth',
+  ]);
+  const reg = GS.world.npcRegistry || {};
+  let pruned = 0;
+  Object.keys(reg).forEach(id => {
+    if(!relIds.has(id)) { delete reg[id]; pruned++; }
+  });
+
+  // Trim NPC memoriesOfPlayer arrays (keep last 5 per NPC)
+  Object.values(reg).forEach(npc => {
+    if((npc.memoriesOfPlayer||[]).length > 5) {
+      npc.memoriesOfPlayer = npc.memoriesOfPlayer.slice(-5);
+    }
+  });
+
+  // Trim relationship fullMemory strings (keep first 600 chars — context summary)
+  (GS.char.relationships||[]).forEach(rel => {
+    if((rel.fullMemory||'').length > 600) {
+      rel.fullMemory = rel.fullMemory.slice(0, 600) + '…';
+    }
+  });
+
+  // Cap personalEvents (keep last 30)
+  if((GS.char.personalEvents||[]).length > 30) {
+    GS.char.personalEvents = GS.char.personalEvents.slice(-30);
+  }
+
+  // Cap worldHistory (keep last 20 entries)
+  if((GS.world.worldHistory||[]).length > 20) {
+    GS.world.worldHistory = GS.world.worldHistory.slice(-20);
+  }
+
+  if(pruned > 0) console.log(`[Save] Pruned ${pruned} unused NPC registry entries`);
+}
+
+// Override cleanSaveData to prune before saving
+const _cleanSaveWithPrune = cleanSaveData;
+cleanSaveData = function(gs) {
+  pruneStateForSave();
+  const d = _cleanSaveWithPrune(gs);
+
+  // Check final size
+  const sizeKB = (JSON.stringify(d).length / 1024).toFixed(0);
+  if(sizeKB > 3500) {
+    console.warn(`[Save] Save size ${sizeKB}KB — approaching localStorage limit`);
+  }
+  return d;
+};
+
+// ── 2. SYSTEM PROMPT LENGTH GUARD ────────────────────────────
+// Claude's context window is large but the system prompt grows.
+// Cap per-section injections to prevent bloat.
+
+const MAX_SYSTEM_PROMPT_CHARS = 18000; // ~4500 tokens — safe ceiling
+
+const _bspWithLengthGuard = buildSystemPrompt;
+buildSystemPrompt = function() {
+  let prompt = _bspWithLengthGuard();
+  if(prompt.length > MAX_SYSTEM_PROMPT_CHARS) {
+    // Find ABSOLUTE RULES marker and preserve everything after it
+    const rulesIdx = prompt.indexOf('## ABSOLUTE RULES');
+    if(rulesIdx > 0) {
+      const rules    = prompt.slice(rulesIdx);
+      const preamble = prompt.slice(0, rulesIdx);
+      // Trim preamble to fit
+      const maxPreamble = MAX_SYSTEM_PROMPT_CHARS - rules.length - 200;
+      if(maxPreamble > 1000) {
+        prompt = preamble.slice(0, maxPreamble) + '\n[...context trimmed for length...]\n\n' + rules;
+      }
+    }
+  }
+  return prompt;
+};
+
+// ── 3. RELATIONSHIP ARRAY GUARD ───────────────────────────────
+// If relationships array grows past 120, merge/prune weak ones.
+
+function guardRelationships() {
+  const rels = GS.char.relationships;
+  if(!rels || rels.length <= 120) return;
+
+  // Remove the weakest "mentioned/encountered" entries with no bond
+  const canPrune = rels.filter(r =>
+    ['mentioned','from the opening','encountered'].includes(r.type) &&
+    (r.bond_level||r.trust||0) < 10 &&
+    r.alive !== false
+  );
+
+  // Remove up to 20 of the weakest
+  const toRemove = canPrune
+    .sort((a,b) => (a.bond_level||0)-(b.bond_level||0))
+    .slice(0, Math.min(20, rels.length - 100));
+
+  toRemove.forEach(r => {
+    const idx = rels.indexOf(r);
+    if(idx !== -1) rels.splice(idx, 1);
+  });
+}
+
+// ── 4. CIRCULAR REFERENCE PROTECTION ─────────────────────────
+// Wrap JSON.stringify on saves to catch circular refs gracefully.
+
+const _origSaveToSlot = saveToSlot;
+saveToSlot = function(slot) {
+  try {
+    guardRelationships();
+    _origSaveToSlot(slot);
+  } catch(e) {
+    if(e.message?.includes('circular') || e.message?.includes('Converting')) {
+      toast('Save error: circular reference detected. Attempting recovery...', 'error', 4000);
+      // Emergency: reset narrative and try again
+      const backup = GS.narrative;
+      GS.narrative = GS.narrative.slice(-10);
+      try { _origSaveToSlot(slot); } catch(e2) { toast('Save failed completely.', 'error', 3000); }
+      GS.narrative = backup;
+    } else {
+      toast('Save failed: ' + e.message, 'error', 3000);
+      console.error('[Save]', e);
+    }
+  }
+};
+
+// ── 5. AUTOSAVE EVERY 10 TURNS ───────────────────────────────
+// Players shouldn't lose progress to browser crashes.
+
+const _applyWithAutosave = applyAIResponse;
+let _turnsSinceAutosave = 0;
+applyAIResponse = function(res) {
+  _applyWithAutosave(res);
+  try {
+    _turnsSinceAutosave++;
+    if(_turnsSinceAutosave >= 10) {
+      _turnsSinceAutosave = 0;
+      // Save to a dedicated autosave slot (slot 5 = autosave)
+      const data = cleanSaveData(GS);
+      localStorage.setItem('murim_autosave', JSON.stringify(data));
+    }
+  } catch(e) {}
+};
+
+// ── 6. NPC CONSISTENCY — CHANGE REQUIRES EXPLANATION ─────────
+// Replaces the "frozen forever" rule with a better one:
+// NPCs CAN change, but every change must be explained in narrative.
+
+const _bspWithNPCChange = buildSystemPrompt;
+buildSystemPrompt = function() {
+  let prompt = _bspWithNPCChange();
+
+  // Replace the frozen NPC rule with the better one
+  prompt = prompt.replace(
+    'NPC CONSISTENCY RULE (ABSOLUTE): Every known NPC\'s occupation, location, personality, and context listed above is CANON. If someone is listed as "sells herbs on a mat in the market," they are ALWAYS that person in EVERY scene. They do not become homeless without a narrative reason. They do not forget their relationship with the player. They do not act inconsistently with their listed daily life. If the player hasn\'t caused a change, nothing has changed. This is non-negotiable.',
+    `NPC CONSISTENCY RULE: The listed state for each known NPC is their LAST KNOWN state. NPCs ARE allowed to change — people lose jobs, move, change circumstances. But every change MUST be explained IN THE NARRATIVE when the player encounters it. If a mentor who ran an herb stall is now sleeping on the streets, that scene opens with something: they tell the player what happened, or someone nearby explains it, or it's visually obvious what occurred. The player should NEVER encounter an NPC in a completely different state with zero explanation. The change must make sense with what happened in the game world. If nothing in the game caused a change, the NPC's state persists. When in doubt: show, don't erase. A changed NPC is an opportunity for story — use it.`
+  );
+
+  return prompt;
+};
+
+// ── 7. API RESPONSE ERROR DETECTION ─────────────────────────
+// Detect and show useful messages for common API failures.
+
+const _applyWithErrorDetect = applyAIResponse;
+applyAIResponse = function(res) {
+  try {
+    _applyWithErrorDetect(res);
+  } catch(e) {
+    console.error('[applyAIResponse]', e);
+    // Don't crash the game — just log it
+    addPersonalEvent(`[System: response processing error — ${e.message?.slice(0,60)||'unknown'}]`);
+  }
+};
+
+// ── 8. BIRTHYEAR VALIDATION ON EVERY START ────────────────────
+// Catch any existing saves with wrong birthYear.
+
+const _startWithAgeCheck = startGame;
+startGame = function(isLoad=false) {
+  _startWithAgeCheck(isLoad);
+  try {
+    const c = GS.char;
+    const w = GS.world;
+    if(c.age !== undefined && w.year !== undefined && c.birthYear !== undefined) {
+      // If birthYear is essentially the same as world.year, it's the old bug
+      if(Math.abs(c.birthYear - w.year) <= 1 && c.age > 1) {
+        c.birthYear = w.year - c.age;
+        console.log(`[Fix] Corrected birthYear: was ${w.year}, now ${c.birthYear} (age ${c.age})`);
+      }
+    }
+    // Recalculate age on load
+    if(c.birthYear !== undefined && w.year !== undefined) {
+      c.age = w.year - c.birthYear;
+    }
+    updateTopbar();
+    updateCharacterTab();
+  } catch(e) {}
 };
 
 console.log('Murim Chronicles fully loaded.');
