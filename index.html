@@ -1214,6 +1214,61 @@ hr.divider { border: none; border-top: 1px solid var(--border); margin: 8px 0; }
 .npc-card.unreachable .npc-card-footer { opacity: .35; pointer-events: none; }
 /* ── CURRENCY DISPLAY ── */
 #tb-silver { font-size: 12px; }
+/* ── MINECRAFT-STYLE ACHIEVEMENT TOAST ── */
+#achievement-toasts {
+  position: fixed; top: 16px; right: 16px;
+  display: flex; flex-direction: column; gap: 8px;
+  z-index: 9999; pointer-events: none;
+}
+.achieve-toast {
+  display: flex; align-items: center; gap: 12px;
+  background: #1a1208; border: 2px solid #c49a30;
+  border-radius: 4px; padding: 10px 14px;
+  min-width: 260px; max-width: 360px;
+  box-shadow: 0 4px 16px rgba(0,0,0,.6);
+  animation: achieveIn .3s cubic-bezier(.16,1,.3,1) forwards;
+  font-family: var(--font, inherit);
+}
+.achieve-toast.out { animation: achieveOut .3s ease-in forwards; }
+.achieve-icon { font-size: 22px; flex-shrink:0; }
+.achieve-text { flex:1; min-width:0; }
+.achieve-label { font-size:9px; color:#c49a30; text-transform:uppercase; letter-spacing:.1em; margin-bottom:2px; }
+.achieve-name  { font-size:13px; font-weight:700; color:#fff; }
+.achieve-desc  { font-size:10px; color:#aaa; margin-top:2px; line-height:1.4; }
+@keyframes achieveIn  { from{transform:translateX(110%);opacity:0} to{transform:translateX(0);opacity:1} }
+@keyframes achieveOut { from{transform:translateX(0);opacity:1} to{transform:translateX(110%);opacity:0} }
+/* ── CRAFTING (Alchemy + Forge) ── */
+.craft-workspace {
+  display: flex; gap: 8px; flex-wrap: wrap;
+  padding: 10px; background: var(--s2);
+  border: 1px solid var(--border); border-radius: 6px;
+  min-height: 60px; margin-bottom: 10px;
+  align-items: center;
+}
+.craft-slot {
+  width: 54px; height: 54px; border: 1px dashed var(--border2);
+  border-radius: 5px; display: flex; align-items: center;
+  justify-content: center; font-size: 11px; color: var(--dim);
+  background: var(--s3); cursor: pointer; position: relative;
+  flex-shrink: 0; transition: border-color .15s;
+}
+.craft-slot.filled { border-color: var(--gold); border-style: solid; color: var(--text); }
+.craft-slot .remove-btn {
+  position: absolute; top: -5px; right: -5px;
+  width: 14px; height: 14px; border-radius: 50%;
+  background: var(--red); color: #fff; font-size: 9px;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; border: none;
+}
+.craft-result {
+  padding: 10px; background: var(--s2); border: 1px solid var(--border);
+  border-radius: 6px; margin-bottom: 10px; font-size: 12px; line-height: 1.7;
+}
+.craft-discovery {
+  padding: 5px 8px; border-bottom: 1px solid var(--border);
+  font-size: 11px; display: flex; gap: 8px; align-items: flex-start;
+}
+.craft-discovery .qual { font-size: 9px; text-transform: uppercase; padding-top:1px; flex-shrink:0; }
 /* ── ASSET / PROPERTY CARDS ── */
 .property-card {
   background: var(--s2); border: 1px solid var(--border);
@@ -1699,6 +1754,7 @@ hr.divider { border: none; border-top: 1px solid var(--border); margin: 8px 0; }
           <button class="subtab-btn" data-st="tech-pane">Techniques</button>
           <button class="subtab-btn" data-st="ma-pane">Martial Arts</button>
           <button class="subtab-btn" data-st="alchemy-pane">Alchemy</button>
+          <button class="subtab-btn" data-st="forge-pane">Forge</button>
         </div>
 
         <div id="skills-pane" class="subtab-content active">
@@ -1749,6 +1805,10 @@ hr.divider { border: none; border-top: 1px solid var(--border); margin: 8px 0; }
           <div id="alchemy-skill-status"></div>
           <div id="alchemy-ingredients"></div>
           <div id="alchemy-recipes"></div>
+        </div>
+
+        <div id="forge-pane" class="subtab-content">
+          <div id="forge-content"></div>
         </div>
       </div><!-- /tab-skills -->
 
@@ -1821,7 +1881,7 @@ hr.divider { border: none; border-top: 1px solid var(--border); margin: 8px 0; }
 <div id="modal-settings" class="modal-overlay hidden">
   <div class="modal-card modal-sm">
     <div class="modal-header">
-      <h2>Settings</h2>
+      <h2 id="settings-title" title="Click S five times for something...">Settings</h2>
       <button class="modal-close" data-modal="modal-settings">✕</button>
     </div>
     <div class="modal-body">
@@ -1853,9 +1913,37 @@ hr.divider { border: none; border-top: 1px solid var(--border); margin: 8px 0; }
         </div>
         <input type="file" id="import-file" accept=".json" style="display:none">
       </div>
+      <div style="display:flex;gap:6px;margin-top:10px">
+        <button id="btn-share-story" class="btn-secondary btn-sm" style="flex:1">📖 Share Story</button>
+        <button id="btn-view-achievements" class="btn-secondary btn-sm" style="flex:1">🏆 Achievements</button>
+      </div>
       <div class="setting-row" style="margin-top:8px;padding-top:12px;border-top:1px solid var(--border)">
-        <label>Start Fresh</label>
-        <button id="btn-newgame" class="btn-danger btn-sm">New Game</button>
+        <label>Navigation</label>
+        <div style="display:flex;gap:6px">
+          <button id="btn-main-menu" class="btn-secondary btn-sm">Main Menu</button>
+          <button id="btn-newgame" class="btn-danger btn-sm">New Life</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Story Export Modal -->
+<div id="modal-story" class="modal-overlay hidden">
+  <div class="modal-card" style="max-width:680px">
+    <div class="modal-header">
+      <h2>Your Story</h2>
+      <button class="modal-close" data-modal="modal-story">✕</button>
+    </div>
+    <div class="modal-body">
+      <div id="story-status" style="text-align:center;padding:20px;color:var(--muted);font-style:italic">
+        <span class="spinner"></span> Writing your story…
+      </div>
+      <div id="story-content" style="display:none;max-height:400px;overflow-y:auto;font-size:13px;line-height:1.8;color:var(--text);white-space:pre-wrap;font-family:Georgia,serif"></div>
+      <div id="story-actions" style="display:none;margin-top:12px;display:flex;gap:8px">
+        <button class="btn-primary btn-sm" onclick="copyStory()">Copy Text</button>
+        <button class="btn-secondary btn-sm" onclick="downloadStoryHTML()">Download as HTML</button>
+        <button class="btn-secondary btn-sm" onclick="regenerateStory()">Regenerate</button>
       </div>
     </div>
   </div>
@@ -2230,6 +2318,9 @@ hr.divider { border: none; border-top: 1px solid var(--border); margin: 8px 0; }
     </div>
   </div>
 </div>
+
+<!-- Achievement toast container -->
+<div id="achievement-toasts"></div>
 
 <!-- Hidden code entry (admin unlock) -->
 <div id="modal-code" class="modal-overlay hidden">
@@ -9724,6 +9815,49 @@ const ACHIEVEMENTS_DEF = [
     icon:'🏚', name:'Grave Robber',
     desc:"Enter Reo's or Ichiro's tomb.",
     check: gs => gs.char._enteredTomb === true },
+
+  // ── Romance ──
+  { id:'terez',
+    icon:'💋', name:'Terez',
+    desc:"Publicly display overboard affection for your partner. Not just a kiss — something that makes everyone around you uncomfortable or amazed.",
+    check: gs => gs.char._terezMoment === true },
+
+  { id:'heartbroken',
+    icon:'💔', name:'The Cost',
+    desc:"Have a romantic relationship end badly.",
+    check: gs => gs.char.relationships.some(r => r.romance?.stage === 'heartbroken') },
+
+  { id:'married',
+    icon:'💍', name:'Bound',
+    desc:"Get married.",
+    check: gs => gs.char.relationships.some(r => r.type === 'spouse') },
+
+  // ── Crafting ──
+  { id:'first_brew',
+    icon:'⚗', name:'Alchemist',
+    desc:"Successfully combine ingredients to create something through alchemy.",
+    check: gs => (gs.char._alchemyDiscoveries || 0) > 0 },
+
+  { id:'first_forge',
+    icon:'⚒', name:'Smith',
+    desc:"Create something at the forge by combining materials.",
+    check: gs => (gs.char._smithingDiscoveries || 0) > 0 },
+
+  { id:'dangerous_discovery',
+    icon:'💥', name:'Ahead of Your Time',
+    desc:"Forge or brew something that shouldn't be possible for this era.",
+    check: gs => gs.char._dangerousDiscovery === true },
+
+  // ── Property ──
+  { id:'homeowner',
+    icon:'🏠', name:'A Place to Call Your Own',
+    desc:"Own your first property.",
+    check: gs => (gs.char.assets || []).length > 0 },
+
+  { id:'landlord',
+    icon:'🏯', name:'Landlord',
+    desc:"Own three or more properties.",
+    check: gs => (gs.char.assets || []).length >= 3 },
 ];
 
 // ── Track specific achievement state that can't be inferred from existing data ──
@@ -9758,6 +9892,13 @@ function trackAchievementState(res) {
   if(res.narrative && /reo.*tomb|ichiro.*tomb|tomb.*reo|tomb.*ichiro/i.test(res.narrative)) {
     c._enteredTomb = true;
   }
+
+  // Terez: overboard public affection
+  if(res.narrative && /\b(crowd.*stares?|everyone.*watching|public.*kiss|spectacle.*love|loudly.*love|profess.*love.*market|calls? out.*love|confesses?.*love.*crowd|openly.*embrace|dropped.*to.*knee.*public|knelt.*public.*love|plaza.*kiss|marketplace.*embrace|the whole.*witnessed|onlookers.*stare|passers.*stop|street.*stopped)\b/i.test(res.narrative)) {
+    c._terezMoment = true;
+  }
+  // Also flag if AI explicitly sets it
+  if(res.terezMoment) c._terezMoment = true;
 }
 
 function getUnlockedAchievements() {
@@ -9780,7 +9921,8 @@ function checkAndSaveAchievements() {
   });
   if(newlyUnlocked.length) {
     localStorage.setItem('murim_achievements', JSON.stringify([...unlocked]));
-    newlyUnlocked.forEach(a => toast(`Achievement: ${a.name}`, 'gold', 4000));
+    // Minecraft-style achievement popups — queue them
+    newlyUnlocked.forEach((a, i) => setTimeout(() => showAchievementToast(a), i * 1200));
   }
 }
 
@@ -27994,6 +28136,575 @@ startGame = function(isLoad=false) {
     updateCharacterTab();
   } catch(e) {}
 };
+
+// ================================================================
+// ── MINECRAFT-STYLE ACHIEVEMENT TOASTS
+// ================================================================
+
+function showAchievementToast(achievement) {
+  const container = document.getElementById('achievement-toasts');
+  if(!container) return;
+
+  const toast = document.createElement('div');
+  toast.className = 'achieve-toast';
+  toast.innerHTML = `
+    <div class="achieve-icon">${achievement.icon}</div>
+    <div class="achieve-text">
+      <div class="achieve-label">Achievement Unlocked</div>
+      <div class="achieve-name">${achievement.name}</div>
+      <div class="achieve-desc">${achievement.desc}</div>
+    </div>`;
+  container.appendChild(toast);
+
+  // Auto-remove after 5s
+  setTimeout(() => {
+    toast.classList.add('out');
+    setTimeout(() => toast.remove(), 350);
+  }, 5000);
+}
+
+// ================================================================
+// ── SETTINGS IMPROVEMENTS
+// ── Font fix, Main Menu, Admin via "S" × 5, Share Story
+// ================================================================
+
+// FONT SIZE FIX — apply to narrative + sidebar, not just body
+document.addEventListener('DOMContentLoaded', () => {
+  const slider = document.getElementById('set-fontsize');
+  if(slider) {
+    slider.addEventListener('input', e => {
+      const sz = parseInt(e.target.value);
+      GS.settings.fontSize = sz;
+      document.body.style.fontSize = sz + 'px';
+      // Apply to narrative content specifically
+      const nc = document.getElementById('narrative-content');
+      const sp = document.getElementById('side-panel');
+      if(nc) nc.style.fontSize = sz + 'px';
+      if(sp) sp.style.fontSize = (sz - 1) + 'px';
+      document.getElementById('set-fontsize-val').textContent = sz + 'px';
+    });
+  }
+
+  // Main Menu button
+  const mainMenuBtn = document.getElementById('btn-main-menu');
+  if(mainMenuBtn) {
+    mainMenuBtn.addEventListener('click', () => {
+      hideModal('modal-settings');
+      document.getElementById('screen-game')?.classList.add('hidden');
+      document.getElementById('screen-death')?.classList.add('hidden');
+      document.getElementById('screen-creation')?.classList.add('hidden');
+      document.getElementById('screen-menu')?.classList.remove('hidden');
+    });
+  }
+
+  // Achievements button in settings
+  const achBtn = document.getElementById('btn-view-achievements');
+  if(achBtn) {
+    achBtn.addEventListener('click', () => {
+      hideModal('modal-settings');
+      renderAchievements();
+      document.getElementById('panel-achievements')?.classList.remove('hidden');
+    });
+  }
+
+  // Share Story button
+  const storyBtn = document.getElementById('btn-share-story');
+  if(storyBtn) {
+    storyBtn.addEventListener('click', () => {
+      hideModal('modal-settings');
+      generateStory();
+      showModal('modal-story');
+    });
+  }
+
+  // ADMIN UNLOCK: click the "S" in "Settings" title 5 times
+  let settingsClickCount = 0, settingsClickTimer = null;
+  const settingsTitle = document.getElementById('settings-title');
+  if(settingsTitle) {
+    settingsTitle.style.cursor = 'default';
+    settingsTitle.addEventListener('click', () => {
+      settingsClickCount++;
+      clearTimeout(settingsClickTimer);
+      settingsClickTimer = setTimeout(() => { settingsClickCount = 0; }, 2000);
+      if(settingsClickCount >= 5) {
+        settingsClickCount = 0;
+        GS.admin.unlocked = true;
+        document.getElementById('btn-admin')?.classList.remove('hidden');
+        hideModal('modal-settings');
+        buildAdminStatGrid?.();
+        showModal('modal-admin');
+        toast('Admin access granted.', 'gold', 3000);
+      }
+    });
+  }
+
+  // Forge pane — render when tab opened
+  document.querySelector('[data-st="forge-pane"]')?.addEventListener('click', () => {
+    setTimeout(renderForgePanel, 10);
+  });
+});
+
+// ================================================================
+// ── STORY EXPORT — AI narrates your character's journey
+// ================================================================
+
+let _currentStory = '';
+
+async function generateStory() {
+  const c   = GS.char;
+  const w   = GS.world;
+  const statusEl  = document.getElementById('story-status');
+  const contentEl = document.getElementById('story-content');
+  const actionsEl = document.getElementById('story-actions');
+
+  if(statusEl)  { statusEl.style.display = 'block'; statusEl.innerHTML = '<span class="spinner"></span> Writing your story…'; }
+  if(contentEl) contentEl.style.display = 'none';
+  if(actionsEl) actionsEl.style.display = 'none';
+
+  // Build story context
+  const stage     = QI_STAGES[c.qi?.stageIndex||0]?.name || 'Mortal';
+  const traits    = (c.traits||[]).map(t=>t.name).join(', ') || 'none';
+  const relations = (c.relationships||[])
+    .filter(r=>r.alive!==false&&(r.bond_level||r.trust||0)>20)
+    .slice(0,8)
+    .map(r=>`${r.name} (${r.type}, bond ${r.bond_level||r.trust||0})`)
+    .join(', ');
+  const events    = (c.personalEvents||[]).slice(-20).join('\n');
+  const decisions = (c.decisions||[]).slice(-10).join('\n');
+  const narrative = (GS.narrative||[]).filter(n=>n&&n.length>20).slice(-8).join('\n\n---\n\n');
+  const worldHist = (w.worldHistory||[]).slice(-5).join('\n');
+
+  const prompt = `You are writing a literary story about a cultivator's journey. This is for SHARING with another person — write it as compelling narrative fiction, not a game log.
+
+CHARACTER:
+Name: ${c.firstName} ${c.lastName}
+Age: ${c.age} | Year: ${w.year} | Location: ${LOCATIONS[w.location]?.name || w.location}
+Cultivation: ${stage} (${c.qi?.path || 'no path'} Qi)
+Traits: ${traits}
+Known as: ${Object.entries(c.reputation||{}).filter(([k,v])=>(v.renown||0)>20&&!k.endsWith('_kingdom')).map(([k,v])=>`${LOCATIONS[k]?.name}: renown ${v.renown}`).join(', ') || 'unknown to the world'}
+
+KEY RELATIONSHIPS:
+${relations || 'none yet'}
+
+THINGS THAT HAPPENED:
+${events}
+
+DECISIONS MADE:
+${decisions}
+
+WORLD EVENTS:
+${worldHist}
+
+RECENT SCENES (from the game narrative):
+${narrative}
+
+WRITING INSTRUCTIONS:
+Write a narrative story (800-1200 words) about this character's life so far.
+- Second person: "You are ${c.firstName}..."
+- Present tense for recent events, past tense for history
+- Literary quality — this is fiction, not a summary
+- Include 2-3 specific scenes that feel real
+- Show who this person is through their choices, not just what happened
+- End with where they stand NOW — the weight of it, what's ahead
+- This should read like a chapter from a wuxia novel
+- Do NOT include game mechanics, stats, or system references — pure story`;
+
+  try {
+    const apiKey = GS.settings.apiKey;
+    if(!apiKey) throw new Error('No API key set');
+
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method:'POST',
+      headers:{ 'x-api-key':apiKey, 'anthropic-version':'2023-06-01', 'content-type':'application/json' },
+      body: JSON.stringify({
+        model:'claude-opus-4-5',
+        max_tokens:1500,
+        messages:[{ role:'user', content:prompt }]
+      })
+    });
+
+    const data = await resp.json();
+    const story = data.content?.[0]?.text || 'Story could not be generated.';
+    _currentStory = story;
+
+    if(contentEl) { contentEl.textContent = story; contentEl.style.display = 'block'; }
+    if(statusEl)  statusEl.style.display = 'none';
+    if(actionsEl) actionsEl.style.display = 'flex';
+
+  } catch(e) {
+    if(statusEl) statusEl.innerHTML = `<span style="color:var(--red)">Failed: ${e.message}</span>`;
+  }
+}
+
+window.copyStory = function() {
+  navigator.clipboard?.writeText(_currentStory).then(() => toast('Story copied!', 'gold', 2000));
+};
+
+window.regenerateStory = function() { generateStory(); };
+
+window.downloadStoryHTML = function() {
+  const c = GS.char;
+  const html = `<!DOCTYPE html>
+<html><head><meta charset="UTF-8">
+<title>${c.firstName} ${c.lastName} — Murim Chronicles</title>
+<style>
+  body{max-width:700px;margin:60px auto;font-family:Georgia,serif;line-height:1.9;color:#2a1a0a;background:#f5ead8;padding:40px}
+  h1{font-size:28px;text-align:center;color:#3a1a00;border-bottom:2px solid #8a5a20;padding-bottom:16px;margin-bottom:30px}
+  p{margin-bottom:16px;text-indent:2em}
+  .meta{text-align:center;color:#7a5a30;font-size:12px;margin-bottom:30px;font-style:italic}
+</style></head><body>
+<h1>${c.firstName} ${c.lastName}</h1>
+<div class="meta">Murim Chronicles · Year ${GS.world.year} · Age ${c.age}</div>
+${_currentStory.split('\n\n').map(p=>`<p>${p}</p>`).join('')}
+</body></html>`;
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([html], {type:'text/html'}));
+  a.download = `${c.firstName}-${c.lastName}-story.html`;
+  a.click();
+  toast('Story downloaded.', 'gold', 2000);
+};
+
+// ================================================================
+// ── ALCHEMY OVERHAUL — Infinite Craft style discovery
+// ── Mix any items to discover new substances
+// ================================================================
+
+const ALCHEMY_LOG_KEY = 'murim_alchemy_v2';
+
+function getAlchemyLog() {
+  try { return JSON.parse(localStorage.getItem(ALCHEMY_LOG_KEY) || '[]'); } catch(e) { return []; }
+}
+
+function saveAlchemyLog(log) {
+  localStorage.setItem(ALCHEMY_LOG_KEY, JSON.stringify(log.slice(-100))); // keep last 100
+}
+
+// Render the new discovery-based alchemy panel
+renderAlchemyPanel = function() {
+  const pane = document.getElementById('alchemy-pane');
+  if(!pane) return;
+
+  const c       = GS.char;
+  const alchLvl = getSkillLevel('alchemy');
+  const log     = getAlchemyLog();
+  const allItems = c.inventory.filter(i => i && i.name);
+
+  pane.innerHTML = `
+    <div style="font-size:11px;color:var(--muted);margin-bottom:10px;line-height:1.6">
+      <span style="color:var(--gold);font-weight:700">Alchemy Lv${alchLvl}</span> — Select ingredients to combine. Anything can be tried. Results persist between sessions.
+    </div>
+
+    <!-- Ingredient selection -->
+    <div style="font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:5px">
+      Your materials (${allItems.length})
+    </div>
+    <div style="background:var(--s2);border:1px solid var(--border);border-radius:6px;padding:6px;max-height:160px;overflow-y:auto;margin-bottom:8px">
+      ${allItems.length ? allItems.map(item =>
+        `<label style="display:flex;align-items:center;gap:8px;padding:3px 0;cursor:pointer;border-bottom:1px solid var(--border)">
+          <input type="checkbox" class="alchemy-ing-check" data-id="${item.id}" style="accent-color:var(--gold)">
+          <span style="font-size:12px;flex:1">${item.name}</span>
+          <span style="font-size:10px;color:var(--dim)">${item.type}</span>
+        </label>`
+      ).join('') : '<div style="text-align:center;padding:10px;color:var(--dim);font-size:12px">No materials. Buy herbs or forage.</div>'}
+    </div>
+
+    <!-- Combine button -->
+    <div style="display:flex;gap:8px;margin-bottom:12px">
+      <button class="btn-primary btn-sm" onclick="attemptAlchemyCombine()" style="flex:1">⊕ Combine (2–5 selected)</button>
+      <button class="btn-secondary btn-sm" onclick="alchemyClearSelection()">Clear</button>
+      ${(FORAGEABLE_BY_LOCATION[GS.world.location])
+        ? `<button class="btn-secondary btn-sm" onclick="sendToAI('I search this area for useful herbs and materials.')">🌿 Forage</button>`
+        : ''}
+    </div>
+
+    <!-- Discovery log -->
+    ${log.length ? `
+      <div style="font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:5px">
+        Discovered (${log.length})
+      </div>
+      <div style="background:var(--s2);border:1px solid var(--border);border-radius:6px;padding:6px;max-height:180px;overflow-y:auto">
+        ${log.slice().reverse().map(d => {
+          const qc = {excellent:'var(--gold)',good:'var(--green)',accident:'#9944cc',basic:'var(--muted)',failure:'var(--red)'}[d.quality]||'var(--muted)';
+          return `<div class="craft-discovery">
+            <span class="qual" style="color:${qc}">[${d.quality}]</span>
+            <span style="color:var(--dim)">${d.ingredients.join(' + ')} →</span>
+            <span style="color:var(--text)">${(d.result||'nothing').slice(0,70)}</span>
+          </div>`;
+        }).join('')}
+      </div>` : '<div style="font-size:12px;color:var(--dim);text-align:center;padding:12px;border:1px dashed var(--border);border-radius:6px">No discoveries yet. Combine ingredients to learn.</div>'}`;
+};
+
+// Override attemptAlchemyCombine to use AI-based discovery
+attemptAlchemyCombine = function() {
+  const checked = [...document.querySelectorAll('.alchemy-ing-check:checked')].map(cb => cb.dataset.id);
+  if(checked.length < 2) { toast('Select 2–5 ingredients.', 'error', 2000); return; }
+  if(checked.length > 5) { toast('Maximum 5 at once.', 'error', 2000); return; }
+
+  const c    = GS.char;
+  const items = checked.map(id => c.inventory.find(i => i.id === id)).filter(Boolean);
+  const names = items.map(i => i.name);
+  const alchLvl = getSkillLevel('alchemy');
+  const int  = c.intelligence || 10;
+
+  // Check discovery log for known combo
+  const log    = getAlchemyLog();
+  const key    = names.slice().sort().join('+');
+  const known  = log.find(d => d.key === key);
+
+  if(known) {
+    toast(`Already discovered: ${known.result?.slice(0,40)||'failed result'}`, '', 3000);
+    return;
+  }
+
+  // Consume ingredients
+  items.forEach(item => {
+    c.inventory = c.inventory.filter(i => i.id !== item.id);
+  });
+  addSkill('alchemy','Alchemy','craftsman','Experimenting with ingredient combinations.');
+  updateInventoryTab();
+
+  const inject = `[ALCHEMY EXPERIMENT: The character combines ${names.join(' + ')}.
+Alchemy skill: ${alchLvl}. Intelligence: ${int}.
+
+What does this create? Generate a result with:
+1. A specific name for the substance
+2. What type it is: pill / potion / tincture / powder / oil / paste / salve / gas / smoke / liquid / crystal / resin
+3. Its effects (beneficial, harmful, or both)
+4. Its appearance and smell
+5. Quality: excellent / good / basic / accident / failure
+6. Side effects or dangers if any
+
+HIGH INTELLIGENCE (${int}+): may produce unexpected synergies or unusual compounds.
+LOW ALCHEMY SKILL (${alchLvl}): unstable results possible, dangerous gases, contamination.
+
+Format the result as normal narrative describing what happened and what was produced. Do NOT list stats — describe what the cultivator discovers through their senses and the substance's behavior.
+Include in response: "alchemyResult": { "name": "...", "type": "...", "quality": "...", "effects": {}, "desc": "...", "value": N }]`;
+
+  toast('Combining...', '', 1500);
+  sendToAI(`I carefully combine ${names.join(', ')}, watching the reaction.` + '\n\n' + inject);
+};
+
+// Handle alchemy result from AI
+const _applyWithAlchemyResult = applyAIResponse;
+applyAIResponse = function(res) {
+  _applyWithAlchemyResult(res);
+  try {
+    if(!res?.alchemyResult) return;
+    const r   = res.alchemyResult;
+    const log = getAlchemyLog();
+
+    // Save discovery
+    const entry = {
+      key: [r.name].join('+'), // simplified key
+      ingredients: res._alchemyIngredients || [],
+      result: r.name,
+      quality: r.quality || 'basic',
+      type: r.type || 'substance',
+      timestamp: GS.world.year,
+    };
+    log.push(entry);
+    saveAlchemyLog(log);
+
+    // Spawn item if not a failure
+    if(r.quality !== 'failure') {
+      spawnItem({
+        name: r.name,
+        type: 'consumable',
+        rarity: {excellent:'rare',good:'uncommon',accident:'uncommon',basic:'common'}[r.quality]||'common',
+        desc: r.desc || `Created through alchemy. ${r.type || 'substance'}.`,
+        value: r.value || 15,
+        effects: r.effects || {},
+        isTome: false,
+      });
+      GS.char._alchemyDiscoveries = (GS.char._alchemyDiscoveries || 0) + 1;
+    }
+
+    // Refresh panel if visible
+    const pane = document.getElementById('alchemy-pane');
+    if(pane?.classList.contains('active')) renderAlchemyPanel();
+  } catch(e) {}
+};
+
+// ================================================================
+// ── FORGE / BLACKSMITHING — Infinite Craft style
+// ── Combine materials to create weapons, armor, tools, mechanisms
+// ================================================================
+
+const FORGE_LOG_KEY = 'murim_forge_v1';
+
+function getForgeLog() {
+  try { return JSON.parse(localStorage.getItem(FORGE_LOG_KEY) || '[]'); } catch(e) { return []; }
+}
+function saveForgeLog(log) {
+  localStorage.setItem(FORGE_LOG_KEY, JSON.stringify(log.slice(-80)));
+}
+
+// Forge materials — these can be acquired through shops, loot, or foraging
+const FORGE_MATERIALS = {
+  iron_ore:     { name:'Iron Ore',      desc:'Raw iron. Base material for most metalwork.', value:8  },
+  steel_ingot:  { name:'Steel Ingot',   desc:'Refined iron alloy. Harder and more flexible.', value:30 },
+  copper_ore:   { name:'Copper Ore',    desc:'Soft metal. Good conductor and easy to work.', value:6  },
+  bronze_mix:   { name:'Bronze Alloy',  desc:'Copper-tin alloy. Strong, corrosion-resistant.', value:20 },
+  hardwood:     { name:'Hardwood',      desc:'Dense timber. Handles, hafts, structural work.', value:5  },
+  leather_strip:{ name:'Leather Strip', desc:'Tanned hide. Grips, padding, light armor.',  value:4  },
+  bone_fragment:{ name:'Bone Fragment', desc:'Dense animal bone. Can be worked into tools.', value:3  },
+  stone_chip:   { name:'Stone Chip',    desc:'Hard stone. Grinding, sharpening, crude tools.', value:2  },
+  charcoal:     { name:'Charcoal',      desc:'Essential for forge temperature and steel purification.', value:4 },
+  spirit_metal: { name:'Spirit Metal',  desc:'Metal imbued with residual Qi. Rare.', value:120 },
+};
+
+function renderForgePanel() {
+  const pane = document.getElementById('forge-pane');
+  if(!pane) return;
+
+  const c     = GS.char;
+  const smith = getSkillLevel('smithing');
+  const intel = c.intelligence || 10;
+  const log   = getForgeLog();
+
+  // Find forge materials in inventory (metals, wood, leather)
+  const materials = c.inventory.filter(i =>
+    i && i.name && (
+      i.type === 'misc' ||
+      FORGE_MATERIALS[i.name?.toLowerCase().replace(/\s+/g,'_')] ||
+      /\b(iron|steel|copper|bronze|metal|ore|ingot|wood|leather|bone|stone|charcoal|alloy)\b/i.test(i.name)
+    )
+  );
+
+  pane.innerHTML = `
+    <div style="font-size:11px;color:var(--muted);margin-bottom:10px;line-height:1.6">
+      <span style="color:#cc8822;font-weight:700">⚒ Forge · Smithing Lv${smith}</span>${intel >= 16 ? ' <span style="color:var(--gold);font-size:10px">High INT — unusual designs possible</span>' : ''}
+      <br>Select materials (2–5) and combine at the forge. Discoveries persist.
+    </div>
+
+    <div style="font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:5px">Materials (${materials.length})</div>
+    <div style="background:var(--s2);border:1px solid var(--border);border-radius:6px;padding:6px;max-height:150px;overflow-y:auto;margin-bottom:8px">
+      ${materials.length ? materials.map(item =>
+        `<label style="display:flex;align-items:center;gap:8px;padding:3px 0;cursor:pointer;border-bottom:1px solid var(--border)">
+          <input type="checkbox" class="forge-mat-check" data-id="${item.id}" style="accent-color:#cc8822">
+          <span style="font-size:12px;flex:1">${item.name}</span>
+        </label>`
+      ).join('') : `<div style="text-align:center;padding:12px;color:var(--dim);font-size:12px">
+        No forge materials. Buy from blacksmiths, mine, or forage.
+        <br><br><button class="btn-secondary btn-sm" onclick="grantForgeMaterials()">Get starter materials (admin)</button>
+      </div>`}
+    </div>
+
+    <div style="display:flex;gap:8px;margin-bottom:12px">
+      <button class="btn-primary btn-sm" onclick="attemptForge()" style="flex:1;background:rgba(200,100,20,.2);border-color:#cc8822;color:#cc8822">⚒ Forge</button>
+      <button class="btn-secondary btn-sm" onclick="document.querySelectorAll('.forge-mat-check').forEach(c=>c.checked=false)">Clear</button>
+    </div>
+
+    ${log.length ? `
+      <div style="font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:5px">Creations (${log.length})</div>
+      <div style="background:var(--s2);border:1px solid var(--border);border-radius:6px;padding:6px;max-height:160px;overflow-y:auto">
+        ${log.slice().reverse().map(d => {
+          const qc = {masterwork:'var(--gold)',fine:'var(--green)',serviceable:'var(--muted)',crude:'#884422',failure:'var(--red)'}[d.quality]||'var(--muted)';
+          return `<div class="craft-discovery">
+            <span class="qual" style="color:${qc}">[${d.quality}]</span>
+            <span style="color:var(--dim)">${d.materials.join(' + ')} →</span>
+            <span style="color:var(--text)">${(d.result||'nothing').slice(0,70)}</span>
+          </div>`;
+        }).join('')}
+      </div>` : '<div style="font-size:12px;color:var(--dim);text-align:center;padding:12px;border:1px dashed var(--border);border-radius:6px">No creations yet. Everything starts with the first strike.</div>'}`;
+}
+
+window.grantForgeMaterials = function() {
+  ['Iron Ore','Iron Ore','Steel Ingot','Hardwood','Charcoal','Leather Strip'].forEach(name => {
+    spawnItem({ name, type:'misc', rarity:'common', desc:`Forge material: ${name}.`, value:6 });
+  });
+  renderForgePanel();
+};
+
+window.attemptForge = function() {
+  const checked = [...document.querySelectorAll('.forge-mat-check:checked')].map(cb => cb.dataset.id);
+  if(checked.length < 2) { toast('Select 2–5 materials.', 'error', 2000); return; }
+  if(checked.length > 5) { toast('Maximum 5 materials.', 'error', 2000); return; }
+
+  const c    = GS.char;
+  const items = checked.map(id => c.inventory.find(i => i.id === id)).filter(Boolean);
+  const names = items.map(i => i.name);
+  const smith = getSkillLevel('smithing');
+  const intel = c.intelligence || 10;
+
+  // Check forge log for known combo
+  const log = getForgeLog();
+  const key = names.slice().sort().join('+');
+  const known = log.find(d => d.key === key);
+  if(known) { toast(`Already forged: ${known.result?.slice(0,35)||''}`, '', 3000); return; }
+
+  // Consume materials
+  items.forEach(item => { c.inventory = c.inventory.filter(i => i.id !== item.id); });
+  addSkill('smithing','Smithing','craftsman','Working metal and materials at the forge.');
+  updateInventoryTab();
+
+  const highInt   = intel >= 18;
+  const intNote   = highInt
+    ? `CRITICAL: This character has very high intelligence (${intel}). They may intuit design principles far beyond their era. If combining metal + mechanism materials, they might create something that functions in an unprecedented way — describe it FUNCTIONALLY without naming it after modern concepts. "A device that channels force through a chamber" not "a gun." The player does not know they've made something unusual. Write it as a natural discovery.`
+    : `Intelligence: ${intel}. Standard crafting expected.`;
+
+  const inject = `[BLACKSMITHING: The character works the forge, combining ${names.join(' + ')}.
+Smithing skill: ${smith}. ${intNote}
+
+What is created? The result should be:
+1. A specific named item (weapon, armor, tool, mechanism, or object)
+2. Quality: masterwork / fine / serviceable / crude / failure
+3. What slot it uses if equippable (weapon/head/body/hands/feet/offhand/acc1/acc2 or null)
+4. Practical effects and capabilities
+5. How the forge process went — the sound, heat, strikes, when it took shape
+
+Write this as narrative. The character discovers what they've made through the process.
+Include in response: "forgeResult": { "name": "...", "type": "...", "slot": null, "quality": "...", "effects": {}, "desc": "...", "value": N, "isUnusual": false }]`;
+
+  toast('Working the forge...', '', 1500);
+  sendToAI(`I take the materials to the forge — ${names.join(', ')} — and work them.` + '\n\n' + inject);
+};
+
+// Handle forge result from AI
+const _applyWithForgeResult = applyAIResponse;
+applyAIResponse = function(res) {
+  _applyWithForgeResult(res);
+  try {
+    if(!res?.forgeResult) return;
+    const r   = res.forgeResult;
+    const log = getForgeLog();
+
+    log.push({
+      key: r.name || 'unknown',
+      materials: res._forgeMaterials || [],
+      result: r.name,
+      quality: r.quality || 'serviceable',
+      timestamp: GS.world.year,
+    });
+    saveForgeLog(log);
+
+    if(r.quality !== 'failure') {
+      const rarityMap = {masterwork:'epic',fine:'rare',serviceable:'common',crude:'common'};
+      spawnItem({
+        name: r.name,
+        type: r.type || 'misc',
+        slot: r.slot || null,
+        rarity: rarityMap[r.quality] || 'common',
+        desc: r.desc || 'Forged by hand.',
+        value: r.value || 20,
+        effects: r.effects || {},
+      });
+      GS.char._smithingDiscoveries = (GS.char._smithingDiscoveries || 0) + 1;
+      if(r.isUnusual) GS.char._dangerousDiscovery = true;
+    }
+
+    // Refresh forge panel if open
+    const fp = document.getElementById('forge-pane');
+    if(fp?.classList.contains('active')) renderForgePanel();
+  } catch(e) {}
+};
+
+// Wire forge subtab
+document.addEventListener('DOMContentLoaded', () => {
+  setTimeout(() => {
+    if(document.getElementById('forge-pane')?.classList.contains('active')) renderForgePanel();
+  }, 200);
+});
 
 console.log('Murim Chronicles fully loaded.');
 
