@@ -1965,6 +1965,11 @@ hr.divider { border: none; border-top: 1px solid var(--border); margin: 8px 0; }
             <option value="lang_warlord">Láng the Warlord</option>
             <option value="zeret_lust">Zeret of Lust</option>
             <option value="aym">Aym</option>
+            <option disabled>── Maligned Lords ──</option>
+            <option value="xelaad_pride">Xelaad of Pride</option>
+            <option value="iasiba_envy">Iasiba of Envy</option>
+            <option value="dranoel_greed">Dranoel of Greed</option>
+            <option value="normac_sloth">Normac of Sloth</option>
           </select>
           <button id="btn-admin-spawn-lore" class="btn-primary btn-sm">Spawn</button>
         </div>
@@ -2015,7 +2020,14 @@ hr.divider { border: none; border-top: 1px solid var(--border); margin: 8px 0; }
         <div class="admin-row">
           <button id="btn-admin-war" class="btn-danger btn-sm">⚔ Start War</button>
           <button id="btn-admin-time" class="btn-secondary btn-sm">⏩ +1 Year</button>
-          <button id="btn-admin-zeret" class="btn-sm" style="background:#2a0020;color:#ff69b4;border:1px solid #8a2060;cursor:pointer;border-radius:5px;padding:4px 10px;font-size:12px">🌸 Summon Zeret</button>
+          <button id="btn-admin-zeret" class="btn-sm" style="background:#2a0020;color:#ff69b4;border:1px solid #8a2060;cursor:pointer;border-radius:5px;padding:4px 10px;font-size:12px">🌸 Zeret</button>
+        </div>
+        <div class="admin-row" style="flex-wrap:wrap;gap:4px">
+          <button id="btn-admin-xelaad" class="btn-sm" style="background:#1a1a00;color:#c8b400;border:1px solid #8a7a00;cursor:pointer;border-radius:5px;padding:4px 10px;font-size:12px">👑 Xelaad</button>
+          <button id="btn-admin-iasiba" class="btn-sm" style="background:#001a2a;color:#4488cc;border:1px solid #2255aa;cursor:pointer;border-radius:5px;padding:4px 10px;font-size:12px">👤 Iasiba</button>
+          <button id="btn-admin-dranoel" class="btn-sm" style="background:#1a0a00;color:#cc8820;border:1px solid #aa6600;cursor:pointer;border-radius:5px;padding:4px 10px;font-size:12px">✊ Dranoel</button>
+          <button id="btn-admin-normac" class="btn-sm" style="background:#0d001a;color:#9055cc;border:1px solid #6030aa;cursor:pointer;border-radius:5px;padding:4px 10px;font-size:12px">⛰ Normac</button>
+          <button id="btn-admin-sinshift" class="btn-sm" style="background:#2a001a;color:#ff88cc;border:1px solid #aa3388;cursor:pointer;border-radius:5px;padding:4px 10px;font-size:12px">⇌ Sin Shift</button>
         </div>
         <div class="admin-row">
           <input type="text" id="admin-myth-text" placeholder="Create a myth..." style="flex:1">
@@ -3166,6 +3178,95 @@ const LORE_NPCS = {
     personality:'Unknown — she is the only one Zeret has ever truly wanted rather than simply consumed. Her meeting with Zeret (only possible Year 500+) transforms him from Lust to Envy. This shift ripples across all Maligned Lords.',
     note:'Meeting Aym changes everything. Only possible on spawn years 574, 678, 666, 738, or 800.',
   },
+
+  // ── THE FIVE MALIGNED LORDS ─────────────────────────────────────
+  xelaad_pride: {
+    id:'xelaad_pride', name:'Xelaad',
+    title:'Of Pride — Maligned Lord, First Among Equals',
+    gender:'male', alive:true,
+    glowColor:'rgba(200,180,30,0.2)',
+    spawnYears:[200,288,350,450,600,725,820],
+    sin:'pride',
+    appearance:'Lanky. Small freeform dreads. Lean but deceptively powerful in the way a drawn bowstring is. Eyes perpetually bloodshot or hazy — not from weakness, but from seeing too clearly for too long. His clothing is rich and eccentric: everything he wears is chosen to subtly mock whoever is looking at it. He does not dress to impress. He dresses to remind.',
+    personality:'Calculating, scornful, and profoundly arrogant. Xelaad\'s mind never stops ranking. Monarchs, merchants, beggars — he has a place for everyone, and everyone\'s place is below his. He thrives on humiliation as a tool: social, physical, and metaphysical. He cannot tolerate mediocrity in anyone but himself, which means he is perpetually disappointed. He is not cruel for pleasure. Cruelty, to him, is simply correction.',
+    history:'Born Year 23 of the Old Calendar in the Kingdom of Elthir, eldest of three royal siblings. His obsession with superiority drove his mother to suicide, manipulated his brother into a devastating war, and ultimately led him to duel his father for the throne. He won the duel. He was killed during the coronation by his father\'s death-pact with a devil. He refused to die. What came back was not entirely the same man. His centuries in the shadows have shaped kings, made paranoids of princes, and quietly ended dynasties.',
+    forms:{
+      human:'Lanky, small dreads, bloodshot eyes, eccentric clothing that insults without trying.',
+      demonic:'Crowned in jagged gemstones that seem to grow from his skull. His presence radiates an intangible weight — nearby people begin to doubt their own worth without knowing why.',
+      true:'Towering, almost formless. Crushing authority made visible. Armies have routed before battle began. Whispers of inferiority become audible. Not shouts — whispers. That is worse.',
+    },
+    stats:{ strength:82, agility:88, endurance:85, intelligence:100, perception:97, willpower:100, charisma:92, luck:75 },
+    qiStageIndex:13, qiPath:'righteous',
+    relationships:'Commands respect and fear from the other Lords, though he never stops reminding them of their inferiority. Closest to Iasiba — envy and pride are siblings. Contemptuous of Zeret, who he finds frivolous. Amused by Normac\'s singular obsession with strength. Views Dranoel as efficient but wasteful.',
+    publicPerception:'Legends claim he cannot be bested. Nobles report feeling his gaze when making decisions. Considered the most dangerous of the Five by those who understand what dangerous actually means.',
+    sinShiftNote:'When Zeret shifts to Envy, Xelaad is unmoved publicly but internally furious. The disruption of the hierarchy is an insult. His Pride curdles — he becomes obsessed with reasserting the order he considers natural.',
+  },
+
+  iasiba_envy: {
+    id:'iasiba_envy', name:'Iasiba',
+    title:'Of Envy — Maligned Lord',
+    gender:'male', alive:true,
+    glowColor:'rgba(50,120,180,0.2)',
+    spawnYears:[244,333,405,510,650,755,900],
+    sin:'envy',
+    appearance:'Sharp-featured. Always crisp ties, even in places where ties make no sense. Handsome, though when Zeret is nearby the comparison does visible damage — which does not go unnoticed by either of them. His hands are always slightly too still.',
+    personality:'Malicious and controlled. Iasiba does not act from want. He acts from deprivation. The distinction matters — want implies something you could receive and be satisfied by. Deprivation means nothing satisfies because the object of envy is not the thing, but having the thing while another does not. His envy is methodical, surgical, and leaves nothing behind of what he cannot have. He does not destroy for pleasure. He destroys so the thing cannot exist without him.',
+    history:'Born Year 45 in the port city of Cierro del Mar. Early life defined by coveting — toys, then status, then property, then lives. He was executed for the last of these. His survival is attributed to a ring he had coveted from a dying magistrate, pressed into his palm moments before the blade fell. Whether the ring saved him or whether he simply refused to die out of envy for those still living is a matter of theological debate in Cierro del Mar. He has spent centuries in subtle ruin, leaving voids behind him.',
+    forms:{
+      human:'Sharp tie, still hands, handsome in a way that does not invite warmth.',
+      demonic:'Shadow-like. Can absorb the essence of what he envies — the target is left unchanged in form but emptied of the quality Iasiba took. A skilled fighter becomes average. A beloved person becomes unremarkable.',
+      true:'A creeping void that spreads from his gaze. Not darkness — absence. Objects lose their quality. Status becomes hollow. Existence itself becomes questioned.',
+    },
+    stats:{ strength:72, agility:90, endurance:78, intelligence:96, perception:100, willpower:95, charisma:85, luck:80 },
+    qiStageIndex:12, qiPath:'demonic',
+    relationships:'Complicated bond with Xelaad — envy fuels pride, pride justifies envy. Views Dranoel\'s greed as primitive. Sees Normac as emotionally stagnant. Regards Zeret with something he would not call envy but which looks exactly like it from the outside.',
+    publicPerception:'"The shadow behind the throne." Things disappear when he visits — not people, usually. More often: confidence, affection, talent, the quality of light in a room.',
+    sinShiftNote:'When Zeret shifts to Envy, Iasiba loses his domain to someone else. This is the most devastating thing that has ever happened to him. The irony — that he, of all beings, is the one who loses something to someone else — is not lost on him. He does not react with grief. He shifts toward Lust: the one domain he had never examined. He begins to covet what Zeret had felt.',
+  },
+
+  dranoel_greed: {
+    id:'dranoel_greed', name:'Dranoel',
+    title:'Of Greed — Maligned Lord',
+    gender:'male', alive:true,
+    glowColor:'rgba(200,140,30,0.2)',
+    spawnYears:[270,360,440,560,680,790,920],
+    sin:'greed',
+    appearance:'Dark ebony skin. Cornrows, precise and maintained. Lean despite everything he has consumed, which is more than most beings eat in several lifetimes. Carries an air of acquisition — of perpetual calculation. He looks at things the way accountants look at columns that haven\'t balanced yet.',
+    personality:'Opportunistic, insatiable, and clear-headed about it in a way that is more disturbing than if he were frenzied. Greed is his lens for reality: everything is an asset or a tool. Everyone is a resource or an obstacle. He does not delude himself about this. He considers it simply accurate.',
+    history:'Born Year 70, small farm village of Harrow\'s End. Took his father\'s farm after a lifetime of frustration — legal, quiet, complete. The acquisition escalated: land, then livestock, then influence, then, in Year 112, a pig god whose divine essence he consumed in a ritual he designed himself. The god\'s insatiable appetite merged with his own. He has since consumed wealth, artifacts, techniques, entire kingdoms\' worth of accumulated resources. None of it reduces the hunger.',
+    forms:{
+      human:'Cornrows, calculation in every expression.',
+      demonic:'Grotesque mass of grasping limbs and mouths. Every mouth eating something different. None of them full.',
+      true:'A living void of desire that devours matter and essence simultaneously. Standing near his true form is expensive in ways that are difficult to explain.',
+    },
+    stats:{ strength:88, agility:85, endurance:92, intelligence:94, perception:90, willpower:88, charisma:80, luck:85 },
+    qiStageIndex:12, qiPath:'demonic',
+    relationships:'Mutual respect with Normac over physical dominance. Considers Xelaad arrogant without sufficient acquisition. Tolerates Iasiba when envy can be turned into a transaction. Fascinated by Zeret — has spent centuries trying to collect whatever makes Zeret effective with people.',
+    publicPerception:'Stories of lost treasures, sudden disappearances of wealth, and merchants who made deals they couldn\'t name afterward. Known as the one who will never be satisfied. This is considered a statement of fact rather than a criticism.',
+    sinShiftNote:'When Zeret shifts to Envy, Dranoel immediately sees opportunity: two lords claiming overlapping domains, one vacated. He begins acquiring aspects of both Lust and Envy, adding them to his collection. His Greed expands to cover emotional and metaphysical territory it had not previously touched.',
+  },
+
+  normac_sloth: {
+    id:'normac_sloth', name:'Normac',
+    title:'Of Sloth — Maligned Lord',
+    gender:'male', alive:true,
+    glowColor:'rgba(120,80,200,0.2)',
+    spawnYears:[310,420,500,620,720,850,950],
+    sin:'sloth',
+    appearance:'Towering. Long dreads with blond tips that look like the ends of something that was once on fire. Musculature that belongs on something that is not quite human in its scale. The face is calm — not the calm of peace but the calm of something that has not yet decided to move. When he finally moves, people remember it.',
+    personality:'Singular in his focus on physical perfection. Mentally stagnant — not from lack of intelligence but from lack of interest in anything outside his domain. Emotionally blunt: he does not dissemble, does not scheme, does not wonder what others are feeling. Speaks rarely. When he does, it is in complete sentences that do not include more words than are needed. His sloth is not laziness — it is the profound stillness of something that knows its own weight and sees no reason to disturb it unnecessarily.',
+    history:'Born Year 45, trained from infancy for one purpose. The obsession with perfection was instilled before he could speak. He reached the peak of human physical capability by Year 90 and found that it was not enough. The ceiling trapped him. In Year 97 he was buried in a cave collapse during a training exercise. The surviving accounts from three witnesses describe what happened next differently, but all agree it involved the blood of an arch-demon and a decision. He walked out three days later. What he was before the cave was excellent. What came out was something else entirely.',
+    forms:{
+      human:'Towering, long blond-tipped dreads, completely still in the way that large things in nature are still.',
+      demonic:'Hulking armored mass that moves with slow, devastating precision. No wasted motion. No second strikes. The first one ends it.',
+      true:'A living monument. Colossal, statue-like, generating pressure by existing. Mountains have moved because this form walked too close.',
+    },
+    stats:{ strength:100, agility:78, endurance:100, intelligence:72, perception:80, willpower:98, charisma:65, luck:70 },
+    qiStageIndex:13, qiPath:'beast',
+    relationships:'Respected by Dranoel. Ignored by Xelaad and Iasiba as predictable. Regarded by Zeret with amused puzzlement. Normac does not notice or care about any of these dynamics.',
+    publicPerception:'Often assumed to be the strongest of the Five. This assumption is sometimes correct depending on definition. Feared for physical inevitability. Soldiers have historically made career-ending decisions when ordered to engage him.',
+    sinShiftNote:'When Zeret shifts, Normac is the most visibly unaffected. Internally, the disruption stirs something that had been completely still for centuries — a faint Wrath at the disturbance of what had been a stable order. It does not change his behavior yet. But it is there now, which it was not before.',
+  },
 };
 
 const ASCENSION_PATHS = {
@@ -3425,6 +3526,13 @@ function createDefaultState() {
       wars:[],
       worldHistory:[],
       zeret:{ active:false, spawnYear:null, location:null, form:'dormant', metAym:false, sin:'lust', reborn:false, childId:null },
+      malignedLords:{
+        xelaad:{ active:false, spawnYear:null, location:null, form:'dormant', sin:'pride',  sinShifted:false },
+        iasiba:{ active:false, spawnYear:null, location:null, form:'dormant', sin:'envy',   sinShifted:false },
+        dranoel:{ active:false, spawnYear:null, location:null, form:'dormant', sin:'greed', sinShifted:false },
+        normac:{ active:false, spawnYear:null, location:null, form:'dormant', sin:'sloth',  sinShifted:false },
+      },
+      sinShiftOccurred:false,  // true when Zeret meets Aym and the cascade fires
     },
     narrative:[],  // string[] — no error messages
     turn:0,
@@ -5366,7 +5474,14 @@ WORLD LORE:
 - Ichiro Katsumi: Father of water/earth/spear/space cultivation. Died Year 130. His tomb spans miles under the great cedar. Yuluh the Immortal Serpent guards the root.
 - Yuluh: Ancient serpent, trickster, liar, feeds on misery. Respects Ichiro. Can grant immortality. Senses Qi and past deeds. Not a judge.
 - Láng the Warlord: Pure strength, no Qi. Started raiders Year 134, started Buo-Luo-Tin War Year 144, died Year 154 (wrong Qi pills).
-- Zeret of Lust: Maligned Lord. Can spawn in years 166,188,199,255,574,678,666,738,800. Charismatic, sneaky, loud. His beauty bypasses rational thought. Sometimes reborn as a child. Can become Zeret of Envy if he meets Aym (Year 500+ only).
+- THE FIVE MALIGNED LORDS (Near-Sin Incarnate — older than most kingdoms, each embodying a human sin at its absolute limit):
+  1. Xelaad of Pride (~1002 yrs): Lanky, small dreads, bloodshot eyes, eccentric rich clothing that mocks the viewer. Calculating, scornful, ranks everyone constantly. Born of royal blood, killed at coronation, refused to die. Spawn years: 200,288,350,450,600,725,820. True form radiates crushing authority — armies rout before battle begins.
+  2. Iasiba of Envy (~980 yrs): Sharp-featured, crisp ties, perpetually still hands. Acts from deprivation not want — destroys what he cannot have. Survived execution by coveting a dying man's ring. Shadow-like demonic form absorbs the quality of what he envies and leaves empty shells. Spawn years: 244,333,405,510,650,755,900.
+  3. Dranoel of Greed (~955 yrs): Dark ebony skin, cornrows, lean despite having consumed kingdoms' worth of resources. Views everything as asset or obstacle. Consumed a pig god in Year 112 — its divine appetite merged with his. True form is a void that devours matter and essence. Spawn years: 270,360,440,560,680,790,920.
+  4. Normac of Sloth (~910 yrs): Towering, blond-tipped dreads, inhuman musculature, completely still until he isn't. Singular obsession with physical perfection. Survived a cave collapse by consuming arch-demon blood. Speaks only when necessary. True form is colossal — his presence alone generates crushing pressure. Spawn years: 310,420,500,620,720,850,950.
+  5. Zeret of Lust: Lightskin, freeform dreads, always wears glasses. His beauty bypasses the mind entirely. Charismatic, sneaky, sometimes reborn as a child. Spawn years: 166,188,199,255,574,678,666,738,800. Can become Zeret of Envy if he meets Aym (Year 500+ only) — this triggers THE SIN SHIFT.
+- THE SIN SHIFT (when Zeret meets Aym): Zeret abandons Lust for Envy. The cascade: Iasiba loses his Envy domain to Zeret and shifts toward Lust — he covets what Zeret felt, which is the only thing he's ever envied that he cannot simply destroy. Xelaad's Pride curdles toward Wrath at the disruption of his carefully maintained hierarchy. Dranoel immediately begins acquiring aspects of both vacated domains. Normac is externally unmoved but a faint Wrath stirs in the stillness for the first time in centuries. The world feels this shift.
+- Maligned Lords status: ${(() => { const ml = GS.world.malignedLords||{}; const z = GS.world.zeret; const parts = [`Zeret:${z.active?'ACTIVE('+z.sin+') in '+(LOCATIONS[z.location]?.name||z.location):'dormant'}`]; ['xelaad','iasiba','dranoel','normac'].forEach(k=>{ const l=ml[k]; if(l) parts.push(`${k}:${l.active?'ACTIVE('+l.sin+') in '+(LOCATIONS[l.location]?.name||l.location):'dormant'}`); }); if(GS.world.sinShiftOccurred) parts.push('SIN SHIFT HAS OCCURRED'); return parts.join(' | '); })()}
 - KINGDOMS: Azure Empire (Tazar-capital, Jade Province-merchants, Beggar's Rest-slum, Wheat Capital-farming, Ooina-Ichiro's harsh forest), Luo-Tin Dynasty (Imperial Capital, Farm City, The Great Defensive Giant-fortress), Buo Kingdom (Buo Capital, scarred by war).
 
 CURRENT GAME STATE:
@@ -21274,6 +21389,311 @@ document.addEventListener('DOMContentLoaded', () => {
     updateCurrencyDisplay();
   }, 200);
 });
+
+// ================================================================
+// ════════════════════════════════════════════════════════════════
+// ── THE FIVE MALIGNED LORDS — Full System
+// ════════════════════════════════════════════════════════════════
+// ================================================================
+
+// ── LORD LORE IDs mapped to world state keys ────────────────────
+const LORD_KEYS = { xelaad:'xelaad', iasiba:'iasiba', dranoel:'dranoel', normac:'normac' };
+const LORD_LORE = { xelaad:'xelaad_pride', iasiba:'iasiba_envy', dranoel:'dranoel_greed', normac:'normac_sloth' };
+const LORD_NAMES = { xelaad:'Xelaad', iasiba:'Iasiba', dranoel:'Dranoel', normac:'Normac' };
+const LORD_SPAWN_YEARS = {
+  xelaad:  [200,288,350,450,600,725,820],
+  iasiba:  [244,333,405,510,650,755,900],
+  dranoel: [270,360,440,560,680,790,920],
+  normac:  [310,420,500,620,720,850,950],
+};
+const LORD_SIN_COLORS = {
+  pride:'#c8b400', envy:'#4488cc', greed:'#cc8820', sloth:'#9055cc', lust:'#ff69b4', wrath:'#cc3322',
+};
+const LORD_SIN_LABELS = {
+  pride:'Pride', envy:'Envy', greed:'Greed', sloth:'Sloth', lust:'Lust', wrath:'Wrath',
+};
+
+// ── Ensure malignedLords exists on older saves ──────────────────
+function ensureMalignedState() {
+  const w = GS.world;
+  if(!w.malignedLords) {
+    w.malignedLords = {
+      xelaad:  { active:false, spawnYear:null, location:null, form:'dormant', sin:'pride',  sinShifted:false },
+      iasiba:  { active:false, spawnYear:null, location:null, form:'dormant', sin:'envy',   sinShifted:false },
+      dranoel: { active:false, spawnYear:null, location:null, form:'dormant', sin:'greed',  sinShifted:false },
+      normac:  { active:false, spawnYear:null, location:null, form:'dormant', sin:'sloth',  sinShifted:false },
+    };
+  }
+  if(w.sinShiftOccurred === undefined) w.sinShiftOccurred = false;
+}
+
+// ── Spawn check for all four lords ─────────────────────────────
+function checkMalignedLordsSpawn() {
+  ensureMalignedState();
+  const w = GS.world;
+  const ml = w.malignedLords;
+  const spawnLocs = Object.keys(LOCATIONS).filter(k => LOCATIONS[k].spawnable);
+
+  Object.entries(LORD_SPAWN_YEARS).forEach(([key, years]) => {
+    const lord = ml[key];
+    if(!lord || lord.active || lord.spawnYear) return;
+    if(!years.includes(w.year)) return;
+
+    // Base 4% chance, higher if related traits exist
+    const traitMap = {
+      xelaad:  ['seed_pride','arrogant','fallen_noble'],
+      iasiba:  ['seed_envy','debt_child'],
+      dranoel: ['seed_greed','merchant','natural_haggler'],
+      normac:  ['stone_body','iron_will','battle_hardened'],
+    };
+    const relatedTraits = traitMap[key] || [];
+    const hasAwareness = GS.char.traits.some(t => relatedTraits.includes(t.id));
+    const baseChance = hasAwareness ? 0.15 : 0.04;
+
+    if(Math.random() >= baseChance) return;
+
+    lord.active    = true;
+    lord.spawnYear = w.year;
+    lord.location  = rand(spawnLocs);
+    lord.form      = 'human';
+
+    w.worldHistory.push(`Year ${w.year}: ${LORD_NAMES[key]} of ${LORD_SIN_LABELS[lord.sin]} walks the world again. Those with ancient bloodlines feel it before the news travels.`);
+    w.activeWorldEvents.push({
+      id: `lord_${key}_spawn`,
+      name: `${LORD_NAMES[key]} of ${LORD_SIN_LABELS[lord.sin]} Returns`,
+      desc: `One of the Five Maligned Lords has entered the world. The effect is not dramatic — it is slow, like pressure building in a room.`,
+      year: w.year,
+    });
+
+    if(hasAwareness) {
+      const flavor = {
+        xelaad:  'A weight settles on your shoulders — the specific weight of being judged and found wanting by something very old.',
+        iasiba:  'The color drains slightly from something you were enjoying. Not from the thing itself. From your awareness of others who have more of it.',
+        dranoel: 'Your hand moves toward your coin pouch without your instruction. The hunger is not yours but you feel it anyway.',
+        normac:  'Your body knows something your mind has not caught up to yet. A stillness is nearby. Something that could end a war by showing up to it.',
+      };
+      GS.narrative.push(flavor[key] || `Something powerful has entered the world. You feel it the way you feel weather before it arrives.`);
+    }
+  });
+}
+
+// ── THE SIN SHIFT — triggered when Zeret meets Aym ─────────────
+function triggerSinShift() {
+  ensureMalignedState();
+  const w   = GS.world;
+  const ml  = w.malignedLords;
+  if(w.sinShiftOccurred) return; // can only happen once
+
+  w.sinShiftOccurred    = true;
+  w.zeret.sin           = 'envy';
+  w.zeret.metAym        = true;
+
+  // Iasiba loses Envy to Zeret — shifts toward Lust (coveting what Zeret felt)
+  if(ml.iasiba) {
+    ml.iasiba.sin        = 'lust';
+    ml.iasiba.sinShifted = true;
+    // Update LORE_NPCS entry
+    if(LORE_NPCS.iasiba_envy) {
+      LORE_NPCS.iasiba_envy.title = 'Of Lust (shifted) — Maligned Lord';
+      LORE_NPCS.iasiba_envy.sin   = 'lust';
+    }
+  }
+
+  // Xelaad's Pride curdles — restless Wrath beneath the surface
+  if(ml.xelaad) {
+    ml.xelaad.sinShifted = true;
+    ml.xelaad._wrathNote = 'Xelaad\'s Pride has curdled. The disruption of the natural order is an insult he has not yet acted on. Something below Pride is awake now.';
+  }
+
+  // Dranoel begins collecting both vacated domain aspects
+  if(ml.dranoel) {
+    ml.dranoel.sinShifted  = true;
+    ml.dranoel._greedExpand = 'Dranoel\'s Greed now reaches into emotional and metaphysical territory. He is collecting what Envy and Lust leave behind.';
+  }
+
+  // Normac — outwardly unmoved, but the faint Wrath stirs
+  if(ml.normac) {
+    ml.normac.sinShifted = true;
+    ml.normac._wrathStir = 'A faint Wrath has stirred in the stillness. It has never been there before. The disturbance of the balance moved something that had not moved in centuries.';
+  }
+
+  // World events
+  w.worldHistory.push(`Year ${w.year}: Zeret met Aym. What was Lust became Envy. The Five Maligned Lords shifted. The world's relationship with its own sins changed in ways that will take generations to understand.`);
+  w.activeWorldEvents.push({
+    id:'sin_shift', year:w.year,
+    name:'The Sin Shift',
+    desc:'Zeret of Lust has become Zeret of Envy. The Five Maligned Lords have reorganized around a vacancy. The fabric of sin itself is different now.',
+  });
+
+  // Player narrative if they have awareness
+  const hasLustSeed = GS.char.traits.some(t => ['seed_lust','sapling_lust','tree_lust','servant_lust'].includes(t.id));
+  if(hasLustSeed) {
+    GS.narrative.push(`The seed in your chest — the one that has always been warm — goes cold. Not dead. Different. What grew from lust now points toward something sharper, something that recognizes absence rather than desire. He changed. You feel it because the seed he left in you felt it first.`);
+  } else {
+    GS.narrative.push(`Something shifts in the quality of the air. Not weather. Not Qi. Something older than both. A warmth that was somewhere in the world is gone. Something colder has replaced it. Not malicious. Not kind. Just different in a way that feels permanent.`);
+  }
+
+  // Update Zeret block UI if visible
+  const zb = document.getElementById('zeret-block');
+  if(zb) zb.innerHTML = `He changed. Aym changed him. What was lust is now something sharper — the pain of wanting what others have. He is still here. Still dangerous. Different.`;
+
+  toast('The Sin Shift has occurred. The Five are no longer what they were.', 'gold', 6000);
+}
+
+// ── Hook into year change ────────────────────────────────────────
+const _withLordSpawnCheck = advanceTime;
+advanceTime = function(days=0, months=0, years=0) {
+  const prevYear = GS.world.year;
+  _withLordSpawnCheck(days, months, years);
+  if(GS.world.year !== prevYear) {
+    checkMalignedLordsSpawn();
+    // Also check Zeret→Envy trigger on eligible years
+    if(!GS.world.sinShiftOccurred && GS.world.zeret.active && [574,678,666,738,800].includes(GS.world.year)) {
+      if(Math.random() < 0.15) triggerSinShift();
+    }
+  }
+};
+
+// ── Hook into startGame to ensure state ─────────────────────────
+const _startWithLords = startGame;
+startGame = function(isLoad=false) {
+  _startWithLords(isLoad);
+  ensureMalignedState();
+};
+
+// ── Admin panel buttons ─────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  setTimeout(() => {
+    const spawnLocs = Object.keys(LOCATIONS).filter(k => LOCATIONS[k].spawnable);
+
+    // Spawn each lord on button click
+    Object.entries(LORD_KEYS).forEach(([key, stateKey]) => {
+      const btnId = `btn-admin-${key}`;
+      const btn   = document.getElementById(btnId);
+      if(!btn) return;
+      btn.addEventListener('click', () => {
+        ensureMalignedState();
+        const lord = GS.world.malignedLords[stateKey];
+        const loreId = LORD_LORE[key];
+        // Spawn the NPC
+        const npc = spawnLoreNPC(loreId);
+        if(npc) {
+          lord.active    = true;
+          lord.spawnYear = GS.world.year;
+          lord.location  = GS.world.location;
+          lord.form      = 'human';
+          const rel = GS.char.relationships.find(r => r.npcId === npc.id);
+          if(rel) {
+            rel.bond_level = 1;
+            rel.type       = 'encountered';
+          }
+          toast(`${LORD_NAMES[key]} of ${LORD_SIN_LABELS[lord.sin]} has arrived.`, 'gold', 4000);
+          updateRelationsTab();
+          updateWorldTab();
+        }
+      });
+    });
+
+    // Sin shift button
+    const sinBtn = document.getElementById('btn-admin-sinshift');
+    if(sinBtn) {
+      sinBtn.addEventListener('click', () => {
+        if(GS.world.sinShiftOccurred) {
+          toast('The Sin Shift has already occurred.', 'warning', 3000); return;
+        }
+        if(!GS.world.zeret.active) {
+          GS.world.zeret.active = true;
+          GS.world.zeret.spawnYear = GS.world.year;
+          GS.world.zeret.location = GS.world.location;
+          GS.world.zeret.form = 'human';
+        }
+        triggerSinShift();
+        updateWorldTab();
+      });
+    }
+  }, 400);
+});
+
+// ── World tab: show Maligned Lords panel ────────────────────────
+// Patch updateWorldTab to inject a Lords status block
+const _updateWorldTabWithLords = updateWorldTab;
+updateWorldTab = function() {
+  try { _updateWorldTabWithLords(); } catch(e) {}
+  try {
+    ensureMalignedState();
+    const w  = GS.world;
+    const ml = w.malignedLords;
+
+    // Find or create the lords section
+    let section = document.getElementById('w-maligned-lords');
+    if(!section) {
+      const worldTab = document.getElementById('tab-world');
+      if(!worldTab) return;
+
+      const wrap = document.createElement('div');
+      wrap.className = 'char-section';
+      wrap.style.marginTop = '12px';
+      wrap.innerHTML = `
+        <div class="collapsible-header" data-target="w-maligned-lords-body">
+          <span style="color:#cc9900">The Five Maligned Lords</span><span class="collapse-arrow">▼</span>
+        </div>
+        <div id="w-maligned-lords-body" class="collapsible-body" style="display:none">
+          <div id="w-maligned-lords"></div>
+        </div>`;
+      worldTab.appendChild(wrap);
+      section = document.getElementById('w-maligned-lords');
+    }
+
+    const allLords = [
+      { key:'zeret',  stateObj: w.zeret,   name:'Zeret',   loreId:'zeret_lust',   isZeret:true },
+      { key:'xelaad', stateObj: ml.xelaad, name:'Xelaad',  loreId:'xelaad_pride', isZeret:false },
+      { key:'iasiba', stateObj: ml.iasiba, name:'Iasiba',  loreId:'iasiba_envy',  isZeret:false },
+      { key:'dranoel',stateObj: ml.dranoel,name:'Dranoel', loreId:'dranoel_greed',isZeret:false },
+      { key:'normac', stateObj: ml.normac, name:'Normac',  loreId:'normac_sloth', isZeret:false },
+    ];
+
+    section.innerHTML = allLords.map(lord => {
+      const s     = lord.stateObj;
+      if(!s) return '';
+      const sin   = s.sin || 'unknown';
+      const color = LORD_SIN_COLORS[sin] || '#888';
+      const label = LORD_SIN_LABELS[sin]  || sin;
+      const locName = s.location ? (LOCATIONS[s.location]?.name || s.location) : '—';
+      const shifted = s.sinShifted ? ` <span style="font-size:9px;color:#ff88cc;margin-left:4px">SHIFTED</span>` : '';
+
+      return `<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--border);font-size:12px">
+        <span style="color:${color};font-weight:700">${lord.name}</span>
+        <span style="color:var(--dim);font-size:11px">of ${label}${shifted}</span>
+        <span style="font-size:10px;color:${s.active?'var(--gold)':'var(--dim)'}">${s.active ? '● '+locName : 'dormant'}</span>
+      </div>`;
+    }).join('') + (w.sinShiftOccurred
+      ? `<div style="margin-top:8px;font-size:11px;font-style:italic;color:#cc88aa;line-height:1.6">The Sin Shift has occurred. Zeret is Envy. Iasiba has moved toward Lust. The order has changed.</div>`
+      : `<div style="margin-top:8px;font-size:11px;color:var(--dim);font-style:italic">Mortals who witness two Lords are cursed. Three is the end of an age.</div>`
+    );
+  } catch(e) {}
+};
+
+// ── System prompt: append sin shift status if occurred ──────────
+const _bspWithLords = buildSystemPrompt;
+buildSystemPrompt = function() {
+  let prompt = _bspWithLords();
+  try {
+    if(GS.world.sinShiftOccurred) {
+      const ml = GS.world.malignedLords || {};
+      const shifts = [];
+      if(ml.iasiba?.sinShifted) shifts.push('Iasiba: was Envy, now claims Lust — coveting what Zeret had felt');
+      if(ml.xelaad?.sinShifted) shifts.push('Xelaad: Pride unchanged but Wrath simmers beneath — the disruption of order is an insult');
+      if(ml.dranoel?.sinShifted) shifts.push('Dranoel: Greed expands to collect both Lust and Envy residue');
+      if(ml.normac?.sinShifted) shifts.push('Normac: still Sloth but a faint Wrath has stirred for the first time in centuries');
+      if(shifts.length) {
+        prompt = prompt.replace('## ABSOLUTE RULES',
+          `THE SIN SHIFT HAS OCCURRED (Year ${GS.world.zeret.spawnYear||GS.world.year}): Zeret became Envy. Domain cascade: ${shifts.join('. ')}. When any Maligned Lord appears in narrative, write them in their SHIFTED state — Iasiba now feels something like longing, Xelaad's arrogance has an edge of anger, Normac is still but something is different about the stillness.\n\n## ABSOLUTE RULES`
+        );
+      }
+    }
+  } catch(e) {}
+  return prompt;
+};
 
 console.log('Murim Chronicles fully loaded.');
 
