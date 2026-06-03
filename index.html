@@ -703,6 +703,20 @@ a { color: var(--gold); text-decoration: none; }
   border-radius: 8px; background: var(--s4);
   color: var(--muted); white-space: nowrap;
 }
+/* Bond level display */
+.bond-row { display:flex; align-items:center; gap:6px; margin:5px 0 3px; }
+.bond-dots { display:flex; gap:2px; }
+.bond-dot { width:5px; height:5px; border-radius:50%; background:var(--s5); }
+.bond-dot.lit-gold { background:var(--gold); }
+.bond-dot.lit-blue { background:#5577bb; }
+.bond-dot.lit-red  { background:var(--red); }
+.bond-stage-lbl { font-size:10px; color:var(--dim); font-style:italic; flex:1; }
+.bond-trust-num { font-size:10px; color:var(--dim); }
+/* Card mood variants */
+.npc-card.warm   { border-color:#3a2e10; }
+.npc-card.close  { border-color:#1a2a4a; }
+.npc-card.strained{ border-color:#3a1515; }
+.npc-card.family { border-left:3px solid #6a5520; }
 .npc-summary {
   font-size: 12px; color: var(--muted);
   line-height: 1.55; margin-top: 4px;
@@ -4507,6 +4521,93 @@ function sendQuickAction(npcId, actionType) {
   sendToAI(msg);
 }
 
+// ── BOND SYSTEM ──────────────────────────────────────────────────
+// bond_level 0–100: how deep the relationship is
+// Earned through meaningful interactions, shared hardship, time
+const BOND_STAGES = [
+  { min:0,  label:'Stranger',        desc:'You have not met, or just met.',                             dots:0,  color:'dim'  },
+  { min:1,  label:'Just Met',        desc:'You know their face and name. That\'s all.',                 dots:1,  color:'dim'  },
+  { min:6,  label:'Acquaintance',    desc:'A handful of interactions. Some sense of who they are.',    dots:2,  color:'muted'},
+  { min:15, label:'Known',           desc:'You have a history, however brief. They know who you are.', dots:3,  color:'muted'},
+  { min:25, label:'Familiar',        desc:'Regular contact. Some comfort between you. Not yet trust.',  dots:4,  color:'gold' },
+  { min:38, label:'Associate',       desc:'Mutual recognition of value. A working relationship.',       dots:5,  color:'gold' },
+  { min:52, label:'Friend',          desc:'Genuine connection. They\'d go out of their way for you.',   dots:6,  color:'gold' },
+  { min:65, label:'Trusted',         desc:'Been through something together. Trust that goes both ways.',dots:7,  color:'blue' },
+  { min:78, label:'Close',           desc:'Would take real risks for each other. Knows the real you.',  dots:8,  color:'blue' },
+  { min:90, label:'Bound',           desc:'Built over time and tested by it. Not easily broken.',        dots:9,  color:'blue' },
+];
+
+// Human-readable relationship type labels
+const REL_TYPE_LABELS = {
+  // Family
+  'mother':       'Mother',
+  'father':       'Father',
+  'grandmother':  'Grandmother',
+  'grandfather':  'Grandfather',
+  'aunt':         'Aunt',
+  'uncle':        'Uncle',
+  'sister':       'Sister',
+  'brother':      'Brother',
+  'family':       'Family',
+  // Origin roles
+  'caregiver':    'Raised you',
+  'guardian':     'Guardian',
+  'teacher':      'Teacher',
+  'mentor':       'Mentor',
+  'neighbor':     'Neighbor',
+  // Relationship types
+  'friend':       'Friend',
+  'ally':         'Ally',
+  'rival':        'Rival',
+  'enemy':        'Enemy',
+  'lover':        'Lover',
+  'spouse':       'Spouse',
+  'disciple':     'Disciple',
+  'master':       'Master',
+  'employer':     'Employer',
+  'employee':     'Employed by you',
+  'acquaintance': 'Acquaintance',
+  'associate':    'Associate',
+  'contact':      'Contact',
+  'hostile':      'Hostile',
+  'offspring':    'Your child',
+  'encountered':  'Met',
+  'mentioned':    'From your past',
+  'from the opening':'From your early life',
+};
+
+function getBondStage(bondLevel) {
+  let stage = BOND_STAGES[0];
+  for(const s of BOND_STAGES) { if((bondLevel||0) >= s.min) stage = s; }
+  return stage;
+}
+
+function buildBondDisplay(r, npc) {
+  const bond     = r.bond_level || r.trust || 0;
+  const grudge   = npc?.grudgeLevel || 0;
+  const stage    = getBondStage(bond);
+  const isFamily = ['mother','father','grandmother','grandfather','aunt','uncle','sister','brother','family','caregiver'].includes(r.type);
+  const isHostile= grudge > 60;
+
+  // Dot colors
+  const dotColor = isHostile ? 'lit-red' : (bond >= 65 ? 'lit-blue' : 'lit-gold');
+  const maxDots  = 10;
+  const litDots  = Math.min(maxDots, Math.round((bond / 100) * maxDots));
+  const dots     = Array.from({length:maxDots}, (_,i) =>
+    `<div class="bond-dot${i < litDots ? ' '+dotColor : ''}"></div>`
+  ).join('');
+
+  const trustNote = isHostile
+    ? `<span style="font-size:10px;color:var(--red)">They hate you</span>`
+    : ``;
+
+  return `<div class="bond-row">
+    <div class="bond-dots">${dots}</div>
+    <span class="bond-stage-lbl">${stage.label}</span>
+    ${trustNote}
+  </div>`;
+}
+
 function buildNPCCard(r) {
   const npc      = GS.world.npcRegistry[r.npcId];
   const isZeret  = r.isZeret;
@@ -4515,16 +4616,34 @@ function buildNPCCard(r) {
   const stage    = npc ? (QI_STAGES[npc.qiStageIndex||0]?.name || '') : '';
   const isMentor = r.type === 'mentor' || GS.char.mentors?.some(m => m.npcId === r.npcId);
   const isHostile= (npc?.grudgeLevel || 0) > 60;
-  const relType  = isMentor ? 'Mentor' : r.type || 'encountered';
+  const bond     = r.bond_level || r.trust || 0;
+  const isFamily = ['mother','father','grandmother','grandfather','aunt','uncle','sister','brother','family','caregiver'].includes(r.type);
+
+  // Get the exact human-readable label
+  const relLabel  = isMentor ? 'Mentor' : (REL_TYPE_LABELS[r.type] || r.type || 'Met');
   const nameColor = isZeret ? 'color:#ff69b4' : isReo ? 'color:#ffffff' : '';
 
+  // Card class based on relationship state
   let cardClass = 'npc-card';
-  if(isZeret) cardClass += ' zeret-card';
-  else if(isReo) cardClass += ' lore-npc reo';
-  else if(isLore) cardClass += ' lore-npc';
+  if(isZeret)       cardClass += ' zeret-card';
+  else if(isReo)    cardClass += ' lore-npc reo';
+  else if(isLore)   cardClass += ' lore-npc';
+  if(isFamily)      cardClass += ' family';
+  if(bond >= 65 && !isHostile)  cardClass += ' close';
+  else if(bond >= 38 && !isHostile) cardClass += ' warm';
+  if(isHostile)     cardClass += ' strained';
 
   const glowStyle = r.glowColor && !isZeret && !isReo
     ? `box-shadow:0 0 10px ${r.glowColor}` : '';
+
+  // Relationship status labels
+  const badges = [];
+  if(isMentor) badges.push(`<span style="font-size:9px;color:var(--gold);padding:1px 5px;border-radius:8px;border:1px solid var(--gold)">MENTOR</span>`);
+  if(isHostile) badges.push(`<span style="font-size:9px;color:var(--red);padding:1px 5px;border-radius:8px;border:1px solid var(--red2)">HOSTILE</span>`);
+  if(r.type === 'lover' || r.type === 'spouse') badges.push(`<span style="font-size:9px;color:#ff88bb;padding:1px 5px;border-radius:8px;border:1px solid #aa4466">♥</span>`);
+
+  // Bond stage description for tooltip
+  const bondStage = getBondStage(bond);
 
   const card = document.createElement('div');
   card.className = cardClass;
@@ -4533,17 +4652,18 @@ function buildNPCCard(r) {
   card.innerHTML = `
     <button class="npc-memory-btn" onclick="openMemory('${r.npcId}',event)" title="Full memory">○</button>
     <div class="npc-card-top">
-      <div>
-        <div class="npc-name" style="${nameColor}">${r.name}
-          ${isMentor ? '<span style="font-size:9px;color:var(--gold);padding:1px 5px;border-radius:8px;border:1px solid var(--gold);margin-left:4px">MENTOR</span>' : ''}
-          ${isHostile ? '<span style="font-size:9px;color:var(--red);padding:1px 5px;border-radius:8px;border:1px solid var(--red2);margin-left:4px">HOSTILE</span>' : ''}
-        </div>
+      <div style="flex:1;min-width:0">
+        <div class="npc-name" style="${nameColor}">${r.name} ${badges.join(' ')}</div>
+        <div style="font-size:11px;color:${isFamily?'#c49a30':isHostile?'var(--red)':'var(--dim)'};margin-top:1px">${relLabel}</div>
         ${r.title ? `<div class="npc-title">${r.title}</div>` : ''}
         ${stage ? `<div class="npc-title" style="color:var(--dim)">${stage}</div>` : ''}
       </div>
-      <span class="npc-rel-type">${relType}</span>
+      <div style="text-align:right;flex-shrink:0">
+        <span class="npc-rel-type" title="${bondStage.desc}" style="cursor:help">${bondStage.label}</span>
+      </div>
     </div>
-    <div class="npc-summary">${r.summary || 'Nothing noted yet.'}</div>
+    ${buildBondDisplay(r, npc)}
+    <div class="npc-summary" style="margin-top:4px">${r.summary || 'Nothing noted yet.'}</div>
     ${buildQuickActions(r)}
     <div class="npc-card-footer">
       <input class="npc-msg-input" placeholder="Or say something directly..." id="msg-${r.npcId}">
@@ -18373,18 +18493,15 @@ function extractAllCharactersFromOpening(text) {
     // Full memory = all sentences about them
     const fullMemory = nameSentences.join(' ').trim().slice(0, 600);
 
-    // Role → display type
-    const typeMap = {
-      mother:'family', father:'family', grandmother:'family', grandfather:'family',
-      aunt:'family', uncle:'family', sister:'family', brother:'family',
-      caregiver:'caregiver', teacher:'teacher', neighbor:'neighbor',
-      acquaintance:'acquaintance', mentioned:'from the opening',
-    };
-    const relType = typeMap[role] || role;
+    // Keep exact role — don't collapse to broad category
+    const relType = role; // mother stays 'mother', not 'family'
 
-    // Trust based on role
-    const trustMap = {
-      family:70, caregiver:65, teacher:55, neighbor:45, acquaintance:35, mentioned:30,
+    // Bond level based on role — family starts higher because you grew up with them
+    const bondByRole = {
+      mother:72, father:72, grandmother:65, grandfather:65,
+      aunt:55, uncle:55, sister:60, brother:60,
+      caregiver:65, teacher:48, neighbor:30,
+      acquaintance:12, mentioned:5,
     };
 
     const npcId = `opening_${name.toLowerCase().replace(/\s+/g,'_').replace(/[^a-z0-9_]/g,'')}_${uid().slice(0,4)}`;
@@ -18404,7 +18521,8 @@ function extractAllCharactersFromOpening(text) {
       type: relType,
       summary: summary || `${role === 'mother' ? 'Your mother.' : role === 'father' ? 'Your father.' : `Someone from your earliest years.`}`,
       fullMemory: fullMemory || `Mentioned in ${c.firstName}'s opening years.`,
-      trust: trustMap[relType] || 35,
+      trust: bondByRole[relType] || 12,
+      bond_level: (isAbsent ? Math.floor((bondByRole[relType]||12)*0.6) : bondByRole[relType]) || 12,
       alive: !isDeceased,
       isZeret:false, isLore:false, glowColor:null,
       lastSeen: isAbsent ? 'Last seen before the story begins' : `Year ${w.year}`,
@@ -20445,6 +20563,151 @@ grantTechnique = function(tech) {
     console.log(`[Murim] Consolidated advanceTime active. ${staleRefs.length} old chain references are dead code.`);
   }
 })();
+
+// ================================================================
+// ── BOND PROGRESSION: Relationships that actually develop ────────
+// ================================================================
+
+// How bond changes with interactions
+const BOND_INTERACTION_GAINS = {
+  // AI-reported trust changes → bond
+  trust_high_gain:  { threshold:10,  bond:+5 },   // AI says trust +10 → bond +5
+  trust_mid_gain:   { threshold:5,   bond:+3 },
+  trust_low_gain:   { threshold:1,   bond:+1 },
+  // Relationship type changes → bond upgrades
+  became_friend:    +8,
+  became_mentor:    +15,
+  betrayal:         -25,
+  fought_together:  +6,
+  confided_in:      +8,
+  saved_life:       +12,
+  insulted:         -5,
+  threatened:       -8,
+};
+
+// Bond decay per month when not interacted with
+const BOND_DECAY_PER_MONTH = {
+  mother:0, father:0, grandmother:0, grandfather:0,        // family doesn't decay from neglect
+  aunt:0.3, uncle:0.3, sister:0.2, brother:0.2,            // close family decays slowly
+  caregiver:0.3, teacher:0.5, mentor:0.3,
+  friend:0.8, trusted:0.5, close:0.3,
+  acquaintance:1.5, associate:1.0, neighbor:0.8,
+  encountered:2.0, mentioned:0,
+};
+
+// Apply bond changes from AI response relationship updates
+function applyBondChanges(updates) {
+  if(!updates?.length) return;
+  const c = GS.char;
+
+  updates.forEach(u => {
+    const rel = c.relationships.find(r => r.npcId === u.npcId);
+    if(!rel) return;
+
+    // Sync bond_level with trust changes
+    if(u.trust) {
+      const gain = Math.abs(u.trust);
+      if(u.trust > 0) {
+        rel.bond_level = Math.min(100, (rel.bond_level||rel.trust||10) + Math.round(gain * 0.5));
+      } else if(u.trust < 0) {
+        rel.bond_level = Math.max(0, (rel.bond_level||rel.trust||10) + Math.round(u.trust * 0.7));
+      }
+    }
+
+    // Type changes that indicate bond growth
+    if(u.type) {
+      const oldType = rel.type;
+      rel.type = u.type;
+      // Growing closer
+      if(['friend','ally','lover','spouse'].includes(u.type) && !['friend','ally','lover','spouse'].includes(oldType)) {
+        rel.bond_level = Math.min(100, (rel.bond_level||10) + BOND_INTERACTION_GAINS.became_friend);
+      }
+      if(u.type === 'mentor') {
+        rel.bond_level = Math.min(100, (rel.bond_level||10) + BOND_INTERACTION_GAINS.became_mentor);
+      }
+      // Growing hostile
+      if(u.type === 'enemy' || u.type === 'hostile') {
+        rel.bond_level = Math.max(0, (rel.bond_level||10) + BOND_INTERACTION_GAINS.betrayal);
+      }
+    }
+  });
+}
+
+// Decay bonds that haven't been interacted with recently
+function tickBondDecay(daysElapsed) {
+  const c = GS.char;
+  const w = GS.world;
+  const monthsElapsed = daysElapsed / 30;
+  if(monthsElapsed < 0.1) return;
+
+  c.relationships.forEach(rel => {
+    if(rel.alive === false) return;
+    const decay = BOND_DECAY_PER_MONTH[rel.type] || 1.0;
+    if(decay <= 0) return;
+
+    // Only decay if not recently interacted with
+    const lastSeenYear = parseInt(rel.lastSeen?.match(/Year (\d+)/)?.[1]) || 0;
+    const yearsSince   = w.year - lastSeenYear;
+    if(yearsSince < 1 && w.year === lastSeenYear) return; // interacted this year
+
+    const decayAmount = decay * monthsElapsed;
+    rel.bond_level = Math.max(0, (rel.bond_level||0) - decayAmount);
+
+    // Trust follows bond direction
+    rel.trust = Math.max(0, Math.min(100, rel.bond_level));
+  });
+}
+
+// Patch applyAIResponse to update bond levels
+const _withBondApply = applyAIResponse;
+applyAIResponse = function(res) {
+  _withBondApply(res);
+  if(res?.updateRelationships?.length) applyBondChanges(res.updateRelationships);
+};
+
+// Wire bond decay into advanceTime
+const _withBondDecay = advanceTime;
+advanceTime = function(days=0, months=0, years=0) {
+  _withBondDecay(days, months, years);
+  const elapsed = days + months * 30 + years * 360;
+  if(elapsed > 0) tickBondDecay(elapsed);
+};
+
+// Bond context in system prompt — tell AI what bond levels mean
+const _withBondPrompt = buildSystemPrompt;
+buildSystemPrompt = function() {
+  let prompt = _withBondPrompt();
+  const c = GS.char;
+
+  const bondContext = c.relationships.filter(r => r.alive !== false).map(r => {
+    const bond  = r.bond_level || r.trust || 0;
+    const stage = getBondStage(bond);
+    const label = REL_TYPE_LABELS[r.type] || r.type;
+    return `  ${r.name} [${label}, ${stage.label} bond:${Math.round(bond)}]: ${stage.desc}`;
+  }).join('\n');
+
+  if(bondContext) {
+    const section = `RELATIONSHIP BONDS (how close each connection actually is — write interactions accordingly):
+${bondContext}
+BOND RULE: Someone at "Just Met" does not confide, share secrets, or go out of their way. Someone "Bound" would take serious risk for the player. Bond grows through meaningful shared experience, not just conversation. It degrades through neglect and betrayal. Never write people as closer than their bond level warrants.`;
+    prompt = prompt.replace('## ABSOLUTE RULES', section + '\n\n## ABSOLUTE RULES');
+  }
+  return prompt;
+};
+
+// Initialize bond_level on existing relationships that don't have it
+const _withBondInit = startGame;
+startGame = function(isLoad=false) {
+  _withBondInit(isLoad);
+  GS.char.relationships.forEach(rel => {
+    if(rel.bond_level === undefined) {
+      // Backfill from trust/type
+      const baseByType = { mother:72, father:72, family:65, caregiver:60, mentor:55, friend:50,
+        teacher:45, neighbor:30, ally:40, acquaintance:12, encountered:8, mentioned:5 };
+      rel.bond_level = rel.trust || baseByType[rel.type] || 10;
+    }
+  });
+};
 
 console.log('Murim Chronicles fully loaded.');
 
