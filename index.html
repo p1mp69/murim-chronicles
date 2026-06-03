@@ -2992,52 +2992,162 @@ const TRAITS_CATALOG = {
   seed_wrath: {
     name: 'Seed of Wrath',
     type: 'sin_seed', rarity: 'epic', inherited: false,
-    desc: 'A dormant seed of fury. When rage takes you, something surges that has no name yet. You lose thread of control faster than others do.',
+    desc: 'A dormant seed of fury. This is not ordinary anger — it is the potential to become something that violence fears. Those born with it carry a ceiling other cultivators cannot reach.',
     flavor: 'When you were angry — really angry — something shifted.\n\nNot something you chose.\n\nSomething that chose you.',
-    gameplay: 'In rage, Qi output spikes and physical power surges. But control of that power degrades. You\'re harder to restrain, harder to reason with, and capable of things you wouldn\'t choose in calm. Beast Qi path amplifies this.',
-    aiHint: 'SEED OF WRATH: When this character enters genuine rage, power spikes — physical capability increases, Qi surges, they become harder to stop. But precision and decision-making suffer. Let the surge be real but costly. NPCs who know this trait fear what happens when they push.',
+    gameplay: 'In rage, Qi output spikes and physical power surges beyond what your stage should allow. This seed is a cultivation ceiling others cannot touch. Path: Seed → Sapling (rage-based breakthrough) → Tree (living catastrophe) → Vessel of Wrath (what war looks like given a body). Without this seed, that ceiling does not exist.',
+    aiHint: 'SEED OF WRATH: This character has the potential to become something that warfare itself looks like from the outside. In genuine rage NOW, power spikes beyond their stage — harder to stop, Qi surges, physically more dangerous. But the real weight of this trait is what it means for their ceiling: with cultivation, they can reach a form of martial power that is simply not available to cultivators without this seed. Surface the rage surge when appropriate, but occasionally let them sense something enormous waiting underneath it.',
     effects: { strength: 3, willpower: -2 },
+    evolves: ['sapling_wrath'],
+  },
+
+  sapling_wrath: {
+    name: 'Sapling of Wrath',
+    type: 'sin_seed', rarity: 'legendary', inherited: false,
+    desc: 'The seed has taken root. Your rage no longer just surges — it builds. It accumulates. It does not forget what made it. You are beginning to become something.',
+    flavor: 'The anger didn\'t leave this time.\n\nIt settled in.\n\nLike something that had found a home.',
+    gameplay: 'Rage-state power is now 40% above normal ceiling. Injuries sustained in rage heal faster afterward. NPCs who sense cultivation recognize something wrong about your Qi signature — too much heat underneath the surface.',
+    aiHint: 'SAPLING OF WRATH: The rage has taken root. This character\'s anger now accumulates rather than passing — describe it building under the surface. In combat during rage, describe power significantly above their cultivation stage: opponents who should be able to handle them can\'t. Cultivators who examine their Qi signature note something wrong — excessive heat, something unstable beneath the surface.',
+    effects: { strength: 5, willpower: -1 },
+    evolves: ['tree_wrath'],
+  },
+
+  tree_wrath: {
+    name: 'Tree of Wrath',
+    type: 'sin_seed', rarity: 'mythic', inherited: false,
+    desc: 'Fully grown. You are a living catastrophe that has learned to wear a face. When it releases, things break. Not just people — things. Structures. Ground. Whatever is nearby.',
+    flavor: 'The building came down.\n\nYou did not remember deciding that.\n\nYou remembered the anger.\n\nThe building was a consequence of the anger.',
+    gameplay: 'Full rage-state output is now in a power category unavailable to standard cultivators. Environmental destruction is possible. The Maligned Lords notice — Normac has expressed something that might be interest. This path ends somewhere that doesn\'t have a name yet.',
+    aiHint: 'TREE OF WRATH: When this character\'s rage is fully released, describe environmental impact — the air changes, the ground responds, things near them break that weren\'t targeted. Their power is now in a category that standard cultivators do not reach. Normac of Sloth, if he is active, has registered something. Write the rage-state as something that bystanders flee from, not because of personal danger but because the force of it is simply too large to be near.',
+    effects: { strength: 8, endurance: 4, willpower: 2 },
   },
 
   seed_envy: {
     name: 'Seed of Envy',
     type: 'sin_seed', rarity: 'epic', inherited: false,
-    desc: "You sense the strengths of others like wounds on your own skin. Not jealousy — something sharper. The feeling that their capability is specifically your lack.",
+    desc: "You sense the strengths of others like wounds on your own skin. This is not jealousy. It is the beginning of something that can literally take what others have. Most cultivators can only earn their power. You were born with the potential to take it.",
     flavor: 'You watched him move through the form and felt something you didn\'t have a clean name for.\n\nNot admiration.\n\nNot quite.',
-    gameplay: "You sense other cultivators' approximate power level and capabilities instinctively. This drives you — and sometimes drives you wrong. In situations of direct comparison, performance can spike or break depending on emotional state.",
-    aiHint: "SEED OF ENVY: This character perceives others' strengths acutely — in social and combat situations, surface a brief note of what they notice about another person's capability. It registers as a kind of pain. This can drive extraordinary effort or create obsession. When someone significantly stronger is present, it shows.",
+    gameplay: "Sense other cultivators' power levels instinctively. The seed is the foundation of a path where your power is not earned — it's taken. With full development, techniques, strengths, and abilities can be absorbed from those you defeat. This ceiling is not available without this seed.",
+    aiHint: "SEED OF ENVY: This character perceives others' strengths acutely — surface what they notice about another person's capability. It registers as specific pain. But the real weight of this trait: with full development, they can literally take power from those they defeat — absorbing technique fragments, capability, strength. Right now, surface the perception. Occasionally let them sense what this seed is pointing toward.",
     effects: { perception: 3 },
+    evolves: ['sapling_envy'],
+  },
+
+  sapling_envy: {
+    name: 'Sapling of Envy',
+    type: 'sin_seed', rarity: 'legendary', inherited: false,
+    desc: "The perception of others' power has become the beginning of acquisition. What you defeat leaves something behind. Not always. Not completely. But something.",
+    flavor: 'After the fight, something remained.\n\nNot a memory.\n\nSomething more physical than a memory.\n\nYou didn\'t tell anyone.',
+    gameplay: 'After defeating a significantly powerful opponent, a small fragment of their cultivation or technique may transfer. Random, partial, not reliable — but real. The wanting has a direction now.',
+    aiHint: "SAPLING OF ENVY: After this character defeats a powerful opponent, occasionally have something transfer — a fragment of a technique they witnessed, a small physical improvement that shouldn't be there, a Qi signature that has traces of the defeated person's path. This is irregular and unpredictable. Describe it as something they notice privately afterward — not a power-up announcement, just a quiet recognition that something was left behind.",
+    effects: { perception: 4, intelligence: 2 },
+    evolves: ['tree_envy'],
+  },
+
+  tree_envy: {
+    name: 'Tree of Envy',
+    type: 'sin_seed', rarity: 'mythic', inherited: false,
+    desc: "What others built over years, you take in moments. Their techniques become your techniques. Their strength becomes your strength. Iasiba has noticed. He is... conflicted about this.",
+    flavor: 'You used his technique.\n\nHis own technique.\n\nHe recognized it.\n\nYou watched his face change.',
+    gameplay: "Ability absorption from defeated opponents is now reliable and substantial. Techniques witnessed multiple times have a chance to be partially learned without instruction. The Maligned Lord Iasiba's relationship with you is complicated — you are doing what he does, and he doesn't know how to feel about that.",
+    aiHint: "TREE OF ENVY: This character reliably absorbs ability fragments from those they defeat. When they've watched an opponent use a technique multiple times, let them partially learn it — describe this as their body doing something it has seen without being taught. Iasiba of Envy (or Lust, if shifted) has taken notice and his reaction to this character is complicated — describe any encounter with him as charged with something unresolved.",
+    effects: { intelligence: 4, perception: 6, luck: 3 },
   },
 
   seed_sloth: {
     name: 'Seed of Sloth',
     type: 'sin_seed', rarity: 'epic', inherited: false,
-    desc: 'You need less than you should. Less food, less sleep, less movement to recover. The seed conserves everything — including your effort. Cultivation slows.',
+    desc: 'You need less than you should. This is the beginning of something that ends in perfect stillness — a state of rest so absolute that nothing in the world can move it. Normac reached his ceiling differently. You might reach a version he didn\'t.',
     flavor: 'You could go longer without sleep than was normal.\n\nYou noticed this the way you noticed rain — something that just was.',
-    gameplay: 'Reduced need for food and sleep. Faster physical recovery from exertion. Cultivation progresses 15% slower — the soul resists effort. Some cultivation paths require active will to overcome this.',
-    aiHint: 'SEED OF SLOTH: This character needs less food, sleep, and rest than normal — reflect this when survival or endurance situations come up. But cultivation is slower — when breakthroughs come, they come a bit harder than they should. The seed conserves everything, including ambition.',
+    gameplay: 'Reduced need for food and sleep. Faster recovery. Cultivation is slower — the seed conserves everything. But the ceiling: full development leads to a state of physical invincibility through perfect stillness. A body that cannot be moved, broken, or ended by ordinary means. This path is not available to those without this seed.',
+    aiHint: 'SEED OF SLOTH: This character needs less food, sleep, and rest than normal. Cultivation is slower. But occasionally surface what this seed is pointing toward — a depth of stillness they can achieve that others cannot. In moments of complete calm, describe a quality of immovability that registers on perceptive NPCs as something wrong. The seed is building toward something that doesn\'t break.',
     effects: { endurance: 3 },
     qiCostMult: { cultivation_gain: 0.85 },
+    evolves: ['sapling_sloth'],
+  },
+
+  sapling_sloth: {
+    name: 'Sapling of Sloth',
+    type: 'sin_seed', rarity: 'legendary', inherited: false,
+    desc: "The stillness has become structural. Your body has started learning to rest at a level that heals what shouldn't heal. Things that would permanently injure others may not permanently injure you.",
+    flavor: 'The physician said it was still there.\n\nThen he checked again.\n\nIt wasn\'t there anymore.\n\nHe didn\'t say anything else.',
+    gameplay: 'Injuries that would be permanent for others may repair given time and rest. Physical attacks that rely on momentum find less purchase. The immovable quality is starting to be real rather than metaphorical.',
+    aiHint: "SAPLING OF SLOTH: Injuries that should be permanent sometimes aren't — describe recovery that physicians or cultivators find inexplicable. Physical attacks that rely on momentum or force describe as finding less than expected. The character's rest has a quality to it — describe their sleep or stillness as deep in a way that is slightly unusual.",
+    effects: { endurance: 6, willpower: 3 },
+    evolves: ['tree_sloth'],
+  },
+
+  tree_sloth: {
+    name: 'Tree of Sloth',
+    type: 'sin_seed', rarity: 'mythic', inherited: false,
+    desc: "Perfect stillness. Not a metaphor. You can enter a state of rest so complete that force simply stops at you. What hits you finds nothing to push against. Normac's path and yours diverge here — his came from ambition. Yours came from rest.",
+    flavor: 'The weapon landed.\n\nYou didn\'t move.\n\nNot because you blocked it.\n\nBecause it simply ran out of intention before it reached anything it could break.',
+    gameplay: 'When fully still and not attacking, physical damage is reduced to a fraction of normal. Entering and exiting this stillness is a skill. The Maligned Lord Normac has heard something — the perfect stillness has a resonance he recognizes.',
+    aiHint: "TREE OF SLOTH: When this character enters full stillness and doesn't move, describe physical attacks as losing their force before completion — not blocked, not dodged, just arriving at something that absorbs and neutralizes. This is not invincibility in motion — only in rest. Normac of Sloth, if active, has registered something in the world that resonates with him. He would find this character interesting in a way he wouldn't easily explain.",
+    effects: { endurance: 10, willpower: 5, strength: 3 },
   },
 
   seed_pride: {
     name: 'Seed of Pride',
     type: 'sin_seed', rarity: 'epic', inherited: false,
-    desc: "You cannot be seen retreating. The seed won't allow it to feel acceptable — not truly. Your presence in a room is enormous. People notice before you speak.",
+    desc: "Your presence in a room is enormous. People notice before you speak. This is the seed of something that ends in a presence so absolute that lesser wills simply cannot function near it. Xelaad's path is one version. This is the raw material for another.",
     flavor: 'There have been situations where you should have left.\n\nYou stayed.\n\nThis has not always ended well.',
-    gameplay: 'Your presence commands attention. People notice you. Social situations lean toward your authority. But retreat, surrender, and backing down are genuinely harder — the seed resists. This can get you killed.',
-    aiHint: 'SEED OF PRIDE: This character commands attention — NPCs notice them. In social contexts, their presence carries weight. But tactical retreat, surrender, and backing down feel genuinely wrong to them. When the smart move is to leave, let this pull them toward staying. Sometimes they overcome it. Sometimes they don\'t.',
+    gameplay: 'Presence commands attention. Social situations lean toward your authority. Retreat feels wrong — the seed resists. Full development: a presence that actively degrades the will of those around you. A room that reshapes itself around the fact of you. This ceiling is not available without this seed.',
+    aiHint: 'SEED OF PRIDE: This character commands attention — NPCs notice them entering a space. Social weight leans toward their authority. Retreat feels genuinely wrong and they resist it even when they shouldn\'t. But surface occasionally what this seed is building toward — a quality of presence that doesn\'t just attract attention but suppresses the capacity of lesser wills to oppose it.',
     effects: { charisma: 4, willpower: 2 },
+    evolves: ['sapling_pride'],
+  },
+
+  sapling_pride: {
+    name: 'Sapling of Pride',
+    type: 'sin_seed', rarity: 'legendary', inherited: false,
+    desc: "The presence has weight now. Not metaphorical weight — people physically feel it. Weaker wills waver near you. Authority comes so naturally that even strangers default to it before they understand why.",
+    flavor: 'He was going to argue.\n\nThen he looked at you.\n\nHe didn\'t argue.',
+    gameplay: 'Weak-willed and low-cultivation NPCs instinctively defer. Intimidation succeeds without effort against ordinary people. The presence is becoming something cultivators with perception can sense.',
+    aiHint: "SAPLING OF PRIDE: Ordinary NPCs defer to this character before they've made an argument — describe the room subtly adjusting, people giving way, lower-status individuals not meeting their eyes. High-cultivation characters or strong-willed NPCs aren't affected yet, but they register something. Describe their presence as having a physical quality now — not mystical, just real.",
+    effects: { charisma: 6, willpower: 4 },
+    evolves: ['tree_pride'],
+  },
+
+  tree_pride: {
+    name: 'Tree of Pride',
+    type: 'sin_seed', rarity: 'mythic', inherited: false,
+    desc: "Your presence does not merely command — it suppresses. Those without sufficient will find it difficult to oppose you, speak against you, or even think clearly in your presence. Xelaad felt this once, long ago. You are reaching something adjacent.",
+    flavor: 'The court went quiet.\n\nNot because you asked it to.\n\nBecause the pressure of your presence had made speech feel like a complicated decision.',
+    gameplay: 'In rooms with this character, lower-will NPCs struggle to oppose them or think clearly about opposing them. High-cultivation opponents still function but register something oppressive. Xelaad of Pride, if active, has noted this character — his reaction is not simple.',
+    aiHint: "TREE OF PRIDE: In spaces this character enters, describe a suppression — not silence exactly, but a quality where opposition becomes harder to form. Lower-will NPCs lose the thread of their arguments, forget what they were angry about, find themselves complying. High-cultivation opponents feel something but aren't stopped by it. Xelaad of Pride, if active, has taken personal note of this character. His reaction is complex — something between recognition and threat assessment.",
+    effects: { charisma: 10, willpower: 8 },
   },
 
   seed_greed: {
     name: 'Seed of Greed',
     type: 'sin_seed', rarity: 'epic', inherited: false,
-    desc: "Items found tend toward quality. You sense silver and valuables nearby. The wanting doesn't stop — it just redirects. There's always something else worth having.",
+    desc: "Items found tend toward quality. You sense silver and valuables nearby. The wanting doesn't stop — it redirects. This is the seed of a path that ends in acquisition without limit — resources, power, even cultivation itself, accumulating beyond what any normal cultivator can hold.",
     flavor: 'You found the coin in a crack in the floor that nobody else had looked at.\n\nYou didn\'t stop to think about why you looked there.\n\nYou just looked.',
-    gameplay: 'Items discovered tend to be higher quality. Passive sense of nearby silver or valuables. The seed creates persistent wanting — goals shift as they\'re achieved. Hard to feel satisfied.',
-    aiHint: 'SEED OF GREED: This character has a passive sense of value — they notice good items, silver, and opportunities others miss. When looting, searching, or trading, lean the finds slightly better. But the wanting never stops — when one thing is achieved, another becomes necessary. Let this shape their motivation.',
+    gameplay: 'Items found tend higher quality. Passive sense of nearby valuables. The wanting never ends — goals shift as they\'re reached. Full development: the capacity to accumulate resources and power at a rate that normal cultivators cannot match, and hold more than they should be able to hold. The ceiling without this seed does not include this.',
+    aiHint: 'SEED OF GREED: This character senses value — lean item finds slightly better, let them notice opportunities others miss. The wanting never ends — when one goal is reached, another forms. But surface occasionally what this seed is building toward: an accumulation capacity that will eventually exceed what their stage should permit. Dranoel of Greed, if active, has registered this character the way he registers anything worth acquiring.',
     effects: { luck: 4 },
+    evolves: ['sapling_greed'],
+  },
+
+  sapling_greed: {
+    name: 'Sapling of Greed',
+    type: 'sin_seed', rarity: 'legendary', inherited: false,
+    desc: "The wanting has become a sixth sense. Silver nearby is felt before it's seen. Items of power register like heat. Your capacity to hold wealth and cultivation simultaneously is beginning to exceed what your stage should allow.",
+    flavor: 'There was something valuable in the building.\n\nYou could feel it before you entered.\n\nYou didn\'t know how you could feel it.\n\nBut you were right.',
+    gameplay: 'Silver and valuables are sensed at short range. Qi storage capacity is 20% above what your stage allows — the greedy core holds more. Resources accumulate faster through any means.',
+    aiHint: "SAPLING OF GREED: This character senses nearby valuables with enough specificity to act on — describe a pull toward where the good items are, a sense of weight or heat from silver or cultivation resources. Their Qi capacity exceeds what their stage suggests — describe this as being noticed by teachers or cultivators who examine their core as unusual capacity.",
+    effects: { luck: 5, intelligence: 2 },
+    evolves: ['tree_greed'],
+  },
+
+  tree_greed: {
+    name: 'Tree of Greed',
+    type: 'sin_seed', rarity: 'mythic', inherited: false,
+    desc: "You hold what others cannot hold. Wealth, power, cultivation, resources — the capacity is simply larger than it should be. Dranoel of Greed has noticed. He is trying to decide whether to acquire you or acquire from you.",
+    flavor: 'The count was wrong.\n\nNot because anyone had cheated.\n\nBecause there was more than there should have been.\n\nYou hadn\'t questioned it.',
+    gameplay: 'Wealth accumulates at an anomalous rate. Qi maximum is now 50% above stage-appropriate ceiling. Items in your possession tend to improve over time — quality seeps in. Dranoel of Greed, if active, is aware of you personally.',
+    aiHint: "TREE OF GREED: Resources simply accumulate around this character — describe silver appearing to go further, items improving subtly, Qi capacity that consistently exceeds what their stage explains. Dranoel of Greed, if active, is personally aware of them and has classified them as something between a resource and a rival. Any encounter with him is colored by this calculus.",
+    effects: { luck: 8, intelligence: 3, willpower: 2 },
   },
 
   // ──────────────────────────────────────────────────────────
@@ -19087,13 +19197,21 @@ extractParentsFromOpening = function(text) {
 function addOccupationToHistory(occupation) {
   if(!GS.char.occupationHistory) GS.char.occupationHistory = [];
   const current = GS.char.occupation;
-  if(current && current.title !== occupation.title) {
-    GS.char.occupationHistory.push({
-      ...current,
-      ended: GS.world.year,
-    });
+
+  if(current?.title && current.title !== occupation.title) {
+    // Log leaving old job
+    GS.char.occupationHistory.push({ ...current, ended: GS.world.year });
+    addPersonalEvent(`Left: ${current.title}${current.location ? ' at ' + current.location : ''}. Year ${GS.world.year}.`);
   }
+
   GS.char.occupation = { ...occupation, since: occupation.since || GS.world.year };
+
+  // Log the new occupation
+  const legal = occupation.legal === false ? ' (unlicensed)' : occupation.legal === true ? '' : '';
+  const employer = occupation.employer ? `, working for ${occupation.employer}` : '';
+  const loc = occupation.location ? ` in ${occupation.location}` : '';
+  addPersonalEvent(`New occupation: ${occupation.title}${legal}${loc}${employer}. Year ${GS.world.year}.`);
+
   updateCharacterTab();
 }
 
@@ -21267,6 +21385,9 @@ startGame = function(isLoad=false) {
 // They only enter relationships via addOrUpdateRelationship()
 // which the AI calls when an actual encounter happens.
 
+// ── RULE: If someone appeared in your opening narrative, you interacted
+// ── with them. They go in the People tab. Dead ones show as deceased.
+
 extractParentsFromOpening = function(narrativeText) {
   if(!narrativeText) return;
   const c = GS.char;
@@ -21288,62 +21409,144 @@ extractParentsFromOpening = function(narrativeText) {
     'Still','Also','Just','Only','Even','Already','Always','Never',
   ]);
 
+  // Bond level by relationship type
+  const BOND_BY_ROLE = {
+    mother:78, father:78, grandmother:68, grandfather:68,
+    aunt:55, uncle:55, sister:62, brother:62,
+    caregiver:72, teacher:50, mentor:55,
+    neighbor:28, acquaintance:18, friend:45,
+    mentioned:12, encountered:10,
+  };
+
   const PATTERNS = [
-    { r:/your\s+mother[,\s]+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/gi,         role:'mother'     },
-    { r:/your\s+father[,\s]+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/gi,          role:'father'     },
-    { r:/your\s+grandmother[,\s]+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/gi,     role:'grandmother'},
-    { r:/your\s+grandfather[,\s]+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/gi,     role:'grandfather'},
-    { r:/your\s+(?:older\s+)?sister[,\s]+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/gi, role:'sister'},
-    { r:/your\s+(?:older\s+)?brother[,\s]+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/gi, role:'brother'},
-    { r:/your\s+aunt[,\s]+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/gi,           role:'aunt'       },
-    { r:/your\s+uncle[,\s]+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/gi,          role:'uncle'      },
+    // Direct family
+    { r:/your\s+mother[,\s]+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/gi,          role:'mother'    },
+    { r:/your\s+father[,\s]+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/gi,           role:'father'    },
+    { r:/your\s+mother['']s?\s+name\s+(?:is|was)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/gi, role:'mother' },
+    { r:/your\s+father['']s?\s+name\s+(?:is|was)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/gi, role:'father' },
     { r:/([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)[,\s]+(?:his|her|their|your)\s+mother/gi, role:'mother'},
     { r:/([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)[,\s]+(?:his|her|their|your)\s+father/gi, role:'father'},
-    { r:/([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s+(?:raised|took you in|cared for you|fed you)/gi, role:'caregiver'},
-    { r:/([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s+(?:taught you|instructed you|showed you)/gi, role:'teacher'},
-    { r:/Auntie\s+([A-Z][a-z]+)/gi, role:'caregiver' },
-    { r:/Uncle\s+([A-Z][a-z]+)/gi,  role:'caregiver' },
-    { r:/a\s+(?:woman|man|person)\s+(?:everyone\s+calls|called|named)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/gi, role:'caregiver'},
-    { r:/named\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)[,\s.]/gi, role:'mentioned' },
+    { r:/your\s+grandmother[,\s]+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/gi,      role:'grandmother'},
+    { r:/your\s+grandfather[,\s]+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/gi,      role:'grandfather'},
+    { r:/your\s+(?:older\s+|younger\s+)?sister[,\s]+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/gi, role:'sister'},
+    { r:/your\s+(?:older\s+|younger\s+)?brother[,\s]+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/gi,role:'brother'},
+    { r:/your\s+aunt[,\s]+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/gi,            role:'aunt'      },
+    { r:/your\s+uncle[,\s]+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/gi,           role:'uncle'     },
+    // Caregivers / guardians
+    { r:/([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s+(?:raised|took\s+you\s+in|cared\s+for\s+you|fed\s+you|watched\s+over\s+you|looked\s+after\s+you)/gi, role:'caregiver'},
+    { r:/Auntie\s+([A-Z][a-z]+)/gi,                                          role:'caregiver' },
+    { r:/Uncle\s+([A-Z][a-z]+)/gi,                                           role:'caregiver' },
+    { r:/a\s+(?:woman|man|person)\s+(?:everyone\s+calls|they\s+call|called|named)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)/gi, role:'caregiver' },
+    // Teachers / mentors
+    { r:/([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s+(?:taught\s+you|showed\s+you|instructed\s+you|trained\s+you)/gi, role:'teacher'},
+    // Neighbors / regulars
+    { r:/([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)[,\s]+(?:a\s+)?(?:your\s+)?(?:neighbor|the\s+man\s+next\s+door|the\s+woman\s+next\s+door|who\s+lived\s+nearby)/gi, role:'neighbor'},
+    // Tradespeople the character dealt with directly
+    { r:/([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)[,\s]+(?:a|an|the)\s+(?:butcher|baker|physician|healer|merchant|guard|warden|smith|carpenter|farmer|innkeeper|cook|fisherman|seller)/gi, role:'acquaintance'},
+    // Anyone the character spoke to / met
+    { r:/([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\s+(?:said\s+to\s+you|spoke\s+to\s+you|told\s+you|asked\s+you|looked\s+at\s+you|handed\s+you|gave\s+you|offered\s+you)/gi, role:'encountered'},
+    // Named in quoted dialogue context
+    { r:/(?:you\s+(?:asked|told|said\s+to)|with)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)?)\b/gi, role:'encountered'},
+    // Any capitalized name appearing 2+ times gets added as 'mentioned'
   ];
 
   const found = new Map();
+  const sentences = narrativeText.split(/(?<=[.!?])\s+/);
+
   PATTERNS.forEach(({ r, role }) => {
     r.lastIndex = 0;
     let m;
     while((m = r.exec(narrativeText)) !== null) {
       const name = (m[1] || '').trim();
-      if(!name || EXCL.has(name) || name === c.firstName || name.length < 2 || name.length > 30) continue;
-      if(!found.has(name) || found.get(name).role === 'mentioned') {
-        const sentences = narrativeText.split(/(?<=[.!?])\s+/).filter(s => s.includes(name));
-        const isDeceased = sentences.some(s => /\b(died|dead|passed|killed|grave|burial)\b/i.test(s));
-        const isAbsent   = !isDeceased && sentences.some(s => /\b(left|gone|missing|disappeared|never came|stopped writing)\b/i.test(s));
-        found.set(name, { role, sentences, isDeceased, isAbsent });
+      if(!name || EXCL.has(name) || name === c.firstName || name === c.lastName) continue;
+      if(name.length < 2 || name.length > 30) continue;
+      const existing = found.get(name);
+      // Higher-weight roles win
+      const roleWeight = { mother:10, father:10, grandmother:9, grandfather:9, sister:8, brother:8,
+        aunt:7, uncle:7, caregiver:8, teacher:7, mentor:8, neighbor:5,
+        acquaintance:4, encountered:3, mentioned:1 };
+      if(!existing || (roleWeight[role]||0) > (roleWeight[existing.role]||0)) {
+        const nameSentences = sentences.filter(s => s.includes(name));
+        const isDeceased = nameSentences.some(s => /\b(died|dead|passed|killed|murder|grave|buried|execution)\b/i.test(s));
+        const isAbsent   = !isDeceased && nameSentences.some(s => /\b(left|gone|missing|disappeared|never\s+came\s+back|stopped|no\s+longer)\b/i.test(s));
+        found.set(name, { role, nameSentences, isDeceased, isAbsent });
       }
     }
   });
 
-  // Seed npcRegistry + _openingCharacters ONLY — no relationships
-  found.forEach(({ role, sentences, isDeceased, isAbsent }, name) => {
-    const npcId = `bg_${name.toLowerCase().replace(/\s+/g,'_').replace(/[^a-z0-9_]/g,'')}`;
+  // Pass 2: any capitalized name appearing 2+ times not already found
+  const nameFreq = new Map();
+  const rawNames = narrativeText.match(/\b[A-Z][a-z]{1,12}(?:\s+[A-Z][a-z]{1,12})?\b/g) || [];
+  rawNames.forEach(n => {
+    if(EXCL.has(n) || n === c.firstName || n === c.lastName) return;
+    nameFreq.set(n, (nameFreq.get(n)||0)+1);
+  });
+  nameFreq.forEach((count, name) => {
+    if(count < 2 || found.has(name)) return;
+    const nameSentences = sentences.filter(s => s.includes(name));
+    const isDeceased = nameSentences.some(s => /\b(died|dead|passed|killed|grave)\b/i.test(s));
+    found.set(name, { role:'mentioned', nameSentences, isDeceased, isAbsent:false });
+  });
+
+  // ── Add everyone found to relationships AND npcRegistry ─────────
+  let added = 0;
+  found.forEach(({ role, nameSentences, isDeceased, isAbsent }, name) => {
+    // Skip if already in relationships
+    if(c.relationships.find(r => r.name === name)) return;
+
+    const npcId = `opening_${name.toLowerCase().replace(/\s+/g,'_').replace(/[^a-z0-9_]/g,'')}_${uid().slice(0,4)}`;
+
+    // Register NPC
     if(!w.npcRegistry[npcId]) {
       w.npcRegistry[npcId] = {
         id:npcId, name, title:'', alive:!isDeceased, isLore:false, glowColor:null,
         qiStageIndex:0, strength:8, agility:8, endurance:8,
         intelligence:8, perception:8, willpower:8, charisma:8, luck:8,
-        memoriesOfPlayer:[`From ${c.firstName}'s earliest years.`],
+        memoriesOfPlayer:[`Part of ${c.firstName}'s early life.`],
         personality:[], alignment:'orthodox', hiddenHistory:[],
         location: isAbsent ? 'unknown' : (c.birthCity || w.location),
         homeLocation: c.birthCity || w.location,
       };
     }
-    // Background characters context for AI
+
+    // Build summary from most relevant sentences
+    const summaryRaw = (nameSentences.sort((a,b)=>b.length-a.length).slice(0,2).join(' ')).trim();
+    const summary = summaryRaw.slice(0,140) + (summaryRaw.length>140?'…':'');
+    const fullMemory = nameSentences.join(' ').trim().slice(0,500);
+
+    const bondBase = BOND_BY_ROLE[role] || 12;
+    const bond = isAbsent ? Math.floor(bondBase * 0.7) : bondBase;
+
+    const rel = {
+      npcId, name, title:'',
+      type: role,
+      summary: summary || `${REL_TYPE_LABELS[role] || 'Someone'} from your early life.`,
+      fullMemory: fullMemory || `From ${c.firstName}'s earliest years.`,
+      trust: bond,
+      bond_level: bond,
+      alive: !isDeceased,
+      isZeret:false, isLore:false, glowColor:null,
+      lastSeen: isDeceased ? `Deceased — Year ${w.year}` : isAbsent ? 'Whereabouts unknown' : `Year ${w.year}`,
+      fromOpening: true,
+    };
+
+    if(isDeceased) {
+      rel.deathYear  = w.year;
+      rel.deathCause = 'From the opening years — cause unknown';
+    }
+
+    c.relationships.push(rel);
+
+    // Also store background context for AI
     w._openingCharacters[npcId] = {
       name, role, npcId, isDeceased, isAbsent,
-      context: sentences.join(' ').trim().slice(0, 280),
+      context: summaryRaw.slice(0, 280),
     };
+
+    added++;
   });
-  // DO NOT call updateRelationsTab — nothing changed in relationships
+
+  if(added > 0) updateRelationsTab();
 };
 
 // ───────────────────────────────────────────────────────────────
