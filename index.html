@@ -23877,6 +23877,431 @@ startGame = function(isLoad=false) {
   } catch(e) {}
 };
 
+// ================================================================
+// ── SHOP POPUP: Fix detection + clearer trigger patterns
+// ── LOADING: Disable input + show generating state clearly
+// ── AUTO-CLEAR: Input box clears on every submit
+// ── GOALS: AI-aware natural completion tracking
+// ── PRISON: Escape mechanics + time-served + storylines
+// ── BOUNTY: Scaled consequences that actually reshape the world
+// ================================================================
+
+// ── 1. SHOP — widen detection, remove movement-verb gate ─────────
+detectShopType = function(msg) {
+  const lower = msg.toLowerCase();
+
+  // Much wider set of triggers — you don't need "go to"
+  const shopTriggers = /\b(go|visit|enter|head|walk|stop|check|browse|look|find|need|want|buy|purchase|shop|get\s+some|pick\s+up|grab\s+some|looking\s+for)\b/i;
+  if(!shopTriggers.test(lower)) return null;
+
+  const shopTypes = [
+    { patterns:[/apothecary|herb.*shop|medicine.*shop|herbalist|physician.*shop|medical\s+stall|buy.*herbs|get.*medicine|need.*medicine|find.*pills/i], type:'medicine', name:'Apothecary' },
+    { patterns:[/blacksmith|forge|weapon.*shop|armory|swordsmith|buy.*sword|buy.*weapon|buy.*blade|find.*weapon|get.*blade/i], type:'weapons', name:'Blacksmith' },
+    { patterns:[/general.*store|general.*shop|provisions|supply\s+shop|supply\s+store|buy.*supplies|market\s+stall|buy.*rope|buy.*lamp/i], type:'general', name:'General Store' },
+    { patterns:[/grocery|food.*stall|food.*shop|greengrocer|buy.*food|find.*food|get.*meal|buy.*rice|inn.*kitchen/i], type:'food', name:'Food Stall' },
+    { patterns:[/tailor|clothing.*shop|seamstress|dressmaker|buy.*clothes|buy.*robe|buy.*clothing|find.*outfit/i], type:'clothing', name:'Tailor' },
+    { patterns:[/pawn.*shop|pawnbroker|second.*hand|used.*goods|sell.*items|fence.*stolen/i], type:'pawn', name:'Pawn Broker' },
+    { patterns:[/scroll.*shop|bookshop|archive|tome.*shop|buy.*tome|buy.*scroll|find.*technique|scroll.*store/i], type:'tomes', name:'Scroll Shop' },
+    { patterns:[/tool.*shop|hardware|buy.*tools|get.*tools|rope.*shop/i], type:'tools', name:'Tool Shop' },
+    { patterns:[/cultivation.*shop|spiritual.*shop|qi.*shop|cultivat.*supply|buy.*spirit.*herb|buy.*beast.*core|find.*cultivation|spirit\s+herb\s+shop/i], type:'cultivation', name:'Cultivation Supply' },
+    { patterns:[/market|bazaar|trading.*post|merchants.*row/i], type:'general', name:'Market' },
+    { patterns:[/barber|barbershop|haircut|cut.*hair|hair.*cut|loctician|hair.*shop|groomer|trim.*hair/i], type:'barber', name:'Barbershop' },
+  ];
+
+  for(const entry of shopTypes) {
+    for(const pat of entry.patterns) {
+      if(pat.test(lower)) return entry;
+    }
+  }
+  return null;
+};
+
+// ── 2. LOADING STATE — clear input, lock UI, show generating ─────
+// Override the consolidated sendToAI wrapper to add better UX
+
+const _wrapForUX = sendToAI;
+sendToAI = async function(overrideMsg) {
+  const inputEl = document.getElementById('action-input');
+  const sendBtn = document.getElementById('btn-send');
+
+  // Always clear the input and lock the UI before sending
+  if(inputEl) inputEl.value = '';
+  if(inputEl) inputEl.disabled = true;
+  if(sendBtn) {
+    sendBtn.innerHTML = '<span class="spinner"></span> Writing…';
+    sendBtn.disabled  = true;
+    sendBtn.style.opacity = '0.7';
+  }
+
+  // Show a "generating" indicator in the narrative
+  const content    = document.getElementById('narrative-content');
+  let generatingEl = null;
+  if(content) {
+    generatingEl = document.createElement('div');
+    generatingEl.id        = 'narrative-generating';
+    generatingEl.className = 'narrative-entry';
+    generatingEl.style.cssText = 'opacity:.6;';
+    generatingEl.innerHTML = `<div class="narrative-text" style="color:var(--dim);font-style:italic;display:flex;align-items:center;gap:8px">
+      <span class="spinner"></span>
+      <span>Writing response…</span>
+    </div>`;
+    content.appendChild(generatingEl);
+    const scroll = document.getElementById('narrative-scroll');
+    if(scroll) scroll.scrollTop = scroll.scrollHeight;
+  }
+
+  try {
+    await _wrapForUX(overrideMsg);
+  } catch(e) {
+    console.error('[sendToAI wrapper]', e);
+  } finally {
+    // Unlock UI
+    if(inputEl) inputEl.disabled = false;
+    if(inputEl) inputEl.focus();
+    if(sendBtn) {
+      sendBtn.innerHTML  = 'Act';
+      sendBtn.disabled   = false;
+      sendBtn.style.opacity = '';
+    }
+    // Remove generating indicator
+    generatingEl?.remove();
+    document.getElementById('narrative-generating')?.remove();
+  }
+};
+
+// ── 3. GOALS — AI-aware natural completion ───────────────────────
+// The AI knows about active goals. When a goal is completed or
+// advanced, it says so in its response via goalUpdates.
+// No mechanical grind — just the narrative picking it up.
+
+// Goals stored on character
+function ensureGoals() {
+  if(!GS.char.goals) GS.char.goals = [];
+  return GS.char.goals;
+}
+
+function addGoal(goal) {
+  ensureGoals();
+  const goals = GS.char.goals;
+  if(goals.find(g => g.id === goal.id)) return;
+  goals.push({
+    id:       goal.id || uid(),
+    title:    goal.title || goal.desc || 'Unknown goal',
+    desc:     goal.desc || '',
+    status:   'active',    // 'active' | 'completed' | 'failed' | 'abandoned'
+    category: goal.category || 'personal',
+    priority: goal.priority || 5,
+    addedYear: GS.world.year,
+    completedYear: null,
+    notes:    [],
+  });
+  updateGoalsTab?.();
+}
+
+function completeGoal(goalId, note) {
+  const goal = (GS.char.goals || []).find(g => g.id === goalId);
+  if(!goal || goal.status !== 'active') return;
+  goal.status        = 'completed';
+  goal.completedYear = GS.world.year;
+  if(note) goal.notes.push(`Year ${GS.world.year}: ${note}`);
+  addPersonalEvent(`Goal completed: "${goal.title}". Year ${GS.world.year}.`);
+  toast(`Goal reached: ${goal.title}`, 'gold', 5000);
+  updateGoalsTab?.();
+}
+
+function failGoal(goalId, reason) {
+  const goal = (GS.char.goals || []).find(g => g.id === goalId);
+  if(!goal || goal.status !== 'active') return;
+  goal.status = 'failed';
+  goal.completedYear = GS.world.year;
+  if(reason) goal.notes.push(`Year ${GS.world.year}: Failed — ${reason}`);
+  addPersonalEvent(`Goal failed: "${goal.title}". ${reason || ''}`);
+  updateGoalsTab?.();
+}
+
+// Patch applyAIResponse to handle goalUpdates from AI
+const _applyWithGoals = applyAIResponse;
+applyAIResponse = function(res) {
+  _applyWithGoals(res);
+  try {
+    // AI can add goals via newGoals
+    if(res?.newGoals?.length) {
+      res.newGoals.forEach(g => addGoal(g));
+    }
+    // AI can update goals via goalUpdates
+    if(res?.goalUpdates?.length) {
+      res.goalUpdates.forEach(u => {
+        if(!u?.id) return;
+        if(u.status === 'completed') completeGoal(u.id, u.note);
+        else if(u.status === 'failed') failGoal(u.id, u.note);
+        else {
+          // Progress note
+          const goal = (GS.char.goals || []).find(g => g.id === u.id);
+          if(goal && u.note) goal.notes.push(`Year ${GS.world.year}: ${u.note}`);
+        }
+      });
+    }
+  } catch(e) {}
+};
+
+// Patch buildSystemPrompt to include active goals context
+const _bspWithGoals = buildSystemPrompt;
+buildSystemPrompt = function() {
+  let prompt = _bspWithGoals();
+  try {
+    const goals = (GS.char.goals || []).filter(g => g.status === 'active');
+    if(!goals.length) return prompt;
+
+    const goalLines = goals
+      .sort((a,b) => b.priority - a.priority)
+      .map(g => `- [${g.id}] "${g.title}" (${g.category}): ${g.desc || ''}${g.notes?.length ? ' | Latest: '+g.notes.slice(-1)[0] : ''}`)
+      .join('\n');
+
+    const section = `PLAYER'S ACTIVE GOALS:
+${goalLines}
+
+GOAL HANDLING: If an action this turn meaningfully advances or completes a goal — narrate that progress naturally. Never announce it mechanically ("You have completed a goal!") — just write the story. If a goal is completed, include in response: "goalUpdates": [{"id": "goal_id", "status": "completed", "note": "what happened"}]. If a goal is failed or abandoned, same format with "failed". If a new goal emerges from the narrative, include: "newGoals": [{"title": "...", "desc": "...", "category": "personal|cultivation|financial|revenge|power|love|legacy", "priority": 1-10}].`;
+
+    prompt = prompt.replace('## ABSOLUTE RULES', section + '\n\n## ABSOLUTE RULES');
+  } catch(e) {}
+  return prompt;
+};
+
+// Add goalUpdates and newGoals to response schema
+const _bspWithGoalSchema = buildSystemPrompt;
+buildSystemPrompt = function() {
+  let prompt = _bspWithGoalSchema();
+  if(!prompt.includes('"goalUpdates"')) {
+    prompt = prompt.replace(
+      '"prisonStatus"',
+      '"goalUpdates": [{ "id": "", "status": "completed|failed|progress", "note": "" }],\n  "newGoals": [{ "title": "", "desc": "", "category": "", "priority": 5 }],\n  "prisonStatus"'
+    );
+  }
+  return prompt;
+};
+
+// ── 4. PRISON — escape mechanics + time-served reduction ─────────
+
+// Time-served: reduce sentence as days pass
+const _advanceWithPrison = advanceTime;
+advanceTime = function(days=0, months=0, years=0) {
+  _advanceWithPrison(days, months, years);
+  try {
+    const c  = GS.char;
+    const w  = GS.world;
+    const ps = c.prisonStatus;
+    if(!ps || !ps.sentence) return;
+
+    const totalDaysElapsed = (days||0) + (months||0)*30 + (years||0)*360;
+    if(totalDaysElapsed <= 0) return;
+
+    // Track days served
+    if(!ps.daysServed) ps.daysServed = 0;
+    ps.daysServed += totalDaysElapsed;
+
+    // Sentence is stored as a string like "3 years" or "18 months" or "death"
+    const sentenceMatch = ps.sentence.match(/(\d+)\s*(year|month|day)/i);
+    if(!sentenceMatch) return; // death sentence or indefinite — no auto-release
+
+    const sentenceQty  = parseInt(sentenceMatch[1]);
+    const sentenceUnit = sentenceMatch[2].toLowerCase();
+    const sentenceDays = sentenceUnit.startsWith('year') ? sentenceQty * 360
+                       : sentenceUnit.startsWith('month') ? sentenceQty * 30
+                       : sentenceQty;
+
+    const remaining = sentenceDays - ps.daysServed;
+    ps.daysRemaining = Math.max(0, Math.round(remaining));
+
+    // Auto-release when sentence served
+    if(ps.daysServed >= sentenceDays) {
+      const prisonName = ps.location || 'prison';
+      addPersonalEvent(`Released from ${prisonName}. Sentence served: ${ps.sentence}. Year ${w.year}.`);
+      GS.narrative.push(`Your sentence is served. The gates open. The world outside looks different than it did when you came in. The question now is what to do with it.`);
+      w.worldHistory.push(`Year ${w.year}: ${c.firstName} ${c.lastName} released from ${prisonName} after serving their sentence.`);
+      // Keep a prison record
+      if(!c.prisonHistory) c.prisonHistory = [];
+      c.prisonHistory.push({ ...ps, released: w.year, howReleased: 'sentence_served' });
+      c.prisonStatus = null;
+      updateCharacterTab();
+      toast('Released from prison — sentence served.', 'gold', 5000);
+    } else if(remaining <= 30 && !ps._nearReleaseNotified) {
+      // Notify when close to release
+      ps._nearReleaseNotified = true;
+      addPersonalEvent(`Approximately ${Math.ceil(remaining)} days remaining on sentence.`);
+    }
+  } catch(e) {}
+};
+
+// Prison system prompt context — tell the AI what to do inside prison
+const _bspWithPrison = buildSystemPrompt;
+buildSystemPrompt = function() {
+  let prompt = _bspWithPrison();
+  try {
+    const c  = GS.char;
+    const ps = c.prisonStatus;
+    if(!ps) return prompt;
+
+    const remaining = ps.daysRemaining != null ? `~${ps.daysRemaining} days remaining` : `sentence: ${ps.sentence}`;
+    const section = `IMPRISONED STATUS:
+- Location: ${ps.location}
+- Crime: ${ps.crime}
+- Sentence: ${ps.sentence} (${remaining})
+- Days served: ${ps.daysServed || 0}
+
+PRISON RULES — MANDATORY:
+1. The player CANNOT freely travel, shop, or interact with the outside world while imprisoned.
+2. They CAN interact with other prisoners, guards, prison officials — generate these as NPCs with names and personalities.
+3. ESCAPE ATTEMPTS: If the player attempts to escape, plan an escape, or weakens a wall/lock — treat it as a real attempt with real risk. Failure means increased security and possibly longer sentence. Success means they're free but now a fugitive with higher bounty.
+4. PRISON LIFE: Cultivation is harder in prison (restricted Qi flow — deliberate suppression). But bonds forged here are real. Enemies made here remember.
+5. PAROLE/EARLY RELEASE: If the character demonstrates reformed behavior, bribes the right official, has an ally on the outside, or develops an important connection, early release is narratively possible. Include "prisonStatus": null in the response if released.
+6. EXECUTION: If execYear is set and year >= execYear, the execution should happen unless escaped.
+7. PRISON EVENTS: Random events can occur — a new cellmate arrives, a guard is bribable, a riot starts, someone recognizes the player. Surface these occasionally.`;
+
+    prompt = prompt.replace('## ABSOLUTE RULES', section + '\n\n## ABSOLUTE RULES');
+  } catch(e) {}
+  return prompt;
+};
+
+// Prison UI — show remaining time dynamically
+const _charTabWithPrison = updateCharacterTab;
+updateCharacterTab = function() {
+  _charTabWithPrison();
+  try {
+    const ps = GS.char.prisonStatus;
+    const section = document.getElementById('prison-section');
+    if(!section) return;
+
+    if(ps) {
+      section.classList.remove('hidden');
+      const detail = section.querySelector('.prison-detail');
+      if(detail) {
+        const remaining = ps.daysRemaining != null ? ` · ~${ps.daysRemaining} days left` : '';
+        detail.innerHTML = `${ps.crime} · ${ps.location}<br>Sentence: ${ps.sentence}${ps.execYear ? ' · Execution: Year '+ps.execYear : ''}${remaining ? '<br><span style="color:var(--gold);font-size:10px">'+remaining.trim()+'</span>' : ''}`;
+      }
+    } else {
+      section.classList.add('hidden');
+    }
+  } catch(e) {}
+};
+
+// ── 5. BOUNTY — Scaled world consequences ────────────────────────
+
+// Bounty affects the world at every scale
+const BOUNTY_CONSEQUENCES = [
+  { min:1,    max:99,   label:'Minor',
+    desc:'Local wardens have your description. Street-level criminal contacts might gossip.',
+    shopPenalty:0, innPenalty:0, sectReaction:'none', npcReaction:'some wariness' },
+  { min:100,  max:499,  label:'Known Criminal',
+    desc:'Your face is on notices in this kingdom. Merchants charge more. Some refuse service. Wardens stop you on sight.',
+    shopPenalty:0.2, innPenalty:0.3, sectReaction:'sects are informed', npcReaction:'wardens approach you' },
+  { min:500,  max:1499, label:'Wanted',
+    desc:'Multiple kingdoms aware. Guild hunters sanctioned. Legitimate establishments may refuse service. Your name is said with the kind of tone that means people know.',
+    shopPenalty:0.4, innPenalty:0.5, sectReaction:'minor sects track your location', npcReaction:'informants look for you' },
+  { min:1500, max:4999, label:'High Value Target',
+    desc:'Cross-kingdom coordination. Major sects dispatching agents. Name appears in official imperial records. Certain allies may be pressured to give you up. Entering a city creates immediate attention.',
+    shopPenalty:0.6, innPenalty:1.0, sectReaction:'major sects have standing orders', npcReaction:'most officials recognize you on sight' },
+  { min:5000, max:Infinity, label:'National Priority',
+    desc:'Kingdoms have coordinated. Imperial warrants exist. Even cultivator sects that don\'t normally involve themselves in secular matters are watching. The safest places are outside established civilization.',
+    shopPenalty:0.8, innPenalty:1.0, sectReaction:'every major sect has been briefed', npcReaction:'powerful NPCs may act pre-emptively' },
+];
+
+function getBountyConsequence(bounty) {
+  return BOUNTY_CONSEQUENCES.find(t => bounty >= t.min && bounty <= t.max) || null;
+}
+
+// Patch system prompt to include bounty consequences
+const _bspWithBounty = buildSystemPrompt;
+buildSystemPrompt = function() {
+  let prompt = _bspWithBounty();
+  try {
+    const bounty = GS.char.bounty || 0;
+    if(bounty <= 0) return prompt;
+
+    const cons   = getBountyConsequence(bounty);
+    const tier   = getBountyTier(bounty);
+    if(!cons) return prompt;
+
+    const crimes = GS.char.crimes?.slice(-3).join('; ') || 'crimes on record';
+    const section = `BOUNTY STATUS — ${cons.label.toUpperCase()} (${formatCoins(bounty)}):
+Wanted for: ${crimes}
+World impact: ${cons.desc}
+Shop access: ${cons.shopPenalty > 0 ? `${Math.round(cons.shopPenalty*100)}% price penalty or refusal` : 'normal'}
+Inns/lodging: ${cons.innPenalty > 0 ? (cons.innPenalty >= 1 ? 'may refuse outright' : `${Math.round(cons.innPenalty*100)}% premium or refusal`) : 'normal'}
+Sect reaction: ${cons.sectReaction}
+NPC reaction: ${cons.npcReaction}
+Hunter type active: ${tier ? tier.label+' ('+tier.desc+')' : 'none yet'}
+
+BOUNTY RULES:
+- Apply prices penalties and refusals consistently. A high-bounty character cannot walk into a city without reactions.
+- Informants exist — even friendly NPCs might report the player's location.
+- The bounty can be reduced by: paying it off to the right official, doing something politically useful for a kingdom, or being falsely declared dead.
+- The player can clear it by paying ${formatCoins(bounty)} to the relevant authority, through a powerful political ally, or through a notable act of service.
+- If bounty > 1500, entering any major city should have detectable consequences immediately.`;
+
+    prompt = prompt.replace('## ABSOLUTE RULES', section + '\n\n## ABSOLUTE RULES');
+  } catch(e) {}
+  return prompt;
+};
+
+// Allow bounty to be paid off or reduced through narrative
+const _applyWithBountyPay = applyAIResponse;
+applyAIResponse = function(res) {
+  _applyWithBountyPay(res);
+  try {
+    if(res?.bountyReduction != null && res.bountyReduction > 0) {
+      const prev = GS.char.bounty || 0;
+      GS.char.bounty = Math.max(0, prev - res.bountyReduction);
+      if(GS.char.bounty === 0) {
+        addPersonalEvent(`Bounty cleared. Year ${GS.world.year}.`);
+        toast('Bounty cleared.', 'gold', 4000);
+      } else {
+        addPersonalEvent(`Bounty reduced from ${formatCoins(prev)} to ${formatCoins(GS.char.bounty)}. Year ${GS.world.year}.`);
+      }
+      updateCharacterTab();
+    }
+  } catch(e) {}
+};
+
+// Add bountyReduction to schema
+const _bspWithBountySchema = buildSystemPrompt;
+buildSystemPrompt = function() {
+  let prompt = _bspWithBountySchema();
+  if(!prompt.includes('"bountyReduction"')) {
+    prompt = prompt.replace('"bounty": 0,', '"bounty": 0,\n  "bountyReduction": 0,');
+  }
+  return prompt;
+};
+
+// World Tab: show bounty status clearly
+const _updateWorldWithBounty = updateWorldTab;
+updateWorldTab = function() {
+  try { _updateWorldWithBounty(); } catch(e) {}
+  try {
+    const bounty = GS.char.bounty || 0;
+    if(bounty <= 0) return;
+    const cons  = getBountyConsequence(bounty);
+    const tier  = getBountyTier(bounty);
+    if(!cons) return;
+
+    const section = document.getElementById('tab-world');
+    if(!section) return;
+    let bountyBar = document.getElementById('world-bounty-bar');
+    if(!bountyBar) {
+      bountyBar = document.createElement('div');
+      bountyBar.id = 'world-bounty-bar';
+      bountyBar.style.cssText = 'margin-bottom:10px;padding:8px 10px;background:rgba(180,40,40,.12);border:1px solid rgba(180,40,40,.3);border-radius:6px;';
+      section.insertBefore(bountyBar, section.firstChild);
+    }
+    bountyBar.innerHTML = `
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+        <span style="color:var(--red);font-weight:700;font-size:12px">⚠ BOUNTY — ${cons.label}</span>
+        <span style="color:var(--red);font-size:13px;font-weight:700">${formatCoins(bounty)}</span>
+      </div>
+      <div style="font-size:11px;color:var(--muted);line-height:1.5">${cons.desc}</div>
+      ${tier ? `<div style="font-size:10px;color:var(--dim);margin-top:4px">Active hunters: ${tier.label} tier</div>` : ''}`;
+  } catch(e) {}
+};
+
 console.log('Murim Chronicles fully loaded.');
 
 </script>
