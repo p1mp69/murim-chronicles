@@ -1214,6 +1214,25 @@ hr.divider { border: none; border-top: 1px solid var(--border); margin: 8px 0; }
 .npc-card.unreachable .npc-card-footer { opacity: .35; pointer-events: none; }
 /* ── CURRENCY DISPLAY ── */
 #tb-silver { font-size: 12px; }
+/* ── ASSET / PROPERTY CARDS ── */
+.property-card {
+  background: var(--s2); border: 1px solid var(--border);
+  border-radius: 8px; padding: 10px 12px; margin-bottom: 8px;
+}
+.property-card.is-home   { border-color: var(--gold); }
+.property-card.hideout   { border-color: #442244; }
+.property-card.business  { border-color: #224422; }
+.property-name  { font-size: 13px; font-weight: 700; color: var(--text); }
+.property-meta  { font-size: 10px; color: var(--dim); margin-top: 2px; }
+.property-upgrades { display:flex; flex-wrap:wrap; gap:3px; margin-top:5px; }
+.property-upgrade-tag { font-size:9px; padding:1px 6px; border-radius:8px;
+  background:rgba(196,154,48,.1); border:1px solid rgba(196,154,48,.2); color:var(--gold); }
+.property-actions { display:flex; gap:5px; flex-wrap:wrap; margin-top:8px; }
+.market-property { background:var(--s2); border:1px solid var(--border); border-radius:7px;
+  padding:10px 12px; margin-bottom:8px; }
+.market-property-name { font-size:13px; font-weight:700; color:var(--text); }
+.market-property-desc { font-size:11px; color:var(--muted); margin:4px 0; line-height:1.5; }
+.market-property-cost { font-size:12px; color:var(--gold); }
 /* ── ROMANCE SYSTEM ── */
 .npc-card.in-love     { border-color:#6a2040; box-shadow:0 0 8px rgba(220,80,140,.15); }
 .npc-card.heartbroken { border-color:#3a1530; opacity:.85; }
@@ -1613,6 +1632,18 @@ hr.divider { border: none; border-top: 1px solid var(--border); margin: 8px 0; }
           </div>
           <div id="w-events" class="collapsible-body">
             <span class="text-muted italic text-xs">The world is quiet.</span>
+          </div>
+        </div>
+
+        <div class="char-section">
+          <div class="collapsible-header" data-target="w-assets">
+            <span>Properties &amp; Assets</span><span class="collapse-arrow">▼</span>
+          </div>
+          <div id="w-assets" class="collapsible-body" style="display:none">
+            <div id="w-assets-content">
+              <div class="empty-state" style="padding:12px 0;font-size:12px">No properties owned. Find a place to call your own.</div>
+            </div>
+            <button class="btn-secondary btn-sm" style="margin-top:8px;width:100%" onclick="openPropertyMarket()">Browse Properties</button>
           </div>
         </div>
 
@@ -2174,6 +2205,24 @@ hr.divider { border: none; border-top: 1px solid var(--border); margin: 8px 0; }
         <button id="barber-custom-btn" class="btn-secondary btn-sm">Request</button>
       </div>
       <div style="margin-top:10px;font-size:10px;color:var(--dim);text-align:right" id="barber-price-note"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Property Market Modal -->
+<div id="modal-property" class="modal-overlay hidden">
+  <div class="modal-card" style="max-width:520px">
+    <div class="modal-header">
+      <h2 id="property-modal-title">Properties</h2>
+      <button class="modal-close" data-modal="modal-property">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap" id="property-filter-row">
+        <button class="rel-filter-btn active" onclick="filterPropertyTab('buy')">Buy</button>
+        <button class="rel-filter-btn" onclick="filterPropertyTab('owned')">My Properties</button>
+        <button class="rel-filter-btn" onclick="filterPropertyTab('upgrade')">Upgrades</button>
+      </div>
+      <div id="property-modal-body" style="max-height:400px;overflow-y:auto"></div>
     </div>
   </div>
 </div>
@@ -3938,6 +3987,7 @@ function createDefaultState() {
       education:[],    // [{ institution, subject, mentor, status, since }]
       mentors:[],      // [{ npcId, name, subject }]
       offspring:[],    // [{ name, age, alive, traits }]
+      assets:[],       // [{ id, name, type, subtype, location, acquired, condition, upkeepPerMonth, upgrades, staff, incomePerMonth, isHome, isHideout, notes }]
       race:'human', ascensionPath:null,
       prisonStatus:null, // { location, sentence, crime, since, execYear }
       bounty:0,
@@ -26177,6 +26227,636 @@ sendQuickAction = function(npcId, actionType) {
   }
   _sqaWithSchedule(npcId, actionType);
 };
+
+// ================================================================
+// ══════════════════════════════════════════════════════════════
+// ── ASSETS & PROPERTY SYSTEM
+// ══════════════════════════════════════════════════════════════
+// ================================================================
+
+const PROPERTY_TYPES = {
+  // ── Residences ───────────────────────────────────────────────
+  room: {
+    label:'Rented Room', icon:'🚪', category:'residence',
+    desc:'A single rented room. No ownership — just a roof and a lock. Can be lost if you stop paying or cause too much trouble.',
+    buyable:false, rentable:true,
+    rentPerMonth: 4, noUpgrades:true,
+    locations:'all', renownBonus:0,
+    aiHint:'The character rents a room here. They have a bed and a door. That\'s all.',
+  },
+  dwelling: {
+    label:'Small Dwelling', icon:'🏠', category:'residence',
+    desc:'A modest apartment or lower-district home. Yours to own. Enough space for work and sleep, not much more.',
+    baseCost:120, upkeep:8, availableAt:'common',
+    upgrades:['kitchen','hidden_room','reinforced_walls'],
+    locations:['tazar','beggars_rest','wheat_capital','luo_tin_farm'],
+    renownBonus:3,
+    aiHint:'The character owns a small dwelling here. Modest but their own. When they come home to it, it\'s theirs.',
+  },
+  house: {
+    label:'House', icon:'🏡', category:'residence',
+    desc:'A proper house in the city. A courtyard, several rooms, space to have people over. Visible sign of stability.',
+    baseCost:350, upkeep:18,
+    upgrades:['kitchen','training_yard','hidden_room','herb_garden','guest_quarters','reinforced_walls','formation_nodes'],
+    locations:'all',
+    renownBonus:8,
+    aiHint:'The character owns a house here — a real one, with rooms and a door that\'s theirs. People notice someone who owns property.',
+  },
+  compound: {
+    label:'Compound', icon:'🏯', category:'residence',
+    desc:'A walled compound: main house, outbuildings, training area, gardens. The kind of property serious people own.',
+    baseCost:900, upkeep:35,
+    upgrades:['kitchen','training_yard','alchemy_lab','library','herb_garden','guest_quarters','reinforced_walls','formation_nodes','hidden_room','servant_quarters'],
+    locations:['tazar','jade_province','luo_tin_capital','buo_capital'],
+    renownBonus:18,
+    aiHint:'The character owns a compound here — walled, multi-building, with training space and gardens. The neighborhood has noticed.',
+  },
+  estate: {
+    label:'Estate / Manor', icon:'🏰', category:'residence',
+    desc:'A proper estate: extensive grounds, multiple buildings, staff, a name people recognize. Owning one of these is a statement.',
+    baseCost:2500, upkeep:80,
+    upgrades:['kitchen','training_yard','alchemy_lab','library','herb_garden','guest_quarters','reinforced_walls','formation_nodes','hidden_room','servant_quarters','spirit_stone_mine'],
+    locations:['tazar','jade_province','luo_tin_capital'],
+    renownBonus:35, requires:{ minSilver:2500, minRenown:30 },
+    aiHint:'The character owns an estate here. Not just a home — a statement of who they are. Staff. Grounds. A name on the deed that people have heard.',
+  },
+  // ── Hideouts ─────────────────────────────────────────────────
+  hideout: {
+    label:'Hideout', icon:'🕳', category:'hideout',
+    desc:'A location only you know about. No official papers. Off the books. The kind of place you go when you don\'t want to be found.',
+    baseCost:180, upkeep:5,
+    upgrades:['hidden_room','reinforced_walls','formation_nodes','supply_cache'],
+    locations:'all', knownToAuthorities:false,
+    renownBonus:0,
+    aiHint:'The character has a hideout — a location kept secret. When they use it, describe it as somewhere separate from their public life. No paperwork. No name on a deed.',
+  },
+  cave_base: {
+    label:'Wilderness Base', icon:'⛰', category:'hideout',
+    desc:'A cave, ruin, or remote natural formation improved for habitation. Good for cultivators who prefer isolation. Terrible for anyone who likes comfort.',
+    baseCost:60, upkeep:3,
+    upgrades:['reinforced_walls','formation_nodes','herb_garden','supply_cache','cultivation_hollow'],
+    locations:['ooina','great_defensive_giant','stone_root','red_sand_city','wild_bloom'],
+    renownBonus:0,
+    aiHint:'The character has a wilderness base — a place they\'ve improved for habitation in the wilds. Remote. Off the grid. The Qi around it is often stronger than in cities.',
+  },
+  // ── Businesses ───────────────────────────────────────────────
+  stall: {
+    label:'Market Stall', icon:'🏪', category:'business',
+    desc:'A licensed stall in the market. Generates passive silver. Requires either your attention or hired staff. Theft is an ongoing concern.',
+    baseCost:200, upkeep:12, incomePerMonth:20,
+    upgrades:['storage_expanded','reinforced_walls'],
+    locations:['tazar','jade_province','wheat_capital','buo_capital','luo_tin_capital'],
+    renownBonus:5,
+    aiHint:'The character owns a market stall here. It generates income — whether they\'re running it or staff are. Describe it as a physical presence in the market that people recognize.',
+  },
+  workshop: {
+    label:'Workshop', icon:'⚒', category:'business',
+    desc:'A proper workshop for crafting: smithing, alchemy, tailoring, or anything requiring dedicated space and equipment.',
+    baseCost:450, upkeep:20, incomePerMonth:0,
+    upgrades:['alchemy_lab','storage_expanded','reinforced_walls','formation_nodes'],
+    locations:['iron_hollow','tazar','jade_province','luo_tin_capital'],
+    renownBonus:6,
+    aiHint:'The character has a workshop here. The tools are theirs. The space is designed for serious craft work. Others in the trade know this workshop exists.',
+  },
+  inn_tavern: {
+    label:'Inn or Tavern', icon:'🍵', category:'business',
+    desc:'A hospitality business. Generates reliable passive income. Also an information hub — people talk in taverns. Running one well is both a business and a network.',
+    baseCost:1100, upkeep:45, incomePerMonth:70,
+    upgrades:['guest_quarters','kitchen','storage_expanded','hidden_room','formation_nodes'],
+    locations:['tazar','jade_province','buo_capital','luo_tin_capital','shen_port'],
+    renownBonus:15, requires:{ minSilver:1100 },
+    aiHint:'The character owns a tavern or inn here. It generates income and intelligence — people talk freely in establishments they frequent. Staff keep it running when the character isn\'t there.',
+  },
+  cultivation_school: {
+    label:'Cultivation School', icon:'📜', category:'business',
+    desc:'A teaching establishment — whether for Qi fundamentals or specific martial arts. Generates income through tuition. Generates influence through disciples.',
+    baseCost:800, upkeep:30, incomePerMonth:45,
+    upgrades:['training_yard','library','formation_nodes','guest_quarters'],
+    locations:['tazar','jade_province','luo_tin_capital'],
+    renownBonus:25, requires:{ minQiStage:6 },
+    aiHint:'The character runs a cultivation school here. Students come to learn. This generates income and disciples — people who are trained by them and tied to them.',
+  },
+  clinic: {
+    label:'Medical Clinic', icon:'🏥', category:'business',
+    desc:'A medical practice. Generates income. More importantly: you\'re the person people come to when they\'re desperate. That creates relationships.',
+    baseCost:300, upkeep:15, incomePerMonth:30,
+    upgrades:['storage_expanded','herb_garden'],
+    locations:['tazar','jade_province','luo_tin_capital','buo_capital'],
+    renownBonus:12, requires:{ minSkill:'medicine', minSkillLevel:4 },
+    aiHint:'The character runs a clinic here. People with injuries and illness come to them. The relationship between a physician and their patients is intimate — they know things others don\'t.',
+  },
+};
+
+// Upgrades catalog
+const PROPERTY_UPGRADES = {
+  kitchen:          { name:'Kitchen',           cost:30,  desc:'Cooking XP bonus. Quality meals prepared here.',                    effects:{ cookingBonus:true } },
+  training_yard:    { name:'Training Yard',     cost:60,  desc:'+15% combat skill XP while training here.',                        effects:{ trainingBonus:0.15 } },
+  alchemy_lab:      { name:'Alchemy Lab',       cost:90,  desc:'Alchemy sessions here are more effective. Rare ingredients better preserved.', effects:{ alchemyBonus:true } },
+  library:          { name:'Private Library',   cost:80,  desc:'+20% scholarly skill XP. Can research topics between sessions.',   effects:{ researchBonus:0.20 } },
+  herb_garden:      { name:'Herb Garden',       cost:45,  desc:'Generates 1-3 common herbs per month.',                           effects:{ herbIncome:true } },
+  hidden_room:      { name:'Hidden Room',       cost:70,  desc:'Concealed storage. Things hidden here are difficult to find.',     effects:{ secretStorage:true } },
+  reinforced_walls: { name:'Reinforced Walls',  cost:40,  desc:'+20% defense if attacked here. Harder to break in.',              effects:{ defenseBonus:0.20 } },
+  formation_nodes:  { name:'Formation Nodes',   cost:110, desc:'Carved anchor points for formations. All formations here cost 50% less material.', effects:{ formationDiscount:0.5 } },
+  guest_quarters:   { name:'Guest Quarters',    cost:50,  desc:'Can host NPCs. Hosted NPCs gain +5 bond per month.',              effects:{ hosting:true } },
+  cultivation_hollow:{ name:'Cultivation Hollow',cost:120,desc:'+25% Qi gain when cultivating here. The Qi gathers naturally.',    effects:{ cultivBonus:0.25 } },
+  servant_quarters: { name:'Servant Quarters',  cost:60,  desc:'Can employ up to 3 staff NPCs without cramping the property.',    effects:{ staffCapacity:3 } },
+  supply_cache:     { name:'Supply Cache',      cost:35,  desc:'Concealed supply storage. Emergency provisions for 30 days.',      effects:{ emergencySupply:true } },
+  spirit_stone_mine:{ name:'Spirit Stone Mine', cost:400, desc:'A small mine on estate grounds. Generates 1 spirit stone per season.', effects:{ stoneIncome:true } },
+  storage_expanded: { name:'Expanded Storage',  cost:40,  desc:'Extra inventory capacity at this location.',                       effects:{ storageBonus:20 } },
+};
+
+// ── Core functions ────────────────────────────────────────────────
+
+function ensureAssets() {
+  if(!GS.char.assets) GS.char.assets = [];
+  return GS.char.assets;
+}
+
+function acquireProperty(typeKey, customName, customLocation) {
+  const def = PROPERTY_TYPES[typeKey];
+  if(!def) return;
+
+  const loc = customLocation || GS.world.location;
+  const c   = GS.char;
+  const w   = GS.world;
+
+  // Checks
+  if(def.requires?.minSilver && c.silver < def.requires.minSilver) {
+    toast(`Need ${formatCoins(def.requires.minSilver)} to acquire this property.`, 'error', 3000);
+    return;
+  }
+  if(def.requires?.minRenown) {
+    const rep = c.reputation[loc]?.renown || 0;
+    if(rep < def.requires.minRenown) {
+      toast(`Need renown ${def.requires.minRenown}+ in ${LOCATIONS[loc]?.name||loc} first.`, 'error', 3000);
+      return;
+    }
+  }
+  if(def.requires?.minQiStage && (c.qi?.stageIndex||0) < def.requires.minQiStage) {
+    toast(`Requires ${QI_STAGES[def.requires.minQiStage]?.name} cultivation or higher.`, 'error', 3000);
+    return;
+  }
+  if(def.requires?.minSkill && getSkillLevel(def.requires.minSkill) < (def.requires.minSkillLevel||1)) {
+    toast(`Requires ${def.requires.minSkill} level ${def.requires.minSkillLevel}+.`, 'error', 3000);
+    return;
+  }
+
+  const cost = def.baseCost || 0;
+  if(cost > 0 && !spendSilver(cost)) {
+    toast(`Need ${formatCoins(cost)} to purchase.`, 'error', 3000);
+    return;
+  }
+
+  const asset = {
+    id:              uid(),
+    name:            customName || `${def.label} in ${LOCATIONS[loc]?.name||loc}`,
+    type:            typeKey,
+    subtype:         def.category,
+    location:        loc,
+    acquired:        { year:w.year, how:'purchased', cost },
+    condition:       100,
+    upkeepPerMonth:  def.upkeep || def.rentPerMonth || 0,
+    incomePerMonth:  def.incomePerMonth || 0,
+    upgrades:        [],
+    staff:           [],
+    tenants:         [],
+    isHome:          !ensureAssets().some(a => a.isHome),
+    isHideout:       def.category === 'hideout',
+    knownToAuth:     def.category !== 'hideout',
+    notes:           '',
+    formations:      [],
+    _nextUpkeepYear: w.year,
+  };
+
+  ensureAssets().push(asset);
+
+  // Renown boost for owning property
+  if(def.renownBonus > 0) addRenown(loc, def.renownBonus, `Owns ${def.label}`);
+
+  addPersonalEvent(`Acquired: ${asset.name}. ${def.desc} Year ${w.year}.`);
+  hideModal('modal-property');
+  sendToAI(`I've acquired ${asset.name}. [PROPERTY ACQUIRED: ${def.label} at ${LOCATIONS[loc]?.name||loc}. ${def.aiHint} The character now has this place. Describe first seeing it — what it looks like, what's inside, what it feels like to own something here. Time: 1-2 hours looking around and taking stock.]`);
+
+  updateAssetsDisplay();
+  updateWorldTab();
+  toast(`Acquired: ${asset.name}`, 'gold', 4000);
+  return asset;
+}
+
+function upgradeProperty(assetId, upgradeKey) {
+  const asset   = ensureAssets().find(a => a.id === assetId);
+  const upgDef  = PROPERTY_UPGRADES[upgradeKey];
+  if(!asset || !upgDef) return;
+  if(asset.upgrades.includes(upgradeKey)) {
+    toast('Already installed.', '', 2000); return;
+  }
+
+  let cost = upgDef.cost;
+  // Formation node discount
+  if(upgradeKey === 'formation_nodes') cost = cost; // full price
+  // Formation discount if nodes already installed
+  const hasFormNodes = asset.upgrades.includes('formation_nodes');
+  if(hasFormNodes && ['cultivation_hollow','alchemy_lab','library'].includes(upgradeKey)) cost = Math.floor(cost * 0.8);
+
+  if(!spendSilver(cost)) {
+    toast(`Need ${formatCoins(cost)} to install ${upgDef.name}.`, 'error', 3000); return;
+  }
+
+  asset.upgrades.push(upgradeKey);
+  addPersonalEvent(`Upgraded ${asset.name}: added ${upgDef.name} for ${formatCoins(cost)}.`);
+  sendToAI(`I've had ${upgDef.name} installed at my ${asset.name}. [PROPERTY UPGRADE: ${upgDef.name} — ${upgDef.desc} Describe the renovation briefly and what it changes about the feel of the place. Time: 0 days (already done).]`);
+  updateAssetsDisplay();
+  toast(`Installed: ${upgDef.name}`, 'gold', 3000);
+}
+
+function sellProperty(assetId) {
+  const assets = ensureAssets();
+  const idx    = assets.findIndex(a => a.id === assetId);
+  const asset  = assets[idx];
+  if(!asset) return;
+
+  const def      = PROPERTY_TYPES[asset.type];
+  const sellPrice = Math.floor((def?.baseCost||100) * 0.65 * (asset.condition / 100));
+  addSilver(sellPrice);
+  assets.splice(idx, 1);
+
+  addPersonalEvent(`Sold ${asset.name} for ${formatCoins(sellPrice)}.`);
+  updateAssetsDisplay();
+  updateWorldTab();
+  toast(`Sold: ${asset.name} for ${formatCoins(sellPrice)}`, '', 3000);
+}
+
+function setAsHome(assetId) {
+  ensureAssets().forEach(a => a.isHome = false);
+  const asset = ensureAssets().find(a => a.id === assetId);
+  if(asset) {
+    asset.isHome = true;
+    addPersonalEvent(`Set primary residence: ${asset.name}.`);
+    updateAssetsDisplay();
+    toast(`${asset.name} is now your primary home.`, 'gold', 2000);
+  }
+}
+
+// Monthly asset tick
+function tickAssets(daysElapsed) {
+  const c      = GS.char;
+  const w      = GS.world;
+  const assets = ensureAssets();
+  if(!assets.length) return;
+
+  const monthsElapsed = daysElapsed / 30;
+  assets.forEach(asset => {
+    const def = PROPERTY_TYPES[asset.type];
+
+    // Upkeep
+    if(asset.upkeepPerMonth > 0) {
+      const upkeepDue = Math.ceil(asset.upkeepPerMonth * monthsElapsed);
+      if(c.silver >= upkeepDue) {
+        c.silver = Math.max(0, c.silver - upkeepDue);
+      } else {
+        // Can't afford upkeep
+        asset.condition = Math.max(0, asset.condition - Math.ceil(monthsElapsed * 5));
+        if(asset.condition <= 20) {
+          addPersonalEvent(`WARNING: ${asset.name} is deteriorating — upkeep unpaid. Condition: ${asset.condition}%.`);
+        }
+      }
+    }
+
+    // Passive income from businesses
+    if(asset.incomePerMonth > 0) {
+      const staffBonus = asset.staff.length > 0 ? 1.0 : 0.6; // no staff = less income
+      const income = Math.floor(asset.incomePerMonth * monthsElapsed * staffBonus);
+      addSilver(income);
+      if(income > 0 && Math.random() < 0.3) {
+        addPersonalEvent(`${asset.name} generated ${formatCoins(income)} this period.`);
+      }
+    }
+
+    // Herb garden income
+    if(asset.upgrades.includes('herb_garden') && daysElapsed >= 30) {
+      const herbs = 1 + Math.floor(Math.random() * 2);
+      for(let i = 0; i < herbs; i++) {
+        spawnItem({ name:'Spirit Herb', type:'misc', rarity:'common', desc:`Grown in the herb garden at ${asset.name}.`, value:8 });
+      }
+    }
+
+    // Spirit stone mine (per season = 90 days)
+    if(asset.upgrades.includes('spirit_stone_mine') && daysElapsed >= 90) {
+      const fs = ensureFormationState();
+      fs.stones = (fs.stones || 0) + 1;
+      addPersonalEvent(`Spirit stone mine at ${asset.name} yielded 1 spirit stone.`);
+    }
+
+    // Condition degradation over time
+    if(daysElapsed >= 90) {
+      asset.condition = Math.max(0, asset.condition - 1);
+    }
+  });
+
+  updateCurrencyDisplay();
+  updateAssetsDisplay();
+}
+
+// Hook into advanceTime
+const _advanceWithAssets = advanceTime;
+advanceTime = function(days=0, months=0, years=0) {
+  _advanceWithAssets(days, months, years);
+  try {
+    const elapsed = (days||0) + (months||0)*30 + (years||0)*360;
+    if(elapsed > 0) tickAssets(elapsed);
+  } catch(e) {}
+};
+
+// UI: Update the assets display in world tab
+function updateAssetsDisplay() {
+  const el = document.getElementById('w-assets-content');
+  if(!el) return;
+
+  const assets = ensureAssets();
+  if(!assets.length) {
+    el.innerHTML = '<div class="empty-state" style="padding:12px 0;font-size:12px">No properties owned. Find a place to call your own.</div>';
+    return;
+  }
+
+  el.innerHTML = assets.map(asset => {
+    const def      = PROPERTY_TYPES[asset.type];
+    const icon     = def?.icon || '🏠';
+    const upgCount = asset.upgrades.length;
+    const locName  = LOCATIONS[asset.location]?.name || asset.location;
+    const income   = asset.incomePerMonth > 0 ? `+${formatCoins(asset.incomePerMonth)}/mo income` : '';
+    const upkeep   = asset.upkeepPerMonth  > 0 ? `−${formatCoins(asset.upkeepPerMonth)}/mo upkeep` : '';
+    const condColor= asset.condition > 70 ? 'var(--green)' : asset.condition > 30 ? '#c49a30' : 'var(--red)';
+
+    return `<div class="property-card${asset.isHome?' is-home':''}${asset.isHideout?' hideout':''}${def?.category==='business'?' business':''}">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div>
+          <div class="property-name">${icon} ${asset.name}${asset.isHome?' <span style="font-size:9px;color:var(--gold)">HOME</span>':''}</div>
+          <div class="property-meta">${def?.label||asset.type} · ${locName} · Condition: <span style="color:${condColor}">${asset.condition}%</span></div>
+          <div class="property-meta">${upkeep}${upkeep&&income?' · ':''}${income}</div>
+        </div>
+      </div>
+      ${upgCount ? `<div class="property-upgrades">${asset.upgrades.map(u=>`<span class="property-upgrade-tag">${PROPERTY_UPGRADES[u]?.name||u}</span>`).join('')}</div>` : ''}
+      <div class="property-actions">
+        <button class="btn-secondary btn-sm" onclick="openPropertyUpgrade('${asset.id}')">Upgrade</button>
+        ${!asset.isHome ? `<button class="btn-secondary btn-sm" onclick="setAsHome('${asset.id}')">Set as Home</button>` : ''}
+        <button class="btn-danger btn-sm" onclick="sellProperty('${asset.id}')">Sell</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// Property market modal
+let _propTab = 'buy';
+window.filterPropertyTab = function(tab) {
+  _propTab = tab;
+  document.querySelectorAll('#property-filter-row .rel-filter-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.textContent.toLowerCase().includes(tab));
+  });
+  renderPropertyModal();
+};
+
+function renderPropertyModal() {
+  const loc   = GS.world.location;
+  const body  = document.getElementById('property-modal-body');
+  if(!body) return;
+
+  document.getElementById('property-modal-title').textContent =
+    _propTab === 'buy' ? `Properties in ${LOCATIONS[loc]?.name||loc}` :
+    _propTab === 'owned' ? 'My Properties' : 'Available Upgrades';
+
+  if(_propTab === 'buy') {
+    const available = Object.entries(PROPERTY_TYPES).filter(([k, def]) => {
+      if(def.buyable === false) return false;
+      if(def.locations !== 'all' && Array.isArray(def.locations) && !def.locations.includes(loc)) return false;
+      return true;
+    });
+    body.innerHTML = available.map(([key, def]) => {
+      const cost       = def.baseCost || 0;
+      const canAfford  = GS.char.silver >= cost;
+      const reqNote    = def.requires?.minRenown ? `Needs renown ${def.requires.minRenown}+ here. ` : '';
+      const reqQi      = def.requires?.minQiStage ? `Needs ${QI_STAGES[def.requires.minQiStage]?.name}+. ` : '';
+      const incomeNote = def.incomePerMonth ? `<span style="color:var(--green)">+${formatCoins(def.incomePerMonth)}/mo income</span>` : '';
+      return `<div class="market-property">
+        <div class="market-property-name">${def.icon||'🏠'} ${def.label}</div>
+        <div class="market-property-desc">${def.desc}</div>
+        <div class="market-property-desc" style="font-size:10px;color:var(--dim)">${reqNote}${reqQi}Upkeep: ${formatCoins(def.upkeep||0)}/mo ${incomeNote}</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px">
+          <span class="market-property-cost">${cost > 0 ? formatCoins(cost) : 'No purchase cost'}</span>
+          <button class="btn-${canAfford?'primary':'secondary'} btn-sm" onclick="acquireProperty('${key}')" ${!canAfford?'disabled':''}>
+            ${canAfford ? 'Acquire' : `Need ${formatCoins(cost - GS.char.silver)} more`}
+          </button>
+        </div>
+      </div>`;
+    }).join('');
+  } else if(_propTab === 'owned') {
+    const assets = ensureAssets();
+    if(!assets.length) { body.innerHTML = '<div style="font-size:12px;color:var(--dim);padding:12px">No properties yet.</div>'; return; }
+    updateAssetsDisplay();
+    body.innerHTML = '<div style="font-size:12px;color:var(--dim)">Manage properties in the World tab → Properties & Assets section.</div>';
+  } else if(_propTab === 'upgrade') {
+    const assets = ensureAssets();
+    if(!assets.length) { body.innerHTML = '<div style="font-size:12px;color:var(--dim);padding:12px">Own a property first.</div>'; return; }
+
+    body.innerHTML = assets.map(asset => {
+      const def        = PROPERTY_TYPES[asset.type];
+      const allowed    = def?.upgrades || [];
+      const notInstalled = allowed.filter(k => !asset.upgrades.includes(k));
+      if(!notInstalled.length) return `<div style="font-size:12px;color:var(--dim);margin-bottom:8px">${asset.name}: fully upgraded.</div>`;
+      return `<div style="margin-bottom:12px">
+        <div style="font-size:12px;font-weight:700;margin-bottom:6px;color:var(--text)">${asset.name}</div>
+        ${notInstalled.map(k => {
+          const upg = PROPERTY_UPGRADES[k];
+          const can = GS.char.silver >= upg.cost;
+          return `<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--border)">
+            <div>
+              <div style="font-size:11px;font-weight:700;color:var(--text)">${upg.name}</div>
+              <div style="font-size:10px;color:var(--dim)">${upg.desc}</div>
+            </div>
+            <button class="btn-${can?'secondary':'secondary'} btn-sm" onclick="upgradeProperty('${asset.id}','${k}')" ${!can?'disabled':''}>
+              ${formatCoins(upg.cost)}
+            </button>
+          </div>`;
+        }).join('')}
+      </div>`;
+    }).join('');
+  }
+}
+
+window.openPropertyMarket = function() {
+  _propTab = 'buy';
+  renderPropertyModal();
+  showModal('modal-property');
+};
+
+window.openPropertyUpgrade = function(assetId) {
+  _propTab = 'upgrade';
+  renderPropertyModal();
+  showModal('modal-property');
+};
+
+// System prompt: assets context
+const _bspWithAssets = buildSystemPrompt;
+buildSystemPrompt = function() {
+  let prompt = _bspWithAssets();
+  try {
+    const assets = ensureAssets();
+    if(!assets.length) return prompt;
+
+    const home    = assets.find(a => a.isHome);
+    const current = assets.filter(a => a.location === GS.world.location);
+
+    const lines = assets.map(a => {
+      const def   = PROPERTY_TYPES[a.type];
+      const upgStr= a.upgrades.map(u => PROPERTY_UPGRADES[u]?.name).filter(Boolean).join(', ') || 'none';
+      return `- ${a.name} (${def?.label||a.type}, ${LOCATIONS[a.location]?.name||a.location}): upgrades: ${upgStr}. ${a.isHome?'[Primary home] ':''}${a.incomePerMonth>0?`Generates ${formatCoins(a.incomePerMonth)}/mo. `:''} ${def?.aiHint||''}`;
+    }).join('\n');
+
+    const currCtx = current.length
+      ? `\nPROPERTY AT CURRENT LOCATION: ${current.map(a=>`${a.name} (${a.type})`).join(', ')} — the character can access this property right now. ${current.some(a=>a.upgrades.includes('training_yard'))?'Has a training yard.':''} ${current.some(a=>a.upgrades.includes('alchemy_lab'))?'Has an alchemy lab.':''} ${current.some(a=>a.upgrades.includes('cultivation_hollow'))?'Has a cultivation hollow (+25% Qi gain here).':''}`
+      : '';
+
+    const section = `OWNED PROPERTIES:\n${lines}${currCtx}\nPROPERTY RULES: When the character is at a property they own, reference it naturally. The property reflects their status. Upgrades they have can be used (training yard for training, alchemy lab for refining, herb garden for ingredients). Staff NPCs there are real people with relationships. If their home is attacked, it\'s a real loss.`;
+    prompt = prompt.replace('## ABSOLUTE RULES', section + '\n\n## ABSOLUTE RULES');
+  } catch(e) {}
+  return prompt;
+};
+
+// Update world tab to show assets
+const _updateWorldWithAssets = updateWorldTab;
+updateWorldTab = function() {
+  try { _updateWorldWithAssets(); } catch(e) {}
+  try { updateAssetsDisplay(); } catch(e) {}
+};
+
+// ================================================================
+// ══════════════════════════════════════════════════════════════
+// ── DYNAMIC NPC SCHEDULES
+// ── Replace rigid 12-type categories with contextual generation.
+// ── Each NPC's schedule is inferred from their full profile.
+// ── Varies by day, events, weather, season, their current goals.
+// ══════════════════════════════════════════════════════════════
+// ================================================================
+
+// Day names (7-day week derived from world.day)
+const DAY_NAMES = ['Market Day','Second Day','Third Day','Fourth Day','Fifth Day','Sixth Day','Rest Day'];
+
+function getCurrentDayName() {
+  return DAY_NAMES[((GS.world.day || 1) - 1) % 7];
+}
+
+function isRestDay() {
+  return ((GS.world.day || 1) - 1) % 7 === 6;
+}
+
+function isMarketDay() {
+  return ((GS.world.day || 1) - 1) % 7 === 0;
+}
+
+// Build a rich contextual schedule for a specific NPC
+function buildNPCContextualSchedule(npc, rel) {
+  if(!npc) return null;
+
+  const hour    = ensureWorldHour();
+  const day     = getCurrentDayName();
+  const isRest  = isRestDay();
+  const isMkDay = isMarketDay();
+  const season  = getSeason(GS.world.month || 1).label;
+  const weather = GS.world.weather?.current;
+  const wt      = WEATHER_TYPES[weather];
+  const badWx   = wt && !wt.travelOk;
+
+  // Gather everything we know about this NPC
+  const occupation  = npc.occupation || rel?.type || 'unknown';
+  const personality = (npc.personality || []).join(', ') || 'neutral';
+  const alignment   = npc.alignment || 'neutral';
+  const stage       = QI_STAGES[npc.qiStageIndex || 0]?.name || 'Mortal';
+  const goals       = (npc.goals || []).filter(g=>!g._executed).map(g=>g.desc).slice(0,2).join('; ') || '';
+  const grudge      = (npc.grudgeLevel || 0) > 40 ? `has a grudge (level ${npc.grudgeLevel})` : '';
+  const fear        = (npc.fearLevel || 0) > 50 ? `is afraid (level ${npc.fearLevel})` : '';
+  const locName     = LOCATIONS[npc.location]?.name || npc.location || 'unknown';
+  const dailyLife   = npc.dailyLife || '';
+  const isElite     = (npc.qiStageIndex || 0) >= 6;
+  const isCriminal  = alignment === 'demonic' || (npc.personality || []).some(p => /criminal|assassin|thief|smuggl/.test(p));
+
+  // Build an inference about current activity
+  const timeBlock =
+    hour >= 0  && hour <= 4  ? 'deep night — almost certainly asleep unless criminal or cultivating' :
+    hour >= 5  && hour <= 6  ? 'pre-dawn — early cultivators are practicing; most others sleeping' :
+    hour >= 7  && hour <= 8  ? 'early morning — preparing for the day, merchants setting up stalls' :
+    hour >= 9  && hour <= 11 ? 'morning — prime business hours, officials accessible, markets active' :
+    hour >= 12 && hour <= 13 ? 'midday — many take a meal break, brief pause in activity' :
+    hour >= 14 && hour <= 17 ? 'afternoon — full activity, later vendors closing soon' :
+    hour >= 18 && hour <= 19 ? 'early evening — markets closing, inns filling, officials gone for day' :
+    hour >= 20 && hour <= 21 ? 'evening — social time for most, last chance for business' :
+    'night — legitimate business closed, night types active';
+
+  // Special conditions that change schedule
+  const specialConditions = [
+    isRest ? `Today is Rest Day — most people are not working. ${occupation === 'merchant' ? 'The stall is closed.' : 'Formal duties are suspended.'}` : '',
+    isMkDay ? `Today is Market Day — markets are especially active. Extra vendors. Larger crowds.` : '',
+    badWx ? `The weather (${wt?.label}) is keeping people indoors. Travel and outdoor activities are disrupted.` : '',
+    goals ? `Active goal: ${goals} — may be pursuing this rather than normal routine.` : '',
+    grudge ? `${grudge} — this colors their behavior; they may be guarded or aggressively seeking something.` : '',
+    fear ? `${fear} — if this person is afraid of the player, their behavior reflects that.` : '',
+  ].filter(Boolean);
+
+  return {
+    npcName:    npc.name || 'Unknown',
+    occupation, personality, alignment, stage, locName,
+    dailyLife, isElite, isCriminal,
+    currentTimeBlock: timeBlock,
+    dayName: day,
+    season,
+    specialConditions,
+    hour,
+  };
+}
+
+// Build schedule context for ALL currently referenced NPCs
+const _bspWithDynamicSchedule = buildSystemPrompt;
+buildSystemPrompt = function() {
+  let prompt = _bspWithDynamicSchedule();
+  try {
+    const c    = GS.char;
+    const hour = ensureWorldHour();
+    const day  = getCurrentDayName();
+
+    // Build contextual notes for NPCs the player has had recent contact with
+    const recentNPCs = c.relationships
+      .filter(r => r.alive !== false && r.lastSeen && r.lastSeen.includes(String(GS.world.year)))
+      .slice(0, 6); // Most recently seen NPCs
+
+    if(!recentNPCs.length) return prompt;
+
+    const schedCtx = recentNPCs.map(rel => {
+      const npc   = GS.world.npcRegistry[rel.npcId];
+      const sched = buildNPCContextualSchedule(npc, rel);
+      if(!sched) return null;
+
+      const specials = sched.specialConditions.filter(Boolean);
+
+      return `${rel.name} (${sched.occupation}, ${sched.locName}, ${sched.stage}):
+  Currently: ${sched.currentTimeBlock}
+  Their nature: ${sched.personality}
+  Daily life: ${sched.dailyLife || 'follows patterns appropriate to their occupation and personality'}
+  ${specials.length ? 'Today specifically: ' + specials.join(' ') : ''}
+  ${npc?.location !== GS.world.location ? `NOTE: They are in ${sched.locName}, not where the player is.` : ''}`;
+    }).filter(Boolean).join('\n\n');
+
+    if(!schedCtx) return prompt;
+
+    const section = `NPC SCHEDULES (contextual, not fixed — infer what each person is doing RIGHT NOW at ${day}, ${hour.toString().padStart(2,'0')}:00):
+${schedCtx}
+
+SCHEDULE RULE: Do not treat these schedules as rigid. A person with goals may be pursuing them instead of their normal routine. A cautious NPC may stay home in bad weather. A criminal NPC is most active at night. An Elite cultivator in meditation does not want to be disturbed. Use context to infer — never say "their schedule prevents this." Say what they're actually doing and let the situation develop naturally.`;
+
+    prompt = prompt.replace('## ABSOLUTE RULES', section + '\n\n## ABSOLUTE RULES');
+  } catch(e) {}
+  return prompt;
+};
+
+// Remove the old rigid schedule block that might conflict
+// (The _bspWithScheduleCheck patch from before is now superseded by the dynamic one)
 
 console.log('Murim Chronicles fully loaded.');
 
