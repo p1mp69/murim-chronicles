@@ -4854,6 +4854,37 @@ function updateCharacterTab() {
   setEl('qi-max',   qiMax);
   setEl('qi-break', qi.breakthroughAt || qiMax);
 
+  // ── Breakthrough readiness — bold visual signal ───────────────
+  const qiBlock = document.getElementById('qi-block');
+  let breakthroughBanner = document.getElementById('breakthrough-banner');
+  if(qi.breakthroughReady) {
+    if(!breakthroughBanner && qiBlock) {
+      breakthroughBanner = document.createElement('div');
+      breakthroughBanner.id = 'breakthrough-banner';
+      breakthroughBanner.style.cssText = `
+        margin-top:8px;padding:8px 10px;
+        background:rgba(196,154,48,.15);border:1px solid var(--gold);border-radius:6px;
+        font-size:11px;color:var(--gold);text-align:center;cursor:pointer;
+        animation:pulse-gold 2s ease-in-out infinite;
+      `;
+      breakthroughBanner.textContent = '✦ Qi threshold reached — attempt breakthrough through action or meditation ✦';
+      breakthroughBanner.onclick = () => {
+        const inp = document.getElementById('action-input');
+        if(inp) { inp.value = 'I attempt a breakthrough, pushing my Qi to consolidate into the next stage.'; inp.focus(); }
+      };
+      qiBlock.appendChild(breakthroughBanner);
+      // Add pulse animation if not already in CSS
+      if(!document.getElementById('breakthrough-css')) {
+        const style = document.createElement('style');
+        style.id = 'breakthrough-css';
+        style.textContent = `@keyframes pulse-gold { 0%,100%{box-shadow:0 0 4px rgba(196,154,48,.3)} 50%{box-shadow:0 0 12px rgba(196,154,48,.7)} }`;
+        document.head.appendChild(style);
+      }
+    }
+  } else {
+    breakthroughBanner?.remove();
+  }
+
   // --- Karma ---
   const karma = c.karma || {};
   setEl('k-righteous', karma.righteous || 0);
@@ -6146,17 +6177,64 @@ async function callClaude(userMessage) {
 // ================================================================
 function parseAIResponse(text) {
   if(!text) return null;
-  const match = text.match(/```json\s*([\s\S]*?)```/);
-  if(!match) {
-    // Try to extract any JSON object
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
-    if(jsonMatch) {
-      try { return JSON.parse(jsonMatch[0]); } catch(e) {}
-    }
-    return { narrative: text };
+
+  // ── Strategy 1: Explicit ```json block ─────────────────────────
+  const codeMatch = text.match(/```json\s*([\s\S]*?)```/);
+  if(codeMatch) {
+    try {
+      const parsed = JSON.parse(codeMatch[1]);
+      // Sanity: must have at least one known key
+      if(parsed && (parsed.narrative !== undefined || parsed.time || parsed.statChanges || parsed.newRelationships))
+        return parsed;
+    } catch(e) {}
+    // Code block found but malformed JSON — extract narrative from before it
+    const beforeBlock = text.slice(0, text.indexOf('```')).trim();
+    return { narrative: beforeBlock || text.replace(/```json[\s\S]*?```/g,'').trim() };
   }
-  try { return JSON.parse(match[1]); }
-  catch(e) { return { narrative: text.replace(/```json[\s\S]*?```/g,'').trim() }; }
+
+  // ── Strategy 2: Find the outermost JSON object ─────────────────
+  // Walk forward to find the first { and match it to its closing }
+  let braceStart = -1;
+  for(let i = 0; i < text.length; i++) {
+    if(text[i] === '{') { braceStart = i; break; }
+  }
+  if(braceStart >= 0) {
+    let depth = 0, inStr = false, escape = false;
+    for(let i = braceStart; i < text.length; i++) {
+      const ch = text[i];
+      if(escape) { escape = false; continue; }
+      if(ch === '\\' && inStr) { escape = true; continue; }
+      if(ch === '"') { inStr = !inStr; continue; }
+      if(!inStr) {
+        if(ch === '{') depth++;
+        else if(ch === '}') { depth--; if(depth === 0) {
+          try {
+            const parsed = JSON.parse(text.slice(braceStart, i+1));
+            if(parsed && typeof parsed === 'object') {
+              // If narrative is missing but there's text BEFORE the JSON, use it
+              if(!parsed.narrative && braceStart > 0) {
+                const before = text.slice(0, braceStart).trim();
+                if(before) parsed.narrative = before;
+              }
+              return parsed;
+            }
+          } catch(e) {} // malformed — fall through
+          break;
+        }}
+      }
+    }
+  }
+
+  // ── Strategy 3: Pure narrative (no JSON found) ─────────────────
+  // Strip any obvious JSON fragments that leaked in
+  const cleaned = text
+    .replace(/"[a-zA-Z]+"\s*:\s*[\[\{][^}]*[\]\}][,\n]?/g, '') // "key": {...} or [...]
+    .replace(/"[a-zA-Z]+"\s*:\s*"[^"]*"[,\n]?/g, '')           // "key": "value"
+    .replace(/"[a-zA-Z]+"\s*:\s*[-\d.]+[,\n]?/g, '')            // "key": number
+    .replace(/"[a-zA-Z]+"\s*:\s*(true|false|null)[,\n]?/g, '')  // "key": bool/null
+    .trim();
+
+  return { narrative: cleaned || text };
 }
 
 function applyAIResponse(res) {
@@ -6345,11 +6423,99 @@ function saveToSlot(slot) {
   } catch(e) { toast('Save failed — storage may be full.', 'error'); }
 }
 
+// ── Save migration: fill missing fields so old saves never break ──
+function migrateSave(data) {
+  const def  = createDefaultState();
+  const dc   = def.char;
+  const dw   = def.world;
+  const c    = data.char;
+  const w    = data.world;
+
+  // ── char fields ────────────────────────────────────────────────
+  // Never overwrite existing values — only fill truly missing ones
+  const charDefaults = {
+    traits:[], skills:{}, techniques:[], martialArts:[], inventory:[],
+    equipment:{ head:null,body:null,hands:null,feet:null,weapon:null,offhand:null,acc1:null,acc2:null },
+    reputation:{}, relationships:[], education:[], missions:[],
+    mentors:[], offspring:[], assets:[], goals:[],
+    karma:{ righteous:0, blood:0, demonic:0, chaotic:0 },
+    qi:{ stageIndex:0, current:0, max:100, breakthroughAt:100, breakthroughReady:false, path:null, expression:null },
+    silver:0, hp:100, maxHp:100, bounty:0,
+    strength:10, agility:10, endurance:10, intelligence:10, perception:10, willpower:10, charisma:10, luck:10,
+    injuries:[], illnesses:[], scars:[], crimes:[], grudges:[], failures:[],
+    decisions:[], personalEvents:[],
+    occupationHistory:[], sectState:null,
+    _tribulationHistory:[], _dualCultDependencies:[],
+    _legendaryTierReached:0,
+  };
+  Object.entries(charDefaults).forEach(([k,v]) => {
+    if(c[k] === undefined || c[k] === null) {
+      c[k] = JSON.parse(JSON.stringify(v));
+    }
+  });
+
+  // Fix birthYear if it's wrong (birthYear = year means age always 0)
+  if(c.birthYear !== undefined && w.year !== undefined && c.age !== undefined) {
+    const expectedBirthYear = w.year - c.age;
+    if(Math.abs(c.birthYear - w.year) < 2) {
+      // birthYear is same as world year — old bug, fix it
+      c.birthYear = expectedBirthYear;
+    }
+  }
+
+  // Ensure karma sub-fields exist
+  if(!c.karma || typeof c.karma !== 'object') c.karma = { righteous:0, blood:0, demonic:0, chaotic:0 };
+  c.karma.righteous = c.karma.righteous || 0;
+  c.karma.blood     = c.karma.blood     || 0;
+  c.karma.demonic   = c.karma.demonic   || 0;
+  c.karma.chaotic   = c.karma.chaotic   || 0;
+
+  // Ensure qi sub-fields
+  if(!c.qi || typeof c.qi !== 'object') c.qi = dc.qi;
+  c.qi.stageIndex      = c.qi.stageIndex      ?? 0;
+  c.qi.current         = c.qi.current         ?? 0;
+  c.qi.max             = c.qi.max             ?? 100;
+  c.qi.breakthroughAt  = c.qi.breakthroughAt  ?? 100;
+  c.qi.breakthroughReady = c.qi.breakthroughReady ?? false;
+
+  // Ensure equipment object has all slots
+  if(!c.equipment || typeof c.equipment !== 'object') c.equipment = dc.equipment;
+  ['head','body','hands','feet','weapon','offhand','acc1','acc2'].forEach(slot => {
+    if(!(slot in c.equipment)) c.equipment[slot] = null;
+  });
+
+  // ── world fields ──────────────────────────────────────────────
+  if(!w.npcRegistry) w.npcRegistry = {};
+  if(!w.discoveredSects) w.discoveredSects = [];
+  if(!w.activeWorldEvents) w.activeWorldEvents = [];
+  if(!w.worldHistory) w.worldHistory = [];
+  if(!w.myths) w.myths = [];
+  if(!w.wars) w.wars = [];
+  if(!w.scheduledEvents) w.scheduledEvents = [];
+  if(!w.malignedLords) w.malignedLords = {
+    xelaad:{active:false,spawnYear:null,location:null,form:'dormant',sin:'pride',sinShifted:false},
+    iasiba:{active:false,spawnYear:null,location:null,form:'dormant',sin:'envy',sinShifted:false},
+    dranoel:{active:false,spawnYear:null,location:null,form:'dormant',sin:'greed',sinShifted:false},
+    normac:{active:false,spawnYear:null,location:null,form:'dormant',sin:'sloth',sinShifted:false},
+  };
+  if(w.sinShiftOccurred === undefined) w.sinShiftOccurred = false;
+  if(!w.zeret) w.zeret = {active:false,spawnYear:null,location:null,form:'dormant',metAym:false,sin:'lust',reborn:false,childId:null};
+  if(!w._openingCharacters) w._openingCharacters = {};
+  if(!data.settings) data.settings = dw.settings || {};
+  if(!data.admin) data.admin = { unlocked:false, bgClicks:0, lastBgClick:0 };
+
+  return data;
+}
+
 function loadFromSlot(slot) {
   try {
     const raw = localStorage.getItem(SAVE_PREFIX + slot);
     if(!raw) { toast('No save in that slot.', 'error'); return; }
     const data = JSON.parse(raw);
+
+    // ── MIGRATION: fill any missing fields from new features ───────
+    migrateSave(data);
+
     GS = data;
     GS.char.injuries  = (GS.char.injuries||[]).map(i=>String(i)).filter(i=>i&&!i.startsWith('[object'));
     GS.char.illnesses = (GS.char.illnesses||[]).map(i=>String(i)).filter(i=>i&&!i.startsWith('[object'));
@@ -6723,7 +6889,7 @@ function initCreation() {
     state.char.firstName = fname;
     state.char.lastName  = lname;
     state.char.gender    = selectedGender;
-    state.char.birthYear = year;
+    state.char.birthYear = year - selectedAge; // FIX: birthYear must be year MINUS age so age calc is correct
     state.char.birthCity = city;
     state.char.age       = selectedAge;
     state.world.year     = year;
@@ -7924,9 +8090,15 @@ function buildSystemPrompt() {
   const stage = getQiStage();
   const loc = LOCATIONS[w.location];
   const knownNPCs = c.relationships.map(r => {
-    const npc = GS.world.npcRegistry[r.npcId];
-    const power = npc ? `[${QI_STAGES[npc.qiStageIndex||0]?.name}, STR${npc.strength||10}]` : '';
-    return `${r.name}${r.title ? ' ('+r.title+')' : ''} — ${r.type}, trust:${r.trust||0}${power}`;
+    const npc  = GS.world.npcRegistry[r.npcId];
+    const power = npc ? ` [${QI_STAGES[npc.qiStageIndex||0]?.name}]` : '';
+    const occ   = npc?.occupation ? `, occupation: ${npc.occupation}` : '';
+    const daily = npc?.dailyLife  ? `, daily life: ${npc.dailyLife.slice(0,80)}` : '';
+    const loc   = npc?.location && npc.location !== 'unknown' ? `, currently in ${LOCATIONS[npc.location]?.name||npc.location}` : '';
+    const memSnip = r.fullMemory ? ` — context: "${r.fullMemory.slice(0,120)}"` : (r.summary ? ` — "${r.summary.slice(0,80)}"` : '');
+    const grudge  = (npc?.grudgeLevel||0) > 30 ? ` [GRUDGE:${npc.grudgeLevel}]` : '';
+    const fear    = (npc?.fearLevel||0)  > 30 ? ` [FEARS player]` : '';
+    return `• ${r.name}${r.title?' ('+r.title+')':''} — ${r.type}, bond:${r.bond_level||r.trust||0}/100${power}${occ}${daily}${loc}${grudge}${fear}${memSnip}`;
   }).join('\n  ') || 'none';
   const passiveTechs = c.techniques.filter(t=>t.passiveActive).map(t=>t.name).join(', ');
   const equipped = Object.entries(c.equipment).filter(([,v])=>v).map(([k,v])=>`${k}: ${v.name}`).join(', ');
@@ -8004,8 +8176,10 @@ Karma: Righteous ${c.karma.righteous} | Blood ${c.karma.blood} | Demonic ${c.kar
 ${c.crimes.length ? 'Crimes on record: '+c.crimes.length : ''}
 ${c.occupation ? 'Occupation: '+c.occupation.title+' at '+c.occupation.location : ''}
 
-Known people (player can ONLY reference these):
+Known people — full context (these are FIXED facts about each person; DO NOT contradict them):
   ${knownNPCs}
+
+NPC CONSISTENCY RULE (ABSOLUTE): Every known NPC's occupation, location, personality, and context listed above is CANON. If someone is listed as "sells herbs on a mat in the market," they are ALWAYS that person in EVERY scene. They do not become homeless without a narrative reason. They do not forget their relationship with the player. They do not act inconsistently with their listed daily life. If the player hasn't caused a change, nothing has changed. This is non-negotiable.
 
 Reputation:
 ${repLines}
