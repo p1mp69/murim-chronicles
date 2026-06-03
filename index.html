@@ -25380,6 +25380,804 @@ startGame = function(isLoad=false) {
   } catch(e) {}
 };
 
+// ================================================================
+// ══════════════════════════════════════════════════════════════
+// ── SECT POLITICS EXPANSION
+// ── Contribution points, promotion trials, senior/junior dynamics,
+// ── annual events, merit hall, sect territory, betrayal mechanics
+// ══════════════════════════════════════════════════════════════
+// ================================================================
+
+// Contribution point system — merit currency within the sect
+function ensureSectState() {
+  const c = GS.char;
+  const w = GS.world;
+  if(!c.sectState) {
+    c.sectState = {
+      contributionPoints: 0,    // earned through missions, service, sparring wins
+      totalContributed:   0,    // all-time total (determines standing)
+      lastPromotionYear:  null,
+      promotionTestsDone: 0,
+      seniorDisciples:    [],   // NPCs who are your seniors in the sect
+      juniorDisciples:    [],   // NPCs who are your juniors
+      rivalDisciples:     [],   // peers competing with you for rank
+      meritItems:         [],   // items purchased via contribution points
+      warnings:           0,    // rule violations
+      sectEvents:         [],   // annual events participated in
+    };
+  }
+  return c.sectState;
+}
+
+// Sect merit store — items buyable with contribution points
+const SECT_MERIT_STORE = {
+  qi_pill_common:     { name:'Common Qi Pill',        cost:50,  desc:'Accelerates Qi recovery. Given to disciples with merit.',   rarity:'uncommon' },
+  technique_hint:     { name:'Technique Fragment',     cost:120, desc:'A fragment of a higher technique from sect archives. Not the full thing — the principle.', rarity:'rare' },
+  spirit_stone_small: { name:'Small Spirit Stone',     cost:80,  desc:'A palm-sized spirit stone. Channels ambient Qi into cultivation.', rarity:'rare' },
+  inner_library_pass: { name:'Inner Library Pass',     cost:200, desc:'One-time access to the inner archive. Read what you can in a day.', rarity:'epic' },
+  sect_recommendation:{ name:'Sect Recommendation Letter', cost:300, desc:'Official sect endorsement for a business, position, or alliance.', rarity:'uncommon' },
+};
+
+// Contribution points from actions
+function addContributionPoints(amount, reason) {
+  const ss = ensureSectState();
+  ss.contributionPoints += amount;
+  ss.totalContributed   += amount;
+  addPersonalEvent(`Contribution points: +${amount} (${reason}). Total: ${ss.contributionPoints}`);
+}
+
+// Sect promotion trial — you don't just get promoted, you prove it
+const SECT_PROMOTION_TRIALS = {
+  'Inner Disciple': {
+    name: 'Inner Disciple Trial',
+    desc: 'Combat trial against two peers simultaneously, plus a theoretical examination by an Elder. Must demonstrate consistent mission completion (3+ successful missions).',
+    minMissions: 3, minContribution: 150, minQiStage: 3,
+    components: ['Combat trial vs two peers','Theoretical examination by Elder','Elder council vote (majority needed)'],
+  },
+  'Core Disciple': {
+    name: 'Core Disciple Examination',
+    desc: 'A three-day examination: cultivation depth assessment, technique demonstration, and a solo dangerous mission assigned by the Grand Elder.',
+    minMissions: 8, minContribution: 500, minQiStage: 6,
+    components: ['Cultivation depth assessment by Grand Elder','Full technique demonstration','Solo assigned mission (dangerous)','3-day written examination on sect doctrine'],
+  },
+  'Elder': {
+    name: 'Elder Induction',
+    desc: 'Not a trial — a unanimous or majority vote by current Elders and Grand Elders. The character must have proven themselves over years. Cultivation stage requirement is firm.',
+    minMissions: 15, minContribution: 1500, minQiStage: 9,
+    components: ['Elder council unanimous or majority vote','Background investigation','30-day probationary observation','Acceptance of Elder obligations (binding)'],
+  },
+};
+
+// Senior/junior disciple relationship generator
+function generateSectDisciples(sect) {
+  if(sect._disciplesGenerated) return;
+  sect._disciplesGenerated = true;
+
+  const ss       = ensureSectState();
+  const rankIdx  = SECT_RANKS.indexOf(GS.char.sectState?.rank || sect.playerRank || 'Outer Disciple');
+  const firstNames = ['Wei','Shen','Dao','Fang','Bei','Ru','Gao','Lin','Xu','Mao','Hua','Jun'];
+  const lastNames  = ['Bao','Ku','Sha','Ge','Luo','Tian','Yan','Zhi','Yi','Bo','Qian','Cen'];
+
+  const mkName = () => `${firstNames[Math.floor(Math.random()*12)]} ${lastNames[Math.floor(Math.random()*12)]}`;
+  const mkId   = (name) => `disc_${name.replace(/\s/g,'_').toLowerCase()}_${uid().slice(0,4)}`;
+
+  // Generate 2-3 seniors (higher rank, potential mentors or rivals)
+  const SENIOR_PERSONALITIES = [
+    { type:'mentor_senior', rel:'They took you under their wing, or tried to. Not warm, but serious about your development.', bond:35 },
+    { type:'cold_senior', rel:'They ignore you. Not hostile — you don\'t register yet. That may change.', bond:5 },
+    { type:'competitive_senior', rel:'They watch you with the specific attention of someone who sees potential as a threat.', bond:15 },
+    { type:'protective_senior', rel:'Something about you reminds them of someone. They\'re careful not to let it show.', bond:28 },
+  ];
+  const JUNIOR_PERSONALITIES = [
+    { type:'admiring_junior', rel:'They\'ve decided to look up to you. The responsibility sits there whether you wanted it or not.', bond:20 },
+    { type:'competitive_junior', rel:'They intend to surpass you, and they want you to know it.', bond:10 },
+    { type:'struggling_junior', rel:'Working harder than anyone to compensate for something. Could use guidance they haven\'t asked for.', bond:12 },
+  ];
+
+  const numSeniors = 1 + Math.floor(Math.random() * 2);
+  const numJuniors = 1 + Math.floor(Math.random() * 2);
+  const numRivals  = 1 + Math.floor(Math.random() * 2);
+
+  // Create seniors
+  for(let i = 0; i < numSeniors; i++) {
+    const pers    = SENIOR_PERSONALITIES[Math.floor(Math.random()*SENIOR_PERSONALITIES.length)];
+    const name    = mkName();
+    const npcId   = mkId(name);
+    const qiStage = Math.min(13, (rankIdx + 1) + Math.floor(Math.random() * 2));
+    GS.world.npcRegistry[npcId] = {
+      id:npcId, name, title:'Senior Disciple', alive:true,
+      qiStageIndex:qiStage, strength:12+qiStage, agility:11+qiStage,
+      endurance:11+qiStage, intelligence:12+qiStage, perception:11+qiStage,
+      willpower:12+qiStage, charisma:10+Math.floor(Math.random()*5), luck:10,
+      personality:[pers.type], alignment: sect.alignment || 'orthodox',
+      location:sect.location, homeLocation:sect.location,
+      memoriesOfPlayer:[`Junior disciple at ${sect.name}.`],
+      hiddenHistory:[], isSectDisciple:true, sectId:sect.id, sectRank:SECT_RANKS[rankIdx+1]||'Inner Disciple',
+    };
+    GS.char.relationships.push({
+      npcId, name, title:'Senior Disciple', type:'associate',
+      summary:pers.rel, fullMemory:pers.rel,
+      trust:pers.bond, bond_level:pers.bond, alive:true,
+      isZeret:false, isLore:false, glowColor:null, lastSeen:`Year ${GS.world.year}`,
+    });
+    ss.seniorDisciples.push(npcId);
+  }
+
+  // Rivals
+  for(let i = 0; i < numRivals; i++) {
+    const name  = mkName();
+    const npcId = mkId(name);
+    GS.world.npcRegistry[npcId] = {
+      id:npcId, name, title:'Disciple', alive:true,
+      qiStageIndex:Math.max(1, rankIdx), strength:11+rankIdx, agility:10+rankIdx,
+      endurance:10+rankIdx, intelligence:11+rankIdx, perception:10+rankIdx,
+      willpower:11+rankIdx, charisma:10, luck:10,
+      personality:['competitive'], alignment:sect.alignment||'orthodox',
+      location:sect.location, homeLocation:sect.location,
+      memoriesOfPlayer:[`Peer at ${sect.name}. We're competing for the same rank.`],
+      hiddenHistory:[], isSectDisciple:true, sectId:sect.id, sectRank:sect.playerRank,
+    };
+    GS.char.relationships.push({
+      npcId, name, title:'Disciple', type:'rival',
+      summary:`A peer at ${sect.name} competing for the same rank. The tension is quiet but real.`,
+      fullMemory:`Disciple rival at ${sect.name}.`,
+      trust:12, bond_level:12, alive:true,
+      isZeret:false, isLore:false, glowColor:null, lastSeen:`Year ${GS.world.year}`,
+    });
+    ss.rivalDisciples.push(npcId);
+  }
+
+  updateRelationsTab();
+}
+
+// Annual sect events
+const SECT_ANNUAL_EVENTS = [
+  { id:'grand_tournament', name:'Grand Tournament', month:3, desc:'Annual martial tournament. All ranks compete within their tier. Winners get contribution points, prizes, and Elder attention. Losing gracefully is also noted.' },
+  { id:'founding_ceremony', name:'Sect Founding Ceremony', month:1, desc:'Anniversary of the sect\'s founding. Formal. Speeches. The founding techniques are displayed. Absent disciples are noted.' },
+  { id:'spirit_stone_audit', name:'Resource Distribution Day', month:6, desc:'Annual allocation of spirit stones, pills, and techniques. Your contribution point balance determines what you receive. Politics are most visible today.' },
+  { id:'winter_retreat', name:'Winter Cultivation Retreat', month:11, desc:'All disciples undertake a month of intensive cultivation. No missions. No politics. Just training. Breakthroughs during this period are celebrated.' },
+  { id:'elder_audience', name:'Elder Audience Week', month:8, desc:'The Elder Council holds open audience. Disciples can petition, report grievances, request promotions, or simply demonstrate progress. The most important week of the political year.' },
+];
+
+function checkSectEvents() {
+  const w    = GS.world;
+  const c    = GS.char;
+  const sect = w.discoveredSects.find(s => s.playerRank);
+  if(!sect) return;
+
+  const ss   = ensureSectState();
+  const month = w.month || 1;
+
+  SECT_ANNUAL_EVENTS.forEach(evt => {
+    if(evt.month !== month) return;
+    const alreadyFired = ss.sectEvents.some(e => e.id === evt.id && e.year === w.year);
+    if(alreadyFired) return;
+
+    ss.sectEvents.push({ id:evt.id, year:w.year, month });
+    w.activeWorldEvents.push({ id:`sect_${evt.id}_${w.year}`, year:w.year, name:`${sect.name}: ${evt.name}`, desc:evt.desc });
+    addPersonalEvent(`${sect.name} — ${evt.name} this month. ${evt.desc}`);
+    if(evt.id === 'spirit_stone_audit' && ss.contributionPoints >= 80) {
+      const award = Math.floor(ss.contributionPoints / 80) * 10;
+      addSilver(award);
+      addPersonalEvent(`Resource Distribution: received ${award}◈ silver equivalent based on contribution standing.`);
+    }
+  });
+}
+
+// Patch advanceTime to check sect events monthly
+const _advanceWithSectEvents = advanceTime;
+advanceTime = function(days=0, months=0, years=0) {
+  _advanceWithSectEvents(days, months, years);
+  try { checkSectEvents(); } catch(e) {}
+};
+
+// Patch mission completion to give contribution points
+const _origCheckMissionCompletion = checkMissionCompletion;
+checkMissionCompletion = function(msg) {
+  const before = (GS.char.missions||[]).filter(m=>m.status==='completed').length;
+  _origCheckMissionCompletion(msg);
+  const after  = (GS.char.missions||[]).filter(m=>m.status==='completed').length;
+  if(after > before && GS.world.discoveredSects.some(s=>s.playerRank)) {
+    addContributionPoints(30, 'mission completed');
+  }
+};
+
+// Add sect politics depth to system prompt
+const _bspWithSectDepth = buildSystemPrompt;
+buildSystemPrompt = function() {
+  let prompt = _bspWithSectDepth();
+  try {
+    const sect = GS.world.discoveredSects.find(s => s.playerRank);
+    if(!sect) return prompt;
+
+    const ss       = ensureSectState();
+    buildSectInternals(sect);
+    generateSectDisciples(sect);
+
+    const rankIdx  = SECT_RANKS.indexOf(sect.playerRank);
+    const nextRank = SECT_RANKS[rankIdx + 1];
+    const trial    = nextRank ? SECT_PROMOTION_TRIALS[nextRank] : null;
+
+    let sectCtx = `\nSECT DEPTH — ${sect.name}:
+Contribution Points: ${ss.contributionPoints} | Total Contributed: ${ss.totalContributed} | Warnings: ${ss.warnings}/3 (3 = expulsion)
+Your rank: ${sect.playerRank}${nextRank ? ` | Next rank: ${nextRank}` : ' | MAX RANK'}
+${trial ? `PROMOTION TRIAL for ${nextRank}: ${trial.components.join('; ')} | Requires: ${trial.minContribution} contribution points, ${trial.minMissions} missions, Stage ${trial.minQiStage}+` : ''}
+
+SENIOR DISCIPLES (treat as real NPCs with opinions of you):
+${ss.seniorDisciples.map(id=>{const r=GS.char.relationships.find(r=>r.npcId===id);return r?`- ${r.name}: ${r.summary?.slice(0,60)}`:'';}).filter(Boolean).join('\n') || 'None generated yet.'}
+
+RIVAL DISCIPLES:
+${ss.rivalDisciples.map(id=>{const r=GS.char.relationships.find(r=>r.npcId===id);return r?`- ${r.name}: ${r.summary?.slice(0,60)}`:'';}).filter(Boolean).join('\n') || 'None generated yet.'}
+
+SECT CULTURE RULES:
+1. Seniority matters. Addressing a senior disciple disrespectfully is a warning. Striking one is a trial.
+2. Contribution points are earned through missions, sparring victories, teaching juniors, and exceptional acts.
+3. Promotion requires passing a formal trial — not just being strong. The trial must be requested and approved by Elders.
+4. The sect has physical territory: training grounds, archives, pill halls, spirit stone mines, herb gardens. These locations exist.
+5. Betrayal exists: a rival disciple might sabotage your mission, steal credit, or falsely accuse you. These are real threats.
+6. Expulsion: 3 warnings, or a severe enough violation, means expulsion. Expelled disciples carry that reputation permanently.
+7. Sect backing: the sect will respond if you're attacked by outsiders — but only if your standing is good. A disgraced disciple is on their own.
+8. SECT SECRETS: Many sects have a hidden inner doctrine. This only becomes accessible at Core Disciple+. Some sects have demonic practices kept from outer disciples.`;
+
+    prompt = prompt.replace('## ABSOLUTE RULES', sectCtx + '\n\n## ABSOLUTE RULES');
+  } catch(e) {}
+  return prompt;
+};
+
+// ================================================================
+// ══════════════════════════════════════════════════════════════
+// ── WEATHER EXPANSION — Regional & Atmospheric Types
+// ══════════════════════════════════════════════════════════════
+// ================================================================
+
+// Extended weather types with regional specificity
+Object.assign(WEATHER_TYPES, {
+  // ── Azure Empire region ──────────────────────────────────────
+  canal_fog:     { label:'Canal fog',       cultivBonus:0.04, travelOk:true,  atk:'', def:'perception-based techniques suffer near water', color:'#aabbcc' },
+  trade_winds:   { label:'Trade winds',     cultivBonus:0.02, travelOk:true,  atk:'', def:'ranged techniques blown slightly off course', color:'#88aacc' },
+  humid_haze:    { label:'Humid haze',      cultivBonus:0.02, travelOk:true,  atk:'water techniques gain slight boost from moisture', def:'', color:'#9aaa88' },
+
+  // ── Ooina (Ichiro's Forest) ────────────────────────────────
+  spirit_gale:   { label:'Spirit gale',     cultivBonus:0.18, travelOk:false, atk:'all elemental techniques amplified by Ichiro\'s residual Qi', def:'mortals without Qi feel disoriented', color:'#44dd88', rare:true },
+  ancient_mist:  { label:'Ancient mist',    cultivBonus:0.22, travelOk:false, atk:'Qi techniques amplified; time feels slower', def:'', color:'#66ffaa', rare:true },
+  yokai_weather: { label:'Yokai weather',   cultivBonus:0.08, travelOk:false, atk:'', def:'normal — but non-human entities are restless and more active', color:'#88ddaa', rare:true },
+  leaf_storm:    { label:'Leaf storm',      cultivBonus:0.05, travelOk:false, atk:'wind techniques amplified', def:'visibility near zero in the canopy', color:'#66aa44' },
+
+  // ── Luo-Tin (northern, colder) ─────────────────────────────
+  iron_frost:    { label:'Iron frost',      cultivBonus:0.07, travelOk:false, atk:'ice techniques amplified, blades bite colder', def:'fire weakened; joints suffer', color:'#aabbdd' },
+  northern_gale: { label:'Northern gale',   cultivBonus:0.04, travelOk:false, atk:'wind techniques powerful', def:'movement difficult; ranged techniques off-course', color:'#8899cc' },
+  war_grey:      { label:'War grey skies',  cultivBonus:-0.02, travelOk:true, atk:'', def:'morale suppression — everything feels heavier', color:'#778899' },
+
+  // ── Buo Kingdom (war-scarred, varied terrain) ───────────────
+  dust_storm:    { label:'Dust storm',      cultivBonus:-0.04, travelOk:false, atk:'earth techniques gain slight power', def:'visibility near zero; choking conditions without cover', color:'#cc9944' },
+  ash_rain:      { label:'Ash rain',        cultivBonus:-0.03, travelOk:true,  atk:'fire still burns through ash', def:'morale and visibility both reduced; smell of old burning', color:'#998877', rare:true },
+  dry_wind:      { label:'Dry wind',        cultivBonus:0.01, travelOk:true,  atk:'fire techniques amplified by dry air', def:'water techniques weakened', color:'#ccaa77' },
+  thunderhead:   { label:'Thunderhead',     cultivBonus:0.13, travelOk:false, atk:'lightning techniques at high power, visible from miles', def:'fire techniques suppressed', color:'#5544aa' },
+
+  // ── Coastal / Shen Port ────────────────────────────────────
+  sea_fog:       { label:'Sea fog',         cultivBonus:0.05, travelOk:false, atk:'', def:'all detection and perception-based techniques at half effectiveness', color:'#99aabb' },
+  salt_wind:     { label:'Salt wind',       cultivBonus:0.02, travelOk:true,  atk:'', def:'lightning techniques slightly reduced by saline air', color:'#88aacc' },
+  typhoon:       { label:'Typhoon',         cultivBonus:0.14, travelOk:false, atk:'water and wind massively amplified', def:'everything else suppressed; physical survival priority', color:'#2244aa', rare:true },
+
+  // ── Mountain / Iron Hollow ─────────────────────────────────
+  soot_sky:      { label:'Soot sky',        cultivBonus:-0.06, travelOk:true, atk:'', def:'Qi purity reduced by industrial pollutants — cultivation feels grimy', color:'#666655' },
+  forge_heat:    { label:'Forge heat',      cultivBonus:-0.02, travelOk:true, atk:'fire techniques stronger near forge district', def:'endurance-based activities harder in the heat', color:'#cc7733' },
+  mountain_gale: { label:'Mountain gale',   cultivBonus:0.06, travelOk:false, atk:'wind and lightning amplified at altitude', def:'everything else harder at altitude', color:'#7799bb' },
+  altitude_ice:  { label:'Altitude ice',    cultivBonus:0.09, travelOk:false, atk:'ice techniques amplified; clarity of mind improved', def:'physical movement hampered; fire nearly useless', color:'#ccddff' },
+
+  // ── Rare / Omen Weather ────────────────────────────────────
+  blood_rain:    { label:'Blood rain',      cultivBonus:0.05, travelOk:true, atk:'demonic techniques amplified significantly', def:'righteous Qi practitioners feel resistance', color:'#993333', rare:true },
+  qi_storm:      { label:'Qi storm',        cultivBonus:0.25, travelOk:false, atk:'all techniques amplified chaotically — unpredictable outcomes', def:'control is compromised; techniques may misbehave', color:'#aa44ff', rare:true },
+  miasma:        { label:'Miasma',          cultivBonus:-0.08, travelOk:false, atk:'demonic techniques benefit; corpse cultivation thrives', def:'righteous and beast Qi choked by corruption', color:'#445533', rare:true },
+});
+
+// Regional weather pools — what weather is likely per location type
+const REGIONAL_WEATHER_POOLS = {
+  tazar:              ['cloudy','cloudy','canal_fog','canal_fog','rain','rain','trade_winds','humid_haze','clear','storm','fog'],
+  jade_province:      ['clear','clear','cloudy','trade_winds','humid_haze','rain','wind','canal_fog'],
+  beggars_rest:       ['cloudy','canal_fog','rain','heavy_rain','fog','clear','humid_haze'],
+  wheat_capital:      ['clear','clear','cloudy','wind','rain','dry_heat','dust_storm'],
+  iron_hollow:        ['soot_sky','soot_sky','soot_sky','cloudy','forge_heat','fog','rain','clear'],
+  ooina:              ['ancient_mist','ancient_mist','leaf_storm','fog','rain','heavy_rain','spirit_gale','yokai_weather','spirit_fog'],
+  luo_tin_capital:    ['cloudy','war_grey','northern_gale','snow','clear','rain','iron_frost'],
+  luo_tin_farm:       ['clear','cloudy','rain','northern_gale','snow','iron_frost','wind'],
+  great_defensive_giant:['mountain_gale','mountain_gale','altitude_ice','snow','blizzard','clear','northern_gale','cloudy'],
+  shen_port:          ['salt_wind','salt_wind','sea_fog','sea_fog','clear','wind','heavy_rain','typhoon','storm'],
+  silver_district:    ['cloudy','rain','clear','canal_fog','trade_winds','humid_haze'],
+  buo_capital:        ['cloudy','dust_storm','dry_wind','clear','rain','thunderhead','ash_rain'],
+  red_sand_city:      ['dust_storm','dust_storm','dry_heat','dry_wind','clear','thunderhead'],
+  mistveil:           ['fog','fog','ancient_mist','rain','spirit_fog','cloudy','leaf_storm'],
+  stone_root:         ['mountain_gale','altitude_ice','snow','clear','cloudy','wind'],
+  wild_bloom:         ['rain','rain','cloudy','fog','leaf_storm','clear','yokai_weather'],
+};
+
+// Override generateWeather to use regional pools
+generateWeather = function() {
+  const w   = GS.world;
+  const loc = w.location;
+
+  // Rare omens (0.3%)
+  if(Math.random() < 0.003) return rand(['blood_rain','qi_storm','miasma','spiritual_mist']);
+
+  const pool = REGIONAL_WEATHER_POOLS[loc];
+  if(pool) return rand(pool);
+
+  // Fallback to season-based generic
+  const month  = w.month || 1;
+  const season = getSeason(month);
+  let fallback = ['clear','clear','cloudy','cloudy'];
+  if(season.label === 'Spring') fallback.push('rain','wind');
+  if(season.label === 'Summer') fallback.push('dry_heat','clear');
+  if(season.label === 'Autumn') fallback.push('rain','fog');
+  if(season.label === 'Winter') fallback.push('snow','fog');
+  return rand(fallback);
+};
+
+// Weather affects travel speed
+const _origCalcTravelCost = calcTravelCost;
+calcTravelCost = function(days) {
+  const base   = _origCalcTravelCost(days);
+  const weather = GS.world.weather?.current;
+  const wt      = WEATHER_TYPES[weather];
+  if(wt && !wt.travelOk) {
+    return Math.ceil(base * 1.3); // bad weather costs more (shelter, delays)
+  }
+  return base;
+};
+
+// ================================================================
+// ══════════════════════════════════════════════════════════════
+// ── FORMATION ARRAYS
+// ── Geometric patterns of spirit stones/flags that produce
+// ── ongoing Qi effects: cultivation boosts, defense, concealment,
+// ── traps, spirit gathering. Requires knowledge + materials.
+// ══════════════════════════════════════════════════════════════
+// ================================================================
+
+const FORMATION_CATALOG = {
+  qi_gathering_3: {
+    name: 'Minor Qi Gathering Array',
+    type: 'cultivation',
+    desc: 'Three spirit stones arranged in a triangle. Draws ambient Qi inward. The air inside the formation feels noticeably denser.',
+    stones: 3, flags: 0,
+    setupHours: 2,
+    duration: 'permanent until disrupted',
+    effects: { cultivBonus: 0.20, range: 'room-sized' },
+    requirement: 'spirit_herb or small_spirit_stone ×3',
+    itemKeys: ['spirit_herb','small_spirit_stone','spirit_stone_small'],
+    difficulty: 1, // 1-10
+    rarity: 'uncommon',
+    aiHint: 'MINOR QI GATHERING ARRAY: The character has set up a basic formation. Describe the Qi densifying in the area — a slight heaviness, the air carrying a faint charge. Cultivation sessions here are noticeably more effective. The formation stones glow faintly in low light.',
+  },
+  qi_gathering_9: {
+    name: 'Nine-Point Qi Gathering Array',
+    desc: 'Nine stones in a precise geometric pattern covering a large area. Advanced formation theory required.',
+    type: 'cultivation',
+    stones: 9, flags: 0,
+    setupHours: 6,
+    duration: 'permanent until disrupted',
+    effects: { cultivBonus: 0.45, range: 'hall-sized' },
+    requirement: 'spirit stones ×9 + formation knowledge (alchemy Lv5+)',
+    difficulty: 5,
+    rarity: 'rare',
+    aiHint: 'NINE-POINT QI GATHERING ARRAY: A sophisticated formation. The Qi density inside is noticeably higher — cultivators can feel it before they enter. Others who cultivate nearby will sense it as a powerful Qi source. High-stage cultivators passing the area may detect it.',
+  },
+  concealment_basic: {
+    name: 'Basic Concealment Formation',
+    desc: 'Disrupts Qi sensing within a small area. What is inside looks like nothing interesting from outside.',
+    type: 'concealment',
+    stones: 4, flags: 4,
+    setupHours: 3,
+    duration: '3 days before needing reset',
+    effects: { qiConcealment: true, range: 'room-sized' },
+    requirement: 'formation flags ×4 + spirit stones ×4',
+    difficulty: 3,
+    rarity: 'uncommon',
+    aiHint: 'BASIC CONCEALMENT FORMATION: The character is inside a formation that masks Qi signatures. Cultivators searching for them by Qi sense find nothing here. The effect is not perfect — a very powerful cultivator might notice the dead zone, which is itself a tell.',
+  },
+  perimeter_alarm: {
+    name: 'Perimeter Alarm Formation',
+    desc: 'Set at the edges of a camp or room. When disrupted by a Qi-bearing entity passing through, it pulses — a vibration you feel if you\'re connected to it.',
+    type: 'detection',
+    stones: 0, flags: 6,
+    setupHours: 1,
+    duration: '1 week',
+    effects: { alarmOnBreath: true, range: 'camp-sized' },
+    requirement: 'formation flags ×6',
+    difficulty: 2,
+    rarity: 'common',
+    aiHint: 'PERIMETER ALARM FORMATION: The character has set up an alarm formation. If anything with significant Qi crosses the perimeter, they will feel it — a pulse, a pressure. This does not stop intruders but removes surprise. Describe the alert as a physical sensation rather than a sound.',
+  },
+  defensive_shell: {
+    name: 'Defensive Shell Formation',
+    desc: 'Creates a Qi barrier around a small area. Disrupts incoming techniques and slows physical attack Qi. Not impenetrable — but it takes considerably more power to breach.',
+    type: 'defense',
+    stones: 8, flags: 8,
+    setupHours: 4,
+    duration: '1 day or until breached',
+    effects: { defenseBonus: 0.3, range: 'room-sized' },
+    requirement: 'spirit stones ×8 + formation flags ×8 + formation knowledge (alchemy Lv4+)',
+    difficulty: 6,
+    rarity: 'rare',
+    aiHint: 'DEFENSIVE SHELL FORMATION: The character is protected by a defensive formation. Describe incoming attacks visibly slowing and weakening as they hit the Qi barrier. The barrier has visible limits — strong enough attacks breach it. When it starts to fail, describe the Qi membrane cracking, light visible through the fractures.',
+  },
+  five_elements_trap: {
+    name: 'Five Elements Trap Formation',
+    desc: 'An offensive formation that activates when an uninvited cultivator enters. Channels elemental Qi against the intruder through automated triggers.',
+    type: 'trap',
+    stones: 10, flags: 5,
+    setupHours: 8,
+    duration: 'permanent until triggered or dismantled',
+    effects: { trapDamage: 'elemental burst on trigger', range: 'room-sized' },
+    requirement: 'spirit stones ×10 + formation flags ×5 + formation tome or Lv6+ formation skill',
+    difficulty: 8,
+    rarity: 'epic',
+    aiHint: 'FIVE ELEMENTS TRAP FORMATION: The character has set a Qi trap. When an intruder triggers it, describe an immediate elemental reaction — fire blooming from the floor, lightning crackling through the air, earth spikes rising. The formation discerns between invited and uninvited through Qi signature recognition. A skilled formation expert can detect and dismantle it before triggering.',
+  },
+  grand_array_36: {
+    name: 'Thirty-Six Point Grand Array',
+    desc: 'A full formation array covering an entire compound. This is the kind of formation that protects sects and noble estates. Takes days to set up correctly. Once active, it is a living system that requires maintenance.',
+    type: 'compound',
+    stones: 36, flags: 18,
+    setupHours: 72,
+    duration: 'permanent — requires monthly maintenance',
+    effects: { cultivBonus: 0.60, defenseBonus: 0.50, qiConcealment: true, alarmOnBreath: true, range: 'compound-wide' },
+    requirement: 'formation stones ×36 + flags ×18 + formation master (alchemy Lv8+) + 3 days',
+    difficulty: 10,
+    rarity: 'legendary',
+    aiHint: 'THIRTY-SIX POINT GRAND ARRAY: This is a full compound array. The air inside it is fundamentally different — Qi dense, protected, and aware. Outsiders approaching the perimeter sense a wall of Qi before they see the compound. Inside, cultivation is significantly enhanced. Attacking this compound from outside is like attacking a small sect. Dismantling it from outside requires a formation expert or overwhelming force.',
+  },
+};
+
+// Known formations on character
+function ensureFormationState() {
+  if(!GS.char.formations) {
+    GS.char.formations = {
+      known:   [],     // formation IDs the player knows how to set up
+      active:  [],     // currently active formations in current location
+      stones:  0,      // spirit stones available for formations
+      flags:   0,      // formation flags available
+    };
+  }
+  return GS.char.formations;
+}
+
+function learnFormation(formationId) {
+  const def = FORMATION_CATALOG[formationId];
+  if(!def) return;
+  const fs = ensureFormationState();
+  if(fs.known.includes(formationId)) {
+    toast(`Already know: ${def.name}`, '', 2000);
+    return;
+  }
+  fs.known.push(formationId);
+  addPersonalEvent(`Learned formation: ${def.name}. ${def.desc}`);
+  toast(`Formation learned: ${def.name}`, 'gold', 3000);
+  updateFormationDisplay();
+}
+
+function attemptSetFormation(formationId) {
+  const def  = FORMATION_CATALOG[formationId];
+  const fs   = ensureFormationState();
+  const alch = getSkillLevel('alchemy'); // formation skill proxied through alchemy
+
+  if(!def) return;
+  if(!fs.known.includes(formationId)) {
+    toast(`You don't know how to set this formation yet.`, 'error', 3000);
+    return;
+  }
+  if(def.difficulty > alch + 2) {
+    toast(`Formation complexity (${def.difficulty}) exceeds your skill (${alch}). Study more.`, 'warning', 3000);
+    return;
+  }
+  if(fs.stones < def.stones) {
+    toast(`Need ${def.stones} spirit stones (have ${fs.stones}).`, 'error', 3000);
+    return;
+  }
+  if(fs.flags < def.flags) {
+    toast(`Need ${def.flags} formation flags (have ${fs.flags}).`, 'error', 3000);
+    return;
+  }
+
+  // Consume materials
+  fs.stones -= def.stones;
+  fs.flags  -= def.flags;
+
+  // Add to active formations
+  const active = {
+    id: uid(),
+    formationId,
+    name: def.name,
+    type: def.type,
+    location: GS.world.location,
+    since: GS.world.year,
+    effects: def.effects,
+  };
+  fs.active.push(active);
+
+  addPersonalEvent(`Set formation: ${def.name} at ${LOCATIONS[GS.world.location]?.name||GS.world.location}.`);
+  addSkill('alchemy','Alchemy','craftsman','Formation setting deepens understanding of Qi patterns.');
+
+  // Let AI narrate the setup
+  sendToAI(`I carefully set up the ${def.name}. I place each stone/flag precisely, channeling Qi through each to activate the pattern. ${def.setupHours} hours of careful work.
+
+[FORMATION SETUP: ${def.name} — ${def.desc}. Difficulty: ${def.difficulty}/10. The formation is being activated. Describe the process of placing the components and the moment the array activates — the Qi flowing through the geometric pattern, the visible or felt change in the area. The setup takes ${def.setupHours} hours.]`);
+
+  updateFormationDisplay();
+}
+
+function updateFormationDisplay() {
+  // Update any UI that shows active formations
+  const fs = ensureFormationState();
+  // Currently active formations shown in world tab or sidebar
+  // Simple display in system prompt — actual UI enhancement can follow
+}
+
+window.learnFormation     = learnFormation;
+window.attemptSetFormation = attemptSetFormation;
+
+// Formation effects on cultivation
+const _bspWithFormations = buildSystemPrompt;
+buildSystemPrompt = function() {
+  let prompt = _bspWithFormations();
+  try {
+    const fs      = ensureFormationState();
+    const curLoc  = GS.world.location;
+    const active  = fs.active.filter(f => f.location === curLoc);
+    if(!active.length) return prompt;
+
+    const formCtx = active.map(f => {
+      const def = FORMATION_CATALOG[f.formationId] || {};
+      const effs = f.effects || {};
+      return `ACTIVE FORMATION — ${f.name} (${def.type||'unknown'} type):
+${def.aiHint || def.desc || ''}
+Effects: ${effs.cultivBonus ? `cultivation +${Math.round(effs.cultivBonus*100)}%` : ''}${effs.defenseBonus ? `, defense +${Math.round(effs.defenseBonus*100)}%` : ''}${effs.qiConcealment ? ', Qi concealment active' : ''}${effs.alarmOnBreath ? ', perimeter alarm active' : ''}${effs.trapDamage ? ', trap primed' : ''}`;
+    }).join('\n\n');
+
+    prompt = prompt.replace('## ABSOLUTE RULES', formCtx + '\n\n## ABSOLUTE RULES');
+  } catch(e) {}
+  return prompt;
+};
+
+// Formation cultivation bonus stacks with weather
+const _bspWithFormCultiv = buildSystemPrompt;
+buildSystemPrompt = function() {
+  return _bspWithFormCultiv(); // All handled above in the formation context
+};
+
+// ================================================================
+// ══════════════════════════════════════════════════════════════
+// ── TRAVEL EXPANSION
+// ── Regional encounter tables, weather travel effects,
+// ── higher cultivation = faster travel, caravan economy,
+// ── roadside inns as actual locations
+// ══════════════════════════════════════════════════════════════
+// ================================================================
+
+// Regional encounter tables for travel
+const REGIONAL_ROAD_ENCOUNTERS = {
+  azure_empire: [
+    'a warden checkpoint requiring travel papers or a bribe',
+    'an Outer Disciple from a local sect who challenges travelers to prove themselves',
+    'a merchant caravan headed the same direction — potential escort work',
+    'refugee families moving between cities, traveling in one direction: away',
+    'a toll bridge where the toll keeper charges "whatever the traffic will bear"',
+    'cultivators from a minor sect moving in formation — they eye you and say nothing',
+    'an information broker at a roadside tea stall, selling what travelers know',
+  ],
+  luo_tin: [
+    'a military patrol stopping and questioning all travelers — papers and purpose required',
+    'a forward supply camp left over from the war — occupied, half-abandoned, contested',
+    'an ambush by war-displaced bandits who have been surviving off the road for months',
+    'a diplomatic courier with urgent messages and too few guards',
+    'a cultivator enforcing an old territorial boundary that no longer officially exists',
+    'a checkpoint taxing anyone who looks like they have silver',
+    'a village where travelers are not welcome but a generous traveler might change that',
+  ],
+  buo: [
+    'a patrol of Buo warriors who view foreign cultivators with active suspicion',
+    'burned farmsteads — the war came through here, and it shows',
+    'a traveling healer moving between villages, could use an escort',
+    'a cultivation hermit who has been here since before the war and knows the terrain',
+    'refugee merchants trying to rebuild trade routes that used to be safe',
+    'a minor conflict between two local clans that has nothing to do with the main war',
+    'a spirit beast disturbed from its territory by the war — dangerous, unpredictable',
+  ],
+  ooina: [
+    'a guide who knows the forest — expensive, necessary, probably worth it',
+    'a Qi disturbance — something Ichiro\'s remaining energy is reacting to',
+    'a Yokai. It is watching. Whether it is deciding to engage depends on how you move.',
+    'a cultivator who came to train in the forest and has not been able to leave for months',
+    'an ancient formation carved into a massive tree — faded but still active',
+    'territory that does not want you in it. The forest is making this clear.',
+    'the guide falls behind. You are alone in a place that is never truly quiet.',
+  ],
+};
+
+// Override processTravelAction to use regional encounters
+const _origProcessTravel = processTravelAction;
+processTravelAction = function(destKey) {
+  const from      = GS.world.location;
+  const fromKgdm  = LOCATIONS[from]?.kingdom || 'azure_empire';
+  const toKgdm    = LOCATIONS[destKey]?.kingdom || 'azure_empire';
+  const weather   = GS.world.weather?.current;
+  const wt        = WEATHER_TYPES[weather];
+
+  // Get result from original (handles days calc, cost, location change, time advance)
+  let injection   = _origProcessTravel(destKey);
+
+  // Replace generic encounter with regional one
+  const pool = REGIONAL_ROAD_ENCOUNTERS[fromKgdm] || REGIONAL_ROAD_ENCOUNTERS.azure_empire;
+  const encounter = rand(pool);
+
+  // Cross-kingdom travel uses destination kingdom encounters too
+  let destEncounter = null;
+  if(fromKgdm !== toKgdm) {
+    const destPool = REGIONAL_ROAD_ENCOUNTERS[toKgdm] || pool;
+    destEncounter  = rand(destPool);
+  }
+
+  // Cultivation speed bonus
+  const stage     = GS.char.qi?.stageIndex || 0;
+  const cultBonus = stage >= 9  ? 'Their high cultivation stage means they can sustain a pace that would kill ordinary travelers. The journey feels shorter to them than it should.' :
+                    stage >= 6  ? 'Their Foundation Building cultivation means extended endurance — they tire far less than a normal traveler would.' : '';
+
+  // Weather effect on travel
+  let weatherTravel = '';
+  if(wt && !wt.travelOk) {
+    weatherTravel = `Current weather (${wt.label}) makes travel dangerous — add complications: ${
+      weather === 'blizzard' ? 'near-whiteout conditions, risk of frostbite, shelter may need to be found mid-journey' :
+      weather === 'typhoon'  ? 'coastal flooding, roads washed out, boats impossible' :
+      weather === 'dust_storm'?'choking dust, visibility near zero, eyes and throat suffer' :
+      weather === 'heavy_rain'?'mud, flooding streams, shelter needed' :
+      'significant travel difficulty'
+    }.`;
+  }
+
+  // Inject the regional encounter into the existing injection
+  if(injection.includes('ROAD ENCOUNTER:')) {
+    injection = injection.replace(
+      /ROAD ENCOUNTER:.*?\n/,
+      `ROAD ENCOUNTER (regional — ${LOCATIONS[from]?.name||from}): ${encounter}. Write this as a genuine scene within the journey, not a passing mention.\n` +
+      (destEncounter ? `ARRIVAL ENCOUNTER (entering ${LOCATIONS[destKey]?.name||destKey}): ${destEncounter}. On entering the destination, this happens.\n` : '') +
+      (cultBonus ? `CULTIVATOR TRAVEL: ${cultBonus}\n` : '') +
+      (weatherTravel ? `WEATHER IMPACT: ${weatherTravel}\n` : '')
+    );
+  }
+
+  return injection;
+};
+
+// Caravan hire — travel with a group for safety and cost
+window.hireCaravan = function() {
+  const loc  = GS.world.location;
+  const cost = 15; // flat fee to join a merchant caravan
+  if(!spendSilver(cost)) {
+    toast(`Need ${formatCoins(cost)} to hire caravan space.`, 'error', 2000);
+    return;
+  }
+  addPersonalEvent(`Hired into a merchant caravan for ${formatCoins(cost)}. Safer travel, slower pace.`);
+  sendToAI(`I arrange to travel with a merchant caravan — paying for the safety of numbers. I find the caravan master and negotiate a spot. [CARAVAN TRAVEL: Safer than solo travel but adds ~30% to journey time. Road encounters should have safety-in-numbers advantage. The caravan has personality — other travelers, merchants, guards. Surface a notable fellow traveler or merchant as a potential relationship.]`);
+};
+
+// ================================================================
+// ══════════════════════════════════════════════════════════════
+// ── NPC DAILY SCHEDULES — Actually gate access by time
+// ══════════════════════════════════════════════════════════════
+// ================================================================
+
+// NPC schedule types — what hours they're accessible
+const NPC_SCHEDULE_TYPES = {
+  merchant:    { available:[6,20],  busiest:[9,17],  note:'Open during market hours. Before 6am or after 8pm: closed, probably sleeping.' },
+  official:    { available:[8,18],  busiest:[9,16],  note:'Business hours. Noon break 12-13. After 6pm: gone for the day, cannot reach them officially.' },
+  cultivator:  { available:[5,22],  busiest:[5,8],   note:'Cultivates in early morning and late evening. Usually accessible midday. Deep cultivation: do not disturb.' },
+  sect_elder:  { available:[9,17],  busiest:[10,16], note:'Audience hours by appointment. Early morning: personal cultivation. Evening: private affairs.' },
+  innkeeper:   { available:[0,24],  busiest:[18,23], note:'Always available. Busiest at dinner and evening.' },
+  guard:       { available:[0,24],  busiest:[0,24],  note:'Always on duty. Shift changes at 6am and 6pm — transition period, briefly distracted.' },
+  physician:   { available:[7,20],  busiest:[9,17],  note:'Clinic hours. Emergency calls any time but they charge more for it.' },
+  scholar:     { available:[7,22],  busiest:[9,12],  note:'Best reached in the morning. Afternoon: often in debate or private study.' },
+  criminal:    { available:[20,4],  busiest:[22,2],  note:'Night operation. Daytime: likely asleep or unavailable. Approaching them in daylight is suspicious to them.' },
+  noble:       { available:[10,22], busiest:[14,17], note:'Formal audiences midday through afternoon. Morning: personal affairs. Late evening: private time.' },
+  farmer:      { available:[5,19],  busiest:[6,12],  note:'In the fields from dawn. Return midday to eat. Accessible until evening.' },
+  disciple:    { available:[6,22],  busiest:[7,9],   note:'Morning training mandatory. Accessible throughout day except training blocks. Late night: asleep.' },
+};
+
+// Infer NPC schedule type from their properties
+function inferNPCScheduleType(npc, rel) {
+  if(!npc) return null;
+  const occ = npc.occupation?.toLowerCase() || '';
+  const pers = (npc.personality || []).join(' ').toLowerCase();
+  const type = rel?.type || '';
+
+  if(['master','elder','grand elder','sect leader'].includes(type) || pers.includes('elder')) return 'sect_elder';
+  if(npc.isSectDisciple) return 'disciple';
+  if(/merchant|trader|seller|shopkeeper/.test(occ)) return 'merchant';
+  if(/guard|warden|soldier|patrol/.test(occ)) return 'guard';
+  if(/physician|doctor|healer/.test(occ)) return 'physician';
+  if(/scholar|teacher|professor|librarian/.test(occ)) return 'scholar';
+  if(/official|magistrate|clerk|administrator/.test(occ)) return 'official';
+  if(/innkeeper|tavernkeeper/.test(occ)) return 'innkeeper';
+  if(/farmer|farmhand/.test(occ)) return 'farmer';
+  if(npc.qiStageIndex >= 4) return 'cultivator';
+  if(npc.alignment === 'demonic' || pers.includes('criminal')) return 'criminal';
+  if(pers.includes('noble') || type === 'master') return 'noble';
+  return null; // no specific type
+}
+
+// Check if an NPC is accessible at the current time
+function checkNPCAvailability(npcId) {
+  const hour  = ensureWorldHour();
+  const npc   = GS.world.npcRegistry[npcId];
+  const rel   = GS.char.relationships.find(r => r.npcId === npcId);
+  const sched = inferNPCScheduleType(npc, rel);
+
+  if(!sched || !NPC_SCHEDULE_TYPES[sched]) return { available:true };
+
+  const sch = NPC_SCHEDULE_TYPES[sched];
+  const [start, end] = sch.available;
+
+  // Handle schedules that cross midnight
+  let available;
+  if(start > end) {
+    available = hour >= start || hour <= end;
+  } else {
+    available = hour >= start && hour <= end;
+  }
+
+  const isBusiest = (() => {
+    const [bs, be] = sch.busiest;
+    return bs > be ? (hour >= bs || hour <= be) : (hour >= bs && hour <= be);
+  })();
+
+  return {
+    available,
+    scheduleType: sched,
+    note: sch.note,
+    isBusiest,
+    suggestion: !available
+      ? `${rel?.name||'They'} (${sched}) ${hour < sch.available[0] ? 'isn\'t available this early' : 'has finished for the day'}. Best time: ${sch.available[0]}:00–${sch.available[1]}:00.`
+      : null,
+  };
+}
+
+// Build schedule context for system prompt — includes specific NPC availability
+const _bspWithScheduleCheck = buildSystemPrompt;
+buildSystemPrompt = function() {
+  let prompt = _bspWithScheduleCheck();
+  try {
+    const hour = ensureWorldHour();
+    const c    = GS.char;
+
+    // Check availability of all known relationships and inject brief notes for unavailable ones
+    const unavailable = c.relationships
+      .filter(r => r.alive !== false)
+      .map(r => {
+        const avail = checkNPCAvailability(r.npcId);
+        if(!avail.available) return `${r.name} (${avail.scheduleType}): ${avail.note}`;
+        return null;
+      })
+      .filter(Boolean);
+
+    if(unavailable.length) {
+      const schedCtx = `NPC AVAILABILITY AT CURRENT HOUR (${hour.toString().padStart(2,'0')}:00) — THESE PEOPLE ARE NOT ACCESSIBLE RIGHT NOW:\n${unavailable.slice(0,5).join('\n')}\nIf the player tries to interact with an unavailable NPC, they should find them asleep, closed, or otherwise unavailable — suggest when to return.`;
+      prompt = prompt.replace('## ABSOLUTE RULES', schedCtx + '\n\n## ABSOLUTE RULES');
+    }
+  } catch(e) {}
+  return prompt;
+};
+
+// Block interaction attempts when NPC is unavailable
+const _sqaWithSchedule = sendQuickAction;
+sendQuickAction = function(npcId, actionType) {
+  const avail = checkNPCAvailability(npcId);
+  if(!avail.available && avail.scheduleType !== 'innkeeper' && avail.scheduleType !== 'guard') {
+    const rel = GS.char.relationships.find(r => r.npcId === npcId);
+    toast(avail.suggestion || `${rel?.name||'They'} isn't available right now.`, 'warning', 4000);
+    // Don't hard block — let player try anyway but AI will reflect their schedule
+  }
+  _sqaWithSchedule(npcId, actionType);
+};
+
 console.log('Murim Chronicles fully loaded.');
 
 </script>
