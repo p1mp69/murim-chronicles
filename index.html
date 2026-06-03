@@ -7269,21 +7269,82 @@ function updateWorldTab() {
     : '<span class="text-muted italic text-xs">The world is quiet.</span>';
 
   // Education
+  // Education — show actual schools at current location with enroll buttons
   const edContent = document.getElementById('w-education-content');
   if(edContent) {
-    let html = '';
-    Object.entries(LOCATIONS).forEach(([k, loc]) => {
-      if(loc.type==='capital'||loc.type==='merchant_city') {
-        html += `<p style="margin-bottom:8px"><strong>${loc.name}:</strong> Schools, scribes, and private tutors operate here. Examinations are held. Access depends on connections and silver.</p>`;
-      } else if(loc.type==='fortress') {
-        html += `<p style="margin-bottom:8px"><strong>${loc.name}:</strong> Military training and tactical doctrine. Formal combat instruction for those who join the ranks.</p>`;
-      } else if(loc.type==='forest') {
-        html += `<p style="margin-bottom:8px"><strong>${loc.name}:</strong> No formal institutions. Knowledge is passed through endurance and the occasional master who finds you worth teaching.</p>`;
-      } else if(loc.type==='slum') {
-        html += `<p style="margin-bottom:8px"><strong>${loc.name}:</strong> No formal schooling. What gets learned here, you learn from surviving it.</p>`;
+    const loc          = GS.world.location;
+    const locName      = LOCATIONS[loc]?.name || loc;
+    const available    = getAvailableSchools(loc);
+    const enrolled     = (GS.char.education || []).filter(e => e.status === 'enrolled');
+    const completed    = (GS.char.education || []).filter(e => e.status === 'graduated');
+    const priceMod     = LOCATION_PRICE_MOD?.[loc] || 1.0;
+
+    if(!available.length) {
+      edContent.innerHTML = `<div style="font-size:12px;color:var(--dim);font-style:italic">No formal institutions in ${locName}. Knowledge here is earned through experience, not tuition.</div>`;
+    } else {
+      let html = `<div style="font-size:11px;color:var(--dim);margin-bottom:10px">Institutions available in <strong style="color:var(--text)">${locName}</strong>:</div>`;
+
+      // Currently enrolled banner
+      enrolled.forEach(e => {
+        const inst = EDUCATION_INSTITUTIONS[e.institution];
+        if(!inst) return;
+        const pct = Math.min(100, Math.round((e.monthsCompleted / inst.durationMonths) * 100));
+        html += `<div style="margin-bottom:8px;padding:8px 10px;background:rgba(196,154,48,.08);border:1px solid rgba(196,154,48,.3);border-radius:6px">
+          <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+            <span style="font-size:12px;font-weight:700;color:var(--gold)">✦ ${e.name}</span>
+            <span style="font-size:10px;color:var(--gold)">${Math.floor(e.monthsCompleted)}/${inst.durationMonths} months</span>
+          </div>
+          <div style="height:3px;background:var(--s4);border-radius:3px;margin-bottom:6px">
+            <div style="width:${pct}%;height:100%;background:var(--gold);border-radius:3px"></div>
+          </div>
+          <div style="display:flex;gap:6px">
+            <button class="btn-secondary btn-sm" onclick="studyHard('${e.institution}')">Study hard (−${Math.ceil(inst.costPerMonth * 0.5 * priceMod)}◈, +1 month progress)</button>
+            <button class="btn-danger btn-sm" onclick="dropFromSchool('${e.institution}')">Drop out</button>
+          </div>
+        </div>`;
+      });
+
+      // Available institutions
+      available.forEach(inst => {
+        const isEnrolled  = enrolled.some(e => e.institution === inst.key);
+        const isCompleted = completed.some(e => e.institution === inst.key);
+        const monthlyCost = Math.ceil(inst.costPerMonth * priceMod);
+        const canAfford   = GS.char.silver >= monthlyCost;
+        const meetsPrereq = !inst.prereqSkill || getSkillLevel(inst.prereqSkill) >= inst.prereqMin;
+        const typeColors  = { scholarly:'#4488cc', medical:'#44aa66', commercial:'#c49a30', military:'#cc4422', legal:'#9944cc', technical:'#44aaaa', exploration:'#44cc88', diplomatic:'#cc6644', artistic:'#cc44aa', historical:'#8844cc', philosophical:'#aa8844', philosophical_school:'#aa8844' };
+        const color       = typeColors[inst.type] || 'var(--muted)';
+
+        if(isEnrolled || isCompleted) return; // already shown above or completed
+
+        html += `<div class="edu-card${isEnrolled?' edu-enrolled':''}">
+          <div class="edu-card-header">
+            <div>
+              <div class="edu-card-name">${inst.name}</div>
+              <div style="font-size:9px;color:${color};text-transform:uppercase;letter-spacing:.08em;margin-top:1px">${inst.type}</div>
+            </div>
+            <span class="edu-card-type">${monthlyCost}◈/mo · ${inst.durationMonths}mo</span>
+          </div>
+          <div class="edu-card-desc" style="font-style:italic;color:var(--dim)">"${inst.tagline}"</div>
+          <div class="edu-card-desc">${inst.desc.slice(0,140)}…</div>
+          <div class="edu-card-skills">Teaches: ${inst.teaches.slice(0,4).join(', ')}${inst.teaches.length>4?'…':''}</div>
+          <div class="edu-card-meta">Total cost: ~${formatCoins(monthlyCost * inst.durationMonths)} · Graduation bonuses: +${Object.entries(inst.graduation.statBonus||{}).map(([k,v])=>`${k} +${v}`).join(', ')}</div>
+          ${inst.prereqSkill ? `<div style="font-size:10px;color:${meetsPrereq?'var(--green)':'var(--red)'};margin-bottom:6px">Prereq: ${inst.prereqSkill} Lv${inst.prereqMin} ${meetsPrereq?'✓':'✗ (not met)'}</div>` : ''}
+          <button class="btn-${canAfford&&meetsPrereq?'primary':'secondary'} btn-sm"
+            onclick="enrollInSchool('${inst.key}')"
+            ${(!canAfford||!meetsPrereq)?'disabled':''}>
+            ${isCompleted ? '✓ Graduated' : canAfford&&meetsPrereq ? 'Enroll' : !meetsPrereq ? 'Prereq not met' : `Need ${formatCoins(monthlyCost - GS.char.silver)} more`}
+          </button>
+        </div>`;
+      });
+
+      // Completed
+      if(completed.length) {
+        html += `<div style="margin-top:10px;font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--dim);margin-bottom:6px">Graduated from</div>`;
+        html += completed.map(e => `<div style="font-size:11px;color:var(--muted);padding:2px 0">✓ ${e.name} (Year ${e.since})</div>`).join('');
       }
-    });
-    edContent.innerHTML = html || '<span class="text-muted italic text-xs">No educational institutions known.</span>';
+
+      edContent.innerHTML = html;
+    }
   }
 
   // Politics — show current location's kingdom, not hardcoded Azure Empire
@@ -13142,6 +13203,29 @@ function updateEducationSection() {
 
   el.innerHTML = html || '<div style="font-size:12px;color:var(--dim)">Nothing to show.</div>';
 }
+
+// Patch updateEducationSection to use the same rendering as updateWorldTab
+updateEducationSection = function() {
+  // Just re-trigger the world tab's education rendering
+  try { updateWorldTab(); } catch(e) {}
+};
+
+// studyHard — pay half month fee, get one month of extra progress
+window.studyHard = function(instKey) {
+  const inst = EDUCATION_INSTITUTIONS[instKey];
+  const enr  = (GS.char.education || []).find(e => e.institution === instKey && e.status === 'enrolled');
+  if(!inst || !enr) return;
+  const cost = Math.ceil(inst.costPerMonth * 0.5 * (LOCATION_PRICE_MOD?.[GS.world.location] || 1));
+  if(!spendSilver(cost)) {
+    toast(`Need ${formatCoins(cost)} to study hard this month.`, 'error', 2500);
+    return;
+  }
+  enr.monthsCompleted += 1;
+  enr.silverPaid += cost;
+  addPersonalEvent(`Intensive study session at ${inst.name}. (${Math.floor(enr.monthsCompleted)}/${inst.durationMonths} months)`);
+  sendToAI(`I spend a full day in intensive study at ${inst.name} — going deeper than the normal curriculum demands, asking harder questions, staying later. This is beyond what's required.`);
+  updateWorldTab();
+};
 
 // Wire education tick into advanceTime
 const _withEduTick = advanceTime;
@@ -24299,6 +24383,435 @@ updateWorldTab = function() {
       </div>
       <div style="font-size:11px;color:var(--muted);line-height:1.5">${cons.desc}</div>
       ${tier ? `<div style="font-size:10px;color:var(--dim);margin-top:4px">Active hunters: ${tier.label} tier</div>` : ''}`;
+  } catch(e) {}
+};
+
+// ================================================================
+// ══════════════════════════════════════════════════════════════
+// ── HEAVENLY TRIBULATION SYSTEM
+// ── Stage 12 always triggers a mandatory multi-wave tribulation.
+// ── 9 waves. Each harder than the last. The world notices.
+// ══════════════════════════════════════════════════════════════
+// ================================================================
+
+// Tribulation state lives on GS.char._tribulation
+function initTribulation(targetStage, severity) {
+  const c = GS.char;
+  const w = GS.world;
+  c._tribulation = {
+    active:       true,
+    targetStage,
+    severity:     severity || 'moderate',
+    wave:         1,
+    maxWaves:     9,
+    survived:     [],     // 'survived' | 'damaged' per wave
+    totalDmg:     0,
+    startYear:    w.year,
+    startMonth:   w.month,
+  };
+
+  // World event — everyone within range feels this
+  w.worldHistory.push(`Year ${w.year}: A heavenly tribulation descended near ${LOCATIONS[w.location]?.name || w.location}. Cultivators within hundreds of miles felt the pressure.`);
+  w.activeWorldEvents.push({
+    id:`tribulation_${uid()}`, year:w.year,
+    name:'Heavenly Tribulation',
+    desc:`A tribulation-level cultivator is attempting to transcend near ${LOCATIONS[w.location]?.name || w.location}. The sky has changed. Those sensitive to Qi can feel it.`
+  });
+
+  // Maligned Lords notice at this level
+  const lordsPresent = [];
+  if(w.zeret?.active) lordsPresent.push('Zeret');
+  Object.entries(w.malignedLords||{}).forEach(([k,v]) => { if(v?.active) lordsPresent.push(LORD_NAMES[k]||k); });
+  if(lordsPresent.length) {
+    addPersonalEvent(`The Maligned Lords ${lordsPresent.join(', ')} have registered the tribulation. What happens here will be noted.`);
+  }
+
+  updateCharacterTab();
+  updateWorldTab();
+}
+
+// Get tribulation state string for system prompt
+function buildTribulationContext() {
+  const t = GS.char._tribulation;
+  if(!t?.active) return '';
+
+  const waveDescs = {
+    1:'First wave — a rumble above, the first discharge. A warning. Still survivable through endurance alone.',
+    2:'Second wave — the sky darkens further. Qi circulation becomes harder. The lightning is real.',
+    3:'Third wave — a genuine strike. This one carries intent.',
+    4:'Fourth wave — the air burns. Lesser cultivators in the area are fleeing.',
+    5:'Fifth wave — the midpoint. The heavens are committed now. Half the tribulation survived. The other half will not be kinder.',
+    6:'Sixth wave — the strikes are targeted now. They find the weakest points in the body\'s Qi structure.',
+    7:'Seventh wave — the sky cracks. The pressure alone is enough to collapse meridians in those not strong enough.',
+    8:'Eighth wave — almost through. This one is the second-hardest. The heavens give everything before the last.',
+    9:'NINTH WAVE — THE FINAL JUDGMENT. Everything the tribulation has been building toward. Survive this and you transcend. Fail and the cultivation falls.',
+  };
+
+  const severityNote = {
+    moderate:'Moderate tribulation. High willpower and endurance can carry the player through. Good chance of survival.',
+    severe:'Severe tribulation. Without preparation, core damage is likely. Techniques, pills, or allies may be needed.',
+    catastrophic:'Catastrophic tribulation. This can kill. Even prepared cultivators may be permanently scarred. Every wave is potentially lethal.',
+  }[t.severity] || '';
+
+  return `\n═══════════════════════════════════════
+HEAVENLY TRIBULATION IN PROGRESS — WAVE ${t.wave}/${t.maxWaves}
+Severity: ${t.severity.toUpperCase()} | Target stage: ${QI_STAGES[t.targetStage]?.name||t.targetStage}
+Waves survived so far: ${t.survived.length} (${t.survived.filter(s=>s==='survived').length} clean, ${t.survived.filter(s=>s==='damaged').length} survived with damage)
+Total tribulation damage accumulated: ${t.totalDmg}
+
+THIS WAVE: ${waveDescs[t.wave] || 'Continuing tribulation.'}
+${severityNote}
+
+TRIBULATION RULES:
+1. Narrate this wave's lightning strike with full weight — physical, environmental, devastating.
+2. The player's action this turn is how they face this wave: endure, use a technique, consume a pill, channel a formation, accept the damage.
+3. Determine if they survive this wave: willpower ${GS.char.willpower}, current HP ${GS.char.hp}/${GS.char.maxHp}, Qi ${GS.char.qi?.current||0}/${GS.char.qi?.max||100}.
+4. If they survive: include in response "tribulationWave": { "wave": ${t.wave}, "survived": true, "damage": N, "waveNote": "..." }
+5. If they fail (HP critical + core damage): include "tribulationWave": { "wave": ${t.wave}, "survived": false, "damage": N, "coreDamage": true }
+6. After wave 9 survived: include "tribulationComplete": true — the breakthrough is complete.
+7. Animals have fled the area. The sky looks wrong. People in the city can see the lightning from miles away.
+8. Do not advance the wave in the narrative — one wave per player action.
+══════════════════════════════════════`;
+}
+
+// Patch buildSystemPrompt to include tribulation
+const _bspWithTrib = buildSystemPrompt;
+buildSystemPrompt = function() {
+  let prompt = _bspWithTrib();
+  try {
+    const tribCtx = buildTribulationContext();
+    if(tribCtx) prompt = prompt.replace('## ABSOLUTE RULES', tribCtx + '\n## ABSOLUTE RULES');
+  } catch(e) {}
+  return prompt;
+};
+
+// Patch applyAIResponse to handle tribulation wave outcomes
+const _applyWithTrib = applyAIResponse;
+applyAIResponse = function(res) {
+  _applyWithTrib(res);
+  try {
+    const t = GS.char._tribulation;
+
+    if(res?.tribulationWave && t?.active) {
+      const wv  = res.tribulationWave;
+      const dmg = wv.damage || 0;
+      t.totalDmg += dmg;
+
+      if(wv.survived) {
+        t.survived.push('survived');
+        GS.char.hp = Math.max(1, GS.char.hp - dmg);
+
+        if(wv.wave >= t.maxWaves || res.tribulationComplete) {
+          // TRIBULATION COMPLETE — BREAKTHROUGH
+          completeTribulation(true);
+        } else {
+          t.wave = (t.wave || 1) + 1;
+          toast(`Wave ${wv.wave} survived. ${t.maxWaves - t.wave + 1} waves remaining.`, 'gold', 3000);
+        }
+      } else {
+        // Wave failed
+        t.survived.push('damaged');
+        GS.char.hp = Math.max(1, GS.char.hp - dmg);
+        if(wv.coreDamage) {
+          addInjury('Tribulation core damage — Qi pathways fractured. Cultivation is compromised until healed.');
+          GS.char.qi.current = Math.floor((GS.char.qi.current || 0) * 0.3);
+        }
+        if(GS.char.hp <= 1 || wv.death) {
+          completeTribulation(false);
+        } else {
+          t.wave = (t.wave || 1) + 1;
+          toast(`Wave ${wv.wave} — survived with heavy damage.`, 'error', 3000);
+        }
+      }
+      updateCharacterTab();
+    }
+  } catch(e) {}
+};
+
+function completeTribulation(success) {
+  const c = GS.char;
+  const w = GS.world;
+  const t = c._tribulation;
+  if(!t) return;
+
+  if(success) {
+    // Advance cultivation stage
+    const nextStage = QI_STAGES[t.targetStage];
+    if(nextStage) {
+      c.qi.stageIndex = t.targetStage;
+      c.qi.current    = Math.floor(nextStage.qiNeeded * 0.05);
+      c.qi.max        = nextStage.qiNeeded;
+      c.qi.breakthroughAt = Math.floor(nextStage.qiNeeded * 1.0);
+      c.qi.breakthroughReady = false;
+      // Apply stage bonuses
+      Object.entries(nextStage.bonus || {}).forEach(([k,v]) => { if(c[k]!==undefined) c[k] += v; });
+      // Heavenly Marked trait
+      if(!c.traits.some(t => t.id === 'heavenly_marked')) {
+        giveTrait('heavenly_marked');
+      }
+    }
+    addPersonalEvent(`Tribulation transcended. ${t.survived.length} waves. Year ${w.year}.`);
+    w.worldHistory.push(`Year ${w.year}: ${c.firstName} ${c.lastName} survived a ${t.severity} heavenly tribulation and achieved ${nextStage?.name || 'Tribulation Transcendence'}.`);
+    toast('Tribulation survived. You have transcended.', 'gold', 8000);
+    checkLegendaryMilestones();
+  } else {
+    addPersonalEvent(`Tribulation failed — wave ${t.wave}. Cultivation damaged. Year ${w.year}.`);
+    w.worldHistory.push(`Year ${w.year}: ${c.firstName} ${c.lastName} failed a heavenly tribulation near ${LOCATIONS[w.location]?.name || w.location}.`);
+    toast('Tribulation failed.', 'error', 6000);
+  }
+
+  // Clear tribulation state
+  c._tribulationHistory = c._tribulationHistory || [];
+  c._tribulationHistory.push({ ...t, completed: w.year, success });
+  delete c._tribulation;
+  updateCharacterTab();
+  updateWorldTab();
+}
+
+// Patch the breakthrough function to trigger mandatory tribulation at stage 12
+const _origAttemptBreakthrough = attemptBreakthrough;
+attemptBreakthrough = function() {
+  const c = GS.char;
+  const targetIdx = (c.qi?.stageIndex || 0) + 1;
+
+  // Stage 12 (Tribulation Transcendence) ALWAYS triggers a mandatory tribulation
+  if(targetIdx === 12) {
+    const karma = c.karma || {};
+    const dark  = (karma.blood || 0) * 1.3 + (karma.demonic || 0);
+    const severity = dark > 120 ? 'catastrophic' : dark > 80 ? 'severe' : 'moderate';
+
+    c.qi.breakthroughReady = false;
+    initTribulation(12, severity);
+
+    GS.narrative.push(`The sky above you changes. Not weather — something older than weather. The Qi around you begins to condense, drawn toward you against its will. The tribulation has begun. Nine waves of heaven's judgment. Whatever you did to reach this point, the heavens have an opinion about it.`);
+    addPersonalEvent(`Heavenly tribulation commenced. Stage 12 attempt. Severity: ${severity}. Wave 1 of 9 awaits.`);
+
+    return {
+      success: 'pending_tribulation',
+      mandatory: true,
+      severity,
+      note: `Stage 12 always requires a heavenly tribulation. ${severity} tribulation. 9 waves. Respond to each wave through action.`
+    };
+  }
+
+  return _origAttemptBreakthrough();
+};
+
+// Patch system prompt to add tribulationWave to schema
+const _bspWithTribSchema = buildSystemPrompt;
+buildSystemPrompt = function() {
+  let prompt = _bspWithTribSchema();
+  if(!prompt.includes('"tribulationWave"')) {
+    prompt = prompt.replace('"death": false', '"death": false,\n  "tribulationWave": null,\n  "tribulationComplete": false');
+  }
+  return prompt;
+};
+
+// ================================================================
+// ══════════════════════════════════════════════════════════════
+// ── OFFSPRING / CHILDREN SYSTEM
+// ── Children age, develop, cultivate, and become real NPCs.
+// ══════════════════════════════════════════════════════════════
+// ================================================================
+
+// Tick offspring ages and trigger milestones
+function tickOffspring(daysElapsed) {
+  const c  = GS.char;
+  const w  = GS.world;
+  if(!c.offspring?.length) return;
+
+  c.offspring.forEach(child => {
+    if(!child.alive) return;
+    if(!child.birthYear) child.birthYear = w.year - (child.age || 0);
+
+    const prevAge    = child.age || 0;
+    child.age        = w.year - child.birthYear;
+    const age        = child.age;
+    const name       = child.name || 'your child';
+
+    // Initialize stats if missing
+    if(!child.stats) {
+      child.stats = {
+        strength: 8 + Math.floor(Math.random()*3),
+        agility:  8 + Math.floor(Math.random()*3),
+        endurance:8 + Math.floor(Math.random()*3),
+        intelligence:8+Math.floor(Math.random()*4),
+        willpower:8 + Math.floor(Math.random()*3),
+        charisma: 8 + Math.floor(Math.random()*4),
+        perception:8+Math.floor(Math.random()*3),
+      };
+    }
+    if(!child.qi) child.qi = { stageIndex: 0, current: 0 };
+    if(!child.personality) child.personality = rand(['curious','quiet','fierce','gentle','clever','reckless','watchful','warm']);
+    if(!child.location) child.location = w.location;
+
+    // Stat growth by age
+    if(age !== prevAge && age > 0) {
+      // Gentle growth per year
+      child.stats.strength    = Math.min(99, (child.stats.strength||8)    + (age > 12 ? 1 : 0));
+      child.stats.endurance   = Math.min(99, (child.stats.endurance||8)   + (age > 8  ? 1 : 0));
+      child.stats.intelligence= Math.min(99, (child.stats.intelligence||8)+ 1);
+      child.stats.willpower   = Math.min(99, (child.stats.willpower||8)   + (age > 10 ? 1 : 0));
+    }
+
+    // Milestone events
+    if(prevAge < 1 && age >= 1 && age < 3) {
+      GS.narrative.push(`${name} is walking now. Unsteadily, with absolute commitment.`);
+    }
+
+    if(prevAge < 5 && age >= 5) {
+      child.personality = child.personality || rand(['curious','quiet','fierce','gentle','clever']);
+      addPersonalEvent(`${name} has turned five. ${child.personality.charAt(0).toUpperCase()+child.personality.slice(1)} by nature, already.`);
+    }
+
+    if(prevAge < 8 && age >= 8) {
+      // They start showing interest in cultivation or other paths
+      const paths = ['cultivation','martial arts','scholarship','trade','medicine'];
+      child.interest = rand(paths);
+      addPersonalEvent(`${name} has shown a clear interest in ${child.interest}. Worth paying attention to.`);
+    }
+
+    if(prevAge < 12 && age >= 12) {
+      // Can begin cultivation if they have the aptitude
+      if(!child.qi || child.qi.stageIndex === 0) {
+        const canCultivate = Math.random() < 0.7; // 70% can start Qi sensing
+        if(canCultivate) {
+          child.qi = { stageIndex: 0, current: 5, aptitude: 'present' };
+          addPersonalEvent(`${name} has shown Qi aptitude at age ${age}. They could cultivate, with proper guidance.`);
+          GS.narrative.push(`${name} has started showing signs of Qi sensitivity — the kind you recognize from your own early days.`);
+        }
+      }
+    }
+
+    if(prevAge < 16 && age >= 16) {
+      // Coming of age — becomes a proper NPC in relationships
+      const npcId = `offspring_${child.name?.toLowerCase().replace(/\s+/g,'_')}_${uid().slice(0,4)}`;
+      if(!w.npcRegistry[npcId]) {
+        w.npcRegistry[npcId] = {
+          id: npcId, name: child.name, title: '', alive: true,
+          qiStageIndex: child.qi?.stageIndex || 0,
+          strength:    child.stats?.strength    || 10,
+          agility:     child.stats?.agility     || 10,
+          endurance:   child.stats?.endurance   || 10,
+          intelligence:child.stats?.intelligence|| 10,
+          perception:  child.stats?.perception  || 10,
+          willpower:   child.stats?.willpower   || 10,
+          charisma:    child.stats?.charisma    || 10,
+          luck:        10,
+          personality: [child.personality || 'quiet'],
+          alignment:   'orthodox',
+          location:    child.location || w.location,
+          homeLocation:child.location || w.location,
+          memoriesOfPlayer: [`Child of ${c.firstName} ${c.lastName}. Grew up knowing them.`],
+          hiddenHistory: [],
+          isOffspring: true,
+        };
+      }
+      child.npcId = npcId;
+
+      // Add to relationships if not already there
+      if(!c.relationships.find(r => r.npcId === npcId)) {
+        c.relationships.push({
+          npcId, name: child.name, title: '', type: 'offspring',
+          summary: `Your child. ${age} years old. ${child.personality}, drawn to ${child.interest||'life'}.`,
+          fullMemory: `${child.name} is your child. Born Year ${child.birthYear}. They have grown up around your story, for better or worse.`,
+          trust: 65, bond_level: 72, alive: true,
+          isZeret:false, isLore:false, glowColor:null,
+          lastSeen:`Year ${w.year}`,
+        });
+        updateRelationsTab();
+      }
+
+      addPersonalEvent(`${name} has come of age at ${age}. They are their own person now.`);
+      GS.narrative.push(`${name} is ${age}. You look at them and see someone who is no longer becoming — someone who has arrived, mostly. Whatever they make of that is up to them now.`);
+    }
+
+    if(prevAge < 20 && age >= 20) {
+      // Full adulthood — they might leave, start their own path
+      if(child.interest === 'cultivation' && child.qi?.stageIndex > 0) {
+        addPersonalEvent(`${name} has begun cultivating seriously. They have ${QI_STAGES[child.qi.stageIndex]?.name || 'early'} cultivation.`);
+      }
+      const leaveRoll = Math.random();
+      if(leaveRoll < 0.3) {
+        child.location = rand(Object.keys(LOCATIONS).filter(k => LOCATIONS[k].spawnable));
+        const rel = c.relationships.find(r => r.npcId === child.npcId);
+        if(rel) rel.summary = `${name} has left home to pursue ${child.interest||'their own path'}. They write, sometimes.`;
+        addPersonalEvent(`${name} has left home. They are pursuing ${child.interest||'their own way'} in ${LOCATIONS[child.location]?.name||child.location}.`);
+      }
+    }
+  });
+
+  // Update offspring block on character tab
+  updateCharacterTab();
+}
+
+// Wire offspring tick into advanceTime
+const _advanceWithOffspring = advanceTime;
+advanceTime = function(days=0, months=0, years=0) {
+  _advanceWithOffspring(days, months, years);
+  try {
+    const elapsed = (days||0) + (months||0)*30 + (years||0)*360;
+    if(elapsed >= 30) tickOffspring(elapsed); // Only tick on meaningful time passage
+  } catch(e) {}
+};
+
+// Patch system prompt to tell AI about offspring
+const _bspWithOffspring = buildSystemPrompt;
+buildSystemPrompt = function() {
+  let prompt = _bspWithOffspring();
+  try {
+    const offspring = (GS.char.offspring || []).filter(o => o.alive);
+    if(!offspring.length) return prompt;
+
+    const lines = offspring.map(child => {
+      const qi = child.qi?.stageIndex > 0 ? ` | Cultivation: ${QI_STAGES[child.qi.stageIndex]?.name}` : ' | No cultivation yet';
+      const stats = child.stats ? `| STR${child.stats.strength} INT${child.stats.intelligence} WIL${child.stats.willpower}` : '';
+      return `- ${child.name}, age ${child.age} (born Year ${child.birthYear}) | ${child.personality||'unknown personality'} | Interest: ${child.interest||'undecided'} | Location: ${LOCATIONS[child.location]?.name||child.location||'unknown'}${qi} ${stats}`;
+    }).join('\n');
+
+    const section = `YOUR CHILDREN:\n${lines}\nOFFSPRING RULES: Children have real lives. They develop personalities, interests, and cultivation paths independently. As they age (especially at 5, 8, 12, 16, 20), their character solidifies. The player's reputation, choices, and legendary status affect how their children see them. Children can be trained, mentored, ignored, or pushed away. They remember.`;
+    prompt = prompt.replace('## ABSOLUTE RULES', section + '\n\n## ABSOLUTE RULES');
+  } catch(e) {}
+  return prompt;
+};
+
+// Offspring on character tab — richer display
+const _charTabWithOffspring = updateCharacterTab;
+updateCharacterTab = function() {
+  _charTabWithOffspring();
+  try {
+    const offspring = (GS.char.offspring || []);
+    const section   = document.getElementById('offspring-section');
+    const block     = document.getElementById('offspring-block');
+    if(!section || !block) return;
+
+    if(!offspring.length) { section.style.display = 'none'; return; }
+    section.style.display = '';
+
+    block.innerHTML = offspring.map(child => {
+      if(!child.alive) return `<div style="font-size:11px;color:var(--dim);text-decoration:line-through">${child.name} (deceased)</div>`;
+      const qi = child.qi?.stageIndex > 0 ? QI_STAGES[child.qi.stageIndex]?.name : null;
+      const interest = child.interest ? ` · ${child.interest}` : '';
+      const loc = child.location ? ` · ${LOCATIONS[child.location]?.name||child.location}` : '';
+      return `<div style="margin-bottom:6px;padding:6px 8px;background:var(--s2);border:1px solid var(--border);border-radius:5px">
+        <div style="font-size:12px;font-weight:700;color:var(--text)">${child.name} <span style="font-size:10px;color:var(--dim);font-weight:normal">age ${child.age || '?'}</span></div>
+        <div style="font-size:10px;color:var(--muted)">${child.personality||''}${interest}${loc}</div>
+        ${qi ? `<div style="font-size:10px;color:var(--teal)">${qi}</div>` : ''}
+      </div>`;
+    }).join('');
+  } catch(e) {}
+};
+
+// On startGame: ensure offspring have birthYears
+const _startWithOffspring = startGame;
+startGame = function(isLoad=false) {
+  _startWithOffspring(isLoad);
+  try {
+    (GS.char.offspring || []).forEach(child => {
+      if(!child.birthYear && child.age) {
+        child.birthYear = GS.world.year - child.age;
+      }
+    });
   } catch(e) {}
 };
 
