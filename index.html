@@ -22906,6 +22906,296 @@ updateWorldTab = function() {
   } catch(e) {}
 };
 
+// ================================================================
+// ── LEGENDARY EXISTENCE SYSTEM
+// ── The player has no strength ceiling. But there is a measure.
+// ── At the limit of strength, the world itself changes around them.
+// ================================================================
+
+// ── Tiers of legendary existence ────────────────────────────────
+// Based on cultivation stage + power rating + renown
+const LEGENDARY_TIERS = [
+  {
+    tier: 0,
+    label: 'Mortal / Emerging',
+    stageThreshold: 0,
+    prThreshold: 0,
+    worldBehavior: null, // no special world behavior
+  },
+  {
+    tier: 1,
+    label: 'Powerful Cultivator',
+    stageThreshold: 7,    // Foundation Building+
+    prThreshold: 300,
+    worldBehavior: 'Other cultivators show deference. Minor sects give way. Nobles are careful. Not legendary yet — just powerful.',
+    aura: null,
+    isolation: null,
+  },
+  {
+    tier: 2,
+    label: 'Feared Existence',
+    stageThreshold: 9,    // Nascent Soul+
+    prThreshold: 700,
+    worldBehavior: 'Sects negotiate instead of threatening. Former rivals become irrelevant. Kings have heard the name and reacted. Ordinary people feel something when you enter a room — they don\'t know what it is.',
+    aura: 'Sensitive cultivators feel pressure nearby. Animals grow uneasy. The air changes slightly.',
+    isolation: 'Old relationships begin to strain. People speak more carefully around you.',
+    presenceNote: 'The player\'s name precedes them. Rooms adjust when they enter.',
+  },
+  {
+    tier: 3,
+    label: 'Legend',
+    stageThreshold: 11,   // Dao Seeking+
+    prThreshold: 1800,
+    worldBehavior: 'Wars can pause because of proximity. Sects that once rejected you may beg for alliance. Entire regions know your name and tell stories about you. Children speak of you like a force of nature.',
+    aura: 'Weaker cultivators struggle to think clearly nearby. Their Qi destabilizes in your proximity. Mortals instinctively lower their eyes. Animals flee. Storms subtly react to emotional surges.',
+    isolation: 'Trust has become genuinely difficult. Old friends are uncomfortable. Disciples worship and fear simultaneously. Normal conversations are rare — everyone wants something or fears something. Loneliness is a constant note.',
+    presenceNote: 'Describe the player\'s presence as physically felt by everyone in proximity. Not metaphorically — as actual pressure. Low-cultivation individuals may kneel instinctively.',
+    tragicNote: 'The higher they rise, the more distant ordinary life becomes. They are admired by many. Understood by almost no one.',
+  },
+  {
+    tier: 4,
+    label: 'Legendary Existence',
+    stageThreshold: 12,   // Tribulation Transcendence+
+    prThreshold: 4000,
+    worldBehavior: 'Kings panic upon hearing they are nearby. Sects open their gates without being asked. Entire armies hesitate before a single figure. Wars end or begin because of their presence. Decades of rumors follow a single sighting. Some nations build policy around their known movements.',
+    aura: 'Weak-minded individuals feel terror approaching them from distance. Lower cultivators cannot breathe normally nearby — their Qi is suppressed by proximity. Killing intent physically affects the environment: the air splits, the ground cracks, lesser cultivators may collapse. Spiritual energy bends around them. They radiate power — they do not merely possess it.',
+    isolation: 'The player is larger than life. Admired by millions. Understood by almost nobody. The isolation is total and profound — not from lack of people, but from the impossibility of genuine connection across the gap. Every relationship has become either worship, fear, or political calculation. This is the price.',
+    presenceNote: 'Write the player\'s presence as a force the environment responds to. Not just people — the physical world. Qi pools form near them. Animals do not approach. The air near them has a different quality. When they are angry, the physical environment shows it.',
+    tragicNote: 'They achieved what they set out to achieve. And it changed them into something ordinary life cannot contain. This is not unhappy — it is heavy. The weight of a legend that is still alive.',
+    limits: 'They are not omnipotent. Heavenly tribulations still threaten. Ancient sealed entities still exist. Forbidden regions still hold things older than their cultivation. Other legendary beings exist who are their peers or superiors. The tension is real — they are one of the strongest beings alive, not the owner of existence.',
+    powerFantasy: 'They can destroy armies alone. Erase sects from existence. Split mountains. Suppress entire battlefields through aura alone. Create martial arts that will be practiced for centuries. Alter political balance between nations. They can leave behind a legacy that outlives them by generations.',
+  },
+  {
+    tier: 5,
+    label: 'Immortal Legend',
+    stageThreshold: 13,   // Immortal
+    prThreshold: 6000,
+    worldBehavior: 'Their name is history while they still live. The world does not talk about what they did — the world talks about what they ARE. Sects name cultivation techniques after them. Kings keep their last known location filed as a state secret. Entire philosophies have formed around their observed behavior.',
+    aura: 'Their existence is a cosmological fact. Weaker cultivators near them lose the ability to use Qi in conflict — it is suppressed before they decide to suppress it. The world recognizes them before their name is spoken. Spiritual entities acknowledge them. The Maligned Lords treat them as something worth taking seriously.',
+    isolation: 'The mortal world has become a place they visit rather than a place they belong to. Lifespan differences mean most people they have known are dead or aged beyond recognition. The isolation is not loneliness — it is a different kind of existence. They moved into a category that very few beings share.',
+    presenceNote: 'Write their presence as its own weather system. The scene has a before-they-arrived and an after-they-arrived. Everything that happens in their vicinity happens in reference to them, whether they intend it or not.',
+    tragicNote: '"I made it." But making it meant becoming something that the person who started this journey would barely recognize. The power is real. The transformation is real. Both are true simultaneously.',
+    limits: 'They are one of the strongest beings in existence. Not the owner of existence. Ancient sealed horrors, heavenly tribulations, other Immortal cultivators, the Maligned Lords at full power — these are still real tensions. They are not beyond consequence. They are beyond ordinary consequence.',
+    powerFantasy: 'They are a legend while they breathe. Their techniques will be practiced by cultivators who never meet them. Sects they founded will outlast them. Political orders they influenced will persist for generations. Children three kingdoms over tell stories about them like they tell stories about gods.',
+  },
+];
+
+// ── Get the player's current legendary tier ────────────────────
+function getLegendaryTier() {
+  const c   = GS.char;
+  const si  = c.qi?.stageIndex || 0;
+  const pr  = getPowerRating(c);
+
+  // Also consider total renown across all locations
+  const totalRenown = Object.values(c.reputation || {})
+    .reduce((sum, rep) => sum + (rep.renown || 0), 0);
+  const maxRenown   = Object.values(c.reputation || {})
+    .reduce((m, rep)  => Math.max(m, rep.renown || 0), 0);
+
+  // Find the highest tier where BOTH thresholds are met
+  // (or stage threshold + very high stats compensate for missing stage)
+  let tier = LEGENDARY_TIERS[0];
+  for(const t of LEGENDARY_TIERS) {
+    if(si >= t.stageThreshold && pr >= t.prThreshold) {
+      tier = t;
+    }
+  }
+
+  // Renown boost: very high mythic renown can push tier up by 1
+  if(maxRenown >= 95 && tier.tier < 5) {
+    const nextTier = LEGENDARY_TIERS[tier.tier + 1];
+    if(nextTier && si >= nextTier.stageThreshold - 1) tier = nextTier;
+  }
+
+  return tier;
+}
+
+// ── Build full legendary context for AI ───────────────────────
+function buildLegendaryContext() {
+  const t  = getLegendaryTier();
+  if(t.tier === 0) return ''; // Nothing special to say for ordinary characters
+
+  const c   = GS.char;
+  const si  = c.qi?.stageIndex || 0;
+  const pr  = Math.round(getPowerRating(c));
+  const stageName = QI_STAGES[si]?.name || 'Unknown';
+  const isLord = !!GS.world._playerIsLord;
+
+  let ctx = `\n═══════════════════════════════════════
+LEGENDARY EXISTENCE — ${t.label.toUpperCase()}
+Cultivation: ${stageName} | Power Rating: ${pr}
+${isLord ? `MALIGNED LORD STATUS: Lord of ${GS.world._playerIsLord} — the world of the Five now acknowledges this player as a peer.\n` : ''}
+WORLD BEHAVIOR (how the world reacts to them):
+${t.worldBehavior}
+`;
+
+  if(t.aura) {
+    ctx += `\nPRESENCE / AURA EFFECTS (write these into the narrative naturally):
+${t.aura}
+`;
+  }
+
+  if(t.presenceNote) {
+    ctx += `\nPRESENCE DIRECTION:
+${t.presenceNote}
+`;
+  }
+
+  if(t.isolation) {
+    ctx += `\nTRAGIC ISOLATION (write alongside the power — not instead of it):
+${t.isolation}
+`;
+  }
+
+  if(t.tragicNote) {
+    ctx += `\nTHE WEIGHT:
+${t.tragicNote}
+`;
+  }
+
+  if(t.powerFantasy) {
+    ctx += `\nWHAT THEY CAN DO (the power fantasy is earned — write it fully):
+${t.powerFantasy}
+`;
+  }
+
+  if(t.limits) {
+    ctx += `\nWHAT STILL EXISTS ABOVE THEM (tension preserved):
+${t.limits}
+`;
+  }
+
+  ctx += `
+NARRATIVE RULE: The player must feel what they have become. Write the world reacting to them. Write the isolation. Write the power. Both are true. Neither cancels the other.
+══════════════════════════════════════`;
+
+  return ctx;
+}
+
+// ── Wire into buildSystemPrompt ────────────────────────────────
+const _bspWithLegendary = buildSystemPrompt;
+buildSystemPrompt = function() {
+  let prompt = _bspWithLegendary();
+  try {
+    const legendCtx = buildLegendaryContext();
+    if(legendCtx) {
+      // Inject right before ABSOLUTE RULES so it's prominent
+      prompt = prompt.replace('## ABSOLUTE RULES', legendCtx + '\n## ABSOLUTE RULES');
+    }
+  } catch(e) {}
+  return prompt;
+};
+
+// ── Fire world events when tier thresholds are crossed ─────────
+// Run on every advanceTime and every breakthrough
+function checkLegendaryMilestones() {
+  try {
+    const tier = getLegendaryTier();
+    const c    = GS.char;
+    const w    = GS.world;
+
+    if(!c._legendaryTierReached) c._legendaryTierReached = 0;
+    if(tier.tier <= c._legendaryTierReached) return;
+
+    // Tier crossed — fire the milestone
+    c._legendaryTierReached = tier.tier;
+
+    const milestoneEvents = {
+      2: `The world has begun to take note of ${c.firstName} ${c.lastName}. Not officially. Not yet. But people who pay attention to power know something is changing.`,
+      3: `${c.firstName} ${c.lastName} has crossed a threshold. The stories have started. Some people speak the name with reverence. Others with dread. Some with both.`,
+      4: `${c.firstName} ${c.lastName} is now a legend — not a future legend, not a promising legend, but an actual one, living and active. The world has reorganized its fear accordingly.`,
+      5: `${c.firstName} ${c.lastName} has reached what mortals call the limit. Somewhere between myth and reality, still breathing, still choosing. The world does not fully know how to hold a person who has become this.`,
+    };
+
+    if(milestoneEvents[tier.tier]) {
+      w.worldHistory.push(`Year ${w.year}: ${milestoneEvents[tier.tier]}`);
+
+      // Add a myth about the player
+      if(!w.myths) w.myths = [];
+      const mythLines = {
+        2: `"${c.firstName} ${c.lastName} walks. That is enough."`,
+        3: `"${c.firstName} ${c.lastName} looked at the sect elder and the elder stepped aside. Just like that. No words."`,
+        4: `"They say ${c.firstName} ${c.lastName} stood at the edge of the battlefield. The army paused. Then it turned around."`,
+        5: `"${c.firstName} ${c.lastName}. The name is not a word anymore. It is a verdict."`,
+      };
+      if(mythLines[tier.tier]) {
+        w.myths.push({ text: mythLines[tier.tier], origin: c.birthCity, year: w.year, subject: `${c.firstName} ${c.lastName}` });
+      }
+
+      // Add renown to all locations at higher tiers
+      if(tier.tier >= 3) {
+        Object.keys(LOCATIONS).filter(k => LOCATIONS[k].spawnable).forEach(loc => {
+          if(!c.reputation[loc]) c.reputation[loc] = { renown:0, infamy:0, events:[] };
+          c.reputation[loc].renown = Math.min(100, (c.reputation[loc].renown || 0) + (tier.tier - 2) * 12);
+        });
+      }
+
+      // Narrative push to player
+      const playerMsg = {
+        2: `Something has shifted in how the world sees you. You can feel it — in how people step aside, in how conversations change when you enter them.`,
+        3: `You crossed something. Not a technique stage, not a stat threshold. Something harder to name. The world feels it before it understands it.`,
+        4: `You are a legend. Not by reputation only — by fact. The word fits you now the way it fits ancient things. You did not seek this. But you earned it.`,
+        5: `This is what the limit feels like. Not an ending. A transformation. You are still choosing. That has not changed. But what you are while you choose — that is different now.`,
+      };
+      if(playerMsg[tier.tier]) {
+        addPersonalEvent(`[LEGENDARY THRESHOLD] ${playerMsg[tier.tier]}`);
+        GS.narrative.push(playerMsg[tier.tier]);
+      }
+
+      updateWorldTab();
+    }
+  } catch(e) {}
+}
+
+// Hook into advanceTime and stage-setting
+const _advanceWithLegendary = advanceTime;
+advanceTime = function(days=0, months=0, years=0) {
+  _advanceWithLegendary(days, months, years);
+  checkLegendaryMilestones();
+};
+
+// Also check after any AI response (breakthroughs happen there)
+const _applyWithLegendary = applyAIResponse;
+applyAIResponse = function(res) {
+  _applyWithLegendary(res);
+  checkLegendaryMilestones();
+};
+
+// ── Add legendary status to the character tab display ──────────
+const _updateCharWithLegendary = updateCharacterTab;
+updateCharacterTab = function() {
+  _updateCharWithLegendary();
+  try {
+    const tier = getLegendaryTier();
+    if(tier.tier < 2) return;
+
+    // Find or create the legendary status indicator
+    let legendEl = document.getElementById('legendary-status-bar');
+    if(!legendEl) {
+      const qiBlock = document.getElementById('qi-block');
+      if(!qiBlock) return;
+      legendEl = document.createElement('div');
+      legendEl.id = 'legendary-status-bar';
+      legendEl.style.cssText = `
+        margin-top: 10px; padding: 8px 10px;
+        background: linear-gradient(135deg, rgba(80,20,10,.4), rgba(30,10,50,.4));
+        border: 1px solid rgba(196,154,48,.35);
+        border-radius: 6px; font-size: 11px; line-height: 1.6;
+      `;
+      qiBlock.parentNode.insertBefore(legendEl, qiBlock.nextSibling);
+    }
+
+    const tierColors = ['','#c49a30','#cc4422','#dd44ff','#ff4400','#ffffff'];
+    const color = tierColors[tier.tier] || '#c49a30';
+    const pr = Math.round(getPowerRating(GS.char));
+    legendEl.innerHTML = `
+      <div style="color:${color};font-weight:700;font-size:12px;margin-bottom:3px;letter-spacing:.05em">${tier.label.toUpperCase()}</div>
+      <div style="color:var(--dim);font-size:10px">Power Rating: ${pr} · Tier ${tier.tier}/5</div>
+      <div style="color:var(--muted);font-size:10px;margin-top:3px;font-style:italic">${tier.worldBehavior?.slice(0,100)}${(tier.worldBehavior?.length||0)>100?'…':''}</div>
+    `;
+  } catch(e) {}
+};
+
 console.log('Murim Chronicles fully loaded.');
 
 </script>
