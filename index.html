@@ -24815,6 +24815,571 @@ startGame = function(isLoad=false) {
   } catch(e) {}
 };
 
+// ================================================================
+// ══════════════════════════════════════════════════════════════
+// ── SECT INTERNAL POLITICS
+// ══════════════════════════════════════════════════════════════
+// ================================================================
+
+// When a sect is generated or the player joins, flesh out its internal structure
+function buildSectInternals(sect) {
+  if(sect._internalsBuilt) return;
+  sect._internalsBuilt = true;
+
+  // Elder council — 2-5 named elders with their own agendas
+  const ELDER_ARCHETYPES = [
+    { role:'Traditionalist', desc:'Believes the sect\'s power lies in its founding methods. Hostile to external influence or rapid change. Long memory for slights.', alignment:'orthodox', wants:'preserve founding doctrine', fears:'outside corruption, rapid change' },
+    { role:'Expansionist', desc:'Wants the sect to grow — more territory, more disciples, more political reach. Sometimes too ambitious for internal comfort.', alignment:'neutral', wants:'new territory and alliances', fears:'stagnation, being overtaken by rivals' },
+    { role:'Pragmatist', desc:'The numbers person. Resources, silver, efficiency. Not cruel but unsentimental about weak disciples.', alignment:'neutral', wants:'sect financial health, efficiency', fears:'resource drain, reckless missions' },
+    { role:'Schemer', desc:'Pleasant in council. Collects debts. Has more information than they should. Has their own agenda that doesn\'t fully align with the sect\'s.', alignment:'demonic', wants:'personal power within hierarchy', fears:'their plots being uncovered' },
+    { role:'Purist', desc:'Deeply invested in cultivation theory. Dismissive of political maneuvering. Powerful because they\'re just better than most at what matters.', alignment:'orthodox', wants:'cultivation advancement, pure technique', fears:'political compromise of cultivation values' },
+    { role:'Reformer', desc:'Believes the current leadership is the problem. Working toward change through legitimate channels — mostly.', alignment:'chaotic', wants:'leadership change, modernization', fears:'being outmaneuvered before change happens' },
+    { role:'Old Guard', desc:'Has been here the longest. Watches. Disagrees with most decisions but picks battles carefully.', alignment:'orthodox', wants:'stability, respect for precedent', fears:'everything the Expansionist and Reformer want' },
+  ];
+
+  const elderCount = 2 + Math.floor(Math.random() * 4); // 2-5 elders
+  const archetypes = [...ELDER_ARCHETYPES].sort(() => Math.random()-0.5).slice(0, elderCount);
+
+  const names = [
+    ['Elder','Grand Elder','Master'],
+    ['Wei','Shen','Dao','Fang','Bei','Ru','Gao','Lin','Xu','Mao'],
+    ['Bao','Ku','Sha','Ge','Luo','Tian','Hua','Jun','Yan','Zhi'],
+  ];
+
+  sect.elderCouncil = archetypes.map((arch, i) => ({
+    id: `elder_${sect.id}_${i}`,
+    name: `${names[0][Math.floor(Math.random()*3)]} ${names[1][Math.floor(Math.random()*10)]} ${names[2][Math.floor(Math.random()*10)]}`,
+    role: arch.role,
+    desc: arch.desc,
+    alignment: arch.alignment,
+    wants: arch.wants,
+    fears: arch.fears,
+    powerLevel: 60 + Math.floor(Math.random() * 35), // influence 0-100
+    playerRelationship: 'neutral', // 'ally' | 'neutral' | 'rival' | 'enemy'
+    secret: null,
+    qiStageIndex: 6 + Math.floor(Math.random() * 4), // Elders are powerful
+  }));
+
+  // Internal tensions — 1-2 active disputes within the sect
+  const TENSION_TYPES = [
+    { type:'succession', desc:'No clear successor to the Sect Leader. Multiple elders positioning themselves. The uncertainty is affecting disciple morale.' },
+    { type:'resource_dispute', desc:'A dispute over allocation of this year\'s pill resources. The Pragmatist faction and the Traditionalist faction are at an impasse.' },
+    { type:'external_alliance', desc:'A proposed alliance with an external sect divides the council. Those for and against are not being quiet about it.' },
+    { type:'traitor_suspicion', desc:'Rumors that someone on the Elder council is leaking information to a rival sect. Nobody knows who. Everyone suspects someone.' },
+    { type:'ancient_technique', desc:'A newly recovered ancient technique has been locked in the Grand Archive. The elders cannot agree on who receives it.' },
+    { type:'disciple_scandal', desc:'A senior disciple did something that embarrassed the sect. The response has divided the council between those who want punishment and those who want it buried.' },
+    { type:'territory', desc:'A neighboring sect is encroaching on claimed territory. The elders disagree on the response — some want confrontation, others negotiation.' },
+  ];
+
+  sect.internalTensions = [];
+  const numTensions = 1 + Math.floor(Math.random() * 2);
+  const shuffled = [...TENSION_TYPES].sort(() => Math.random()-0.5);
+  for(let i = 0; i < numTensions; i++) {
+    if(shuffled[i]) {
+      sect.internalTensions.push({
+        ...shuffled[i],
+        intensity: 30 + Math.floor(Math.random() * 60), // 0-100
+        playerInvolved: false,
+        year: GS.world.year,
+      });
+    }
+  }
+
+  // Faction alignments within the council
+  sect.factions = [
+    { name:'Conservative Wing', members: sect.elderCouncil.filter(e => ['Traditionalist','Old Guard','Purist'].includes(e.role)).map(e=>e.id) },
+    { name:'Progressive Wing', members: sect.elderCouncil.filter(e => ['Expansionist','Reformer'].includes(e.role)).map(e=>e.id) },
+    { name:'Independent',       members: sect.elderCouncil.filter(e => ['Pragmatist','Schemer'].includes(e.role)).map(e=>e.id) },
+  ].filter(f => f.members.length > 0);
+}
+
+// Build sect politics context for system prompt
+function buildSectPoliticsContext() {
+  const c    = GS.char;
+  const w    = GS.world;
+  const sect = w.discoveredSects.find(s => s.playerRank);
+  if(!sect) return '';
+
+  // Generate internals if this is the first time we're looking
+  buildSectInternals(sect);
+
+  const rank       = sect.playerRank;
+  const rankIdx    = SECT_RANKS.indexOf(rank);
+  const isLeadership = rankIdx >= 4; // Elder+
+  const elders     = sect.elderCouncil || [];
+  const tensions   = sect.internalTensions || [];
+
+  let ctx = `\nSECT MEMBERSHIP — ${sect.name} (${sect.alignment}) | Your rank: ${rank}
+Specialization: ${sect.specialization} | Location: ${LOCATIONS[sect.location]?.name||sect.location}
+`;
+
+  if(elders.length) {
+    ctx += `\nELDER COUNCIL:\n`;
+    elders.forEach(e => {
+      const rel = e.playerRelationship !== 'neutral' ? ` [${e.playerRelationship} with player]` : '';
+      ctx += `- ${e.name} (${e.role}): ${e.desc} Wants: ${e.wants}. Fears: ${e.fears}${rel}. Power: ${e.powerLevel}/100.\n`;
+    });
+  }
+
+  if(tensions.length) {
+    ctx += `\nACTIVE INTERNAL TENSIONS (real — not background):\n`;
+    tensions.forEach(t => {
+      ctx += `- ${t.type.toUpperCase()} (intensity ${t.intensity}/100): ${t.desc}${t.playerInvolved?' [Player involved]':''}\n`;
+    });
+  }
+
+  if(sect.factions?.length) {
+    ctx += `\nINTERNAL FACTIONS: ${sect.factions.map(f=>`${f.name} (${f.members.length} elders)`).join(' vs ')}\n`;
+  }
+
+  ctx += `
+SECT POLITICS RULES:
+1. Elders have their own agendas — they may approach the player, ask favors, offer rewards, or try to use the player as a tool in internal disputes.
+2. The player can choose sides in tensions — helping one faction damages relationship with the other.
+3. Elder relationships matter: an allied Elder opens doors; an enemy Elder blocks promotions and assigns difficult missions.
+4. Tensions escalate if ignored. A succession crisis gets worse. A traitor stays hidden longer.
+5. IF the player is Elder or above: they have votes in council decisions. The AI should occasionally present council dilemmas.
+6. Sect politics has REAL consequences: the player can be expelled, demoted, assigned humiliating duties, or become the center of a power struggle.
+7. Elders can be cultivated as allies over time. Include "sectPoliticsUpdate" in response when a significant sect politics event occurs.
+`;
+
+  return ctx;
+}
+
+// Patch buildSystemPrompt for sect politics
+const _bspWithSectPolitics = buildSystemPrompt;
+buildSystemPrompt = function() {
+  let prompt = _bspWithSectPolitics();
+  try {
+    const sectCtx = buildSectPoliticsContext();
+    if(sectCtx) prompt = prompt.replace('## ABSOLUTE RULES', sectCtx + '## ABSOLUTE RULES');
+  } catch(e) {}
+  return prompt;
+};
+
+// Handle sect politics events from AI
+const _applyWithSectPolitics = applyAIResponse;
+applyAIResponse = function(res) {
+  _applyWithSectPolitics(res);
+  try {
+    if(!res?.sectPoliticsUpdate) return;
+    const u    = res.sectPoliticsUpdate;
+    const sect = GS.world.discoveredSects.find(s => s.playerRank);
+    if(!sect) return;
+
+    buildSectInternals(sect);
+
+    // Update elder relationship
+    if(u.elderRelationship) {
+      const elder = sect.elderCouncil?.find(e => e.id === u.elderRelationship.elderId || e.name?.includes(u.elderRelationship.name));
+      if(elder) {
+        elder.playerRelationship = u.elderRelationship.status;
+        addPersonalEvent(`Relationship with ${elder.name} (${elder.role}): ${u.elderRelationship.status}. ${u.elderRelationship.reason||''}`);
+      }
+    }
+
+    // Tension change
+    if(u.tensionChange) {
+      const tension = sect.internalTensions?.find(t => t.type === u.tensionChange.type);
+      if(tension) {
+        tension.intensity = Math.max(0, Math.min(100, tension.intensity + (u.tensionChange.delta||0)));
+        tension.playerInvolved = tension.playerInvolved || !!u.tensionChange.playerInvolved;
+        if(u.tensionChange.resolved) {
+          tension.resolved = true;
+          tension.resolution = u.tensionChange.resolution;
+          addPersonalEvent(`Sect tension resolved: ${tension.type}. ${u.tensionChange.resolution||''}`);
+        }
+      }
+    }
+
+    // Promotion from politics (not just missions)
+    if(u.rankChange) {
+      const newRank = u.rankChange.to;
+      if(SECT_RANKS.includes(newRank)) {
+        sect.playerRank = newRank;
+        addPersonalEvent(`Rank within ${sect.name}: now ${newRank}. ${u.rankChange.reason||''}`);
+        toast(`${sect.name}: Promoted to ${newRank}`, 'gold', 4000);
+        updateWorldTab();
+      }
+    }
+  } catch(e) {}
+};
+
+// Add sectPoliticsUpdate to schema
+const _bspWithSectSchema = buildSystemPrompt;
+buildSystemPrompt = function() {
+  let prompt = _bspWithSectSchema();
+  if(!prompt.includes('"sectPoliticsUpdate"')) {
+    prompt = prompt.replace('"goalUpdates"', '"sectPoliticsUpdate": null,\n  "goalUpdates"');
+  }
+  return prompt;
+};
+
+// ================================================================
+// ══════════════════════════════════════════════════════════════
+// ── DUAL CULTIVATION SYSTEM
+// ── Two cultivators circulating Qi together — amplifies both.
+// ── Requires consent, compatible paths, established bond.
+// ── Has real consequences: dependency, breakthrough acceleration,
+// ── Qi imbalance if incompatible, emotional entanglement.
+// ══════════════════════════════════════════════════════════════
+// ================================================================
+
+const DUAL_CULT_REQUIREMENTS = {
+  minBond:       52,   // Friend+ bond required
+  minQiStage:    4,    // Both must be Qi Condensation+ to have meaningful Qi to share
+  idealPaths: {
+    // Complementary Qi paths amplify each other
+    righteous: ['righteous','neutral'],
+    demonic:   ['demonic','beast'],
+    beast:     ['beast','demonic'],
+    neutral:   ['righteous','neutral','demonic','beast'],
+  },
+  sessionHours:  4,    // How long a proper session takes
+};
+
+function getDualCultivationEligible() {
+  const c = GS.char;
+  return c.relationships.filter(r => {
+    if(r.alive === false) return false;
+    const bond = r.bond_level || r.trust || 0;
+    if(bond < DUAL_CULT_REQUIREMENTS.minBond) return false;
+    const npc  = GS.world.npcRegistry[r.npcId];
+    if(!npc) return false;
+    if((npc.qiStageIndex || 0) < DUAL_CULT_REQUIREMENTS.minQiStage) return false;
+    // Must be in same location
+    if(!npcReachable(r.npcId)) return false;
+    return true;
+  });
+}
+
+function attemptDualCultivation(npcId) {
+  const c   = GS.char;
+  const rel = c.relationships.find(r => r.npcId === npcId);
+  const npc = GS.world.npcRegistry[npcId];
+  if(!rel || !npc) return;
+
+  const bond     = rel.bond_level || rel.trust || 0;
+  const npcStage = npc.qiStageIndex || 0;
+  const playerStage = c.qi?.stageIndex || 0;
+
+  // Check requirements
+  if(bond < DUAL_CULT_REQUIREMENTS.minBond) {
+    toast(`Bond with ${rel.name} is too low for dual cultivation. Need deep trust.`, 'warning', 4000);
+    return;
+  }
+  if(!npcReachable(npcId)) {
+    toast(`${rel.name} isn't here.`, 'warning', 3000);
+    return;
+  }
+  if(playerStage < DUAL_CULT_REQUIREMENTS.minQiStage) {
+    toast('You need Qi Condensation cultivation to dual cultivate.', 'warning', 3000);
+    return;
+  }
+
+  // Determine compatibility
+  const playerPath = c.qi?.path || 'neutral';
+  const npcPath    = npc.qiPath || 'neutral';
+  const compatible = (DUAL_CULT_REQUIREMENTS.idealPaths[playerPath]||[]).includes(npcPath);
+  const incompatible = (playerPath === 'righteous' && npcPath === 'demonic') ||
+                       (playerPath === 'demonic' && npcPath === 'righteous');
+
+  // Build context for AI
+  const stageDiff   = Math.abs(playerStage - npcStage);
+  const isRomantic  = ['lover','spouse','courting','together','committed','engaged','married'].includes(rel.type) ||
+                      (rel.romance?.stage && ['together','committed','engaged','married'].includes(rel.romance.stage));
+
+  const romantNotes = isRomantic
+    ? 'This is a romantic partnership — the dual cultivation has emotional depth beyond the mechanical. The Qi exchange is also an act of vulnerability and trust.'
+    : 'This is a cultivation partnership, not necessarily a romantic one. The intimacy is Qi-based, not physical — though the emotional entanglement is real.';
+
+  const compatNote  = incompatible
+    ? 'WARNING: Incompatible Qi paths (righteous + demonic). Dual cultivation between these paths is unstable. Risk of Qi turbulence, core damage, or dangerous entanglement. The AI should make this genuinely risky.'
+    : compatible
+      ? `Compatible Qi paths (${playerPath} + ${npcPath}) — natural resonance. The circulation will be smoother. Both benefit more.`
+      : `Partially compatible (${playerPath} + ${npcPath}). Functional but not optimal. Some Qi friction expected.`;
+
+  const inject = `[DUAL CULTIVATION SESSION with ${rel.name}:
+Bond: ${bond}/100 | Player stage: ${QI_STAGES[playerStage]?.name} | ${rel.name} stage: ${QI_STAGES[npcStage]?.name}
+Qi compatibility: ${compatNote}
+${romantNotes}
+Stage difference: ${stageDiff} stages. Higher-stage partner's Qi will be stronger — may feel overwhelming to the lower-stage partner.
+
+HOW TO WRITE THIS:
+1. Describe the Qi resonance — what each person's Qi feels like as it mingles with the other's. Qi paths have distinct textures.
+2. Emotional entanglement is real — dual cultivation creates genuine psychological intimacy. Both parties feel something the other was keeping private.
+3. Benefits: Temporary Qi amplification for both. Accelerated breakthrough progress. Some of the other person's Qi insights transfer.
+4. Risks: If incompatible — Qi turbulence that can injure. Even compatible paths can create dependency over time.
+5. Duration: ~4 hours. Time advances 4 hours.
+6. Include "dualCultivationResult": { "npcId": "${npcId}", "qiGained": N, "bonusBreakthroughPct": N, "complication": null|"dependency"|"qi_imbalance"|"emotional_entanglement" } in response.
+7. ${incompatible ? 'This is dangerous. The session should feel hazardous. Real injury is possible.' : 'This should feel meaningful — not just a stat boost.'}]`;
+
+  sendToAI(`I propose dual cultivation with ${rel.name}. I ask if they're willing, and if so, we begin. I want to genuinely cultivate together — not just go through motions.` + '\n\n' + inject);
+}
+
+// Handle dual cultivation results
+const _applyWithDualCult = applyAIResponse;
+applyAIResponse = function(res) {
+  _applyWithDualCult(res);
+  try {
+    if(!res?.dualCultivationResult) return;
+    const r   = res.dualCultivationResult;
+    const c   = GS.char;
+    const rel = c.relationships.find(rel => rel.npcId === r.npcId);
+
+    if(r.qiGained) addQi(r.qiGained);
+
+    if(r.bonusBreakthroughPct && c.qi) {
+      // Accelerate breakthrough progress
+      const needed  = (c.qi.breakthroughAt || 100) - (c.qi.current || 0);
+      const bonus   = Math.floor(needed * (r.bonusBreakthroughPct / 100));
+      if(bonus > 0) addQi(bonus);
+      addPersonalEvent(`Dual cultivation with ${rel?.name||'partner'}: breakthrough progress +${r.bonusBreakthroughPct}%.`);
+    }
+
+    if(r.complication === 'dependency') {
+      if(!c._dualCultDependencies) c._dualCultDependencies = [];
+      if(!c._dualCultDependencies.includes(r.npcId)) {
+        c._dualCultDependencies.push(r.npcId);
+        addPersonalEvent(`Dual cultivation dependency developing with ${rel?.name||'partner'}. Cultivation is noticeably slower when apart.`);
+      }
+    }
+
+    if(r.complication === 'qi_imbalance') {
+      addInjury('Qi imbalance from incompatible dual cultivation — meridians turbulent, cultivation unstable until resolved.');
+    }
+
+    // Strengthen bond from shared Qi experience
+    if(rel) {
+      rel.bond_level = Math.min(100, (rel.bond_level||0) + 8);
+      rel.trust      = Math.min(100, (rel.trust||0) + 8);
+    }
+  } catch(e) {}
+};
+
+// Add dual cultivation quick action to NPC cards for eligible partners
+const _buildNPCCardWithDualCult = buildNPCCard;
+buildNPCCard = function(r) {
+  const card    = _buildNPCCardWithDualCult(r);
+  const npc     = GS.world.npcRegistry[r.npcId];
+  const bond    = r.bond_level || r.trust || 0;
+  const isFamily= ['mother','father','grandmother','grandfather','aunt','uncle','sister','brother','family','caregiver','offspring'].includes(r.type);
+
+  if(!npc || isFamily || bond < DUAL_CULT_REQUIREMENTS.minBond) return card;
+  if((npc.qiStageIndex||0) < DUAL_CULT_REQUIREMENTS.minQiStage) return card;
+  if(!npcReachable(r.npcId)) return card;
+  if((GS.char.qi?.stageIndex||0) < DUAL_CULT_REQUIREMENTS.minQiStage) return card;
+
+  const compatible  = (DUAL_CULT_REQUIREMENTS.idealPaths[GS.char.qi?.path||'neutral']||[]).includes(npc.qiPath||'neutral');
+  const incompatible= ((GS.char.qi?.path||'neutral') === 'righteous' && (npc.qiPath||'neutral') === 'demonic') ||
+                      ((GS.char.qi?.path||'neutral') === 'demonic' && (npc.qiPath||'neutral') === 'righteous');
+
+  const qaRow = card.querySelector('.npc-quick-actions');
+  if(qaRow) {
+    const btn = document.createElement('button');
+    btn.className = `npc-qa-btn${incompatible ? ' danger' : compatible ? ' positive' : ''}`;
+    btn.title     = incompatible ? 'Incompatible paths — dangerous' : compatible ? 'Compatible paths — natural resonance' : 'Partial compatibility';
+    btn.textContent = incompatible ? '⚠ Dual Cultivate (risky)' : '◈ Dual Cultivate';
+    btn.onclick   = () => attemptDualCultivation(r.npcId);
+    qaRow.appendChild(btn);
+  }
+
+  return card;
+};
+
+// Add dual cult context to system prompt
+const _bspWithDualCult = buildSystemPrompt;
+buildSystemPrompt = function() {
+  let prompt = _bspWithDualCult();
+  try {
+    const deps = GS.char._dualCultDependencies || [];
+    if(deps.length) {
+      const depNames = deps.map(id => GS.char.relationships.find(r=>r.npcId===id)?.name || id).join(', ');
+      prompt = prompt.replace('## ABSOLUTE RULES',
+        `DUAL CULTIVATION DEPENDENCIES: This character has developed cultivation dependency with ${depNames}. When apart from them, Qi cultivation efficiency is noticeably reduced. When together, it is amplified. This is not just mechanical — it has emotional weight.\n\n## ABSOLUTE RULES`);
+    }
+    if(!prompt.includes('"dualCultivationResult"')) {
+      prompt = prompt.replace('"goalUpdates"',
+        '"dualCultivationResult": { "npcId": "", "qiGained": 0, "bonusBreakthroughPct": 0, "complication": null },\n  "goalUpdates"');
+    }
+  } catch(e) {}
+  return prompt;
+};
+
+// ================================================================
+// ══════════════════════════════════════════════════════════════
+// ── WEATHER SYSTEM
+// ── Weather changes daily and by season, affects cultivation,
+// ── travel, mood, techniques, and NPC behavior.
+// ══════════════════════════════════════════════════════════════
+// ================================================================
+
+// Seasons based on month (12 months)
+const SEASONS = {
+  spring: { months:[3,4,5],  label:'Spring', cultivBonus:0.08, travelMod:1.0, mood:'renewal' },
+  summer: { months:[6,7,8],  label:'Summer', cultivBonus:0.12, travelMod:0.95, mood:'heat and activity' },
+  autumn: { months:[9,10,11],label:'Autumn', cultivBonus:0.05, travelMod:0.9, mood:'closing in' },
+  winter: { months:[12,1,2], label:'Winter', cultivBonus:-0.05, travelMod:0.8, mood:'stillness and endurance' },
+};
+
+function getSeason(month) {
+  return Object.values(SEASONS).find(s => s.months.includes(month)) || SEASONS.spring;
+}
+
+// Weather states and their effects
+const WEATHER_TYPES = {
+  clear:       { label:'Clear skies', cultivBonus:0.05, travelOk:true, atk:'fire and lightning techniques benefit from clear air', def:'none', color:'#c49a30' },
+  cloudy:      { label:'Overcast',    cultivBonus:0,    travelOk:true, atk:'none', def:'none', color:'#7788aa' },
+  rain:        { label:'Rain',        cultivBonus:0.08, travelOk:true, atk:'water techniques amplified by ambient moisture', def:'fire techniques weakened by rain', color:'#4488cc' },
+  heavy_rain:  { label:'Heavy rain',  cultivBonus:0.12, travelOk:false, atk:'water techniques significantly amplified', def:'fire techniques nearly useless in downpour', color:'#2255aa' },
+  storm:       { label:'Thunderstorm',cultivBonus:0.15, travelOk:false, atk:'lightning techniques massively amplified — the sky cooperates', def:'fire techniques suppressed, visibility reduced', color:'#6644bb' },
+  fog:         { label:'Heavy fog',   cultivBonus:0.03, travelOk:false, atk:'none', def:'all detection and perception-based techniques suffer', color:'#aaaaaa' },
+  wind:        { label:'Strong wind', cultivBonus:0.02, travelOk:true, atk:'nothing', def:'projectile techniques suffer, wind-based techniques benefit', color:'#88aacc' },
+  snow:        { label:'Snow',        cultivBonus:0.06, travelOk:false, atk:'ice and water techniques amplified', def:'fire techniques weakened, movement slowed', color:'#ddeeff' },
+  blizzard:    { label:'Blizzard',    cultivBonus:0.10, travelOk:false, atk:'ice techniques heavily amplified', def:'fire useless, survival risk outdoors', color:'#aaccff' },
+  dry_heat:    { label:'Dry heat',    cultivBonus:-0.03, travelOk:true, atk:'fire techniques amplified', def:'water techniques weakened', color:'#cc8820' },
+  spiritual_mist:{ label:'Spiritual mist', cultivBonus:0.20, travelOk:true, atk:'all Qi techniques amplified', def:'none', color:'#88ffcc', rare:true },
+};
+
+// Generate weather based on season, location type, and some randomness
+function generateWeather() {
+  const w      = GS.world;
+  const month  = w.month || 1;
+  const season = getSeason(month);
+  const locType= LOCATIONS[w.location]?.type || 'general';
+
+  // Weights by season and location
+  let pool = ['clear','clear','cloudy','cloudy','cloudy'];
+  if(season.months.includes(month)) {
+    if(season.label === 'Spring') pool.push('rain','rain','wind');
+    if(season.label === 'Summer') pool.push('dry_heat','storm','clear');
+    if(season.label === 'Autumn') pool.push('rain','fog','wind','cloudy');
+    if(season.label === 'Winter') pool.push('snow','fog','blizzard');
+  }
+  if(locType === 'forest') pool.push('fog','rain','rain');
+  if(locType === 'industrial_city') pool.push('cloudy','cloudy');
+  if(locType === 'mountain_settlement') pool.push('wind','snow','fog');
+  if(locType === 'port_city') pool.push('wind','heavy_rain','storm');
+
+  // Rare spiritual mist (0.5%)
+  if(Math.random() < 0.005) return 'spiritual_mist';
+
+  return pool[Math.floor(Math.random() * pool.length)] || 'clear';
+}
+
+// Initialize weather if not set
+function ensureWeather() {
+  const w = GS.world;
+  if(!w.weather) {
+    w.weather = {
+      current: generateWeather(),
+      daysSinceChange: 0,
+      season: getSeason(w.month || 1).label,
+    };
+  }
+  return w.weather;
+}
+
+// Tick weather — changes every 1-5 days
+function tickWeather(daysElapsed) {
+  if(daysElapsed <= 0) return;
+  const w       = GS.world;
+  const weather = ensureWeather();
+
+  weather.daysSinceChange = (weather.daysSinceChange || 0) + daysElapsed;
+  weather.season = getSeason(w.month || 1).label;
+
+  // Change probability increases with days since last change
+  const changeChance = Math.min(0.9, weather.daysSinceChange / 4);
+  if(Math.random() < changeChance || weather.daysSinceChange > 5) {
+    weather.current       = generateWeather();
+    weather.daysSinceChange = 0;
+
+    // Notify player of dramatic weather changes
+    const wt = WEATHER_TYPES[weather.current];
+    if(wt && ['storm','blizzard','spiritual_mist','heavy_rain'].includes(weather.current)) {
+      toast(`Weather: ${wt.label}`, '', 3000);
+      if(weather.current === 'spiritual_mist') {
+        GS.narrative.push(`A spiritual mist has settled. The Qi in the air is thicker than normal — noticeably so. Cultivators throughout the area will be taking advantage of this.`);
+      }
+    }
+  }
+}
+
+// Hook into advanceTime
+const _advanceWithWeather = advanceTime;
+advanceTime = function(days=0, months=0, years=0) {
+  _advanceWithWeather(days, months, years);
+  try {
+    const elapsed = (days||0) + (months||0)*30 + (years||0)*360;
+    if(elapsed > 0) tickWeather(elapsed);
+  } catch(e) {}
+};
+
+// Inject weather into system prompt
+const _bspWithWeather = buildSystemPrompt;
+buildSystemPrompt = function() {
+  let prompt = _bspWithWeather();
+  try {
+    const weather = ensureWeather();
+    const wt      = WEATHER_TYPES[weather.current];
+    const season  = getSeason(GS.world.month || 1);
+    if(!wt) return prompt;
+
+    const cultivEffect = wt.cultivBonus + season.cultivBonus;
+    const cultivNote   = cultivEffect > 0.15 ? 'exceptional — rare conditions for advancement'
+                       : cultivEffect > 0.05 ? 'favorable for cultivation'
+                       : cultivEffect < 0 ? 'unfavorable — cultivation is harder in this weather'
+                       : 'neutral';
+
+    const weatherCtx = `\nCURRENT WEATHER: ${wt.label} · Season: ${season.label} (mood: ${season.mood})
+Cultivation conditions: ${cultivNote}
+Travel: ${wt.travelOk ? 'manageable' : 'difficult or dangerous — people stay indoors, progress is slow'}
+Combat effects: ${wt.atk || 'none'} | ${wt.def || 'none'}
+Write weather into the scene naturally — not as a report, as part of the environment. The weather should be visible in descriptions: the sound of rain on a roof, the way fog makes the market feel smaller, the electric quality of the air before a storm. Weather affects NPC mood, outdoor activities, and cultivation sessions.`;
+
+    prompt = prompt.replace('## ABSOLUTE RULES', weatherCtx + '\n\n## ABSOLUTE RULES');
+  } catch(e) {}
+  return prompt;
+};
+
+// Update topbar to show current weather icon
+const _updateTopbarWithWeather = updateTopbar;
+updateTopbar = function() {
+  _updateTopbarWithWeather();
+  try {
+    const weather = ensureWeather();
+    const icons   = { clear:'☀', cloudy:'☁', rain:'🌧', heavy_rain:'⛈', storm:'⛈', fog:'🌫', wind:'💨', snow:'❄', blizzard:'🌨', dry_heat:'🌡', spiritual_mist:'✦' };
+    const wt      = WEATHER_TYPES[weather.current];
+    let weatherEl = document.getElementById('tb-weather');
+    if(!weatherEl) {
+      const tbRight = document.getElementById('tb-right');
+      if(tbRight) {
+        weatherEl = document.createElement('span');
+        weatherEl.id = 'tb-weather';
+        weatherEl.style.cssText = 'font-size:14px;cursor:help;margin-right:6px;';
+        tbRight.insertBefore(weatherEl, tbRight.firstChild);
+      }
+    }
+    if(weatherEl && wt) {
+      weatherEl.textContent = icons[weather.current] || '☁';
+      weatherEl.title       = `${wt.label} · ${getSeason(GS.world.month||1).label}`;
+      if(weather.current === 'spiritual_mist') weatherEl.style.color = '#88ffcc';
+      else weatherEl.style.color = '';
+    }
+  } catch(e) {}
+};
+
+// Initialize weather on game start
+const _startWithWeather = startGame;
+startGame = function(isLoad=false) {
+  _startWithWeather(isLoad);
+  try {
+    ensureWeather();
+    updateTopbar();
+  } catch(e) {}
+};
+
 console.log('Murim Chronicles fully loaded.');
 
 </script>
