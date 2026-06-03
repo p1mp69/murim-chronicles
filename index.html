@@ -2469,7 +2469,7 @@ const LOCATIONS = {
       { era:'Year 150–340', label:'The Independent State',
         desc:'Red Sand City governs itself. Zimri-Lim\'s dynasty of dukes is not strong in the conventional sense — it exists because no one has decided it is worth the cost to remove it. The city produces fighters. The fighters can be hired. The administration\'s function is primarily to ensure the environment that produces fighters remains stable. This is simpler than it sounds and more morally complicated than it sounds.' },
       { era:'Year 375–389', label:"D'la in Red Sand City",
-        desc:"D'la arrives in the territory of Red Sand City around Year 375, after leaving the kingdom of Mari. He preaches D'yaqed in the market streets. This is tolerated because no one in Red Sand City has strong feelings about which deity you prefer as long as you can fight. Urur the stockman harbors D'la here. Inim-shara finds D'la walking the territory\'s edges. Irarum meets D'la in the market. Three of the four founding figures of Yaqism are present in this city during these years." },
+        desc:"D'la arrives in the territory of Red Sand City around Year 375, after leaving the Red Sand City region. He preaches D'yaqed in the market streets. This is tolerated because no one in Red Sand City has strong feelings about which deity you prefer as long as you can fight. Urur the stockman harbors D'la here. Inim-shara finds D'la walking the territory\'s edges. Irarum meets D'la in the market. Three of the four founding figures of Yaqism are present in this city during these years." },
       { era:'Year 389',     label:'The Great Flame and the Absorption',
         desc:"In Year 389, D'la transforms into a great flame in the northern region. The same year, Hammurabi\'s Luo Kingdom absorbs Red Sand City into its territory. Zimri-Lim remains as a puppet governor, stripped of actual authority. The city that harbored D'la is now occupied by the forces that tried to capture him. The Yaqist communities that formed here go underground or scatter." },
       { era:'Year 390+',    label:'Occupied Territory',
@@ -19164,6 +19164,11 @@ document.addEventListener('DOMContentLoaded', () => {
       <div class="modal-body" style="padding:8px">
         <div id="map-svg-container" style="width:100%;position:relative"></div>
         <div id="map-legend" style="font-size:11px;color:var(--muted);padding:8px;display:flex;gap:16px;flex-wrap:wrap;border-top:1px solid var(--border);margin-top:6px"></div>
+        <div style="padding:6px 8px;border-top:1px solid var(--border);display:flex;gap:8px;align-items:center">
+          <span style="font-size:10px;color:var(--dim)">For a detailed hand-crafted map:</span>
+          <button class="btn-secondary btn-sm" onclick="openAzgaar()" title="Open Azgaar Fantasy Map Generator in a new tab">Open Azgaar Map Builder ↗</button>
+          <button class="btn-secondary btn-sm" onclick="exportMapSVG()" title="Download this map as an SVG file">Export SVG</button>
+        </div>
       </div>
     </div>`;
     document.body.appendChild(mapModal);
@@ -19173,97 +19178,206 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Location map data: [x%, y%, kingdom, display name]
 const MAP_LOCATIONS = {
-  // Azure Empire (western)
-  ooina:               { x:12, y:22, k:'azure',  label:"Ooina (Ichiro's Forest)" },
-  tazar:               { x:28, y:35, k:'azure',  label:'Tazar (Capital)' },
-  beggars_rest:        { x:30, y:39, k:'azure',  label:"Beggar's Rest" },
-  jade_province:       { x:22, y:52, k:'azure',  label:'Jade Province' },
-  wheat_capital:       { x:38, y:58, k:'azure',  label:'Wheat Capital' },
-  // Luo-Tin Dynasty (central)
-  luo_tin_capital:     { x:58, y:28, k:'luo_tin',label:'Imperial Capital' },
-  great_defensive_giant:{ x:68, y:38, k:'luo_tin',label:'Great Defensive Giant' },
-  luo_tin_farm:        { x:58, y:52, k:'luo_tin',label:'Farm City' },
-  // Buo Kingdom (southeastern)
-  buo_capital:         { x:78, y:62, k:'buo',    label:'Buo Capital' },
+  // Azure Empire (west / northwest)
+  ooina:                { x:10, y:18, k:'azure',  label:"Ooina (Ichiro's Forest)", icon:'🌲', type:'forest'   },
+  iron_hollow:          { x:20, y:25, k:'azure',  label:'Iron Hollow',             icon:'⚒',  type:'city'     },
+  tazar:                { x:28, y:36, k:'azure',  label:'Tazar (Capital)',          icon:'★',  type:'capital'  },
+  beggars_rest:         { x:32, y:41, k:'azure',  label:"Beggar's Rest",           icon:'🌉', type:'slum'     },
+  jade_province:        { x:20, y:52, k:'azure',  label:'Jade Province',           icon:'◈',  type:'merchant' },
+  wheat_capital:        { x:38, y:60, k:'azure',  label:'Wheat Capital',           icon:'🌾', type:'farm'     },
+  // Luo-Tin Dynasty (central / north)
+  luo_tin_capital:      { x:58, y:22, k:'luo_tin',label:'Imperial Capital',        icon:'★',  type:'capital'  },
+  great_defensive_giant:{ x:70, y:35, k:'luo_tin',label:'Great Defensive Giant',   icon:'🏯', type:'fortress' },
+  luo_tin_farm:         { x:58, y:50, k:'luo_tin',label:'Farm City',               icon:'🌾', type:'farm'     },
+  shen_port:            { x:75, y:22, k:'luo_tin',label:'Shen Port',               icon:'⚓', type:'port'     },
+  silver_district:      { x:50, y:36, k:'luo_tin',label:'Silver District',         icon:'◈',  type:'craft'    },
+  // Buo Kingdom (south / southeast)
+  buo_capital:          { x:76, y:62, k:'buo',    label:'Buo Capital',             icon:'★',  type:'capital'  },
+  red_sand_city:        { x:88, y:72, k:'buo',    label:'Red Sand City',           icon:'⚔',  type:'warrior'  },
+  mistveil:             { x:68, y:75, k:'buo',    label:'Mistveil',                icon:'🌫', type:'hidden'   },
+  stone_root:           { x:82, y:82, k:'buo',    label:'Stone Root',              icon:'⛰',  type:'mountain' },
+  wild_bloom:           { x:60, y:85, k:'buo',    label:'Wild Bloom',              icon:'🌸', type:'nature'   },
 };
 
-const MAP_COLORS = { azure:'#1a3a5a', luo_tin:'#2a1a3a', buo:'#1a2a1a' };
-const MAP_BORDER = { azure:'#2a5a8a', luo_tin:'#4a2a6a', buo:'#2a5a2a' };
+const MAP_COLORS = {
+  azure:   { fill:'#0d2340', stroke:'#2a5a8a', text:'#4488cc',  label:'Azure Empire'    },
+  luo_tin: { fill:'#1e0d30', stroke:'#5a2a8a', text:'#9966cc',  label:'Luo-Tin Dynasty' },
+  buo:     { fill:'#0d1e0d', stroke:'#2a6a2a', text:'#44aa66',  label:'Buo Kingdom'     },
+};
+const TYPE_DOT = {
+  capital:'★', city:'●', merchant:'◈', farm:'◉', fortress:'▲',
+  forest:'⬡', slum:'○', port:'◎', craft:'◈', warrior:'◆',
+  hidden:'◇', mountain:'△', nature:'✿',
+};
 
 function showWorldMap() {
   const container = document.getElementById('map-svg-container');
   if(!container) return;
 
-  const W = container.offsetWidth || 700;
-  const H = Math.round(W * 0.55);
+  const yr        = GS.world.year;
   const playerLoc = GS.world.location;
+  const warActive = GS.world.wars?.some(w => w.active);
+  const c         = GS.char;
 
-  // Build SVG
-  let svg = `<svg viewBox="0 0 700 385" width="100%" style="background:#080810;border-radius:6px">
-    <defs>
-      <filter id="glow"><feGaussianBlur stdDeviation="2" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
-    </defs>`;
+  // ── SVG viewport: 900×560 ────────────────────────────────────
+  let svg = `<svg viewBox="0 0 900 540" width="100%"
+    style="background:linear-gradient(160deg,#050810 0%,#080d1a 100%);border-radius:8px;font-family:Georgia,serif">
+  <defs>
+    <filter id="glow2"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    <filter id="softglow"><feGaussianBlur stdDeviation="6" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    <radialGradient id="azureGrad" cx="30%" cy="40%"><stop offset="0%" stop-color="#0d2340" stop-opacity=".9"/><stop offset="100%" stop-color="#060e1a" stop-opacity=".4"/></radialGradient>
+    <radialGradient id="luotinGrad" cx="60%" cy="35%"><stop offset="0%" stop-color="#1e0d30" stop-opacity=".9"/><stop offset="100%" stop-color="#0a060f" stop-opacity=".4"/></radialGradient>
+    <radialGradient id="buoGrad" cx="75%" cy="70%"><stop offset="0%" stop-color="#0d1e0d" stop-opacity=".9"/><stop offset="100%" stop-color="#060a06" stop-opacity=".4"/></radialGradient>
+  </defs>`;
 
-  // Kingdom regions (approximate polygons)
-  svg += `<!-- Azure Empire -->
-    <polygon points="5,5 45,5 50,30 42,65 30,75 8,70 2,45" fill="${MAP_COLORS.azure}" fill-opacity="0.6" stroke="${MAP_BORDER.azure}" stroke-width="1.5"/>
-    <text x="20" y="78" fill="${MAP_BORDER.azure}" font-size="8" font-family="Georgia">Azure Empire</text>`;
-  svg += `<!-- Luo-Tin Dynasty -->
-    <polygon points="50,5 75,5 80,30 75,60 60,68 48,55 45,30" fill="${MAP_COLORS.luo_tin}" fill-opacity="0.6" stroke="${MAP_BORDER.luo_tin}" stroke-width="1.5"/>
-    <text x="53" y="75" fill="${MAP_BORDER.luo_tin}" font-size="8" font-family="Georgia">Luo-Tin Dynasty</text>`;
-  svg += `<!-- Buo Kingdom -->
-    <polygon points="62,50 88,45 95,60 90,85 72,88 60,75" fill="${MAP_COLORS.buo}" fill-opacity="0.6" stroke="${MAP_BORDER.buo}" stroke-width="1.5"/>
-    <text x="65" y="90" fill="${MAP_BORDER.buo}" font-size="8" font-family="Georgia">Buo Kingdom</text>`;
+  // ── GEOGRAPHIC FEATURES ─────────────────────────────────────
+  // Sea / coast on the east (Shen Port coast)
+  svg += `<path d="M 840 0 Q 870 100 880 250 Q 890 380 870 540 L 900 540 L 900 0 Z"
+    fill="#0a1520" fill-opacity="0.7" stroke="#1a3a5a" stroke-width="1"/>
+  <text x="862" y="170" fill="#1a3a5a" font-size="9" transform="rotate(90,862,170)">Eastern Sea</text>`;
 
-  // Travel route lines (major connections)
+  // Northern mountains (Great Defensive Giant range)
+  svg += `<path d="M 580 0 L 600 30 L 620 10 L 650 35 L 670 15 L 700 40 L 720 20 L 750 45 L 770 25 L 800 50 L 840 30 L 840 0 Z"
+    fill="#1a1224" fill-opacity="0.6" stroke="#332244" stroke-width="1"/>`;
+  // Mountain peaks decoration
+  for(let mx = 590; mx < 830; mx += 25) {
+    const my = Math.random() * 15 + 5;
+    svg += `<text x="${mx}" y="${my+18}" fill="#443355" font-size="9">⛰</text>`;
+  }
+
+  // Forest in Ooina region (top-left)
+  svg += `<ellipse cx="90" cy="100" rx="70" ry="55" fill="#0a1a08" fill-opacity="0.5" stroke="#1a3a1a" stroke-width="1"/>`;
+  for(let tx = 35; tx < 165; tx += 18) {
+    for(let ty = 55; ty < 145; ty += 18) {
+      if((tx-90)*(tx-90)/4900 + (ty-100)*(ty-100)/3025 < 1) {
+        svg += `<text x="${tx}" y="${ty}" fill="#0f2a0f" font-size="8">🌲</text>`;
+      }
+    }
+  }
+
+  // River running from mountains down through Azure Empire
+  svg += `<path d="M 320 0 Q 310 80 290 140 Q 270 200 280 280 Q 285 330 260 380"
+    fill="none" stroke="#0d2a4a" stroke-width="3" stroke-opacity="0.6"/>
+  <path d="M 320 0 Q 310 80 290 140 Q 270 200 280 280 Q 285 330 260 380"
+    fill="none" stroke="#1a4a7a" stroke-width="1.5" stroke-opacity="0.4"/>`;
+
+  // Canal near Beggar's Rest
+  svg += `<path d="M 260 380 Q 280 390 300 385 Q 330 375 360 380"
+    fill="none" stroke="#1a4a7a" stroke-width="2" stroke-opacity="0.5"/>`;
+
+  // Road connecting Azure Empire to Luo-Tin (main trade route)
+  svg += `<path d="M 250 320 Q 320 260 420 220 Q 480 200 530 195"
+    fill="none" stroke="#2a2a3a" stroke-width="2" stroke-dasharray="6,4"/>`;
+
+  // ── KINGDOM TERRITORIES ─────────────────────────────────────
+  // Azure Empire — western, irregular shape
+  svg += `<path d="M 5 5 L 160 5 L 200 50 L 210 120 L 200 200 L 180 280 L 160 360 L 130 400 L 80 420 L 30 400 L 5 350 Z"
+    fill="url(#azureGrad)" stroke="#2a5a8a" stroke-width="1.5" stroke-opacity="0.7"/>`;
+  svg += `<path d="M 160 5 L 380 5 L 400 80 L 390 160 L 360 240 L 310 320 L 260 380 L 180 280 L 200 200 L 210 120 L 200 50 Z"
+    fill="url(#azureGrad)" stroke="#2a5a8a" stroke-width="1.5" stroke-opacity="0.5"/>`;
+
+  // Luo-Tin Dynasty — central, rectangular/northern
+  svg += `<path d="M 400 5 L 680 5 L 720 50 L 710 180 L 680 280 L 610 360 L 520 380 L 440 340 L 390 260 L 380 160 L 390 80 Z"
+    fill="url(#luotinGrad)" stroke="#5a2a8a" stroke-width="1.5" stroke-opacity="0.7"/>`;
+
+  // Buo Kingdom — southeastern
+  svg += `<path d="M 500 350 L 580 320 L 680 280 L 750 320 L 800 380 L 840 440 L 840 540 L 600 540 L 500 500 L 480 440 Z"
+    fill="url(#buoGrad)" stroke="#2a6a2a" stroke-width="1.5" stroke-opacity="0.7"/>`;
+
+  // War conflict zone — if Buo-Luo-Tin war active (Year 144-154+)
+  if(yr >= 144 && (warActive || yr <= 160)) {
+    svg += `<path d="M 580 320 Q 630 340 680 320 Q 720 350 720 380 Q 700 400 660 390 Q 620 380 590 360 Z"
+      fill="#cc3322" fill-opacity="0.12" stroke="#cc3322" stroke-width="1" stroke-dasharray="3,3"/>
+    <text x="618" y="358" fill="#cc3322" font-size="9" opacity="0.7">⚔ Conflict Zone</text>`;
+  }
+
+  // ── KINGDOM LABELS ──────────────────────────────────────────
+  svg += `<text x="55" y="200" fill="#2a5a8a" font-size="13" font-style="italic" opacity="0.5" transform="rotate(-8,55,200)">Azure</text>
+  <text x="40" y="218" fill="#2a5a8a" font-size="11" font-style="italic" opacity="0.4" transform="rotate(-8,40,218)">Empire</text>`;
+  svg += `<text x="490" y="140" fill="#5a2a8a" font-size="12" font-style="italic" opacity="0.5" transform="rotate(-3,490,140)">Luo-Tin</text>
+  <text x="500" y="158" fill="#5a2a8a" font-size="11" font-style="italic" opacity="0.4" transform="rotate(-3,500,158)">Dynasty</text>`;
+  svg += `<text x="620" y="450" fill="#2a6a2a" font-size="12" font-style="italic" opacity="0.5">Buo Kingdom</text>`;
+
+  // ── TRAVEL ROUTES ───────────────────────────────────────────
   const routes = [
-    ['tazar','jade_province'],['tazar','beggars_rest'],['tazar','wheat_capital'],['tazar','ooina'],
-    ['tazar','luo_tin_capital'],['luo_tin_capital','great_defensive_giant'],
-    ['luo_tin_capital','luo_tin_farm'],['luo_tin_farm','buo_capital'],
-    ['great_defensive_giant','buo_capital'],
+    ['tazar','beggars_rest'],['tazar','jade_province'],['tazar','wheat_capital'],
+    ['tazar','ooina'],['tazar','iron_hollow'],
+    ['tazar','luo_tin_capital'],
+    ['iron_hollow','ooina'],
+    ['luo_tin_capital','great_defensive_giant'],['luo_tin_capital','luo_tin_farm'],
+    ['luo_tin_capital','shen_port'],['luo_tin_capital','silver_district'],
+    ['luo_tin_farm','buo_capital'],['great_defensive_giant','buo_capital'],
+    ['buo_capital','red_sand_city'],['buo_capital','mistveil'],
+    ['red_sand_city','stone_root'],['mistveil','wild_bloom'],
+    ['silver_district','wheat_capital'],['jade_province','wheat_capital'],
+    ['shen_port','great_defensive_giant'],
   ];
   routes.forEach(([a, b]) => {
     const la = MAP_LOCATIONS[a], lb = MAP_LOCATIONS[b];
     if(!la || !lb) return;
-    const x1 = la.x * 700 / 100, y1 = la.y * 385 / 100;
-    const x2 = lb.x * 700 / 100, y2 = lb.y * 385 / 100;
+    const x1 = la.x * 900 / 100, y1 = la.y * 540 / 100;
+    const x2 = lb.x * 900 / 100, y2 = lb.y * 540 / 100;
     const days = getTravelDays(a, b) || 10;
-    svg += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="#333350" stroke-width="1" stroke-dasharray="4,3">
-      <title>${LOCATIONS[a]?.name||a} → ${LOCATIONS[b]?.name||b}: ~${days} days</title></line>`;
+    const crossKingdom = la.k !== lb.k;
+    svg += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"
+      stroke="${crossKingdom?'#443344':'#223322'}" stroke-width="${crossKingdom?'1.5':'1'}"
+      stroke-dasharray="${crossKingdom?'5,4':'3,3'}" opacity="${crossKingdom?'0.5':'0.3'}">
+      <title>${LOCATIONS[a]?.name||a} → ${LOCATIONS[b]?.name||b}: ${days} days travel</title></line>`;
   });
 
-  // Location dots
+  // ── LOCATION DOTS ────────────────────────────────────────────
   Object.entries(MAP_LOCATIONS).forEach(([key, ml]) => {
-    const x = ml.x * 700 / 100;
-    const y = ml.y * 385 / 100;
+    const x = ml.x * 900 / 100;
+    const y = ml.y * 540 / 100;
     const isPlayer = key === playerLoc;
-    const kColor = { azure:'#4488cc', luo_tin:'#aa44cc', buo:'#44aa44' }[ml.k] || '#aaaaaa';
-    const repData = GS.char.reputation[key];
-    const hasRep  = repData && (repData.renown > 20 || repData.infamy > 20);
+    const kc = MAP_COLORS[ml.k];
+    const col = kc?.text || '#888888';
+    const repData = c.reputation[key];
+    const renown  = repData?.renown  || 0;
+    const infamy  = repData?.infamy  || 0;
+    const hasRenown = renown > 15;
+    const hasInfamy = infamy > 15;
+    const isCapital = ml.type === 'capital';
+    const r = isPlayer ? 8 : isCapital ? 6 : 4;
 
     svg += `<g class="map-loc" style="cursor:pointer" onclick="closeMapGoTo('${key}')">`;
-
-    // Glow for player location
+    // Glow ring for player
     if(isPlayer) {
-      svg += `<circle cx="${x}" cy="${y}" r="8" fill="none" stroke="${kColor}" stroke-width="1.5" opacity="0.5" filter="url(#glow)"/>`;
+      svg += `<circle cx="${x}" cy="${y}" r="14" fill="none" stroke="${col}" stroke-width="1" opacity="0.3" filter="url(#softglow)"/>`;
+      svg += `<circle cx="${x}" cy="${y}" r="11" fill="none" stroke="${col}" stroke-width="1.5" opacity="0.5"/>`;
     }
-    // Dot
-    svg += `<circle cx="${x}" cy="${y}" r="${isPlayer?6:4}" fill="${isPlayer?kColor:'#1a1a2e'}" stroke="${isPlayer?'#ffffff':kColor}" stroke-width="${isPlayer?2:1}">
-      <title>${ml.label}${hasRep?' (known here)':''}</title></circle>`;
-
-    // Reputation indicator
-    if(hasRep) {
-      const repColor = repData.infamy > repData.renown ? '#cc3322' : '#c49a30';
-      svg += `<circle cx="${x+5}" cy="${y-5}" r="2.5" fill="${repColor}" opacity="0.9"/>`;
+    // Capital star ring
+    if(isCapital && !isPlayer) {
+      svg += `<circle cx="${x}" cy="${y}" r="9" fill="none" stroke="${col}" stroke-width="0.5" opacity="0.3"/>`;
     }
+    // Main dot
+    svg += `<circle cx="${x}" cy="${y}" r="${r}" fill="${isPlayer?col:'#0a0a14'}" stroke="${col}" stroke-width="${isPlayer?2:1.5}" filter="${isPlayer?'url(#glow2)':''}">
+      <title>${ml.label}${isPlayer?' ← YOU ARE HERE':''}</title>
+    </circle>`;
+    // Type icon inside dot for bigger dots
+    if(isCapital || isPlayer) {
+      svg += `<text x="${x}" y="${y+3}" fill="${isPlayer?'#0a0a14':col}" font-size="${r-1}" text-anchor="middle" style="pointer-events:none">★</text>`;
+    }
+    // Renown/infamy indicators
+    if(hasRenown) svg += `<circle cx="${x+r+2}" cy="${y-r}" r="3" fill="#c49a30" opacity="0.9"><title>Renown ${renown} here</title></circle>`;
+    if(hasInfamy) svg += `<circle cx="${x+r+2+(hasRenown?7:0)}" cy="${y-r}" r="3" fill="#cc3322" opacity="0.9"><title>Infamy ${infamy} here</title></circle>`;
 
     // Label
-    const labelX = x + (ml.x > 60 ? -5 : 8);
-    const labelAnchor = ml.x > 60 ? 'end' : 'start';
-    svg += `<text x="${labelX}" y="${y+4}" fill="${isPlayer?'#ffffff':kColor}" font-size="${isPlayer?'9':'8'}" font-family="Georgia" text-anchor="${labelAnchor}" font-weight="${isPlayer?'bold':'normal'}" style="pointer-events:none">
-      ${isPlayer?'► ':''}${ml.label}</text>`;
+    const rightSide = ml.x > 55;
+    const lx = x + (rightSide ? -(r+4) : r+4);
+    const anchor = rightSide ? 'end' : 'start';
+    const ly = ml.type === 'capital' ? y - 5 : y + 4;
+    const shortLabel = ml.label.length > 18 ? ml.label.replace(/\s*\(.*\)/, '').slice(0,18) : ml.label;
+    svg += `<text x="${lx}" y="${ly}" fill="${isPlayer?'#ffffff':col}" font-size="${isPlayer?9:8}"
+      text-anchor="${anchor}" font-weight="${isPlayer||isCapital?'bold':'normal'}"
+      opacity="${isPlayer?1:0.85}" style="pointer-events:none">${isPlayer?'► ':' '}${shortLabel}</text>`;
     svg += `</g>`;
   });
+
+  // ── YEAR WATERMARK ───────────────────────────────────────────
+  const eraLabel = yr < 0 ? 'Pre-Cultivation Era' : yr < 130 ? 'Founding Era' : yr < 154 ? 'War Era' : 'Current Era';
+  svg += `<text x="10" y="530" fill="#1a1a2a" font-size="10" font-style="italic">Year ${yr} — ${eraLabel}</text>`;
+  svg += `<text x="890" y="530" fill="#1a1a2a" font-size="10" text-anchor="end">Click location to travel there</text>`;
 
   svg += '</svg>';
   container.innerHTML = svg;
@@ -19272,10 +19386,13 @@ function showWorldMap() {
   const legend = document.getElementById('map-legend');
   if(legend) {
     legend.innerHTML = `
-      <span>► Current location</span>
-      <span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:50%;background:#c49a30;display:inline-block"></span>Renown established</span>
-      <span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:50%;background:#cc3322;display:inline-block"></span>Infamy established</span>
-      <span style="color:var(--dim)">Click location to travel</span>`;
+      <span style="display:flex;align-items:center;gap:4px"><span style="color:#4488cc">●</span> Azure Empire</span>
+      <span style="display:flex;align-items:center;gap:4px"><span style="color:#9966cc">●</span> Luo-Tin Dynasty</span>
+      <span style="display:flex;align-items:center;gap:4px"><span style="color:#44aa66">●</span> Buo Kingdom</span>
+      <span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:50%;background:#c49a30;display:inline-block"></span>Renown here</span>
+      <span style="display:flex;align-items:center;gap:4px"><span style="width:8px;height:8px;border-radius:50%;background:#cc3322;display:inline-block"></span>Infamy here</span>
+      ${warActive||yr>=144&&yr<=165?'<span style="color:#cc3322">⚔ Active Conflict Zone</span>':''}
+      <span style="color:var(--dim)">★ = Capital · Click to travel</span>`;
   }
 
   showModal('modal-map');
@@ -20879,16 +20996,16 @@ const YAQISM_LORE = {
   core_belief:'The flame of D\'yaqed burns within all living things. To recognize this flame in others is to know D\'yaqed. To deny it is to live in darkness.',
 
   timeline:[
-    { year:-200,  event:'Ancient Luo Kingdom empire establishes itself. The kingdom of Mari exists as a tributary state within it. Slavery is institutionalized.' },
-    { year:-80,   event:'Etum and Mammetum, free citizens of Mari, begin a lineage that will reach D\'la four generations later.' },
-    { year:345,   event:'Enmul born into slavery in the kingdom of Mari — fourth-generation descendant of Etum and Mammetum through their enslaved children. Nothing distinguishes him.' },
+    { year:-200,  event:'Luo-Tin Dynasty empire establishes itself. The Red Sand City region exists as a tributary state within it. Slavery is institutionalized.' },
+    { year:-80,   event:'Etum and Mammetum, free citizens of the Red Sand City region, begin a lineage that will reach D\'la four generations later.' },
+    { year:345,   event:'Enmul born into slavery in the Red Sand City region — fourth-generation descendant of Etum and Mammetum through their enslaved children. Nothing distinguishes him.' },
     { year:370,   event:'Enmul privately begins to believe in D\'yaqed — he is one of the only individuals to hold this belief. He has no teachers, no texts. He simply believes that the flame lives in everyone.' },
     { year:377,   event:'Enmul begins speaking of D\'yaqed openly. He is brought before the regional priests for blasphemy against the region\'s god.' },
     { year:381,   event:'Enmul is sentenced to death by beheading and bisection. On the execution day, two men with axes lower their blades and find him unharmed. The axes shatter on the second attempt. D\'yaqed appears and cradles Enmul\'s face. "You are my most devoted belief. Shed your name. You are no longer Enmul — that is the name of a man in bondage. You are D\'la. Carry my name throughout the region." D\'la is released. He begins preaching immediately.' },
-    { year:382,   event:'D\'la moves through the territory around Mari. He is being looked for but not yet found. He meets Urur, a simple stockman. Urur takes D\'la in but privately plans to hand him over. Over two weeks, D\'la\'s treatment of the animals and the people around him changes Urur completely. On the final night, D\'yaqed appears to Urur and grants him a massive memory — Urur writes down the dīatiqē (the five laws of D\'yaqed).' },
-    { year:383,   event:'D\'la meets Inim-shara on a walking path around the territory of Mari. Inim-shara is a man of excessive appetite — a heavy eater. D\'la shows him how the fish in a nearby pond live and think, explaining the flame within every creature. Inim-shara falls to his knees. D\'la instructs him to eat no cooked meals for two weeks. On the 13th day of the fast, Inim-shara walks into the pond and the fish come to him without fear — he finally understands the flame within every being.' },
-    { year:384,   event:'D\'la meets Irarum — a murderer living in the forest brush of Mari. The meeting begins by accident in the market. D\'la insists on helping Irarum fix soiled fruit and ends up cooking a meal in Irarum\'s home. They eat together and praise D\'yaqed. Irarum feels a coldness he has never felt. D\'la covers Irarum\'s window with cloth and tells him to speak to D\'yaqed in the dark. Irarum talks for a full day — confessing murders, confessing his life. He emerges screaming "D\'yaqed provides!" and becomes a righteous man.' },
-    { year:385,   event:'D\'la\'s following grows across the Mari territory. He teaches the three practices: fasting from cooked food, ṣlōtā b-lēlyā (night prayer), and speaking to D\'yaqed inside a qlaytā (a private dark sacred space).' },
+    { year:382,   event:'D\'la moves through the territory around Red Sand City. He is being looked for but not yet found. He meets Urur, a simple stockman. Urur takes D\'la in but privately plans to hand him over. Over two weeks, D\'la\'s treatment of the animals and the people around him changes Urur completely. On the final night, D\'yaqed appears to Urur and grants him a massive memory — Urur writes down the dīatiqē (the five laws of D\'yaqed).' },
+    { year:383,   event:'D\'la meets Inim-shara on a walking path around the Red Sand City territory. Inim-shara is a man of excessive appetite — a heavy eater. D\'la shows him how the fish in a nearby pond live and think, explaining the flame within every creature. Inim-shara falls to his knees. D\'la instructs him to eat no cooked meals for two weeks. On the 13th day of the fast, Inim-shara walks into the pond and the fish come to him without fear — he finally understands the flame within every being.' },
+    { year:384,   event:'D\'la meets Irarum — a murderer living in the outskirts of Red Sand City. The meeting begins by accident in the market. D\'la insists on helping Irarum fix soiled fruit and ends up cooking a meal in Irarum\'s home. They eat together and praise D\'yaqed. Irarum feels a coldness he has never felt. D\'la covers Irarum\'s window with cloth and tells him to speak to D\'yaqed in the dark. Irarum talks for a full day — confessing murders, confessing his life. He emerges screaming "D\'yaqed provides!" and becomes a righteous man.' },
+    { year:385,   event:'D\'la\'s following grows across the Red Sand City territory. He teaches the three practices: fasting from cooked food, ṣlōtā b-lēlyā (night prayer), and speaking to D\'yaqed inside a qlaytā (a private dark sacred space).' },
     { year:386,   event:'Reports of D\'la reach Hammurabi, king of the Luo Kingdom — seed of Aruwium, his fourth-generation descendant. Hammurabi considers D\'la an insult to the regional gods and a political threat.' },
     { year:387,   event:'Hammurabi sends a message to Zimri-Lim, Duke of Red Sand City (then an independent state): D\'la must be dead in front of him or he will bring war. Zimri-Lim panics and sends his armies through the streets. D\'la is being harbored by Urur. When Urur hears of the warrant, he grows afraid. D\'la asks for two more weeks. Urur agrees and watches D\'la for those two weeks — at the end, Urur helps hide him further.' },
     { year:388,   event:'Hammurabi launches a military campaign into Red Sand City territory. D\'la is captured and imprisoned in Hammurabi\'s dungeon. Zimri-Lim offers no resistance. The Babylonian occupation begins.' },
@@ -20947,7 +21064,7 @@ Object.assign(LORE_NPCS, {
   dla: {
     id:'dla', name:"D'la", title:'Prophet of D\'yaqed — The One Who Burns\' Messenger',
     gender:'male', alive:false, deathYear:389, birthYear:345,
-    birthNote:'Born into slavery in the kingdom of Mari as Enmul — fourth-generation descendant of Etum and Mammetum. Nothing distinguished him from any other slave except his private belief in D\'yaqed.',
+    birthNote:'Born into slavery in the Red Sand City region as Enmul — fourth-generation descendant of Etum and Mammetum. Nothing distinguished him from any other slave except his private belief in D\'yaqed.',
     affinity:['fire','light','life'],
     glowColor:'rgba(255,180,50,0.25)', specialGlow:'lore',
     stats:{ strength:45, agility:60, endurance:80, intelligence:75, perception:95, willpower:100, charisma:95, luck:90 },
@@ -20971,7 +21088,7 @@ Object.assign(LORE_NPCS, {
   inim_shara: {
     id:'inim_shara', name:'Inim-shara', title:'Exemplar of the Fast — Strength of Ten Men',
     gender:'male', alive:false, deathYear:440, birthYear:348,
-    birthNote:'Found by D\'la on a walking path around the territory of Mari. Initially a man of excessive appetite. A 13-day fast and the fish of a nearby pond changed everything.',
+    birthNote:'Found by D\'la on a walking path around the Red Sand City territory. Initially a man of excessive appetite. A 13-day fast and the fish of a nearby pond changed everything.',
     glowColor:'rgba(255,220,100,0.12)', specialGlow:'lore',
     stats:{ strength:99, agility:75, endurance:95, intelligence:60, perception:80, willpower:90, charisma:72, luck:65 },
     qiStageIndex:0, qiPath:null, noQi:true,
@@ -20982,7 +21099,7 @@ Object.assign(LORE_NPCS, {
   irarum: {
     id:'irarum', name:'Irarum', title:'Exemplar of ṣlōtā b-lēlyā — The Blade That No Man Could Rival',
     gender:'male', alive:false, deathYear:450, birthYear:342,
-    birthNote:'A murderer living in the forest brush of Mari. Met D\'la by accident in a market. The meeting ended with Irarum speaking to D\'yaqed alone for an entire day and emerging screaming "D\'yaqed provides!"',
+    birthNote:'A murderer living in the outskirts of Red Sand City. Met D\'la by accident in a market. The meeting ended with Irarum speaking to D\'yaqed alone for an entire day and emerging screaming "D\'yaqed provides!"',
     glowColor:'rgba(180,100,100,0.12)', specialGlow:'lore',
     stats:{ strength:75, agility:99, endurance:80, intelligence:70, perception:88, willpower:85, charisma:55, luck:72 },
     qiStageIndex:0, qiPath:null, noQi:true,
@@ -21070,9 +21187,9 @@ buildEraCard = function(yr) {
   let card = _withYaqismEraCard(yr);
   if(yr >= 377 && yr <= 395) {
     const yaqEntry = yr < 381
-      ? `<div class="era-section"><div class="era-section-label" style="color:#c4883a">Yaqism — Emerging</div><div class="era-section-body">A slave named Enmul in the kingdom of Mari has begun speaking privately of D'yaqed — a deity he believes placed a flame inside every living being. He is one of the only people in the world who holds this belief. He has no texts, no teachers. He simply believes.</div></div>`
+      ? `<div class="era-section"><div class="era-section-label" style="color:#c4883a">Yaqism — Emerging</div><div class="era-section-body">A slave named Enmul in the Red Sand City region has begun speaking privately of D'yaqed — a deity he believes placed a flame inside every living being. He is one of the only people in the world who holds this belief. He has no texts, no teachers. He simply believes.</div></div>`
       : yr < 389
-      ? `<div class="era-section"><div class="era-section-label" style="color:#c4883a">Yaqism — D'la Preaches</div><div class="era-section-body">D'la (formerly Enmul) survived his own execution and is spreading the word of D'yaqed across the Mari territory. He has found three followers who will carry the religion forward: Urur, Inim-shara, and Irarum. Hammurabi of the Luo Kingdom has taken notice. D'la is being hunted.</div></div>`
+      ? `<div class="era-section"><div class="era-section-label" style="color:#c4883a">Yaqism — D'la Preaches</div><div class="era-section-body">D'la (formerly Enmul) survived his own execution and is spreading the word of D'yaqed across the Red Sand City territory. He has found three followers who will carry the religion forward: Urur, Inim-shara, and Irarum. Hammurabi of the Luo-Tin Dynasty has taken notice. D'la is being hunted.</div></div>`
       : `<div class="era-section"><div class="era-section-label" style="color:#c4883a">Yaqism — The Great Flame (Year 389)</div><div class="era-section-body">D'la transformed into a great flame in Year 389, consuming northern Babylonia. His followers scattered as he instructed. Red Sand City was absorbed into the Luo Kingdom. Yaqism is now a religion without its prophet — it will either spread or die in the years ahead.</div></div>`;
     card = card.replace('</div>', yaqEntry + '\n</div>');
   }
@@ -24127,9 +24244,13 @@ sendToAI = async function(overrideMsg) {
   const inputEl = document.getElementById('action-input');
   const sendBtn = document.getElementById('btn-send');
 
-  // Always clear the input and lock the UI before sending
-  if(inputEl) inputEl.value = '';
-  if(inputEl) inputEl.disabled = true;
+  // ── READ THE MESSAGE FIRST before touching the input ──────────
+  // Bug fix: clearing input before reading it made everything blank
+  const msg = overrideMsg || inputEl?.value?.trim() || '';
+  if(!msg) return; // nothing to send, bail immediately
+
+  // NOW clear and lock
+  if(inputEl) { inputEl.value = ''; inputEl.disabled = true; }
   if(sendBtn) {
     sendBtn.innerHTML = '<span class="spinner"></span> Writing…';
     sendBtn.disabled  = true;
@@ -24154,7 +24275,7 @@ sendToAI = async function(overrideMsg) {
   }
 
   try {
-    await _wrapForUX(overrideMsg);
+    await _wrapForUX(msg); // pass the captured message, not the original undefined overrideMsg
   } catch(e) {
     console.error('[sendToAI wrapper]', e);
   } finally {
@@ -26926,6 +27047,49 @@ SCHEDULE RULE: Do not treat these schedules as rigid. A person with goals may be
 
 // Remove the old rigid schedule block that might conflict
 // (The _bspWithScheduleCheck patch from before is now superseded by the dynamic one)
+
+// ── Map utilities ─────────────────────────────────────────────────
+
+// Open Azgaar Fantasy Map Generator in a new tab
+// (Cannot embed due to cross-origin restrictions, but the user can
+//  create a custom map there that matches the game's world)
+window.openAzgaar = function() {
+  const yr    = GS.world.year;
+  const loc   = LOCATIONS[GS.world.location]?.name || GS.world.location;
+  const wars  = GS.world.wars?.filter(w=>w.active).map(w=>w.name).join(', ') || 'none';
+  // Open Azgaar with a helpful note in the console
+  const tab   = window.open('https://azgaar.github.io/Fantasy-Map-Generator/', '_blank');
+  // Copy world context to clipboard for easy reference when building
+  const notes = `Murim Chronicles — Year ${yr}
+Kingdoms: Azure Empire (western, Tazar capital), Luo-Tin Dynasty (central/north, Imperial Capital), Buo Kingdom (south, Buo Capital + Red Sand City)
+Current location: ${loc}
+Active conflicts: ${wars}
+Notable locations:
+  Azure: Tazar (capital, canal city), Beggar's Rest (slum under bridge), Jade Province (merchant city), Wheat Capital (farming), Iron Hollow (industrial), Ooina (Ichiro's forest)
+  Luo-Tin: Imperial Capital, Great Defensive Giant (fortress), Farm City, Shen Port, Silver District
+  Buo: Buo Capital, Red Sand City (warrior city), Mistveil (hidden), Stone Root (mountain), Wild Bloom (nature)
+Rivers: one major river through Azure Empire west
+Coast: eastern coast near Shen Port
+Mountains: northern range (Great Defensive Giant area)`;
+
+  navigator.clipboard?.writeText(notes).then(() => {
+    toast('Azgaar opened. World notes copied to clipboard — paste them for reference.', 'gold', 6000);
+  }).catch(() => {
+    toast('Azgaar opened in new tab. Build your map to match the three kingdoms.', 'gold', 4000);
+  });
+};
+
+// Export the current map SVG as a downloadable file
+window.exportMapSVG = function() {
+  const svgEl = document.querySelector('#map-svg-container svg');
+  if(!svgEl) { toast('Open the map first.', 'error', 2000); return; }
+  const blob = new Blob([svgEl.outerHTML], { type:'image/svg+xml' });
+  const a    = document.createElement('a');
+  a.href     = URL.createObjectURL(blob);
+  a.download = `murim-map-year${GS.world.year}.svg`;
+  a.click();
+  toast('Map exported as SVG.', 'gold', 2000);
+};
 
 console.log('Murim Chronicles fully loaded.');
 
