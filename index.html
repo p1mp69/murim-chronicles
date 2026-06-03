@@ -1214,6 +1214,27 @@ hr.divider { border: none; border-top: 1px solid var(--border); margin: 8px 0; }
 .npc-card.unreachable .npc-card-footer { opacity: .35; pointer-events: none; }
 /* ── CURRENCY DISPLAY ── */
 #tb-silver { font-size: 12px; }
+/* ── ROMANCE SYSTEM ── */
+.npc-card.in-love     { border-color:#6a2040; box-shadow:0 0 8px rgba(220,80,140,.15); }
+.npc-card.heartbroken { border-color:#3a1530; opacity:.85; }
+.romance-row { display:flex; align-items:center; gap:6px; margin:4px 0 2px; }
+.romance-dots { display:flex; gap:2px; }
+.romance-dot  { width:5px; height:5px; border-radius:50%; background:var(--s5); }
+.romance-dot.lit { background:#e0507a; }
+.romance-dot.lit-gold { background:#c49a30; }
+.romance-dot.lit-dim  { background:#664455; }
+.romance-stage-lbl { font-size:10px; color:#b06080; font-style:italic; flex:1; }
+.romance-feelings  { font-size:9px; padding:1px 6px; border-radius:8px; background:rgba(180,40,100,.12); color:#cc6688; border:1px solid #6a2040; white-space:nowrap; }
+.romance-action-row { display:flex; flex-wrap:wrap; gap:4px; margin-top:5px; }
+.romance-btn {
+  font-size:10px; padding:3px 9px; border-radius:10px;
+  border:1px solid #6a2040; background:rgba(180,40,100,.08);
+  color:#cc6688; cursor:pointer; font-family:inherit;
+  transition:all .12s; white-space:nowrap;
+}
+.romance-btn:hover  { border-color:#e0507a; color:#ff88bb; background:rgba(220,80,140,.15); }
+.romance-btn.danger { border-color:#5a1528; color:#994466; }
+.romance-btn.danger:hover { border-color:#cc3366; color:#ff6699; }
 /* ── BARBER STYLES ── */
 .barber-style-row {
   display: flex; align-items: flex-start; gap: 10px;
@@ -21687,6 +21708,7 @@ updateRelationsTab = function() {
         <button class="rel-filter-btn" onclick="setRelFilter('family')">Family</button>
         <button class="rel-filter-btn" onclick="setRelFilter('close')">Close</button>
         <button class="rel-filter-btn" onclick="setRelFilter('hostile')">Hostile</button>
+        <button class="rel-filter-btn" onclick="setRelFilter('romance')" style="color:#cc6688;border-color:#6a2040">♥ Romance</button>
       </div>
       <input id="rel-search" placeholder="Search by name..." oninput="setRelSearch(this.value)">
       <select id="rel-sort" onchange="setRelSort(this.value)">
@@ -21724,6 +21746,10 @@ updateRelationsTab = function() {
   if(F.category === 'family')  living = living.filter(isFamily);
   else if(F.category === 'close')   living = living.filter(r => isClose(r) && !isFamily(r));
   else if(F.category === 'hostile') living = living.filter(isHostile);
+  else if(F.category === 'romance') living = living.filter(r =>
+    ['lover','spouse'].includes(r.type) ||
+    (r.romance && r.romance.stage && r.romance.stage !== 'none')
+  );
   // 'all' shows everything
 
   // ── Search filter ───────────────────────────────────────────
@@ -23193,6 +23219,473 @@ updateCharacterTab = function() {
       <div style="color:var(--dim);font-size:10px">Power Rating: ${pr} · Tier ${tier.tier}/5</div>
       <div style="color:var(--muted);font-size:10px;margin-top:3px;font-style:italic">${tier.worldBehavior?.slice(0,100)}${(tier.worldBehavior?.length||0)>100?'…':''}</div>
     `;
+  } catch(e) {}
+};
+
+// ================================================================
+// ════════════════════════════════════════════════════════════════
+// ── ROMANCE SYSTEM
+// ════════════════════════════════════════════════════════════════
+// ================================================================
+
+// ── Romance stage progression ────────────────────────────────────
+const ROMANCE_STAGES = [
+  { id:'none',        label:'',                icon:'',   dots:0, color:'dim',    bondReq:0,
+    desc:'No romantic dimension.' },
+  { id:'noticed',     label:'Noticed',          icon:'◇',  dots:1, color:'dim',    bondReq:0,
+    desc:'Something caught your attention. Or theirs. It hasn\'t been named.' },
+  { id:'interested',  label:'Interested',       icon:'◈',  dots:2, color:'muted',  bondReq:15,
+    desc:'The interest is there on at least one side. Neither has said anything.' },
+  { id:'flirting',    label:'Flirting',         icon:'♦',  dots:3, color:'muted',  bondReq:25,
+    desc:'There\'s play between you. Charged moments. Nothing said directly.' },
+  { id:'tension',     label:'Tension',          icon:'♥',  dots:4, color:'pink',   bondReq:38,
+    desc:'The air has changed. Something has to give. It can\'t stay like this.' },
+  { id:'confessed',   label:'Confessed',        icon:'♥',  dots:5, color:'pink',   bondReq:38,
+    desc:'Someone said it. The other person has to decide what to do with that.' },
+  { id:'courting',    label:'Courting',         icon:'♥',  dots:6, color:'pink',   bondReq:52,
+    desc:'Officially pursuing. They know it and they\'re open to it.' },
+  { id:'together',    label:'Together',         icon:'❤',  dots:7, color:'red',    bondReq:52,
+    desc:'You\'re a couple. This is real.' },
+  { id:'committed',   label:'Committed',        icon:'❤',  dots:8, color:'red',    bondReq:65,
+    desc:'You\'ve been through something together. Deeper than just being together.' },
+  { id:'engaged',     label:'Engaged',          icon:'💍', dots:9, color:'gold',   bondReq:78,
+    desc:'Formally promised. The world knows, or will.' },
+  { id:'married',     label:'Married',          icon:'💍', dots:10,color:'gold',   bondReq:78,
+    desc:'Bound. This is what you chose.' },
+  { id:'complicated', label:'Complicated',      icon:'◈',  dots:3, color:'muted',  bondReq:0,
+    desc:'Something happened. Neither of you has fully resolved it.' },
+  { id:'separated',   label:'Separated',        icon:'◇',  dots:2, color:'dim',    bondReq:0,
+    desc:'Were together. Aren\'t anymore.' },
+  { id:'heartbroken', label:'Heartbroken',      icon:'♡',  dots:1, color:'dim',    bondReq:0,
+    desc:'It ended badly. The kind of ending that leaves marks.' },
+];
+
+const ROMANCE_STAGE_MAP = Object.fromEntries(ROMANCE_STAGES.map(s => [s.id, s]));
+
+// NPC feelings scale
+const NPC_FEELINGS = {
+  uninterested: { label:'Uninterested',  color:'var(--dim)',   score:0 },
+  neutral:      { label:'Neutral',       color:'var(--muted)', score:10 },
+  curious:      { label:'Curious',       color:'#aa7755',      score:25 },
+  drawn:        { label:'Drawn to you',  color:'#bb6688',      score:45 },
+  interested:   { label:'Interested',    color:'#cc6688',      score:60 },
+  smitten:      { label:'Smitten',       color:'#dd5577',      score:78 },
+  in_love:      { label:'In love',       color:'#ff4466',      score:95 },
+  hurt:         { label:'Hurt',          color:'#885566',      score:20 },
+  over_it:      { label:'Moved on',      color:'var(--dim)',   score:5 },
+};
+
+// ── Ensure every relationship has a romance object ────────────────
+function ensureRomance(rel) {
+  if(!rel.romance) {
+    rel.romance = {
+      stage:        'none',
+      chemistry:    Math.floor(Math.random() * 30), // 0-29 base (random chemistry)
+      npcFeelings:  'neutral',
+      attraction:   0,       // NPC's attraction to player, 0-100
+      history:      [],      // milestone notes
+      complications:[],      // active complications
+      startedYear:  null,    // year they got 'together'
+      engagedYear:  null,
+      marriedYear:  null,
+    };
+  }
+  return rel.romance;
+}
+
+// ── Chemistry: How naturally well they click ────────────────────
+// Higher chemistry = easier to advance romance stages
+// Based on personality alignment, karma, shared history
+function calcChemistry(rel, npc) {
+  let chem = rel.romance?.chemistry || 0;
+  const c = GS.char;
+
+  // Existing bond contributes
+  chem += Math.floor((rel.bond_level || 0) * 0.3);
+
+  // Shared hardship (memories together)
+  const memories = rel.fullMemory?.length || 0;
+  if(memories > 300) chem += 10;
+  if(memories > 600) chem += 10;
+
+  // Alignment match
+  if(npc?.alignment === 'orthodox' && c.karma.righteous > c.karma.demonic) chem += 8;
+  if(npc?.alignment === 'demonic'  && c.karma.demonic > c.karma.righteous)  chem += 8;
+
+  // Mentor/disciple chemistry (complex — culturally loaded in murim)
+  if(['mentor','teacher'].includes(rel.type)) chem -= 5;
+
+  // Enemy-to-lover pipeline (tension from conflict)
+  if(['hostile','enemy','rival'].includes(rel.type)) chem += 12;
+
+  return Math.max(0, Math.min(100, chem));
+}
+
+// ── Get romance stage object ─────────────────────────────────────
+function getRomanceStage(rel) {
+  return ROMANCE_STAGE_MAP[rel.romance?.stage || 'none'] || ROMANCE_STAGES[0];
+}
+
+// ── Build romance display for NPC card ──────────────────────────
+function buildRomanceDisplay(r) {
+  const rom = r.romance;
+  if(!rom || rom.stage === 'none') return '';
+  if(['lover','spouse'].includes(r.type) && rom.stage === 'none') return '';
+
+  const stageObj = getRomanceStage(r);
+  if(stageObj.id === 'none') return '';
+
+  const dotColor = ['heartbroken','separated','complicated'].includes(stageObj.id) ? 'lit-dim'
+    : ['married','engaged','committed','together'].includes(stageObj.id) ? 'lit-gold'
+    : 'lit';
+  const dots = Array.from({length:10}, (_,i) =>
+    `<div class="romance-dot${i < stageObj.dots ? ' '+dotColor : ''}"></div>`
+  ).join('');
+
+  const feelObj = NPC_FEELINGS[rom.npcFeelings] || NPC_FEELINGS.neutral;
+  const feelLabel = feelObj.score > 0 ? `<span class="romance-feelings" style="color:${feelObj.color}">${feelObj.label}</span>` : '';
+
+  const chem = calcChemistry(r, GS.world.npcRegistry[r.npcId]);
+  const chemBar = chem > 60 ? `<span style="font-size:9px;color:#c49a30;margin-left:4px" title="Chemistry: ${chem}">✦ ${chem > 80 ? 'High' : 'Good'} chemistry</span>` : '';
+
+  let compNote = '';
+  if(rom.complications?.length) {
+    compNote = `<div style="font-size:10px;color:#885566;margin-top:2px;font-style:italic">${rom.complications.slice(0,2).join(' · ')}</div>`;
+  }
+
+  return `<div class="romance-row">
+    <div class="romance-dots">${dots}</div>
+    <span class="romance-stage-lbl">${stageObj.icon} ${stageObj.label}</span>
+    ${feelLabel}
+    ${chemBar}
+  </div>${compNote}`;
+}
+
+// ── Romance quick actions ────────────────────────────────────────
+function buildRomanceActions(r) {
+  const npc    = GS.world.npcRegistry[r.npcId];
+  if(!npc) return '';
+  ensureRomance(r);
+  const rom    = r.romance;
+  const stage  = rom.stage;
+  const bond   = r.bond_level || r.trust || 0;
+  const isHostile = (npc.grudgeLevel || 0) > 60;
+  if(isHostile) return '';
+
+  // Can't romance your own family
+  const FAMILY = new Set(['mother','father','grandmother','grandfather','aunt','uncle','sister','brother','family','caregiver','offspring']);
+  if(FAMILY.has(r.type)) return '';
+
+  // Reachable check
+  if(!npcReachable(r.npcId)) return '';
+
+  const btns = [];
+
+  if(stage === 'none' || stage === 'noticed') {
+    if(bond >= 15) {
+      btns.push({ label:'Spend time with them', action:'romance_spend_time', cls:'' });
+    }
+    if(bond >= 25) {
+      btns.push({ label:'Get to know them better', action:'romance_get_to_know', cls:'' });
+    }
+  }
+
+  if(stage === 'interested' || stage === 'flirting') {
+    btns.push({ label:'Flirt', action:'romance_flirt', cls:'' });
+    btns.push({ label:'Spend time together', action:'romance_spend_time', cls:'' });
+    if(bond >= 38) btns.push({ label:'Be honest about your interest', action:'romance_honest', cls:'' });
+  }
+
+  if(stage === 'tension') {
+    btns.push({ label:'Address the tension', action:'romance_address_tension', cls:'' });
+    btns.push({ label:'Pull back', action:'romance_pull_back', cls:'danger' });
+    if(bond >= 38) btns.push({ label:'Confess your feelings', action:'romance_confess', cls:'' });
+  }
+
+  if(stage === 'confessed') {
+    btns.push({ label:'Follow through', action:'romance_follow_through', cls:'' });
+    btns.push({ label:'Give them space', action:'romance_give_space', cls:'danger' });
+  }
+
+  if(stage === 'courting') {
+    btns.push({ label:'Plan something together', action:'romance_plan', cls:'' });
+    btns.push({ label:'Be present for them', action:'romance_present', cls:'' });
+    btns.push({ label:'Make it official', action:'romance_official', cls:'' });
+  }
+
+  if(stage === 'together' || stage === 'committed') {
+    btns.push({ label:'Quality time', action:'romance_quality_time', cls:'' });
+    btns.push({ label:'Deep conversation', action:'romance_deep_talk', cls:'' });
+    if(stage === 'committed' && bond >= 78) {
+      btns.push({ label:'Propose', action:'romance_propose', cls:'' });
+    }
+    btns.push({ label:'Pick a fight', action:'romance_fight', cls:'danger' });
+    btns.push({ label:'Create distance', action:'romance_distance', cls:'danger' });
+  }
+
+  if(stage === 'engaged') {
+    btns.push({ label:'Plan the ceremony', action:'romance_plan_ceremony', cls:'' });
+    btns.push({ label:'Talk about the future', action:'romance_future_talk', cls:'' });
+    btns.push({ label:'Break the engagement', action:'romance_break_engagement', cls:'danger' });
+  }
+
+  if(stage === 'married') {
+    btns.push({ label:'Quality time', action:'romance_quality_time', cls:'' });
+    btns.push({ label:'Share a meal', action:'romance_meal', cls:'' });
+    btns.push({ label:'Serious conversation', action:'romance_serious_talk', cls:'' });
+  }
+
+  if(stage === 'complicated') {
+    btns.push({ label:'Try to repair this', action:'romance_repair', cls:'' });
+    btns.push({ label:'Have it out', action:'romance_have_it_out', cls:'danger' });
+    btns.push({ label:'Walk away from it', action:'romance_walk_away', cls:'danger' });
+  }
+
+  if(stage === 'separated' || stage === 'heartbroken') {
+    if(bond >= 38) btns.push({ label:'Reach out', action:'romance_reach_out', cls:'' });
+    btns.push({ label:'Leave it alone', action:'romance_leave_alone', cls:'danger' });
+  }
+
+  if(!btns.length) return '';
+
+  return `<div class="romance-action-row">${
+    btns.map(b =>
+      `<button class="romance-btn${b.cls?' '+b.cls:''}" onclick="sendRomanceAction('${r.npcId}','${b.action}')">${b.label}</button>`
+    ).join('')
+  }</div>`;
+}
+
+// ── Send a romance-related action to the AI ──────────────────────
+window.sendRomanceAction = function(npcId, actionType) {
+  const rel  = GS.char.relationships.find(r => r.npcId === npcId);
+  const npc  = GS.world.npcRegistry[npcId];
+  if(!rel || !npc) return;
+
+  if(!npcReachable(npcId)) {
+    toast(`${npc.name} isn't here right now.`, 'warning', 3000);
+    return;
+  }
+
+  ensureRomance(rel);
+  const stage = rel.romance.stage;
+  const name  = rel.name;
+  const bond  = rel.bond_level || rel.trust || 0;
+  const chem  = calcChemistry(rel, npc);
+
+  const actions = {
+    romance_spend_time:      `I make time to just be around ${name} — not for any particular reason, not asking anything of them. Just present.`,
+    romance_get_to_know:     `I take the opportunity to actually know ${name} a little better. Ask the kind of questions that matter. Listen to the answers.`,
+    romance_flirt:           `I flirt with ${name} — deliberately but without pressure. Playful. Testing the water without making it a declaration.`,
+    romance_honest:          `I'm honest with ${name} about the fact that I find them interesting. Not a declaration — just the truth said plainly.`,
+    romance_address_tension: `I address what's been in the air between me and ${name}. I name it without making it a crisis. I want to know what they're feeling.`,
+    romance_pull_back:       `I pull back from whatever has been building with ${name}. Put some space in. Not coldly — just some room.`,
+    romance_confess:         `I tell ${name} how I actually feel. Not carefully worded. Not hedged. The real version.`,
+    romance_follow_through:  `I follow through on what I said to ${name}. I meant it and I want them to know I meant it.`,
+    romance_give_space:      `I give ${name} the space they might need after what was said. No pressure. No expectation. Just letting them breathe.`,
+    romance_plan:            `I suggest something for the two of us — a real plan, time set aside, something that shows I'm thinking about them.`,
+    romance_present:         `I show up for ${name}. Whatever they're dealing with, I'm there. Not to fix it — just there.`,
+    romance_official:        `I tell ${name} I want to be clear about what this is. I want it to be real and acknowledged.`,
+    romance_quality_time:    `I spend real time with ${name} — not passing time, intentional time. Something meaningful.`,
+    romance_deep_talk:       `I have a real conversation with ${name}. Not surface things. The kind of conversation that changes how people know each other.`,
+    romance_propose:         `I ask ${name} to marry me. Formally, sincerely. This is what I want.`,
+    romance_fight:           `${name} and I are overdue for an honest argument. I let it happen — say what I actually think, even the parts that aren't kind.`,
+    romance_distance:        `I create some distance between me and ${name}. Not a breakup, but some space. I need to think.`,
+    romance_plan_ceremony:   `I talk with ${name} about what we actually want for the ceremony — what it should mean, not just what it should look like.`,
+    romance_future_talk:     `I have an honest conversation with ${name} about what we're building toward. Where this goes.`,
+    romance_break_engagement:`I break the engagement with ${name}. This isn't the right path. I have to tell them.`,
+    romance_serious_talk:    `I have a serious conversation with ${name} — something that needed to be said for a while.`,
+    romance_repair:          `I try to repair what happened with ${name}. No excuses, no deflection. I want to actually fix it.`,
+    romance_have_it_out:     `${name} and I need to have it out. Whatever has been building — it ends tonight, one way or another.`,
+    romance_walk_away:       `I walk away from whatever this was with ${name}. Cleanly, if I can.`,
+    romance_reach_out:       `I reach out to ${name}. It's been enough time. I want to try.`,
+    romance_leave_alone:     `I leave ${name} alone. Whatever happened, it's theirs to process now. I don't push.`,
+    romance_meal:            `I share a meal with ${name} — just that. Sometimes that's enough.`,
+  };
+
+  const msg = actions[actionType];
+  if(!msg) return;
+
+  const stageObj = getRomanceStage(rel);
+  const inject = `[ROMANCE CONTEXT: ${name} and ${GS.char.firstName} are currently at stage: "${stageObj.label || 'None'}" (romance). Chemistry: ${chem}/100. ${name}'s current feelings: ${NPC_FEELINGS[rel.romance.npcFeelings]?.label || 'unknown'}. Bond level: ${bond}/100.
+
+ROMANCE RULES:
+1. ${name} has their OWN arc. They may respond differently than expected. NPC feelings affect what happens.
+2. Chemistry ${chem > 70 ? 'is high — things connect more naturally' : chem > 40 ? 'is decent — effort pays off' : 'is low — this won\'t come easily'}.
+3. This is a murim world. Honor, family name, sect status, and social standing all affect romance. A cultivator from a major sect pursuing a commoner is a complication. A disciple falling for their master is culturally charged.
+4. Romance cannot be forced or rushed — NPC agency is real.
+5. If the stage advances, include in "romanceUpdates": [{ "npcId": "${npcId}", "stage": "new_stage", "npcFeelings": "new_feeling", "notes": "what changed" }]
+6. If the stage fails to advance (NPC not ready, wrong approach), write that honestly. Rejection is possible.
+7. Time advances appropriately — romantic moments take time.
+8. Complications (jealousy, family disapproval, rival suitors, sect rules) should emerge naturally from context.]`;
+
+  sendToAI(msg + '\n\n' + inject);
+};
+
+// ── Patch applyAIResponse to handle romanceUpdates ──────────────
+const _applyWithRomance = applyAIResponse;
+applyAIResponse = function(res) {
+  _applyWithRomance(res);
+  try {
+    if(!res?.romanceUpdates?.length) return;
+    res.romanceUpdates.forEach(u => {
+      if(!u?.npcId) return;
+      const rel = GS.char.relationships.find(r => r.npcId === u.npcId);
+      if(!rel) return;
+      ensureRomance(rel);
+      const rom = rel.romance;
+      const prevStage = rom.stage;
+
+      if(u.stage) rom.stage = u.stage;
+      if(u.npcFeelings) rom.npcFeelings = u.npcFeelings;
+      if(u.chemistry != null) rom.chemistry = Math.max(0, Math.min(100, u.chemistry));
+      if(u.notes) rom.history.push(`Year ${GS.world.year}: ${u.notes}`);
+      if(u.complication) rom.complications.push(u.complication);
+      if(u.removeComplication) {
+        rom.complications = rom.complications.filter(c => c !== u.removeComplication);
+      }
+
+      // Sync relationship type with romance stage
+      if(['together','committed'].includes(u.stage) && !['lover','spouse'].includes(rel.type)) {
+        rel.type = 'lover';
+        rom.startedYear = GS.world.year;
+        addPersonalEvent(`Became together with ${rel.name}. Year ${GS.world.year}.`);
+      }
+      if(['engaged'].includes(u.stage)) {
+        rom.engagedYear = GS.world.year;
+        addPersonalEvent(`Engaged to ${rel.name}. Year ${GS.world.year}.`);
+      }
+      if(['married'].includes(u.stage)) {
+        rel.type = 'spouse';
+        rom.marriedYear = GS.world.year;
+        addPersonalEvent(`Married ${rel.name}. Year ${GS.world.year}.`);
+      }
+      if(['separated','heartbroken'].includes(u.stage) && prevStage !== u.stage) {
+        if(rel.type === 'spouse') rel.type = 'acquaintance';
+        else if(rel.type === 'lover') rel.type = 'acquaintance';
+        addPersonalEvent(`Separated from ${rel.name}. Year ${GS.world.year}.`);
+      }
+
+      updateRelationsTab();
+    });
+  } catch(e) {}
+};
+
+// ── Patch buildNPCCard to inject romance display + actions ──────
+const _buildNPCCardWithRomance = buildNPCCard;
+buildNPCCard = function(r) {
+  const card = _buildNPCCardWithRomance(r);
+
+  // Add romance class if relevant
+  const rom = r.romance;
+  if(rom && ['together','committed','engaged','married'].includes(rom.stage)) {
+    card.classList.add('in-love');
+  }
+  if(rom && ['heartbroken','separated'].includes(rom.stage)) {
+    card.classList.add('heartbroken');
+  }
+
+  // Inject romance display before quick actions
+  const quickActions = card.querySelector('.npc-quick-actions');
+  if(quickActions) {
+    ensureRomance(r);
+    const romanceDisplay = buildRomanceDisplay(r);
+    const romanceActions = buildRomanceActions(r);
+
+    if(romanceDisplay) {
+      const rDiv = document.createElement('div');
+      rDiv.innerHTML = romanceDisplay;
+      quickActions.parentNode.insertBefore(rDiv, quickActions);
+    }
+    if(romanceActions) {
+      const rAct = document.createElement('div');
+      rAct.innerHTML = romanceActions;
+      quickActions.parentNode.insertBefore(rAct, quickActions);
+    }
+  }
+
+  return card;
+};
+
+// ── Add romance context to system prompt ─────────────────────────
+const _bspWithRomance = buildSystemPrompt;
+buildSystemPrompt = function() {
+  let prompt = _bspWithRomance();
+  try {
+    const c = GS.char;
+    const romanceRels = c.relationships.filter(r =>
+      r.romance?.stage && r.romance.stage !== 'none' ||
+      ['lover','spouse'].includes(r.type)
+    );
+
+    let romCtx = '';
+
+    if(romanceRels.length) {
+      const lines = romanceRels.map(r => {
+        ensureRomance(r);
+        const stageObj = getRomanceStage(r);
+        const feelObj  = NPC_FEELINGS[r.romance.npcFeelings] || NPC_FEELINGS.neutral;
+        const chem     = calcChemistry(r, GS.world.npcRegistry[r.npcId]);
+        const comps    = r.romance.complications?.join(', ') || 'none';
+        return `- ${r.name} (${stageObj.label || r.type}): NPC feelings: ${feelObj.label} | Chemistry: ${chem}/100 | Bond: ${r.bond_level||0}/100 | Complications: ${comps}`;
+      }).join('\n');
+
+      romCtx = `\nROMANTIC RELATIONSHIPS:\n${lines}\n`;
+    }
+
+    const spouses = c.relationships.filter(r => r.type === 'spouse').map(r => r.name);
+    const lovers  = c.relationships.filter(r => r.type === 'lover').map(r => r.name);
+    if(spouses.length) romCtx += `Married to: ${spouses.join(', ')}\n`;
+    if(lovers.length)  romCtx += `Together with: ${lovers.join(', ')}\n`;
+
+    // Core romance rules for the AI
+    romCtx += `\nROMANCE RULES (enforce always):
+1. NPC FEELINGS ARE REAL — NPCs have their own emotional arcs. They can reject, pull back, fall for someone else, or develop feelings independently. Write this honestly.
+2. CHEMISTRY MATTERS — Low chemistry means things don't connect easily. High chemistry means natural moments happen.
+3. MURIM CONTEXT — Cultivation level, sect status, family name, and social class are real factors in murim romance. A major sect elder pursuing a street orphan creates complications. The family of the NPC may have opinions.
+4. BOND REQUIREMENTS — Romance stages require sufficient bond. You can't propose to someone you barely know.
+5. REJECTION IS POSSIBLE — If the player moves too fast or the NPC isn't there yet, write the rejection honestly. This is what makes eventual success feel real.
+6. TIME PASSES — Romantic moments aren't instant. Courting takes months. Marriage takes consideration.
+7. JEALOUSY — If the player is pursuing multiple people or the NPC knows about other relationships, this creates complications. Name it.
+8. RIVAL SUITORS — NPCs may have other people interested in them. The player isn't automatically the only option.
+9. STAGE ADVANCEMENT — When a romance stage advances, include in the response: "romanceUpdates": [{"npcId": "...", "stage": "new_stage", "npcFeelings": "new_feeling", "notes": "what changed"}]
+10. HEARTBREAK — Endings should be written with weight. The kind that leaves marks.`;
+
+    if(romCtx) {
+      prompt = prompt.replace('## ABSOLUTE RULES', romCtx + '\n## ABSOLUTE RULES');
+    }
+  } catch(e) {}
+  return prompt;
+};
+
+// ── Add romanceUpdates to both AI response schemas ───────────────
+const _bspWithRomanceSchema = buildSystemPrompt;
+// Already patched above. Just ensure the schema includes romanceUpdates.
+// The main schema patches are at the top of the file — add romanceUpdates via override.
+const _originalBSP_romance = buildSystemPrompt;
+buildSystemPrompt = function() {
+  let prompt = _originalBSP_romance();
+  // Inject romanceUpdates into the JSON schema hint
+  prompt = prompt.replace(
+    '"updateRelationships"',
+    '"romanceUpdates": [{ "npcId": "", "stage": "none|noticed|interested|flirting|tension|confessed|courting|together|committed|engaged|married|complicated|separated|heartbroken", "npcFeelings": "neutral|curious|drawn|interested|smitten|in_love|hurt|over_it", "chemistry": null, "notes": "what changed", "complication": null }],\n  "updateRelationships"'
+  );
+  return prompt;
+};
+
+// ── Initialize romance on existing relationships on load ─────────
+const _startWithRomanceInit = startGame;
+startGame = function(isLoad=false) {
+  _startWithRomanceInit(isLoad);
+  try {
+    GS.char.relationships.forEach(rel => {
+      // Backfill existing lover/spouse relationships
+      if(['lover','spouse'].includes(rel.type) && (!rel.romance || rel.romance.stage === 'none')) {
+        ensureRomance(rel);
+        rel.romance.stage = rel.type === 'spouse' ? 'married' : 'together';
+        rel.romance.npcFeelings = 'in_love';
+        rel.romance.chemistry = 70 + Math.floor(Math.random() * 20);
+      }
+    });
   } catch(e) {}
 };
 
