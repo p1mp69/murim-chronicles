@@ -22906,23 +22906,47 @@ extractParentsFromOpening = function(narrativeText) {
     { r:/you\s+know\s+([A-Z][a-z]{2,14}(?:\s+[A-Z][a-z]{2,14})?)[,\s]/gi, role:'acquaintance' },
     // "[Name] will give you" / "[Name] gave you" / "[Name] gives you"
     { r:/([A-Z][a-z]{2,14}(?:\s+[A-Z][a-z]{2,14})?)\s+(?:will\s+give|would\s+give|gave|gives)\s+you\b/gi, role:'acquaintance' },
-    // "if you bring [Name]" / "you bring [Name]"
+    // "if you bring [Name]" / "you bring [Name]" / "you bring her water" style
+    { r:/(?:if\s+)?you\s+bring\s+(?:her|him|them)?\s*([A-Z][a-z]{2,14}(?:\s+[A-Z][a-z]{2,14})?)\b/gi, role:'acquaintance' },
     { r:/(?:if\s+)?you\s+bring\s+([A-Z][a-z]{2,14}(?:\s+[A-Z][a-z]{2,14})?)\b/gi, role:'acquaintance' },
-    // "[Name] has been teaching you" / "[Name] taught you"
+    // "[Name] has been teaching you" / "[Name] taught you" / "[Name] teaching you"
     { r:/([A-Z][a-z]{2,14}(?:\s+[A-Z][a-z]{2,14})?)\s+has\s+been\s+teaching\s+you\b/gi, role:'teacher' },
-    { r:/([A-Z][a-z]{2,14}(?:\s+[A-Z][a-z]{2,14})?)\s+taught\s+you\b/gi, role:'teacher' },
+    { r:/([A-Z][a-z]{2,14}(?:\s+[A-Z][a-z]{2,14})?)\s+(?:taught|teaches?|show(?:s|ed)|showed)\s+you\b/gi, role:'teacher' },
+    { r:/you\s+(?:learn|learned|study|studied)\s+(?:from|under|with)\s+([A-Z][a-z]{2,14}(?:\s+[A-Z][a-z]{2,14})?)\b/gi, role:'teacher' },
     // "you sit beside [Name]" / "you sit with [Name]"
     { r:/you\s+sit\s+(?:beside|with|near|next\s+to)\s+([A-Z][a-z]{2,14}(?:\s+[A-Z][a-z]{2,14})?)\b/gi, role:'acquaintance' },
-    // "[Name] tells you" / "[Name] said to you"
-    { r:/([A-Z][a-z]{2,14}(?:\s+[A-Z][a-z]{2,14})?)\s+(?:tells?|told|said\s+to|says?\s+to)\s+you\b/gi, role:'acquaintance' },
+    { r:/(?:beside|next\s+to|with)\s+([A-Z][a-z]{2,14}(?:\s+[A-Z][a-z]{2,14})?)\s*(?:,|and|\bwho\b|\bwhile\b)/gi, role:'acquaintance' },
+    // "[Name] tells you" / "[Name] said to you" / "[Name] says"
+    { r:/([A-Z][a-z]{2,14}(?:\s+[A-Z][a-z]{2,14})?)\s+(?:tells?|told|says?|said|asks?|asked|answers?|answered)\s+(?:you|her|him)?\b/gi, role:'acquaintance' },
     // "you go to [Name]" — directed action toward person
-    { r:/you\s+(?:go|went|come|came)\s+to\s+([A-Z][a-z]{2,14}(?:\s+[A-Z][a-z]{2,14})?)\b/gi, role:'acquaintance' },
-    // "[Name] watches you / watched you" — someone paying you specific attention
-    { r:/([A-Z][a-z]{2,14}(?:\s+[A-Z][a-z]{2,14})?)\s+(?:watch(?:es|ed)|look(?:s|ed)\s+at)\s+you\b/gi, role:'acquaintance' },
-    // "[Name]'s name" directly attached to a parent reference already covered — add their name explicitly
-    // "your mother's name is [Name]" — redundant with above but good to have
-    { r:/your\s+mother(?:'s)?\s+name(?:\s+is|\s+was|\:)\s+([A-Z][a-z]{2,14}(?:\s+[A-Z][a-z]{2,14})?)/gi, role:'mother' },
-    { r:/your\s+father(?:'s)?\s+name(?:\s+is|\s+was|\:)\s+([A-Z][a-z]{2,14}(?:\s+[A-Z][a-z]{2,14})?)/gi, role:'father' },
+    { r:/you\s+(?:go|went|come|came|run|ran)\s+to\s+([A-Z][a-z]{2,14}(?:\s+[A-Z][a-z]{2,14})?)\b/gi, role:'acquaintance' },
+    // "[Name] watches you / watched you / looks at you"
+    { r:/([A-Z][a-z]{2,14}(?:\s+[A-Z][a-z]{2,14})?)\s+(?:watch(?:es|ed)|look(?:s|ed)\s+at|stare(?:s|d)\s+at)\s+you\b/gi, role:'acquaintance' },
+    // "[Name]'s name" forms — very common narrative pattern
+    { r:/your\s+mother(?:'s)?\s+name(?:\s+is|\s+was|\s*:)\s+([A-Z][a-z]{1,14}(?:\s+[A-Z][a-z]{1,14})?)/gi, role:'mother' },
+    { r:/your\s+father(?:'s)?\s+name(?:\s+is|\s+was|\s*:)\s+([A-Z][a-z]{1,14}(?:\s+[A-Z][a-z]{1,14})?)/gi, role:'father' },
+    // "Her/His name is [Name]" — common way to introduce a character
+    { r:/\bher\s+name\s+(?:is|was)\s+([A-Z][a-z]{1,14}(?:\s+[A-Z][a-z]{1,14})?)/gi, role:'mentioned' },
+    { r:/\bhis\s+name\s+(?:is|was)\s+([A-Z][a-z]{1,14}(?:\s+[A-Z][a-z]{1,14})?)/gi, role:'mentioned' },
+    // "[Name], [description]" where Name appears at start of sentence after family context
+    // e.g. "Nuan Baa, the merchants around her call her" → introductory appositive
+    { r:/^([A-Z][a-z]{2,14}(?:\s+[A-Z][a-z]{2,14})?),\s+(?:the|a|an|your|her|his|their)\s/gim, role:'mentioned' },
+    // "[Name] runs/works/lives/keeps/sells" — character actively doing something in the player's life
+    { r:/([A-Z][a-z]{2,14}(?:\s+[A-Z][a-z]{2,14})?)\s+(?:runs?|works?|lives?|keeps?|sells?|makes?|handles?|manages?|runs?)\s+(?:a|an|the|her|his|your)/gi, role:'acquaintance' },
+    // Named person who does something "for you" / "to you" / "with you"
+    { r:/([A-Z][a-z]{2,14}(?:\s+[A-Z][a-z]{2,14})?)\s+(?:feeds?|clothes?|protects?|helps?|guides?|cares?\s+for|looks?\s+after|watches?\s+over)\s+you\b/gi, role:'caregiver' },
+    // Called as a name in dialogue — "[Name]," said / "[Name]." (at start of quote)
+    { r:/["""]([A-Z][a-z]{2,14}(?:\s+[A-Z][a-z]{2,14})?)["",]/g, role:'mentioned' },
+    // Possessive introduction: "[Name]'s shop/stall/home/hands"
+    { r:/([A-Z][a-z]{2,14}(?:\s+[A-Z][a-z]{2,14})?)'s?\s+(?:shop|stall|home|house|hands?|voice|eyes?|face|name|work|stall|corner|section|row|mat|place|room)/gi, role:'acquaintance' },
+    // "meet/met [Name]" / "find [Name]"
+    { r:/(?:meet|met|found?|encounter(?:ed)?|approach(?:ed)?)\s+([A-Z][a-z]{2,14}(?:\s+[A-Z][a-z]{2,14})?)\b/gi, role:'encountered' },
+    // "[Name], who [verb]" — relative clause introduction
+    { r:/([A-Z][a-z]{2,14}(?:\s+[A-Z][a-z]{2,14})?),?\s+who\s+(?:runs?|works?|lives?|sells?|makes?|teaches?|raised?|cared?\s+for)/gi, role:'acquaintance' },
+    // "with [Name]" in context of shared activity
+    { r:/(?:work(?:ing)?|play(?:ing)?|eating|studying|train(?:ing)?|liv(?:ing)?|stay(?:ing)?)\s+with\s+([A-Z][a-z]{2,14}(?:\s+[A-Z][a-z]{2,14})?)\b/gi, role:'acquaintance' },
+    // "call her/him [Name]" — naming pattern
+    { r:/call(?:s|ed)?\s+(?:her|him|them)\s+([A-Z][a-z]{2,14}(?:\s+[A-Z][a-z]{2,14})?)\b/gi, role:'mentioned' },
   ];
 
   const BOND_BY_ROLE = {
@@ -22990,10 +23014,46 @@ extractParentsFromOpening = function(narrativeText) {
         const isDeceased = nameSentences.some(s => /\b(died|dead|passed|killed|murder|grave|buried|execution|drowned)\b/i.test(s));
         const isAbsent   = !isDeceased && nameSentences.some(s => /\b(left|gone|missing|disappeared|never\s+came\s+back|stopped|away)\b/i.test(s));
         found.set(name, { role, nameSentences, isDeceased, isAbsent });
-        if(FAMILY_ROLES.includes(role)) rolesSeen.add(role);
+        if(FAMILY_ROLES.has(role)) rolesSeen.add(role); // FIX: Set uses .has() not .includes()
       }
     }
   });
+
+  // ── PROXIMITY FALLBACK: names near family words ────────────────
+  // Many narratives introduce names in the sentence following a family reference.
+  // e.g. "Your mother runs the stall. Nuan Baa, the merchants call her..."
+  // This catches names that appear within 3 sentences of a family/relationship word.
+  const FAMILY_WORDS_RE = /\b(mother|father|grandmother|grandfather|sister|brother|aunt|uncle|caregiver|guardian|raised you|your parent)\b/i;
+  const CLOSE_INTERACTION_RE = /\b(runs?|works?|lives?|sells?|makes?|keeps?|said|says?|told|tells?|gave|gives?|feeds?|watches?|raised|cared?|helped?|looked?\s+after|watched?\s+over)\b/i;
+
+  // Scan the narrative in sentence windows
+  for(let i = 0; i < sentences.length; i++) {
+    if(!FAMILY_WORDS_RE.test(sentences[i])) continue;
+    // Family word in sentence i — check sentences i and i+1 and i+2 for names
+    const window = sentences.slice(i, Math.min(sentences.length, i + 3)).join(' ');
+    const nameRe  = /\b([A-Z][a-z]{1,14}(?:\s+[A-Z][a-z]{1,14})?)\b/g;
+    let nm;
+    while((nm = nameRe.exec(window)) !== null) {
+      const candidate = nm[1].trim();
+      if(!looksLikeName(candidate)) continue;
+      if(candidate === c.firstName || candidate === c.lastName) continue;
+      if(found.has(candidate)) continue; // already found by patterns
+      // Only add if this person is doing something (not just mentioned in passing)
+      const candidateSentences = sentences.filter(s => s.includes(candidate));
+      if(!candidateSentences.some(s => CLOSE_INTERACTION_RE.test(s))) continue;
+      // Determine role from which family word triggered this
+      const role = /\bmother\b/i.test(sentences[i]) ? 'mother'
+        : /\bfather\b/i.test(sentences[i]) ? 'father'
+        : /\bsister\b/i.test(sentences[i]) ? 'sister'
+        : /\bbrother\b/i.test(sentences[i]) ? 'brother'
+        : 'mentioned';
+      if(isOrphan && FAMILY_ROLES.has(role)) continue;
+      if(FAMILY_ROLES.has(role) && rolesSeen.has(role)) continue;
+      const isDeceased = candidateSentences.some(s => /\b(died|dead|passed|killed|grave)\b/i.test(s));
+      found.set(candidate, { role, nameSentences:candidateSentences, isDeceased, isAbsent:false });
+      if(FAMILY_ROLES.has(role)) rolesSeen.add(role);
+    }
+  }
 
   // ── NEGATIVE CONTEXT FILTER ─────────────────────────────────────
   // Remove any name whose ALL occurrences in the text are in:
@@ -23012,25 +23072,32 @@ extractParentsFromOpening = function(narrativeText) {
     const mentioningSentences = sentences.filter(s => s.includes(name));
     if(!mentioningSentences.length) { found.delete(name); return; }
 
-    // Check if ALL occurrences are in pure observation contexts
+    // Always keep family — by definition they had interaction
+    const isFamily = FAMILY_ROLES.has(data.role);
+    if(isFamily) return;
+
+    // Check if ALL occurrences are pure observation (notice/watch/see) with ZERO interaction
+    const ACTIVE_INTERACTION_RE = /\b(gave|gives?|told|tells?|said|says?|taught|teaches?|showed?|helped?|feeds?|raised?|cared?\s+for|asked?|answered?|greeted?|works?\s+with|speaks?\s+to|spoke\s+to|called?\s+out)\b/i;
+
+    // If ANY sentence shows active interaction, keep the person
+    const hasInteraction = mentioningSentences.some(s => ACTIVE_INTERACTION_RE.test(s));
+    if(hasInteraction) return; // they interacted — keep in relationships
+
+    // Only apply observation filter if there's ZERO interaction evidence
     const allObservation = mentioningSentences.every(s => {
+      const lower = s.toLowerCase();
       const idx = s.indexOf(name);
-      const before = s.slice(Math.max(0, idx - 60), idx).toLowerCase();
-      // Is "notice" or "watch" immediately before this name?
-      return /\b(notice\s+(that\s+)?|noticed?\s+(that\s+)?|watch(es|ed)?\s+|see\s+|saw\s+|spotted?\s+|glimpsed?\s+|observed?\s+)$/.test(before) ||
-             /you\s+notice\s+that/.test(before);
+      const before = s.slice(Math.max(0, idx - 80), idx).toLowerCase();
+      return /\b(notice\s+(that\s+)?|noticed?\s+(that\s+)?|watch(es|ed)?\s+|see\s+|saw\s+|spotted?\s+|glimpsed?\s+|observed?\s+)/.test(before) ||
+             /you\s+notice\s+that/.test(lower);
     });
 
-    // Check if ALL occurrences are in overheard contexts (whispered, heard in passing)
+    // Only overheard if the explicit "heard/whispered" language is present
     const allOverheard = mentioningSentences.every(s => {
       const lower = s.toLowerCase();
       return OVERHEARD_RE.test(lower) ||
-             /\b(you\s+heard\s+(?:it|once|the\s+name)|whispered\s+between|like\s+\w+\s+\w*'?s?\s+situation)\b/.test(lower);
+             /\b(you\s+heard\s+(?:it|once|the\s+name)|whispered\s+between)\b/.test(lower);
     });
-
-    // If family role (mother/father etc.), keep regardless — they had interaction by definition
-    const isFamily = ['mother','father','grandmother','grandfather','sister','brother','aunt','uncle','caregiver'].includes(data.role);
-    if(isFamily) return; // always keep family
 
     if(allObservation || allOverheard) {
       // Still seed into background characters so AI knows about them
