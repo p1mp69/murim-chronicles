@@ -7962,10 +7962,21 @@ function updateWorldTab() {
         ${locTempl.ruler ? `<span style="font-size:11px;color:var(--text);margin-left:8px">${locTempl.ruler.title} (${locTempl.ruler.faction})</span>` : ''}
       </div>`;
 
-      if(locTempl.current_issue) {
+      // current_issue can be a string OR an array of { since, until, text }
+      const getIssue = (tpl) => {
+        if(!tpl.current_issue) return null;
+        if(typeof tpl.current_issue === 'string') return tpl.current_issue;
+        if(Array.isArray(tpl.current_issue)) {
+          const match = tpl.current_issue.find(e => yr >= (e.since||0) && yr < (e.until||9999));
+          return match?.text || null;
+        }
+        return null;
+      };
+      const issueText = getIssue(locTempl);
+      if(issueText) {
         html += `<div style="margin-bottom:10px;padding:8px;background:rgba(180,140,40,.08);border:1px solid rgba(180,140,40,.2);border-radius:5px;font-size:12px;line-height:1.6">
           <span style="font-size:10px;color:var(--gold);text-transform:uppercase;letter-spacing:.08em">Current Situation</span><br>
-          ${locTempl.current_issue}
+          ${issueText}
         </div>`;
       }
 
@@ -19170,7 +19181,11 @@ const POLITICAL_TEMPLATES = {
       { id:'grain_merchants',   name:'Grain Merchant Coalition',   alignment:'neutral', wants:'high grain prices, exclusive supply contracts, army contracts', power:55, fears:'price controls, direct imperial distribution', rivals:['farmer_council'] },
       { id:'imperial_supply',   name:'Imperial Supply Corps',      alignment:'orthodox', wants:'reliable supply at controlled prices for the military', power:45, fears:'shortage or price spikes during wartime', rivals:['grain_merchants'] },
     ],
-    current_issue: 'The war has driven army grain contracts up. The merchants are profiting enormously. The farmers doing the actual work are not. The gap is visible and getting louder.',
+    current_issue: [
+      { since:0,   until:144, text:'The imperial supply contracts are generous this year. The merchants profiting from them are less so. The farmers growing the grain are getting nothing extra. The gap is visible and getting louder.' },
+      { since:144, until:154, text:'The war has driven army grain contracts up. The merchants are profiting enormously. The farmers doing the actual work are not. The gap is visible and getting louder.' },
+      { since:154, until:9999, text:'The war is over. Army contracts have dropped. The merchants who profited are finding other angles. The farmers are still getting nothing extra. Some things don\'t change with the war.' },
+    ],
     mood:'tense',
   },
   ooina: {
@@ -19201,7 +19216,13 @@ const POLITICAL_TEMPLATES = {
       { id:'reform_faction',    name:'Reform Faction (scholars)',  alignment:'orthodox', wants:'policy change, reduced military spending, diplomatic solutions', power:25, fears:'being dismissed as idealists', rivals:['imperial_court'] },
       { id:'military_command',  name:'Military Command',           alignment:'orthodox', wants:'more authority, bigger budgets, recognition for the war', power:50, fears:'peace removing their relevance', rivals:['reform_faction'] },
     ],
-    current_issue: 'The war with Buo has been more expensive than projected. The Reform Faction is gaining sympathizers in the court. The Military Command is pushing for one decisive final offensive to justify the cost.',
+    current_issue: [
+      { since:0,   until:130, text:'The Dynasty is stable. Internal debates are about expansion — the northern border provinces want more autonomy, the nobles want tax concessions. These are the problems of a functioning state.' },
+      { since:130, until:139, text:'Something has shifted in the court. The Azure Empire\'s decline has everyone recalculating. Ambitious officials are moving. The expansionists are louder. The cautious are being ignored.' },
+      { since:139, until:144, text:'The Dynasty has begun funding irregular forces to operate against Buo border towns. It is not officially a war. The Buo villages that have been burned do not appreciate the distinction.' },
+      { since:144, until:154, text:'The war with Buo has been more expensive than projected. The Reform Faction is gaining sympathizers in the court. The Military Command is pushing for one decisive final offensive to justify the cost.' },
+      { since:154, until:9999, text:'Post-war reorganization. Reform factions argue the military has too much influence. The military argues it won the war and deserves its influence. The court is the battlefield now.' },
+    ],
     mood:'tense',
   },
   buo_capital: {
@@ -31708,6 +31729,277 @@ Seeds evolve after the relevant experience happens 3+ times across different ses
   } catch(e) {}
   return prompt;
 };
+
+// ================================================================
+// ── LIVING WORLD TIMELINE
+// ── Dynamic year-accurate historical context in every system prompt.
+// ── The world changes based on the current year — Láng rises, wars
+// ── start, Reo ages and dies. NPCs react accordingly.
+// ================================================================
+
+function buildLivingWorldContext() {
+  const yr = GS.world.year;
+  const loc = GS.world.location;
+  const kgdm = LOCATIONS[loc]?.kingdom;
+  const events = [];
+  const imminent = [];
+  const recent = [];
+
+  // ── REOAND ICHIRO ──────────────────────────────────────────────
+  // Their rise is pre-Year 1, so they're already prominent figures
+  if(yr < 130) {
+    events.push('Ichiro Katsumi is alive. The deepest part of Ooina is his territory in every real sense. His school is brutal. His reputation is absolute.');
+  } else if(yr === 130) {
+    recent.push('Ichiro Katsumi died this year. The forest already feels different.');
+  } else {
+    recent.push('Ichiro Katsumi is dead (Year 130). His tomb is under the great cedar. His yokai still guard it.');
+  }
+
+  if(yr < 150) {
+    const reoState = yr < 120 ? 'at the height of his influence, Tazar running as he intended'
+      : yr < 140 ? 'aging but still present, Tazar beginning to show cracks'
+      : 'clearly in his final years, watching his city change in ways he can\'t stop';
+    events.push(`Reo Yamamoto is alive — ${reoState}.`);
+  } else if(yr <= 152) {
+    recent.push('Reo Yamamoto died Year 150. The absence is recent. Everything is adjusting.');
+  } else {
+    recent.push('Reo Yamamoto is dead (Year 150). What he built is being quietly dismantled.');
+  }
+
+  // ── LÁNG THE WARLORD ───────────────────────────────────────────
+  if(yr >= 128 && yr < 134) {
+    imminent.push('Somewhere in the borderlands, a man named Láng is becoming known. No Qi. Just violence at a scale that makes Qi seem like a shortcut. He\'s building something. Nobody is sure what yet.');
+  } else if(yr >= 134 && yr < 139) {
+    events.push('Láng the Warlord is building a raider force in the borderlands. His name is known in military circles. No cultivation. The stories about what he can do without it are being checked and found accurate.');
+  } else if(yr >= 139 && yr < 144) {
+    events.push('Luo-Tin has hired Láng. His forces are operating against Buo border towns. It is not officially war. The border towns that have burned are beyond caring about the distinction.');
+    if(kgdm === 'buo') events.push('Láng\'s forces are close. People have opinions about him that they didn\'t have last year.');
+  } else if(yr >= 144 && yr < 154) {
+    events.push('The Buo-Luo-Tin War is active. Láng is its engine. His forces have taken territory that armies twice their size couldn\'t. He is now Duke and Imperial Advisor to the Buo Emperor — a fact that confuses everyone who meets him.');
+  } else if(yr === 154) {
+    recent.push('Láng the Warlord died this year. Overdose on Qi pills — trying to become more than what he was. The war shifts without its driving force.');
+  } else if(yr > 154) {
+    recent.push('Láng the Warlord died Year 154. The war he drove has wound down. His absence reorganized everything.');
+  }
+
+  // ── ZERET ─────────────────────────────────────────────────────
+  if(GS.world.zeret?.active) {
+    events.push('Something is moving in the world right now — a warmth in the wrong season. Cultivators are noticing. Nobody has named it yet.');
+  }
+
+  // ── BUILD THE CONTEXT BLOCK ───────────────────────────────────
+  if(!events.length && !imminent.length && !recent.length) return null;
+
+  const parts = [];
+  if(recent.length)   parts.push('RECENT HISTORY:\n' + recent.map(e => `• ${e}`).join('\n'));
+  if(events.length)   parts.push('CURRENT WORLD STATE:\n' + events.map(e => `• ${e}`).join('\n'));
+  if(imminent.length) parts.push('ON THE HORIZON:\n' + imminent.map(e => `• ${e}`).join('\n'));
+
+  return `LIVING WORLD — Year ${yr}:
+${parts.join('\n\n')}
+
+WORLD TIMELINE RULE: These events are happening or have happened. Unless the player has explicitly done something to change them, they occur on schedule. NPCs who live near these events know about them and react to them. You can MEET Láng before he becomes famous — he's a dangerous man in the borderlands. You can KNOW Reo is alive and what that means. The world is not static. These forces shape every conversation, every journey, every decision.`;
+}
+
+// Inject living world context into every system prompt
+const _bspWithLivingWorld = buildSystemPrompt;
+buildSystemPrompt = function() {
+  let prompt = _bspWithLivingWorld();
+  try {
+    const ctx = buildLivingWorldContext();
+    if(ctx) prompt = prompt.replace('## ABSOLUTE RULES', ctx + '\n\n## ABSOLUTE RULES');
+  } catch(e) {}
+  return prompt;
+};
+
+// ================================================================
+// ── EXPANDED HIGH-RARITY TRAITS
+// ── More legendary, epic, fable, and mythic traits.
+// ── Every one earns its rarity.
+// ================================================================
+Object.assign(TRAITS_CATALOG, {
+
+  // ── EPIC ──────────────────────────────────────────────────────
+
+  the_unbroken_thread: {
+    name: 'The Unbroken Thread',
+    type: 'innate_mental', rarity: 'epic', inherited: true,
+    desc: 'Predictions and prophecies about you consistently fail. Fortune tellers contradict each other. Qi-sense readings come back wrong. Fate seems to have lost track of you.',
+    effects: { luck: 4, willpower: 2 },
+    aiHint: 'THE UNBROKEN THREAD: When NPCs attempt to read this character\'s future — fortune tellers, Qi-seers, monks who divine fate — the reading comes back wrong or contradictory. This character is difficult to predict. The world\'s mechanisms for anticipating people don\'t work on them. Occasionally surface this as someone being confused about why their usual methods aren\'t working.',
+  },
+
+  twice_named: {
+    name: 'Twice-Named',
+    type: 'innate_mental', rarity: 'epic', inherited: false,
+    desc: 'You have a name someone else was supposed to have. The person who should have had it died before they could. Their unlived potential has left a residue in the Qi of your name.',
+    effects: { willpower: 3, luck: 2, perception: 2 },
+    aiHint: 'TWICE-NAMED: This character carries the name of someone who should have lived and didn\'t. Cultivators with high perception occasionally sense something doubled about their Qi signature — like two people occupying one. Old cultivators who knew the original name-holder may react strangely. The unlived potential doesn\'t grant anything specific — it just creates an unusual Qi texture that sensitive people notice.',
+  },
+
+  void_hunger: {
+    name: 'Void Hunger',
+    type: 'cultivation', rarity: 'epic', inherited: true,
+    desc: 'Ambient Qi in your vicinity drifts slightly toward you. Not controllable. Not cultivated. Just a fact about how the Qi in a space responds to your presence.',
+    effects: { perception: 3, willpower: 1 },
+    qiCostMult: { ambient_gather: 0.85 },
+    aiHint: 'VOID HUNGER: Nearby ambient Qi drifts toward this character slightly — not dramatically, just a drift. Sensitive cultivators in the same room notice their own Qi circulation feels slightly off. Cultivation sessions have a mild passive bonus from the ambient drift. Occasionally describe Qi-dense environments responding to this character\'s presence — incense smoke curling toward them, water tension near their hands during cultivation.',
+  },
+
+  the_old_memory: {
+    name: 'The Old Memory',
+    type: 'innate_sensory', rarity: 'epic', inherited: false,
+    desc: 'You have precise, accurate memories of things that happened before you were born. Not inherited stories — memories. The faces are clear. The events are correct. You have no explanation for this.',
+    effects: { intelligence: 4, perception: 2 },
+    aiHint: 'THE OLD MEMORY: This character has genuine memories of events before their birth — not stories, not visions, actual clear recollections. When they encounter something from those memories (a place, a person who was there, an object), recognition registers clearly. The memories are accurate. They have never been explained. Occasionally surface this as them knowing something about a historical event or person that they shouldn\'t know, then being uncertain why they know it.',
+  },
+
+  architects_eye: {
+    name: 'The Architect\'s Eye',
+    type: 'innate_mental', rarity: 'epic', inherited: true,
+    desc: 'You intuitively understand how things are built — structures, formations, social systems, Qi pathways. You see the design in everything. Where the load-bearing element is. Where the failure point lives.',
+    effects: { intelligence: 4, perception: 3 },
+    aiHint: 'THE ARCHITECT\'S EYE: This character instinctively perceives the structure of things — where a formation array\'s anchor point is, which beam holds up a building, where the power really sits in an organization, which meridian is the keystone of someone\'s cultivation. Surface this as quiet observations: "That column is doing most of the work." Or in social situations: "He\'s not the one making the decisions." They\'re usually right.',
+  },
+
+  dead_mans_constitution: {
+    name: 'Dead Man\'s Constitution',
+    type: 'innate_body', rarity: 'epic', inherited: false,
+    desc: 'You came close enough to dying that your body stopped treating injury as a surprise. Recovery is faster. Certain forms of shock don\'t register. The body learned something about endurance that can\'t be untaught.',
+    effects: { endurance: 6, willpower: 3 },
+    damageMult: { shock: 0.3 },
+    aiHint: 'DEAD MAN\'S CONSTITUTION: This character\'s body has been recalibrated by a near-death experience — healing happens faster than it should, the typical shock response to major injury is muted, and extreme physical conditions don\'t register as surprising. Physicians who treat them notice the recovery rate. Describe wounds that should lay them out simply... not laying them out.',
+  },
+
+  the_borrowed_tongue: {
+    name: 'The Borrowed Tongue',
+    type: 'innate_social', rarity: 'epic', inherited: true,
+    desc: 'When you speak, your voice sometimes carries two simultaneous emotional registers — the one you intend and one underneath it that people aren\'t sure they heard. Both are real.',
+    effects: { charisma: 5, willpower: 1 },
+    aiHint: 'THE BORROWED TONGUE: When this character speaks in emotionally loaded moments, sensitive listeners sometimes hear something underneath the words — a second emotional tone they\'re not sure was there. This creates a specific effect: people remember what they said more vividly, feel a resonance they can\'t explain, or find themselves agreeing before they\'ve thought about why. Describe this as something in the voice rather than the words.',
+  },
+
+  the_deep_calibration: {
+    name: 'The Deep Calibration',
+    type: 'innate_sensory', rarity: 'epic', inherited: true,
+    desc: 'Your sense of time is eerily accurate. Not trained — innate. You know exactly what time it is without any external reference. You know how long something will take before you start it.',
+    effects: { perception: 3, intelligence: 2 },
+    aiHint: 'THE DEEP CALIBRATION: This character always knows the exact time without checking, and can estimate durations with unsettling accuracy — how long a journey will take, how many hours until a meeting, how long since they last ate. Surface this as them casually stating times that turn out to be exactly right, or knowing a countdown is ending before the external cue.',
+  },
+
+  star_blind: {
+    name: 'Star-Blind',
+    type: 'innate_spiritual', rarity: 'epic', inherited: true,
+    desc: 'You cannot be located by divination or Qi-tracking. Not because you suppress your signature — your signature is present and normal. It just doesn\'t lead back to you. The maps are always wrong.',
+    effects: { luck: 3 },
+    aiHint: 'STAR-BLIND: Qi-tracking and divination aimed at finding this character fail — not because they suppress their Qi, but because the trail simply doesn\'t resolve to a location. Pursuers following a Qi signature find it ending nowhere. Fortune tellers describing where someone is get the right city and the wrong person. This is not active stealth — it\'s a property of how their presence registers in the spiritual fabric.',
+  },
+
+  the_correction_v2: {
+    name: 'The Inheritor',
+    type: 'bloodline', rarity: 'epic', inherited: true,
+    desc: 'Something in your bloodline wanted to be a specific kind of cultivator. When your cultivation aligns with that direction, it advances at double speed. In any other direction, it\'s half.',
+    effects: { willpower: 3 },
+    aiHint: 'THE INHERITOR: This character\'s bloodline has a strong pull toward one specific cultivation path. When they cultivate in alignment with it — the techniques feel natural, the progress comes fast, the breakthroughs arrive early. Against the grain, progress is slow and painful. The path that calls to the bloodline isn\'t always the one the character would choose.',
+  },
+
+  // ── LEGENDARY ─────────────────────────────────────────────────
+
+  the_impossible_constitution: {
+    name: 'The Impossible Constitution',
+    type: 'innate_body', rarity: 'legendary', inherited: false,
+    desc: 'Documented by two separate physicians as physically anomalous. Not just unusual — anomalous. Your body does things that require explanations outside standard anatomy. The physicians disagreed about what it meant. Neither was wrong.',
+    effects: { endurance: 8, willpower: 4, strength: 3 },
+    aiHint: 'THE IMPOSSIBLE CONSTITUTION: This character\'s body breaks medical expectations consistently. Injuries heal at rates that physicians find professionally disturbing. Physical capacity exceeds what the muscle and bone structure should allow. Qi flow in the meridians takes routes that shouldn\'t work. When examined by skilled healers, describe their expressions — not alarm, but the specific look of a professional encountering something outside their framework.',
+  },
+
+  heavens_defect: {
+    name: 'Heaven\'s Defect',
+    type: 'bloodline', rarity: 'legendary', inherited: false,
+    desc: 'You were born at the exact moment of a significant natural disaster — earthquake, storm, flood, fire. Heaven was looking at the disaster when you arrived. It noticed you. The attention has never fully gone away.',
+    effects: { willpower: 6, luck: 4, perception: 3 },
+    aiHint: 'HEAVEN\'S DEFECT: Heaven\'s attention occasionally settles on this character in ways that manifest as coincidence, unusual Qi behavior during their cultivation, or animals/spirits that treat them differently. When performing tribulation-relevant actions, the response from the heavenly system is slightly unpredictable — sometimes easier than it should be, sometimes harder, as though heaven is still trying to categorize them.',
+  },
+
+  last_of_the_line: {
+    name: 'Last of the Line',
+    type: 'bloodline', rarity: 'legendary', inherited: false,
+    desc: 'You are the last carrier of something — a bloodline technique, a family\'s accumulated Qi signature, an old promise made by an ancestor. It ends with you or it doesn\'t end. You carry more than your own weight.',
+    effects: { willpower: 5, intelligence: 3 },
+    aiHint: 'LAST OF THE LINE: This character carries something that has nowhere else to go — a bloodline memory, a technique fragment that has been passed down for generations, an old oath. When they encounter situations that connect to this legacy, describe the weight of it — the sense that something old is watching through them. Rarely: ancestors\' Qi echoes surface briefly in extreme situations.',
+  },
+
+  written_in_the_bones: {
+    name: 'Written in the Bones',
+    type: 'cultivation', rarity: 'legendary', inherited: true,
+    desc: 'A cultivation path is literally inscribed in your bone structure — microscopic Qi channels that formed before birth. A skilled physician looking at the right bones would see it as a map. The path it describes is specific and ancient.',
+    effects: { willpower: 5, endurance: 4, intelligence: 3 },
+    qiCostMult: { inscribed_path: 0.5 },
+    aiHint: 'WRITTEN IN THE BONES: This character\'s bone structure contains a pre-inscribed cultivation path — formed before birth, visible to highly skilled physicians as a map in the microscopic Qi channels of the skeleton. When cultivating along the inscribed path, progress is dramatically accelerated. Cultivators who examine them with deep Qi sensing occasionally see something strange — a pattern that looks like writing in how the Qi flows through the bones.',
+  },
+
+  the_untouched: {
+    name: 'The Untouched',
+    type: 'innate_body', rarity: 'legendary', inherited: true,
+    desc: 'Disease cannot establish in your body. Not resistance — impossibility. Pathogens die on contact with your Qi. Physicians find this unsettling in a way they struggle to articulate.',
+    effects: { endurance: 5 },
+    damageMult: { illness: 0.0 },
+    aiHint: 'THE UNTOUCHED: This character literally cannot get sick. Disease pathogens die before they can establish. Poisons are dramatically less effective. Physicians examining them note that certain baseline biological processes run differently — immune function that has never been tested shows signs of a design rather than evolution. In plague scenarios, they walk through areas that have killed hundreds and emerge normal. Describe the specific unease of the people around them who notice.',
+  },
+
+  the_world_turned_toward_you: {
+    name: 'The World Turned Toward You',
+    type: 'innate_spiritual', rarity: 'legendary', inherited: false,
+    desc: 'At some point the world decided you mattered. Not spiritually — practically. Resources, opportunities, and information consistently find you. Not luck. More like gravity.',
+    effects: { luck: 8, charisma: 3 },
+    aiHint: 'THE WORLD TURNED TOWARD YOU: This character has an unusual relationship with opportunity — resources, information, and chances appear around them at a rate that exceeds luck. The merchant who has what they need. The contact who knows the right person. The door that\'s unlocked when it should be locked. Surface this as small consistent advantages rather than dramatic windfalls. The world seems slightly tilted in their direction.',
+  },
+
+  // ── MYTHIC (gained through extraordinary play) ─────────────────
+
+  the_threshold_crossed: {
+    name: 'The Threshold Crossed',
+    type: 'gained', rarity: 'mythic', inherited: false,
+    desc: 'You went somewhere you weren\'t supposed to come back from — not a near-death, but an actual crossing into a space where the rules about returning don\'t apply the same way. You returned. The mark is permanent.',
+    effects: { willpower: 8, endurance: 4, perception: 4 },
+    aiHint: 'THE THRESHOLD CROSSED: This character went somewhere — a death state, a spiritual plane, a location so deep in ancient Qi that normal rules were suspended — and came back when they shouldn\'t have. The permanent effects: minor spiritual entities treat them with unusual deference or unease. Death-adjacent situations produce no fear response. Occasionally their Qi resonates with places of strong death-Qi in ways that can\'t be explained by cultivation. Something in the deep spiritual fabric knows they\'ve been to the other side.',
+  },
+
+  witnessed_by_heaven: {
+    name: 'Witnessed by Heaven',
+    type: 'gained', rarity: 'mythic', inherited: false,
+    desc: 'During a critical moment — a tribulation, a battle that shouldn\'t have been survivable, an act witnessed by the cultivated world — Heaven focused on you specifically. The attention didn\'t end when the moment did.',
+    effects: { willpower: 10, perception: 5, luck: 4 },
+    aiHint: 'WITNESSED BY HEAVEN: Heaven focused on this character during a key moment and hasn\'t fully looked away. The effects are inconsistent and outside the character\'s control: tribulations behave unexpectedly, the heavenly mechanism responds to them differently than to other cultivators at their stage, and occasionally the world provides coincidences so precise they don\'t feel like coincidences. NPCs who can read heaven\'s attention notice something about this character — a quality of being watched.',
+  },
+
+  // ── FABLE (the rarest, gained through the most extreme events) ────
+
+  the_unkillable_name: {
+    name: 'The Unkillable Name',
+    type: 'gained', rarity: 'fable', inherited: false,
+    desc: 'Your name has taken on a life independent of you. People who have never seen you have opinions about you. Your name is spoken in places you have never been. What it means has moved beyond what you meant it to mean.',
+    effects: { charisma: 6, luck: 5, willpower: 4 },
+    aiHint: 'THE UNKILLABLE NAME: This character\'s name has propagated through the world and become a reference point independent of the actual person. People debate what it represents. Organizations use it to make points. Children are named after it. Enemies use it to rally against something. When this character encounters their own reputation, it\'s bigger, stranger, and less accurate than anything they would have chosen. The name is its own entity now.',
+  },
+
+  the_gods_oversight: {
+    name: 'The God\'s Oversight',
+    type: 'gained', rarity: 'fable', inherited: false,
+    desc: 'Something cosmic failed to account for you. The mechanism that was supposed to stop what you are doing — whoever or whatever wrote those rules — made an error. You exist outside a category that should not have an outside.',
+    effects: { willpower: 10, luck: 8, endurance: 6, charisma: 4 },
+    aiHint: 'THE GOD\'S OVERSIGHT: Something in the deep structure of the world\'s rules failed to account for this character\'s existence. Techniques that should be impossible for their stage work anyway. Restrictions that should apply don\'t. Ancient formations react to them differently. High-stage cultivators who examine them carefully get a specific feeling — not that this character is powerful, but that the framework they use to measure power doesn\'t quite apply. The Maligned Lords have noticed. Their reactions are complicated.',
+  },
+
+  the_permanent_exception: {
+    name: 'The Permanent Exception',
+    type: 'gained', rarity: 'fable', inherited: false,
+    desc: 'The world has explicitly decided that you are a special case. Not by anyone\'s choice. The decision made itself. Rules bend around you. The exceptions are real and consistent and cannot be explained.',
+    effects: { luck: 10, willpower: 8, perception: 5 },
+    aiHint: 'THE PERMANENT EXCEPTION: This character has achieved a status where the rules of the world apply to them differently. Not arbitrarily — consistently. The same exceptions occur in the same categories every time. Experienced cultivators who test boundaries near this character find them shifted. The exceptions are not dramatic individually; the accumulation of consistent small exceptions is what makes this trait extraordinary. The world has made a permanent note.',
+  },
+
+}); // end expanded traits
 
 console.log('Murim Chronicles fully loaded.');
 
