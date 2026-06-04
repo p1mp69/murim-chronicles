@@ -32001,6 +32001,512 @@ Object.assign(TRAITS_CATALOG, {
 
 }); // end expanded traits
 
+// ================================================================
+// ── 4 NEW TRAITS
+// ================================================================
+
+Object.assign(TRAITS_CATALOG, {
+
+  // ── REGRESSOR (mythic, innate) ────────────────────────────────
+  // The player gets three chances to come back from death.
+  // On death, the clock rolls back one year. They remember everything.
+  regressor: {
+    name: 'Regressor',
+    type: 'innate_spiritual', rarity: 'mythic', inherited: false,
+    desc: 'You have died before, and come back. Not as reincarnation — as regression. When you die, the world rewinds a year, and you wake again in your past body with every memory intact. You have three lives. You have already spent none of them.',
+    flavor: 'The first time it happens, you don\'t understand what you\'re seeing.\n\nThe second time, you recognize it.\n\nThe third time, you are very careful.',
+    gameplay: 'On death: the game rewinds one year. Qi, health, and most physical state resets to where it was a year prior. Your traits, memories, and chronicle carry forward. You know what is coming. You cannot stop everything. Each regression adds a Regression Memory to your chronicle. You have three lives — spend them wisely.',
+    effects: { willpower: 5, perception: 3, luck: 2 },
+    _regressionCount: 0,
+    _maxRegressions: 3,
+    aiHint: 'REGRESSOR: This character has died and come back at least once, possibly twice. They carry memories of futures that haven\'t happened yet. When they display foreknowledge — knowing what someone will say before they say it, avoiding a route that would have led to disaster — describe it as quiet certainty, not mysticism. They are not calm because they aren\'t afraid. They are calm because they have been here before. When they die and the regression fires: narrate the death fully, then narrate the disorientation of waking a year earlier with everything intact. The chronicle records it.',
+  },
+
+  // ── KINGSMAN (uncommon, innate) ───────────────────────────────
+  kingsman: {
+    name: 'Kingsman',
+    type: 'innate_social', rarity: 'uncommon', inherited: true,
+    desc: 'You were born knowing how to read people and what they want to hear. Not manipulation — something more instinctive than that. NPCs tell you things they hadn\'t planned on sharing. Doors that require trust open faster.',
+    effects: { charisma: 4, perception: 2, intelligence: 1 },
+    aiHint: 'KINGSMAN: This character has a natural persuasion talent that operates below the level of conscious technique. In conversations, NPCs find themselves sharing more than they intended. Information comes easier. Lies are harder to maintain against them — not because the character is detecting the lie, but because the liar unconsciously relaxes. Describe this as NPCs offering context they weren\'t asked for, revealing small details they didn\'t mean to, or finding themselves explaining themselves unprompted. Works best one-on-one. Less effective in formal settings.',
+  },
+
+  // ── THE MAD DEMON (gained, legendary) ─────────────────────────
+  // Triggered by obsessive rapid cultivation — too much, too fast.
+  the_mad_demon: {
+    name: 'The Mad Demon',
+    type: 'gained', rarity: 'legendary', inherited: false,
+    desc: 'You burned through cultivation stages at a rate that left marks. The Qi came in faster than your meridians were built for. You survived. Something else emerged. Your mind is not what it was. Your power is not what it should be. Both statements are true simultaneously.',
+    flavor: 'They don\'t ask how you did it anymore.\n\nThey ask what it cost you.\n\nYou\'re still calculating.',
+    gameplay: 'Qi gains are amplified — 40% faster cultivation than before. Breakthroughs carry higher risk (random deviation check per stage). NPCs with cultivation sense perceive your Qi as wrong — too much, too dense, carrying the residue of forced progress. Some cultivators will refuse to train you. Others will be very interested in how you got here.',
+    effects: { strength: 5, willpower: -3, perception: 4, intelligence: 3, charisma: -2 },
+    qiCostMult: { cultivation_gain: 1.4, deviation_risk: 1.6 },
+    aiHint: 'THE MAD DEMON: This character pushed cultivation so hard and fast that something in their mental architecture shifted. They are recognizably more powerful than their stage should suggest — and recognizably different from who they were. Cultivators who sense their Qi describe it as wrong in a specific way: too compressed, carrying heat that shouldn\'t be there, like a blade that was folded too many times. Some NPCs with cultivation will be alarmed. Some will be fascinated. The character is functional — but the obsession hasn\'t gone. Surface the compulsive quality: the constant awareness of their Qi, the way they drift toward thinking about the next stage.',
+  },
+
+  // ── SWORD-SAINT (gained, legendary) ──────────────────────────
+  // Triggered: swordsmanship skill level 8+ AND 5+ sword techniques at conceptual authority (stage 6)
+  sword_saint: {
+    name: 'Sword-Saint',
+    type: 'gained', rarity: 'legendary', inherited: false,
+    desc: 'At some point the sword stopped being a weapon you use and became a language you speak. Five techniques understood at the level of concept, not execution. The world recognizes it. The title predates you — it has been given to perhaps a dozen people in recorded history.',
+    flavor: 'It happens in a specific moment.\n\nYou are not using the technique.\n\nYou are the technique.\n\nThere is no space between.',
+    gameplay: 'All sword techniques cost 30% less Qi. Opponents who know cultivation can sense the Sword-Saint status and react accordingly — respect, challenge, or fear. You can now create original sword techniques from base understanding (variant creation no longer requires stage 5+ in a parent technique — you can originate). The title follows you. It was already spoken in certain circles before you earned it.',
+    effects: { agility: 6, strength: 4, perception: 3, willpower: 4, charisma: 3 },
+    qiCostMult: { sword: 0.7, blade: 0.7 },
+    aiHint: 'SWORD-SAINT: This character has achieved a title that carries genuine historical weight — perhaps a dozen people across recorded history have earned it. In sword-related situations, describe an effortlessness that is different from skill: not doing the technique but being it. NPCs who know cultivation and are sword-focused react with specific weight — some with reverence, some with challenge (proving themselves against a Sword-Saint), some with the specific caution of people who have seen what this title actually means in combat. The title is permanent and precedes them.',
+  },
+
+});
+
+// ── REGRESSOR DEATH MECHANIC ──────────────────────────────────
+// When the player dies AND has the Regressor trait with lives remaining,
+// roll back the year by one and restore partial state.
+
+const _applyWithRegressor = applyAIResponse;
+applyAIResponse = function(res) {
+  // Check death BEFORE calling original (so we can prevent it)
+  const c = GS.char;
+  const w = GS.world;
+  const hasRegressor = c.traits?.some(t => t.id === 'regressor');
+  const deathFiring  = res?.death === true;
+
+  if(deathFiring && hasRegressor) {
+    const regressions = c._regressions || 0;
+    const maxReg      = 3;
+
+    if(regressions < maxReg) {
+      // Intercept the death — trigger regression instead
+      res = { ...res, death: false }; // suppress actual death
+      res.personalEvents = res.personalEvents || [];
+      res.personalEvents.push(`[REGRESSION ${regressions + 1}/3]: ${c.firstName} died and came back. Year rolled back one year. The memories persist.`);
+
+      // Fire the regression after a short delay (let the narrative land first)
+      setTimeout(() => {
+        c._regressions = regressions + 1;
+        c._regressionMemories = c._regressionMemories || [];
+        c._regressionMemories.push({
+          number: c._regressions,
+          diedYear: w.year,
+          how: res.narrative?.slice(-200) || 'cause unknown',
+          timestamp: new Date().toISOString(),
+        });
+
+        // Roll back one year
+        const prevYear = w.year;
+        w.year  = Math.max(1, w.year - 1);
+        c.age   = Math.max(0, c.age - 1);
+        // Partial Qi restoration — keep stage but reset current
+        if(c.qi) c.qi.current = Math.floor((c.qi.max || 100) * 0.3);
+        c.hp = Math.max(1, Math.floor((c.maxHp || 100) * 0.5));
+        // Clear some fresh injuries but keep scars
+        c.injuries = [];
+        c.bondStatus = null; // free from any bondage
+
+        addChronicleEntry(`REGRESSION ${c._regressions}: Died in Year ${prevYear}, woke in Year ${w.year}. The memories persist.`, 'major');
+        addPersonalEvent(`Regression ${c._regressions}/${maxReg}: Died Year ${prevYear}. Woke Year ${w.year} with all memories intact.`);
+
+        const livesLeft = maxReg - c._regressions;
+        GS.narrative.push(
+          livesLeft > 0
+          ? `You died.\n\nAnd then you didn't.\n\nThe world rewinds — not with drama, but with the specific wrongness of a skipped frame. You are in your body a year ago. Your chest hurts with the memory of what ended it. Everything that happened, you remember. Everything that will happen, you now know.\n\n${livesLeft} regression${livesLeft > 1 ? 's' : ''} remaining.`
+          : `You died.\n\nAnd then — for the last time — you didn't.\n\nThis is the final regression. There is no more coming back after this. The weight of that is a specific kind of clarity. The world rewinds. You wake in your body a year ago with every memory intact and the knowledge that the next death is the real one.`
+        );
+
+        updateTopbar();
+        updateCharacterTab();
+        toast(`Regression ${c._regressions}/${maxReg} — ${livesLeft} remaining`, 'gold', 8000);
+      }, 1500);
+    }
+  }
+
+  _applyWithRegressor(res);
+};
+
+// ── MAD DEMON AUTO-TRIGGER ────────────────────────────────────
+// Triggered when: player has gained 2+ cultivation stages within 3 years
+// AND doesn't already have the trait
+function checkMadDemonTrigger() {
+  const c = GS.char;
+  const w = GS.world;
+  if(c.traits?.some(t => t.id === 'the_mad_demon')) return; // already have it
+  if((c.qi?.stageIndex||0) < 2) return; // need at least 2 stages
+
+  // Check if they've gained stages very fast
+  const chronicle = c.chronicle || [];
+  const recentStageUps = chronicle.filter(e =>
+    e.text?.includes('Advanced cultivation') &&
+    e.year >= w.year - 3
+  ).length;
+
+  if(recentStageUps >= 2) {
+    // Also need blood karma or some deviation history
+    const hasDeviationHistory = (c.karma?.demonic||0) >= 5 || c._deviationCount > 0;
+    if(hasDeviationHistory) {
+      giveTrait('the_mad_demon', null);
+      addChronicleEntry('The Mad Demon emerged — Qi forced too fast, meridians burning with it', 'major');
+      addPersonalEvent(`The Mad Demon: cultivated too hard, too fast. The change is permanent. Year ${w.year}.`);
+      GS.narrative.push('Something changed in how your Qi feels. Not today — it happened across the last few years, the forcing and the burning and the breakthroughs that came too quickly. Cultivators who sense your Qi now describe it the same way: wrong. Too dense. Too hot. Like a blade folded past its limit.\n\nYou are not less than you were.\n\nBut you are not the same either.');
+      toast('✦ The Mad Demon — a price for what you\'ve become', 'gold', 8000);
+    }
+  }
+}
+
+const _advanceWithMadDemon = advanceTime;
+advanceTime = function(days=0, months=0, years=0) {
+  _advanceWithMadDemon(days, months, years);
+  try { if((years||0) >= 1) checkMadDemonTrigger(); } catch(e) {}
+};
+
+// ── SWORD-SAINT AUTO-TRIGGER ──────────────────────────────────
+function checkSwordSaintTrigger() {
+  const c = GS.char;
+  if(c.traits?.some(t => t.id === 'sword_saint')) return;
+
+  const swordSkill = c.skills?.swordsmanship?.level || c.skills?.weaponry?.level || 0;
+  if(swordSkill < 8) return;
+
+  const swordTechs = (c.techniques || []).filter(t => {
+    const isSword = /sword|blade|cut|slash|pierce|thrust|edge/i.test(t.name + ' ' + t.desc);
+    return isSword && (t.stage || 0) >= 6; // Conceptual Authority
+  });
+
+  if(swordTechs.length >= 5) {
+    giveTrait('sword_saint', null);
+    addChronicleEntry('Achieved Sword-Saint — five sword techniques at Conceptual Authority', 'major');
+    addPersonalEvent(`Sword-Saint: Five techniques understood at the level of concept. The title is yours. Year ${GS.world.year}.`);
+    GS.narrative.push('There is a moment when you realize you are not executing a technique.\n\nThe technique is executing itself through you.\n\nYou have done this five times now — five separate understandings that have reached the same point. The sword is not a weapon you use. It is a language you speak.\n\nSomewhere in the world, people who measure such things have already noticed. The title exists. It was waiting for you.');
+    toast('✦ Sword-Saint', 'gold', 8000);
+  }
+}
+
+const _applyWithSwordSaint = applyAIResponse;
+applyAIResponse = function(res) {
+  _applyWithSwordSaint(res);
+  try {
+    const c = GS.char;
+    // Check if any technique advanced to stage 6
+    if(res?.newTechniques?.length || res?.skills?.length) checkSwordSaintTrigger();
+    // Also check on technique stage advance (practiseTech)
+  } catch(e) {}
+};
+
+// ── REGRESSOR SYSTEM PROMPT CONTEXT ──────────────────────────
+const _bspWithRegressor = buildSystemPrompt;
+buildSystemPrompt = function() {
+  let prompt = _bspWithRegressor();
+  try {
+    const c = GS.char;
+    if(c.traits?.some(t => t.id === 'regressor')) {
+      const rCount  = c._regressions || 0;
+      const maxReg  = 3;
+      const livesLeft = maxReg - rCount;
+      const mems    = c._regressionMemories || [];
+      const memStr  = mems.map(m => `Regression ${m.number}: died Year ${m.diedYear}`).join(', ');
+      const regCtx  = `\nREGRESSOR STATUS: ${livesLeft} regression${livesLeft !== 1 ? 's' : ''} remaining (${rCount}/${maxReg} used)${memStr ? ` | Past deaths: ${memStr}` : ''}
+This character has died before and come back. They carry memories of futures that haven\'t happened yet. They may know things they shouldn\'t. Surface this as quiet certainty, careful decisions, and occasional moments of recognition.
+REGRESSION RULE: If this character dies (death: true), the system will intercept it and fire a regression automatically — do NOT write the final death scene unless all 3 regressions are spent.`;
+      prompt = prompt.replace('## ABSOLUTE RULES', regCtx + '\n\n## ABSOLUTE RULES');
+    }
+  } catch(e) {}
+  return prompt;
+};
+
+// ================================================================
+// ── POLITICS AI CONTEXT
+// ── When the player is actively involved in politics, the AI
+// ── needs to understand their standing and react accordingly.
+// ================================================================
+
+const _bspWithPolitics = buildSystemPrompt;
+buildSystemPrompt = function() {
+  let prompt = _bspWithPolitics();
+  try {
+    const c = GS.char;
+    const w = GS.world;
+    const politicalParts = [];
+
+    // Sect rank — the most common political standing
+    const activeSect = w.discoveredSects?.find(s => s.playerRank);
+    if(activeSect) {
+      const rankIdx = ['Outer Disciple','Inner Disciple','Elite Disciple','Core Disciple','Elder','Grand Elder','Sect Leader'].indexOf(activeSect.playerRank);
+      const influence = rankIdx >= 4 ? 'significant political influence' : rankIdx >= 2 ? 'growing standing' : 'low political standing';
+      politicalParts.push(`Sect: ${activeSect.name} — Rank: ${activeSect.playerRank} (${influence})`);
+      if(activeSect.internalTensions?.length) {
+        const active = activeSect.internalTensions.filter(t => !t.resolved && t.intensity > 30);
+        if(active.length) politicalParts.push(`Active sect tensions: ${active.map(t => t.type).join(', ')}`);
+      }
+    }
+
+    // Kingdom standing via reputation
+    const highStandingLocs = Object.entries(c.reputation||{})
+      .filter(([k, v]) => !k.endsWith('_kingdom') && (v.renown >= 60 || v.infamy >= 60))
+      .map(([k, v]) => `${LOCATIONS[k]?.name||k}: ${v.renown >= 60 ? 'renown '+v.renown : 'infamy '+v.infamy}`);
+    if(highStandingLocs.length) politicalParts.push(`Notable reputation: ${highStandingLocs.join(', ')}`);
+
+    // Draft / military
+    if(c._draftStatus?.drafted) {
+      const side = c._draftStatus.side === 'luo_tin' ? 'Luo-Tin Dynasty' : 'Buo Kingdom';
+      politicalParts.push(`Military: ${side} ${c._draftStatus.rank} — movement and orders restricted`);
+    }
+
+    // Bounty
+    if((c.bounty||0) > 100) {
+      politicalParts.push(`Bounty: ${c.bounty}◈ — wanted, political doors closed in law-abiding areas`);
+    }
+
+    // Properties that confer standing
+    const estates = (c.assets||[]).filter(a => ['compound','estate'].includes(a.type));
+    if(estates.length) politicalParts.push(`Properties: ${estates.map(a=>a.name).join(', ')} — landownership confers social standing`);
+
+    if(!politicalParts.length) return prompt;
+
+    const section = `POLITICAL STANDING:
+${politicalParts.map(p => `• ${p}`).join('\n')}
+
+POLITICS RULES:
+1. Political standing GATES access. A Sect Elder walks into most official spaces without questions. An Outer Disciple doesn't. Apply these gates consistently.
+2. Known political figures react to the player's standing. A faction rival is cold. A sect brother is warmer. An enemy faction is calculating.
+3. Political information flows upward. High-ranking NPCs know things low-ranking characters don't.
+4. Political involvement has visibility. When the player acts in a political situation, word spreads. Factions notice.
+5. Sect politics specifically: Elder-level players have votes on decisions. Their absences are noted. Their opinions are sought.`;
+
+    prompt = prompt.replace('## ABSOLUTE RULES', section + '\n\n## ABSOLUTE RULES');
+  } catch(e) {}
+  return prompt;
+};
+
+// ================================================================
+// ── SIX WORLD RELIGIONS
+// ── Each as complex and specific as Yaqism.
+// ── Different geographies, practices, founding stories, and
+// ── relationships to cultivation.
+// ================================================================
+
+const WORLD_RELIGIONS = {
+
+  // ── 1. THE PATH OF STILL WATER ─────────────────────────────
+  still_water: {
+    name: 'The Path of Still Water',
+    shortName: 'Still Water',
+    deity: null, // not deity-worshipping — practice-based
+    core_belief: 'The universe is in constant motion. Suffering comes from trying to move with it. The practitioner learns to be still within the current. The water is always moving. The stone at the bottom is always still. Be the stone.',
+    origin: 'Azure Empire canal and river communities, pre-Year 1. Believed to have existed before Qi cultivation was discovered, gaining new depth once cultivators noticed the correlation between stillness practice and natural Qi gathering.',
+    regions: ['tazar', 'jade_province', 'beggars_rest', 'ooina'],
+    practices: {
+      river_sitting: {
+        name: 'River Sitting',
+        desc: 'Daily practice of sitting beside moving water for one hour without speaking, moving, or directing thought. The practitioner does not meditate — they simply do not resist. The water teaches by example.',
+        effect: 'Long-term practitioners develop a specific quality of stillness that other cultivators can sense. Qi disturbances around them are subtly calmer.',
+      },
+      the_fish_oath: {
+        name: 'The Fish Oath',
+        desc: 'Practitioners of Still Water do not kill fish — not for religious reasons, but because fish know how to move with a current and their death is considered a loss of working demonstration. Some practitioners extend this to all water creatures.',
+        effect: 'Taking the oath marks you to other practitioners. In canal communities it is widely recognized.',
+      },
+      the_counted_breath: {
+        name: 'The Counted Breath',
+        desc: 'A precise breathing practice: four counts in, hold for four, four counts out, hold for four. Practiced for 30 minutes each dawn. The regularity is the practice — missing a day is considered the same as taking a step backward.',
+        effect: 'Practitioners who maintain this for six consecutive months report a permanent change in how Qi flows through their breathing.',
+      },
+    },
+    texts: ['The Stillwater Sutras — a collection of observations about water, each of which is understood to be about something else entirely.'],
+    founding_story: 'No founder. The oldest practitioners say it was not invented — it was noticed. Someone, somewhere, observed that the fish that survived were always the ones that knew when to stop swimming. The practice came from watching.',
+    cultivation_relationship: 'Strongly correlates with Water and Earth Qi paths. Practitioners of Still Water who begin cultivation often develop either path naturally. The stillness practice creates a Qi pattern that experts describe as unusually clean — little turbulence, high clarity.',
+    tensions: 'Still Water has no central authority and therefore no ability to enforce anything. This creates splinter interpretations. The main tension is between practitioners who believe the practice is spiritual and those who think it is simply good cultivation hygiene dressed in metaphor.',
+  },
+
+  // ── 2. THE SWORN ROAD ─────────────────────────────────────
+  sworn_road: {
+    name: 'The Sworn Road',
+    shortName: 'The Sworn',
+    deity: 'Heaven, specifically understood as a witness — Heaven watches oaths and remembers them.',
+    core_belief: 'The spoken word, sworn before Heaven, cannot be unsaid. Your word is your soul\'s contract. A man who breaks his oath has broken himself in a way that does not heal.',
+    origin: 'Luo-Tin Dynasty, warrior traditions. The formalization of oath-keeping predates the current Dynasty but was codified by a general named Xu Feng who died keeping his word to an enemy he had sworn to protect — in front of troops who were watching, which they never forgot.',
+    regions: ['luo_tin_capital', 'great_defensive_giant', 'luo_tin_farm'],
+    practices: {
+      blood_oath: {
+        name: 'The Blood Oath',
+        desc: 'A formal oath spoken aloud with blood drawn — typically from the palm. The words must be specific. Vague oaths are considered worse than no oath because they pollute the practice.',
+        effect: 'Blood oaths are legally recognized in Luo-Tin legal traditions. Breaking a witnessed blood oath carries social and legal consequences.',
+      },
+      dawn_recitation: {
+        name: 'Dawn Recitation',
+        desc: 'Each dawn, the practitioner speaks aloud every oath they currently hold. The purpose is double: it forces awareness of what has been sworn, and it prevents forgetting.',
+        effect: 'Practitioners report that the daily recitation changes how they speak generally — they become more careful before speaking because they have practiced carefulness with their words.',
+      },
+      the_witness_fast: {
+        name: 'The Witness Fast',
+        desc: 'Before a major oath, a practitioner fasts for three days — not for purity, but for clarity. The fast is also a test: if you are not serious enough to fast for it, you are not serious enough to swear it.',
+        effect: 'Oaths sworn after the Witness Fast are considered binding in ways that casual oaths are not, even within the religion.',
+      },
+    },
+    texts: ['The Book of Given Words — a collection of famous oaths, both kept and broken, with commentary on what each cost or produced.'],
+    founding_story: 'General Xu Feng swore an oath to a captured enemy officer that he would ensure the officer survived to see his family again. The officer told him this was impossible — Xu Feng\'s own generals would have the officer killed. Xu Feng said the oath stood regardless. His generals did attempt it. Xu Feng died preventing them. The officer survived. The story spread before the army returned home.',
+    cultivation_relationship: 'Righteous Qi path correlates strongly with Sworn practitioners. The discipline of oath-keeping maps directly onto cultivation discipline. Some practitioners believe that unbroken oaths accumulate Qi — that a life of kept words creates a cultivation base independent of formal practice.',
+    tensions: 'The Sworn Road has an ongoing theological dispute: what constitutes a valid oath? One faction requires specific language and blood. Another holds that any sincere statement of intent creates an oath automatically. The second faction is considered dangerous by the first.',
+  },
+
+  // ── 3. THE RED EARTH WAY ──────────────────────────────────
+  red_earth: {
+    name: 'The Red Earth Way',
+    shortName: 'Red Earth',
+    deity: 'The Earth itself, understood as a living system with memory — not a being with will, but an accumulation of everything that has ever been put into it.',
+    core_belief: 'The earth remembers everything you put into it and everything you take from it. What you tend grows. What you neglect withers. The debt is always calculated. The harvest is always honest.',
+    origin: 'Buo Kingdom farming communities, pre-Year 1. Independent development from agricultural observation: certain fields had Qi and others did not, and the ones that did were the ones tended with specific practices.',
+    regions: ['buo_capital', 'red_sand_city', 'stone_root', 'wild_bloom'],
+    practices: {
+      planting_ceremony: {
+        name: 'The Planting Ceremony',
+        desc: 'Before any significant planting, the farmer speaks aloud what they are asking the earth for. Not a prayer — a transaction. They name what they are giving in return (labor, time, specific care) and what they are asking. The earth is treated as a business partner with a long memory.',
+        effect: 'Practitioners who maintain the ceremonies report better yields in ways that soil analysis doesn\'t fully explain. Red Earth farmers are known for the quality of their produce.',
+      },
+      burial_rites: {
+        name: 'The Return',
+        desc: 'The dead are buried with specific objects — things that represent what they owed the earth and what they were owed in return. The burial is a final accounting. If the accounting is incomplete, the family is expected to complete it on the deceased\'s behalf.',
+        effect: 'The funeral rites are the most visible public expression of Red Earth practice and are recognized as culturally distinct from other traditions.',
+      },
+      seasonal_fast: {
+        name: 'The Seasonal Fast',
+        desc: 'Four fasts per year at the season changes — one day each. During these days, nothing is taken from the earth: no farming, no foraging, no eating of anything grown. The practitioner eats only what they have stored. The one-day fasts are also used for accounting — what did the season take, what did it give.',
+        effect: 'The practice creates a specific relationship with food scarcity that Red Earth practitioners handle differently from others. Hunger does not panic them the way it does people without the practice.',
+      },
+    },
+    texts: ['The Seasonal Scrolls — four texts, one per season, describing what to give and what to expect and what the earth has given in similar seasons historically.'],
+    founding_story: 'No single founder. The oldest Red Earth story is about a farmer who noticed that the field where his grandfather was buried always produced more than the other fields. He told his neighbors. His neighbors began burying their dead in the fields. The fields improved. The practice spread before anyone thought to explain why it worked.',
+    cultivation_relationship: 'Earth Qi path is the most common cultivation path among Red Earth practitioners, but Body Tempering traditions are equally common. The Red Earth Way views cultivation as an extension of farming — you are tending a field within yourself.',
+    tensions: 'Urbanization is the central tension. Red Earth is difficult to practice in a city. Urban Red Earth practitioners have adapted the practices to ledgers and apartment balconies, but traditionalists consider these adaptations insufficient.',
+  },
+
+  // ── 4. THE DOCTRINE OF EDGES ──────────────────────────────
+  doctrine_of_edges: {
+    name: 'The Doctrine of Edges',
+    shortName: 'The Edges',
+    deity: 'The Moment — specifically the irreversible moment of a decision. The Doctrine holds that truth is only ever found at the point of no return.',
+    core_belief: 'The moment of the blade is the most honest moment that exists. Everything that matters happens at the edge — of a decision, of a blade, of a life. You learn nothing in the comfortable middle. You learn everything when something is committed and cannot be taken back.',
+    origin: 'Developed gradually from warrior traditions across multiple kingdoms. Has no single founder. The closest thing to a founding event is an unnamed swordsman who survived a battle he had no right to survive and spent the rest of his life trying to understand the moment that made the difference.',
+    regions: ['buo_capital', 'red_sand_city', 'great_defensive_giant', 'luo_tin_capital'],
+    practices: {
+      edge_meditation: {
+        name: 'Edge Meditation',
+        desc: 'The practitioner sits with a blade unsheathed and resting across their knees, held completely still, for one hour. Not meditating on the blade — holding the state of attention the blade requires. The practice trains the specific quality of attention that combat requires without the combat.',
+        effect: 'Long-term practitioners develop reaction qualities that experienced fighters recognize.',
+      },
+      the_cutting_fast: {
+        name: 'The Cutting Fast',
+        desc: 'Before a significant fight or commitment, three days without eating or sleeping — maintained through specific breathing and movement practices. Not purification. A removal of the comfortable distance from the edge. By the third day, you understand what is real.',
+        effect: 'The Cutting Fast produces a specific altered state that practitioners describe as extreme clarity with extreme discomfort. Some cultivators have used this state to achieve difficult breakthroughs.',
+      },
+      ritual_sparring: {
+        name: 'Ritual Sparring',
+        desc: 'Regular formalized sparring that serves as worship — the practice of meeting another at the edge and not going over it. The match is the prayer. The restraint that keeps sparring from becoming killing is considered the central spiritual act.',
+        effect: 'Communities that practice this develop a specific culture around violence — it is not avoided, it is managed. The Doctrine of Edges produces fighters who are very precise about the line between sparring and real combat.',
+      },
+    },
+    texts: ['No central text — oral tradition. Practitioners carry personal records of decisions made at the edge and their outcomes.'],
+    founding_story: 'An unnamed swordsman, known only as "The Survivor," won a battle against someone who should have killed him. Afterward, he could not explain how. He spent years trying to reconstruct the moment. His students adopted the practice of reconstruction — examining every significant moment before and after the edge — as the core of what became the Doctrine.',
+    cultivation_relationship: 'Beast Qi path is most common, but Combat Qi and high-stage martial artists often find the Doctrine resonant. The edge meditation practice is used by non-cultivators as well — it predates the discovery of Qi.',
+    tensions: 'The Doctrine has a dangerous faction problem: some practitioners take "truth is at the edge" to mean they should seek the edge constantly. These practitioners are considered by mainstream Doctrine to be missing the point — the point is to know the edge without crossing it, not to cross it repeatedly.',
+  },
+
+  // ── 5. THE TEN THOUSAND TRANSACTIONS ──────────────────────
+  ten_thousand: {
+    name: 'The Ten Thousand Transactions',
+    shortName: 'The Transactions',
+    deity: 'The Balance — an impersonal cosmic principle of exchange. Not a being. A system. Every transaction is a prayer to the system.',
+    core_belief: 'The universe is made of exchanges. Every connection is a form of prayer. Honest trade is worship. Dishonest trade is sacrilege — not because it harms others, but because it lies to the balance that sustains everything.',
+    origin: 'Jade Province merchant communities, developed over decades in parallel with the province\'s commercial growth. Formalized by a merchant named Shen Yao who maintained perfectly honest accounts for thirty years and experienced a Qi breakthrough during a routine accounting session.',
+    regions: ['jade_province', 'tazar', 'buo_capital'],
+    practices: {
+      perfect_accounting: {
+        name: 'Perfect Accounting',
+        desc: 'Every practitioner keeps a personal account of every exchange — financial and otherwise. Not for legal purposes. As religious practice. Debts owed and owed to them, favors given and received, time spent and received. The account is the practitioner\'s relationship with the universe.',
+        effect: 'Practitioners who maintain perfect accounts for years report an unusual clarity about what is fair and unfair in complex situations. Some describe a physical sensation when an exchange is significantly imbalanced.',
+      },
+      honest_measurement: {
+        name: 'Honest Measurement',
+        desc: 'The sacred act of measuring — weights, lengths, quantities — performed with full attention and without deception. Practitioners who measure things dishonestly are considered to have committed an act of ritual pollution.',
+        effect: 'Communities of Transactions practitioners are known for reliable weights and measures. This has significant commercial value and has spread the practice partly for practical reasons.',
+      },
+      market_prayer: {
+        name: 'The Market Prayer',
+        desc: 'Spoken before any significant transaction: a statement of what is being given, what is expected in return, and an acknowledgment that the balance will record it. The prayer is brief — a few words. The purpose is to make the practitioner conscious of the exchange.',
+        effect: 'The practice changes how practitioners negotiate. They are slower to agree to unfavorable terms and faster to recognize when something is fair.',
+      },
+    },
+    texts: ['The Balance Sheets of Heaven — a text that begins with accounting theory and gradually reveals itself to be a religious document. Most people who read the first third believe they are reading a merchant\'s manual.'],
+    founding_story: 'Shen Yao maintained perfectly honest accounts for thirty years. On the day of his thirty-year anniversary of starting the practice, during routine accounting, his Qi spontaneously formed into a stable path without any cultivation practice. He spent the remaining decades of his life writing about what he thought this meant and what he thought it didn\'t mean.',
+    cultivation_relationship: 'No single Qi path correlates. Commerce skill practitioners often adopt the practice. The central relationship is that the Transactions tradition provides a moral framework that some cultivators find their Qi path aligns with — not the other way around.',
+    tensions: 'The Transactions has an ongoing dispute about whether the tradition applies to non-commercial exchanges. The commercial faction says the practice is specifically about trade. The expanded faction says every exchange — including emotional ones, social ones, and Qi ones — belongs in the account.',
+  },
+
+  // ── 6. THE SILENCE ────────────────────────────────────────
+  the_silence: {
+    name: 'The Silence',
+    shortName: 'The Silence',
+    deity: 'What Cannot Be Named — a presence described exclusively in terms of what it is not. Practitioners consider naming it a category error.',
+    core_belief: 'What is seen is not what is real. What is hidden is not what is real. What exists between them — in the space that is neither the visible nor the hidden — that is where truth lives. The Silence is the practice of finding that space.',
+    origin: 'Beggar\'s Rest and underground canal communities, developed by people whose survival depended on not being seen. The practice began as survival technique and became spiritual practice when practitioners noticed that the states it induced had effects that went beyond concealment.',
+    regions: ['beggars_rest', 'mistveil', 'tazar'],
+    practices: {
+      face_covering: {
+        name: 'The Covering',
+        desc: 'During formal worship and certain private practices, the face is covered. The person who is known — their appearance, their identity — is set aside. Practitioners describe this as a practice of becoming something other than the name attached to them.',
+        effect: 'Some practitioners develop an unusual ability to be genuinely unnoticed — not stealth, exactly, but a quality of not-registering that differs from hiding.',
+      },
+      anonymity_as_sacred: {
+        name: 'The Unnamed',
+        desc: 'Practitioners of the Silence use a different name within the practice than outside it. The practice name is never used in public, never written in official records. The separation is considered essential — the self that prays is not the self that exists in the world.',
+        effect: 'The practice creates a specific kind of identity compartmentalization that practitioners use for difficult situations — the Unnamed self can do things the named self cannot.',
+      },
+      the_unwritten_pages: {
+        name: 'The Unwritten Pages',
+        desc: 'The sacred text of the Silence is blank. Each practitioner fills their own. There is no official teaching — only the practice of finding what is real in one\'s own experience and recording it in a form no one else can read.',
+        effect: 'Practitioners have no shared doctrine, which makes them difficult to persecute (nothing to point to) and difficult to organize (nothing to share). This is considered a feature.',
+      },
+    },
+    texts: ['Blank pages — each practitioner writes their own.'],
+    founding_story: 'The Silence has no founding story it will admit to. There are several stories about its origin that different practitioners accept. None of them agree. The disagreement is considered correct — a practice whose central tenet is that appearances are not reality should not have an official history.',
+    cultivation_relationship: 'Shadow Walker affinity correlates, as does the Stealth skill. High-stage practitioners of the Silence sometimes develop Qi signatures that are unusually quiet — not suppressed, simply understated. Experienced Qi-readers describe it as trying to sense something that is present but not pointing at itself.',
+    tensions: 'The Silence has a structural tension built in: it cannot organize because organization requires a visible form. When it tries to teach or spread, it contradicts itself. The communities that practice it are therefore always small, always local, and always slightly different from each other.',
+  },
+
+};
+
+// Inject relevant religion context into system prompt
+const _bspWithReligions = buildSystemPrompt;
+buildSystemPrompt = function() {
+  let prompt = _bspWithReligions();
+  try {
+    const yr  = GS.world.year;
+    const loc = GS.world.location;
+    const c   = GS.char;
+
+    // Find religions present in current location
+    const presentReligions = Object.values(WORLD_RELIGIONS).filter(rel =>
+      rel.regions?.includes(loc)
+    );
+
+    // Also Yaqism if in range
+    const yaqPresent = yr >= 400 && ['red_sand_city','buo_capital','mistveil','ooina'].includes(loc);
+
+    if(!presentReligions.length && !yaqPresent) return prompt;
+
+    const relLines = presentReligions.map(rel =>
+      `• ${rel.name}: "${rel.core_belief.slice(0,100)}..." — practiced here. Practitioners exist in this area.`
+    );
+    if(yaqPresent) relLines.push(`• Yaqism: D'la's following — the flame of D'yaqed within all living things. Active communities here.`);
+
+    const section = `RELIGIONS IN THIS AREA:
+${relLines.join('\n')}
+
+RELIGION RULE: Religious practitioners in this area reflect their beliefs in behavior and speech. NPCs who practice these traditions act accordingly — Still Water practitioners are unusually calm, Sworn Road practitioners are careful with their words, Red Earth practitioners speak in terms of debts and returns. Religion is not background color — it shapes how people think.`;
+
+    prompt = prompt.replace('## ABSOLUTE RULES', section + '\n\n## ABSOLUTE RULES');
+  } catch(e) {}
+  return prompt;
+};
+
 console.log('Murim Chronicles fully loaded.');
 
 </script>
