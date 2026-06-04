@@ -5667,7 +5667,7 @@ function updateSkillsPane() {
   const grouped = {};
   keys.forEach(k => {
     const s = skills[k];
-    const cat = s.category || 'supplies';
+    const cat = s.category || 'misc';
     if(!grouped[cat]) grouped[cat] = [];
     grouped[cat].push({ key:k, ...s });
   });
@@ -6276,7 +6276,10 @@ ABSOLUTE RULES — NEVER BREAK THESE:
 4. NPCs have lives and histories before the player. Hidden pasts, old allegiances, old enemies. They do not reveal these unless triggered by events.
 5. Time is real. If a scheduled event was set for Month 3 and it's now Month 5, that event already happened or was missed. Do not retroactively create it.
 6. Permanent injuries/scars only come from significant, violent or extreme events — never casual mishaps.
-7. Skills only appear when actually used. Cultivation skill only if the character cultivates with Qi.
+7. SKILLS MUST BE REPORTED — THIS IS CRITICAL. Every time the narrative involves the character using ANY skill, you MUST include it in the "skills" array. This is the ONLY way skills register in the game. If the player does NOT include it here, that skill does not exist for the player.
+   When to include skills: fighting/sparring → combat_training | cooking → cooking | studying/reading → literacy or relevant skill | tracking/wilderness → tracking or survival | forging/smithing → smithing | alchemy/brewing → alchemy | negotiating/selling → commerce | sneaking/hiding → stealth | healing/treating wounds → medicine | observing/watching → observation | meditating/breathing → meditation | calligraphy/writing → calligraphy | cultivation practice → cultivation.
+   Categories to use: combat, survival, craftsman, social, scholarly, medical, artistic, cultivation, passive, misc.
+   Include even for brief or minor use. The skill array accumulates — repeated use levels up skills.
 8. Qi path is determined naturally by behavior — do not force it. A violent, reactive fighter develops Beast Qi. An ambitious, consuming one develops Demonic Qi. A disciplined, precise one develops Righteous Qi.
 9. Techniques that require a specific Qi path cannot be used by someone of a different path.
 10. World events happen regardless of player participation. If the player ignores the Buo-Luo-Tin War, it still happens and changes things around them.
@@ -6464,7 +6467,7 @@ function applyAIResponse(res) {
   if(res.newQiStageIndex != null) setQiStage(res.newQiStageIndex);
   // Skills
   if(res.skills?.length) {
-    res.skills.forEach(s => addSkill(s.key||s.label?.toLowerCase().replace(/\s+/g,'_'), s.label||s.key, s.category||'supplies', s.desc||''));
+    res.skills.forEach(s => addSkill(s.key||s.label?.toLowerCase().replace(/\s+/g,'_'), s.label||s.key, s.category||'misc', s.desc||''));
   }
   // Techniques
   if(res.newTechniques?.length) res.newTechniques.forEach(t => grantTechnique(t));
@@ -8515,7 +8518,7 @@ function applyAIResponse(res) {
   if(res.newQiStageIndex != null) setQiStage(res.newQiStageIndex);
 
   // Skills
-  if(res.skills?.length) res.skills.forEach(s => addSkill(s.key||s.label?.toLowerCase().replace(/\s+/g,'_'), s.label||s.key, s.category||'supplies', s.desc||''));
+  if(res.skills?.length) res.skills.forEach(s => addSkill(s.key||s.label?.toLowerCase().replace(/\s+/g,'_'), s.label||s.key, s.category||'misc', s.desc||''));
 
   // Techniques + Martial Arts
   if(res.newTechniques?.length) res.newTechniques.forEach(t => grantTechnique(t));
@@ -10272,7 +10275,7 @@ function calcTechQiCost(tech) {
   const base       = RARITY_QI_BASE[tech.rarity] || 5;
   const typeMult   = TECH_TYPE_COST_MULT[tech.type] || 1.0;
   const efficiency = STAGE_EFFICIENCY_COST[Math.min(tech.stage || 0, 6)] || 1.0;
-  const affinity   = getTraitQiMult(tech.category || 'supplies'); // affinity discount
+  const affinity   = getTraitQiMult(tech.category || 'misc'); // affinity discount
   const pathMult   = calcPathCostMult(tech);
   const qi         = GS.char.qi;
   // Scale with stage — higher cultivation stage = larger Qi pools, larger everything
@@ -10319,7 +10322,7 @@ function processTechniqueUse(techniques) {
     totalCost += cost;
     if(cost > 0) {
       const stage = t._isTech ? (TECH_STAGES[t.stage]?.short || 'Unknown') : (MARTIAL_STAGES[t.stage]?.short || 'Unknown');
-      const discount = getTraitQiMult(t.category || 'supplies');
+      const discount = getTraitQiMult(t.category || 'misc');
       const discountNote = discount < 1.0 ? ` (${Math.round((1-discount)*100)}% affinity discount)` : '';
       breakdown.push(`${t.name} [${stage}]: ${cost} Qi${discountNote}`);
     }
@@ -16076,8 +16079,8 @@ const COMBO_COMPAT = {
 };
 
 function assessTechniqueCompatibility(t1, t2) {
-  const cat1 = t1.category?.toLowerCase() || 'supplies';
-  const cat2 = t2.category?.toLowerCase() || 'supplies';
+  const cat1 = t1.category?.toLowerCase() || 'misc';
+  const cat2 = t2.category?.toLowerCase() || 'misc';
 
   // Same category
   if(cat1 === cat2) return COMBO_COMPAT[`same_${cat1}`] || { ok:true, type:'variant', desc:'A variant that blends both approaches.' };
@@ -21182,7 +21185,7 @@ updateCharacterTab = function() {
     });
 
     // Skills
-    safe('skills', () => { res.skills?.forEach(s => addSkill(s.key||s.label?.toLowerCase().replace(/\s+/g,'_'), s.label||s.key, s.category||'supplies', s.desc||'')); });
+    safe('skills', () => { res.skills?.forEach(s => addSkill(s.key||s.label?.toLowerCase().replace(/\s+/g,'_'), s.label||s.key, s.category||'misc', s.desc||'')); });
 
     // Techniques & martial arts
     safe('techniques', () => { res.newTechniques?.forEach(t => grantTechnique(t)); });
@@ -30470,6 +30473,110 @@ if(typeof ACHIEVEMENTS_DEF !== 'undefined') {
       check: gs => gs.char._draftStatus && gs.char.age <= 17 }
   );
 }
+
+// ================================================================
+// ── NARRATIVE SKILL EXTRACTION (safety net)
+// ── After every AI response, scan the narrative text for skill
+// ── activities and register them even if the AI forgot the array.
+// ================================================================
+
+const NARRATIVE_SKILL_PATTERNS = [
+  // Combat
+  { re:/\b(fight(?:s|ing)|struck|strikes?|block(?:s|ed|ing)|dodge(?:s|d|ing)|spar(?:s|red|ring)|attack(?:s|ed|ing)|combat|battle|duel|clash(?:es|ed)?)\b/i,
+    skill:'combat_training', label:'Combat Training', category:'combat' },
+  // Cultivation
+  { re:/\b(cultivat(?:e|es|ed|ing)|meditat(?:e|es|ed|ing)|qi\s+(?:flow|circulation|gather|condense|refine)|breathwork|meridian|inner\s+energy)\b/i,
+    skill:'cultivation', label:'Cultivation', category:'cultivation' },
+  // Cooking
+  { re:/\b(cook(?:s|ed|ing)|prepare(?:s|d)?\s+(?:a\s+)?(?:meal|food|dish)|stir(?:s|red|ring)|season(?:s|ed|ing)|chop(?:s|ped|ping)|boil(?:s|ed|ing)|fry(?:ing)?|simmer(?:s|ed|ing))\b/i,
+    skill:'cooking', label:'Cooking', category:'craftsman' },
+  // Tracking / Survival
+  { re:/\b(track(?:s|ed|ing)|forag(?:e|es|ed|ing)|hunt(?:s|ed|ing)|trail|footprint|wilderness|survive(?:s|d|ing)|camp(?:s|ed|ing)\s+(?:in|out))\b/i,
+    skill:'tracking', label:'Tracking', category:'survival' },
+  // Stealth
+  { re:/\b(sneak(?:s|ed|ing)|slip(?:s|ped|ping)\s+(?:past|through|away)|conceal(?:s|ed|ing)(?:\s+yourself|\s+themselves)?|move(?:s|d)?\s+(?:silently|quietly|unseen)|hide(?:s|hiding)\s+(?:in|behind|beneath))\b/i,
+    skill:'stealth', label:'Stealth', category:'misc' },
+  // Medicine
+  { re:/\b(treat(?:s|ed|ing)\s+(?:the\s+)?(?:wound|injury|patient|cut|bleeding)|stitch(?:es|ed|ing)|bandage(?:s|d|ing)|physician|diagnos(?:e|es|ed|ing)|examine(?:s|d)?\s+(?:the\s+)?(?:wound|patient|injury))\b/i,
+    skill:'medicine', label:'Medicine', category:'medical' },
+  // Smithing
+  { re:/\b(forg(?:e|es|ed|ing)|hammer(?:s|ed|ing)\s+(?:the\s+)?(?:metal|iron|steel|blade)|smith(?:s|ed|ing)|anvil|temper(?:s|ed|ing)\s+(?:the\s+)?(?:blade|metal)|bellows)\b/i,
+    skill:'smithing', label:'Smithing', category:'craftsman' },
+  // Alchemy
+  { re:/\b(brew(?:s|ed|ing)|concoct(?:s|ed|ing)|refin(?:e|es|ed|ing)\s+(?:the\s+)?(?:herb|ingredient|pill|elixir)|alchemi(?:cal|st|ze)|mix(?:es|ed|ing)\s+(?:the\s+)?(?:herb|ingredient|compound))\b/i,
+    skill:'alchemy', label:'Alchemy', category:'craftsman' },
+  // Commerce / Negotiation
+  { re:/\b(bargain(?:s|ed|ing)|haggle(?:s|d|ing)|negotiate(?:s|d|ing)|sell(?:s|ing)|barter(?:s|ed|ing)|merchant|trade(?:s|d|ing)|price(?:s|d|ing))\b/i,
+    skill:'commerce', label:'Commerce', category:'social' },
+  // Literacy / Study
+  { re:/\b(read(?:s|ing)\s+(?:the\s+)?(?:text|scroll|book|manual|character|passage)|write(?:s|writing)|study(?:ing)?|decipher(?:s|ed|ing)|transcribe(?:s|d|ing))\b/i,
+    skill:'literacy', label:'Literacy', category:'scholarly' },
+  // Observation
+  { re:/\b(observe(?:s|d|ing)\s+(?:carefully|closely)|watch(?:es|ed|ing)\s+(?:the\s+)?(?:crowd|street|market|movement|pattern)|notice(?:s|d)?\s+(?:a\s+pattern|the\s+way|details?|that))\b/i,
+    skill:'observation', label:'Observation', category:'passive' },
+  // Paper arts / Origami
+  { re:/\b(fold(?:s|ed|ing)\s+(?:the\s+)?(?:paper|crane|animal|sheet)|origami|paper\s+(?:crane|frog|animal))\b/i,
+    skill:'origami', label:'Paper Arts', category:'artistic' },
+  // Law / Administration
+  { re:/\b(legal\s+argument|court\s+proceeding|magistrate|cite(?:s|d)?\s+(?:the\s+)?law|precedent|writ|legal\s+document)\b/i,
+    skill:'law', label:'Law', category:'scholarly' },
+  // History / Research
+  { re:/\b(research(?:es|ed|ing)\s+(?:the\s+)?(?:history|record|archive|text)|historical\s+account|chronicle|archive(?:s|d|ing))\b/i,
+    skill:'history', label:'History', category:'scholarly' },
+  // Weaponry (specifically weapons handling)
+  { re:/\b(draw(?:s|ing)\s+(?:the\s+)?(?:sword|blade|weapon|bow)|nock(?:s|ed|ing)\s+(?:an?\s+)?arrow|grip(?:s|ped|ping)\s+(?:the\s+)?(?:hilt|weapon|blade))\b/i,
+    skill:'weaponry', label:'Weaponry', category:'combat' },
+  // Calligraphy
+  { re:/\b(brush\s+strokes?|ink\s+(?:the\s+)?(?:character|scroll|paper)|calligraph(?:y|ic)|write\s+with\s+(?:a\s+)?brush)\b/i,
+    skill:'calligraphy', label:'Calligraphy', category:'artistic' },
+];
+
+// Scan narrative text and auto-register detected skills
+function extractSkillsFromNarrativeResponse(narrativeText) {
+  if(!narrativeText || !GS.char) return;
+  NARRATIVE_SKILL_PATTERNS.forEach(({ re, skill, label, category }) => {
+    if(re.test(narrativeText)) {
+      addSkill(skill, label, category, 'Demonstrated in action.');
+    }
+  });
+}
+
+// Patch applyAIResponse to run narrative skill extraction
+const _applyWithNarrativeSkills = applyAIResponse;
+applyAIResponse = function(res) {
+  _applyWithNarrativeSkills(res);
+  try {
+    if(res?.narrative) {
+      extractSkillsFromNarrativeResponse(res.narrative);
+    }
+  } catch(e) {}
+};
+
+// Also fix the action-level pre-send skill detection to be more comprehensive
+// Patch the consolidated sendToAI skill detection block
+const _origSendSkillDetect = sendToAI;
+sendToAI = async function(overrideMsg) {
+  // Intercept to add more skill pre-detection before passing through
+  try {
+    const raw = overrideMsg || document.getElementById('action-input')?.value?.trim() || '';
+    if(raw && !raw.startsWith('[') && GS.char) {
+      const lo = raw.toLowerCase();
+      // Expanded skill triggers from action text
+      if(/\b(fight|spar|strike|punch|kick|attack|block|dodge|combat|duel)\b/i.test(lo)) addSkill('combat_training','Combat Training','combat');
+      if(/\b(cultivat|meditat|breathwork|qi\s+flow|inner\s+energy|channel\s+qi)\b/i.test(lo)) addSkill('cultivation','Cultivation','cultivation');
+      if(/\b(cook|prepare\s+(?:a\s+)?(?:meal|food)|brew\s+(?:tea|soup)|make\s+(?:food|stew))\b/i.test(lo)) addSkill('cooking','Cooking','craftsman');
+      if(/\b(track|forage|hunt|follow\s+(?:the\s+)?(?:trail|tracks?))\b/i.test(lo)) addSkill('tracking','Tracking','survival');
+      if(/\b(sneak|hide|conceal\s+myself|move\s+silently|slip\s+past)\b/i.test(lo)) addSkill('stealth','Stealth','misc');
+      if(/\b(treat\s+(?:the\s+)?wound|bandage|stitch|heal\s+(?:the\s+)?(?:wound|injury)|medicine)\b/i.test(lo)) addSkill('medicine','Medicine','medical');
+      if(/\b(forge|smith|hammer\s+(?:the\s+)?metal|work\s+(?:the\s+)?(?:iron|metal|forge))\b/i.test(lo)) addSkill('smithing','Smithing','craftsman');
+      if(/\b(brew\s+(?:a\s+)?pill|concoct|refine\s+(?:the\s+)?herb|alchemy)\b/i.test(lo)) addSkill('alchemy','Alchemy','craftsman');
+      if(/\b(bargain|haggle|negotiate|sell\s+(?:at|for)|trade\s+(?:for|with))\b/i.test(lo)) addSkill('commerce','Commerce','social');
+      if(/\b(read\s+(?:the\s+)?(?:text|scroll|manual|book)|study\s+(?:the\s+)?(?:text|scroll))\b/i.test(lo)) addSkill('literacy','Literacy','scholarly');
+      if(/\b(observe\s+(?:carefully|closely|the\s+(?:crowd|market))|watch\s+(?:for\s+patterns?|how\s+(?:he|she|they)))\b/i.test(lo)) addSkill('observation','Observation','passive');
+    }
+  } catch(e) {}
+  return _origSendSkillDetect(overrideMsg);
+};
 
 console.log('Murim Chronicles fully loaded.');
 
