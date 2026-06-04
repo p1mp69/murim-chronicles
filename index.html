@@ -30789,6 +30789,279 @@ HOW TO CULTIVATE: Player actions involving meditation, breathing exercises, Qi c
   return prompt;
 };
 
+// ================================================================
+// ══════════════════════════════════════════════════════════════
+// ── NARRATIVE JSON PROTECTION
+// ── Strip JSON artifacts before anything reaches the screen.
+// ── The AI sometimes leaks field names/values into narrative.
+// ══════════════════════════════════════════════════════════════
+// ================================================================
+
+function sanitizeNarrativeText(raw) {
+  if(!raw || typeof raw !== 'string') return raw;
+
+  // Known JSON field names that should never appear in prose
+  const JSON_FIELD_RE = /\b("?)(narrative|time|statChanges|skills|decisions|personalEvents|newRelationships|updateRelationships|reputation|karma|occupation|newItems|spiritualTitles|socialTitles|prisonStatus|bounty|death|draftUpdate|bondageUpdate|alchemyResult|forgeResult|romanceUpdates|goalUpdates|tribulationWave|tribulationComplete|appearanceChanges|sectPoliticsUpdate|terezMoment|newGoals)\1\s*:\s*/g;
+
+  let text = raw;
+
+  // Strip ```json ... ``` blocks entirely
+  text = text.replace(/```json[\s\S]*?```/g, '').trim();
+  text = text.replace(/```[\s\S]*?```/g, '').trim();
+
+  // Strip lines that are clearly JSON field lines
+  const lines = text.split('\n');
+  const cleanLines = lines.filter(line => {
+    const t = line.trim();
+    // Skip lines starting with "fieldName":
+    if(/^\s*"[a-zA-Z_]+":\s/.test(t)) return false;
+    // Skip lines that are just }, ], or },
+    if(/^\s*[\}\]],?\s*$/.test(t) && t.length <= 4) return false;
+    // Skip lines starting with { "
+    if(/^\s*\{\s*"/.test(t) && !t.includes(' ')) return false;
+    return true;
+  }).join('\n');
+
+  // Strip inline JSON field patterns (e.g. "decisions": ["..."])
+  let result = cleanLines
+    .replace(JSON_FIELD_RE + /[\s\S]{0,300}?(?=\n\n|$)/.source, '') // remove field + value up to paragraph break
+    .replace(/"\w+"\s*:\s*\[[^\]]*\]/g, '')   // "key": [...]
+    .replace(/"\w+"\s*:\s*\{[^}]*\}/g, '')    // "key": {...}
+    .replace(/"\w+"\s*:\s*"[^"]*"/g, '')      // "key": "value"
+    .replace(/"\w+"\s*:\s*[-\d.]+/g, '')       // "key": number
+    .replace(/"\w+"\s*:\s*(true|false|null)/g,'') // "key": bool
+    .trim();
+
+  // Clean up multiple blank lines left by removals
+  result = result.replace(/\n{3,}/g, '\n\n').trim();
+
+  return result || raw; // if everything was stripped, return original (better than nothing)
+}
+
+// Patch appendNarrative to always sanitize first
+const _appendNarrativeRaw = appendNarrative;
+appendNarrative = function(text) {
+  const clean = sanitizeNarrativeText(text);
+  if(!clean || isErrorText(clean)) return;
+  // Only call original if text looks like actual prose (not JSON wrapper)
+  if(clean.startsWith('{') && clean.endsWith('}')) return; // entire thing is JSON, skip
+  _appendNarrativeRaw(clean);
+};
+
+// ================================================================
+// ══════════════════════════════════════════════════════════════
+// ── CHARACTER CHRONICLE / MEMORY BANK
+// ── Persistent summary of the character's journey.
+// ── Auto-populated from game events.
+// ── Injected into every system prompt so the AI never forgets.
+// ══════════════════════════════════════════════════════════════
+// ================================================================
+
+function ensureChronicle() {
+  if(!GS.char.chronicle) GS.char.chronicle = [];
+  return GS.char.chronicle;
+}
+
+function addChronicleEntry(text, importance = 'normal') {
+  const c   = ensureChronicle();
+  const w   = GS.world;
+  const yr  = w.year;
+  const age = GS.char.age || 0;
+
+  // Don't add duplicates
+  const key = text.slice(0, 60);
+  if(c.some(e => e.text.startsWith(key))) return;
+
+  c.push({ year:yr, age, text, importance });
+
+  // Cap chronicle at 40 entries — keep most important + most recent
+  if(c.length > 40) {
+    // Sort: keep 'major' entries + the 30 most recent
+    const major  = c.filter(e => e.importance === 'major');
+    const normal = c.filter(e => e.importance !== 'major').slice(-25);
+    const combined = [...major.slice(-15), ...normal];
+    // Deduplicate by year+text
+    const seen = new Set();
+    GS.char.chronicle = combined.filter(e => {
+      const k = `${e.year}:${e.text.slice(0,40)}`;
+      if(seen.has(k)) return false;
+      seen.add(k); return true;
+    }).sort((a,b) => a.year - b.year);
+  }
+}
+
+// Auto-build chronicle entries from AI responses
+const _applyWithChronicle = applyAIResponse;
+applyAIResponse = function(res) {
+  _applyWithChronicle(res);
+  try {
+    const c = GS.char;
+    const w = GS.world;
+    const yr = w.year;
+
+    // Qi stage advancement
+    if(res?.newQiStageIndex != null && res.newQiStageIndex > (c.qi?.stageIndex||0)) {
+      const stage = QI_STAGES[res.newQiStageIndex]?.name || 'unknown';
+      addChronicleEntry(`Advanced cultivation to ${stage}`, 'major');
+    }
+
+    // New techniques
+    if(res?.newTechniques?.length) {
+      res.newTechniques.forEach(t => {
+        if(t?.name) addChronicleEntry(`Learned technique: ${t.name} (${t.category||''})`);
+      });
+    }
+
+    // New martial arts
+    if(res?.newMartialArts?.length) {
+      res.newMartialArts.forEach(m => {
+        if(m?.name) addChronicleEntry(`Learned martial art: ${m.name}`);
+      });
+    }
+
+    // New significant relationships
+    if(res?.newRelationships?.length) {
+      res.newRelationships.forEach(r => {
+        if(r?.name && !['mentioned','encountered'].includes(r.type)) {
+          addChronicleEntry(`Met ${r.name} (${r.type||'encountered'}) in ${LOCATIONS[w.location]?.name||w.location}`);
+        }
+      });
+    }
+
+    // Decisions (significant choices)
+    if(res?.decisions?.length) {
+      res.decisions.slice(0,2).forEach(d => {
+        if(d && d.length > 10) addChronicleEntry(`Decision: ${d.slice(0,120)}`);
+      });
+    }
+
+    // Crimes
+    if(res?.crimes?.length) {
+      res.crimes.slice(0,1).forEach(crime => {
+        if(crime) addChronicleEntry(`Crime: ${crime.slice(0,100)}`, 'major');
+      });
+    }
+
+    // Major injuries (scars)
+    if(res?.scars?.length) {
+      res.scars.slice(0,1).forEach(s => {
+        if(s) addChronicleEntry(`Scarred: ${s.slice(0,80)}`);
+      });
+    }
+
+    // Occupation changes
+    if(res?.occupation?.title && c.occupation?.title !== res.occupation.title) {
+      addChronicleEntry(`Occupation changed to: ${res.occupation.title} at ${res.occupation.location||'unknown'}`);
+    }
+
+    // Property acquired (from assets)
+    const prevAssets = c._prevAssetCount || 0;
+    const currAssets = (c.assets||[]).length;
+    if(currAssets > prevAssets) {
+      const newest = (c.assets||[]).slice(-1)[0];
+      if(newest) addChronicleEntry(`Acquired: ${newest.name}`);
+    }
+    c._prevAssetCount = currAssets;
+
+    // Sect joining or rank change
+    const sect = w.discoveredSects?.find(s=>s.playerRank);
+    if(sect) {
+      const prevRank = c._prevSectRank;
+      if(sect.playerRank !== prevRank) {
+        if(!prevRank) addChronicleEntry(`Joined ${sect.name} as ${sect.playerRank}`, 'major');
+        else addChronicleEntry(`Promoted in ${sect.name}: now ${sect.playerRank}`, 'major');
+        c._prevSectRank = sect.playerRank;
+      }
+    }
+
+    // Draft / military
+    if(c._draftStatus && !c._prevDrafted) {
+      addChronicleEntry(`Conscripted into ${c._draftStatus.side === 'luo_tin' ? 'Luo-Tin' : 'Buo'} army as ${c._draftStatus.rank}`, 'major');
+      c._prevDrafted = true;
+    }
+
+    // Spiritual titles
+    if(res?.spiritualTitles?.length) {
+      res.spiritualTitles.slice(0,1).forEach(t => {
+        if(t?.name) addChronicleEntry(`Earned spiritual title: ${t.name}`, 'major');
+      });
+    }
+
+  } catch(e) {}
+};
+
+// Also log location changes
+const _advanceWithChronicleTravel = advanceTime;
+advanceTime = function(days=0, months=0, years=0) {
+  _advanceWithChronicleTravel(days, months, years);
+  try {
+    const w = GS.world;
+    const prevLoc = GS.char._prevLocation;
+    if(prevLoc && prevLoc !== w.location && LOCATIONS[w.location]) {
+      addChronicleEntry(`Traveled to ${LOCATIONS[w.location].name}`);
+    }
+    GS.char._prevLocation = w.location;
+  } catch(e) {}
+};
+
+// Inject chronicle into system prompt
+const _bspWithChronicle = buildSystemPrompt;
+buildSystemPrompt = function() {
+  let prompt = _bspWithChronicle();
+  try {
+    const chronicle = GS.char.chronicle;
+    if(!chronicle?.length) return prompt;
+
+    // Use last 20 chronicle entries to keep prompt size manageable
+    const recent = chronicle.slice(-20);
+    const lines   = recent.map(e => `Year ${e.year} (Age ${e.age}): ${e.text}`).join('\n');
+
+    const section = `CHARACTER CHRONICLE — Memory of ${GS.char.firstName} ${GS.char.lastName}'s journey so far:
+${lines}
+
+MEMORY RULE: The chronicle above is PERMANENT HISTORY. Events listed here happened. The character lived through them. Reference this when the past is relevant — don't ask the player to re-explain things that are already in the chronicle. If a milestone is listed, it occurred.`;
+
+    prompt = prompt.replace('## ABSOLUTE RULES', section + '\n\n## ABSOLUTE RULES');
+  } catch(e) {}
+  return prompt;
+};
+
+// On startGame, initialize chronicle tracking state
+const _startWithChronicleInit = startGame;
+startGame = function(isLoad=false) {
+  _startWithChronicleInit(isLoad);
+  try {
+    ensureChronicle();
+    GS.char._prevLocation = GS.world.location;
+    // Backfill sect rank tracking
+    const sect = GS.world.discoveredSects?.find(s=>s.playerRank);
+    if(sect) GS.char._prevSectRank = sect.playerRank;
+    // Backfill asset count
+    GS.char._prevAssetCount = (GS.char.assets||[]).length;
+  } catch(e) {}
+};
+
+// Migration: ensure chronicle exists on old saves
+const _migrateWithChronicle = migrateSave;
+migrateSave = function(data) {
+  const result = _migrateWithChronicle(data);
+  if(!result.char.chronicle) result.char.chronicle = [];
+  // Seed chronicle from existing personal events if starting fresh
+  if(result.char.chronicle.length === 0 && result.char.personalEvents?.length) {
+    result.char.personalEvents.slice(-10).forEach(evt => {
+      if(evt && evt.length > 10 && !evt.startsWith('[')) {
+        result.char.chronicle.push({
+          year: result.world?.year || 1,
+          age:  result.char?.age  || 0,
+          text: evt.slice(0, 150),
+          importance: 'normal',
+        });
+      }
+    });
+  }
+  return result;
+};
+
 console.log('Murim Chronicles fully loaded.');
 
 </script>
