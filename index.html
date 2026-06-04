@@ -1246,10 +1246,12 @@ hr.divider { border: none; border-top: 1px solid var(--border); margin: 8px 0; }
 .npc-card.unreachable .npc-card-footer { opacity: .35; pointer-events: none; }
 /* ── CURRENCY DISPLAY ── */
 #tb-silver { font-size: 12px; }
-/* ── GENERATION LOCK — nothing clickable while narrative generates ── */
-body.generating button:not(#btn-send):not(.modal-close) {
+/* ── GENERATION LOCK — action buttons locked, navigation stays open ── */
+/* Tabs and subtabs are NEVER locked — player can browse while narrative generates */
+body.generating button:not(#btn-send):not(.modal-close):not(.tab-btn):not(.subtab-btn):not(.rel-filter-btn):not(.barber-filter-btn) {
   pointer-events: none !important; opacity: 0.45 !important; cursor: not-allowed !important;
 }
+/* Specific action elements that trigger sendToAI */
 body.generating .npc-qa-btn, body.generating .romance-btn,
 body.generating .npc-msg-btn, body.generating .npc-msg-input,
 body.generating [onclick*="sendRomanceAction"], body.generating [onclick*="sendQuickAction"],
@@ -4077,6 +4079,7 @@ const SKILL_CATEGORIES = {
   scholarly:   { label:'Scholarly',    color:'#4488cc' },
   medical:     { label:'Medical',      color:'#44aa77' },
   cultivation: { label:'Cultivation',  color:'#9944cc' },
+  artistic:    { label:'Artistic',     color:'#cc44aa' },  // added — for origami, calligraphy, etc.
   passive:     { label:'Passive',      color:'#888899' },
   misc:        { label:'Miscellaneous',color:'#555566' },
 };
@@ -6825,6 +6828,13 @@ function loadGame() { loadFromSlot(1); }
 // FULL RESET — wipes every scrap of DOM state
 // ================================================================
 function fullReset(goToCreation = true) {
+  // Clear per-life localStorage data (discoveries belong to a single life)
+  try {
+    localStorage.removeItem('murim_alchemy_v2');  // alchemy discovery log
+    localStorage.removeItem('murim_forge_v1');     // forge discovery log
+    localStorage.removeItem('murim_alchemy_discoveries'); // old key fallback
+  } catch(e) {}
+
   // 1. Wipe narrative
   const nc = document.getElementById('narrative-content');
   if(nc) nc.innerHTML = '';
@@ -28568,12 +28578,21 @@ ${_currentStory.split('\n\n').map(p=>`<p>${p}</p>`).join('')}
 
 const ALCHEMY_LOG_KEY = 'murim_alchemy_v2';
 
+// Character-specific key so discoveries never cross lives
+function getAlchemyLogKey() {
+  const c = GS?.char;
+  if(c?.firstName && c?.birthYear !== undefined) {
+    return `murim_alchemy_${c.firstName}_${c.birthYear}`;
+  }
+  return ALCHEMY_LOG_KEY;
+}
+
 function getAlchemyLog() {
-  try { return JSON.parse(localStorage.getItem(ALCHEMY_LOG_KEY) || '[]'); } catch(e) { return []; }
+  try { return JSON.parse(localStorage.getItem(getAlchemyLogKey()) || '[]'); } catch(e) { return []; }
 }
 
 function saveAlchemyLog(log) {
-  localStorage.setItem(ALCHEMY_LOG_KEY, JSON.stringify(log.slice(-100))); // keep last 100
+  localStorage.setItem(getAlchemyLogKey(), JSON.stringify(log.slice(-100)));
 }
 
 // Render the new discovery-based alchemy panel
@@ -28743,11 +28762,19 @@ applyAIResponse = function(res) {
 
 const FORGE_LOG_KEY = 'murim_forge_v1';
 
+function getForgeLogKey() {
+  const c = GS?.char;
+  if(c?.firstName && c?.birthYear !== undefined) {
+    return `murim_forge_${c.firstName}_${c.birthYear}`;
+  }
+  return FORGE_LOG_KEY;
+}
+
 function getForgeLog() {
-  try { return JSON.parse(localStorage.getItem(FORGE_LOG_KEY) || '[]'); } catch(e) { return []; }
+  try { return JSON.parse(localStorage.getItem(getForgeLogKey()) || '[]'); } catch(e) { return []; }
 }
 function saveForgeLog(log) {
-  localStorage.setItem(FORGE_LOG_KEY, JSON.stringify(log.slice(-80)));
+  localStorage.setItem(getForgeLogKey(), JSON.stringify(log.slice(-80)));
 }
 
 // Forge materials — these can be acquired through shops, loot, or foraging
