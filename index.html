@@ -4563,30 +4563,41 @@ function spawnItem(item) {
 }
 
 function equipItem(itemId) {
-  const itm = GS.char.inventory.find(i=>i.id===itemId);
-  if(!itm || !itm.slot) { toast('Cannot equip this item', 'error'); return; }
-  // Unequip current item in that slot
-  const current = GS.char.equipment[itm.slot];
+  const c = GS.char;
+  const itm = c.inventory.find(i=>i.id===itemId);
+  if(!itm) { toast('Item not found', 'error'); return; }
+  if(!itm.slot) { toast(`${itm.name} has no equipment slot`, 'error'); return; }
+  if(!itm.id) itm.id = uid(); // ensure ID exists
+
+  // Return current item in that slot to inventory
+  const current = c.equipment[itm.slot];
   if(current) {
-    GS.char.inventory.push(current); // return to inventory
+    if(current.effects) applyItemEffects(current.effects, -1);
+    c.inventory.push({ ...current }); // push a copy back
   }
-  GS.char.equipment[itm.slot] = itm;
-  GS.char.inventory = GS.char.inventory.filter(i=>i.id!==itemId);
-  // Apply effects
-  if(itm.effects) applyItemEffects(itm.effects, 1);
-  updateInventoryTab();
+
+  // Place item in slot
+  c.equipment[itm.slot] = { ...itm }; // store a copy in equipment
+  c.inventory = c.inventory.filter(i => i.id !== itemId);
+
+  // Apply new item effects
+  if(itm.effects && Object.keys(itm.effects).length) applyItemEffects(itm.effects, 1);
+
   hideModal('modal-item');
+  updateInventoryTab();
+  updateCharacterTab(); // also update character tab to reflect stat changes
   toast(`Equipped: ${itm.name}`, 'gold', 2000);
 }
 
 function unequipItem(slot) {
-  const itm = GS.char.equipment[slot];
+  const c = GS.char;
+  const itm = c.equipment[slot];
   if(!itm) return;
-  // Remove effects
-  if(itm.effects) applyItemEffects(itm.effects, -1);
-  GS.char.inventory.push(itm);
-  GS.char.equipment[slot] = null;
+  if(itm.effects && Object.keys(itm.effects||{}).length) applyItemEffects(itm.effects, -1);
+  c.inventory.push({ ...itm }); // push a copy to inventory
+  c.equipment[slot] = null;
   updateInventoryTab();
+  updateCharacterTab();
   toast(`Unequipped: ${itm.name}`, '', 2000);
 }
 
@@ -6412,23 +6423,21 @@ function parseAIResponse(text) {
   if(codeMatch) {
     try {
       const parsed = JSON.parse(codeMatch[1]);
-      // Sanity: must have at least one known key
       if(parsed && (parsed.narrative !== undefined || parsed.time || parsed.statChanges || parsed.newRelationships))
         return parsed;
     } catch(e) {}
-    // Code block found but malformed JSON — extract narrative from before it
     const beforeBlock = text.slice(0, text.indexOf('```')).trim();
     return { narrative: beforeBlock || text.replace(/```json[\s\S]*?```/g,'').trim() };
   }
 
   // ── Strategy 2: Find the outermost JSON object ─────────────────
-  // Walk forward to find the first { and match it to its closing }
   let braceStart = -1;
   for(let i = 0; i < text.length; i++) {
     if(text[i] === '{') { braceStart = i; break; }
   }
   if(braceStart >= 0) {
     let depth = 0, inStr = false, escape = false;
+    let braceEnd = -1;
     for(let i = braceStart; i < text.length; i++) {
       const ch = text[i];
       if(escape) { escape = false; continue; }
@@ -6436,31 +6445,58 @@ function parseAIResponse(text) {
       if(ch === '"') { inStr = !inStr; continue; }
       if(!inStr) {
         if(ch === '{') depth++;
-        else if(ch === '}') { depth--; if(depth === 0) {
-          try {
-            const parsed = JSON.parse(text.slice(braceStart, i+1));
-            if(parsed && typeof parsed === 'object') {
-              // If narrative is missing but there's text BEFORE the JSON, use it
-              if(!parsed.narrative && braceStart > 0) {
-                const before = text.slice(0, braceStart).trim();
-                if(before) parsed.narrative = before;
-              }
-              return parsed;
-            }
-          } catch(e) {} // malformed — fall through
-          break;
-        }}
+        else if(ch === '}') { depth--; if(depth === 0) { braceEnd = i; break; } }
+      }
+    }
+    if(braceEnd > braceStart) {
+      try {
+        const parsed = JSON.parse(text.slice(braceStart, braceEnd + 1));
+        if(parsed && typeof parsed === 'object') {
+          if(!parsed.narrative && braceStart > 0) {
+            const before = text.slice(0, braceStart).trim();
+            if(before) parsed.narrative = before;
+          }
+          return parsed;
+        }
+      } catch(e) {
+        // JSON.parse failed — try to extract narrative field with regex
+        // This handles cases where the narrative string has unescaped chars
+        const jsonChunk = text.slice(braceStart, braceEnd + 1);
+        const narMatch = jsonChunk.match(/"narrative"\s*:\s*"([\s\S]+?)(?:",\s*"|",\s*}|\n\s*"[a-zA-Z])/);
+        if(narMatch) {
+          const narrativeText = narMatch[1]
+            .replace(/\\n/g, '\n')
+            .replace(/\\"/g, '"')
+            .replace(/\\t/g, '\t')
+            .trim();
+          // Try to parse the remaining JSON for other fields
+          const withoutNarrative = jsonChunk.replace(/"narrative"\s*:\s*"[\s\S]+?(?=",\s*"[a-zA-Z]|",\s*})/, '"narrative":""');
+          let extras = {};
+          try { extras = JSON.parse(withoutNarrative); } catch(e2) {}
+          return { ...extras, narrative: narrativeText };
+        }
       }
     }
   }
 
-  // ── Strategy 3: Pure narrative (no JSON found) ─────────────────
-  // Strip any obvious JSON fragments that leaked in
+  // ── Strategy 3: Extract narrative from response heuristically ───
+  // The response likely has narrative as the first long block of prose.
+  // Find where JSON field names start and stop there.
+  const jsonFieldStart = text.search(/\n\s*"(time|statChanges|skills|decisions|personalEvents|newRelationships|updateRelationships)"\s*:/);
+  if(jsonFieldStart > 100) {
+    const narrativePart = text.slice(0, jsonFieldStart).trim();
+    const jsonPart      = '{' + text.slice(jsonFieldStart) + '}';
+    let extras = {};
+    try { extras = JSON.parse(jsonPart); } catch(e) {}
+    return { ...extras, narrative: narrativePart };
+  }
+
+  // ── Strategy 4: Pure narrative fallback ─────────────────────────
   const cleaned = text
-    .replace(/"[a-zA-Z]+"\s*:\s*[\[\{][^}]*[\]\}][,\n]?/g, '') // "key": {...} or [...]
-    .replace(/"[a-zA-Z]+"\s*:\s*"[^"]*"[,\n]?/g, '')           // "key": "value"
-    .replace(/"[a-zA-Z]+"\s*:\s*[-\d.]+[,\n]?/g, '')            // "key": number
-    .replace(/"[a-zA-Z]+"\s*:\s*(true|false|null)[,\n]?/g, '')  // "key": bool/null
+    .replace(/^\s*\{[\s\S]*?"narrative"\s*:\s*"/m, '') // strip opening JSON up to narrative value
+    .replace(/",\s*\n\s*"(time|stat|skill|decision|personal|newRel|updateRel|reputation|crime|grudge|failure|world|karma|occupation|newItem|spiritual|social|prison|bounty|death|romance|goal|bondage|draft)[\s\S]*/m, '') // strip trailing JSON fields
+    .replace(/"[a-zA-Z_]+"\s*:\s*[\[\{][^\]]*[\]\}][,\n]?/g, '')
+    .replace(/"[a-zA-Z_]+"\s*:\s*[-\d.true false null]+[,\n]?/g, '')
     .trim();
 
   return { narrative: cleaned || text };
@@ -30668,6 +30704,89 @@ sendToAI = async function(overrideMsg) {
     }
   } catch(e) {}
   return _origSendSkillDetect(overrideMsg);
+};
+
+// ================================================================
+// ── NPC BOND AUTO-INCREMENT FROM CONVERSATION
+// ── Every time you genuinely interact with someone, the bond
+// ── grows. Talking to someone for days should not keep them
+// ── a stranger. Bond grows small amounts per interaction.
+// ================================================================
+
+// Bond increments per interaction type
+const CONVO_BOND_GAIN = {
+  chat:       2,   // quick chat
+  info:       1,   // ask for info
+  favor:      3,   // ask a favor
+  gift:       4,   // give a gift
+  silver:     2,   // ask for silver
+  confide:    6,   // confide in
+  apologize:  5,   // apologize
+  insult:    -4,   // insult
+  threaten:  -6,   // threaten
+  spar:       4,   // spar
+  train:      5,   // training session
+  message:    2,   // direct message
+};
+
+// Apply bond gain after any NPC interaction
+function applyConvoBond(npcId, actionType) {
+  const rel = GS.char.relationships.find(r => r.npcId === npcId);
+  if(!rel || rel.alive === false) return;
+
+  const gain = CONVO_BOND_GAIN[actionType] ?? 1;
+  if(gain === 0) return;
+
+  const prev = rel.bond_level || 0;
+
+  if(gain > 0) {
+    // Bond gains get smaller as bond gets higher (diminishing returns)
+    // Stranger (0-5): full gain | Acquaintance (25+): 60% | Friend (52+): 30% | Close (78+): 15%
+    const factor = prev < 5 ? 1.0 : prev < 25 ? 0.8 : prev < 52 ? 0.5 : prev < 78 ? 0.25 : 0.1;
+    const actual = Math.max(1, Math.round(gain * factor));
+    rel.bond_level = Math.min(100, prev + actual);
+  } else {
+    rel.bond_level = Math.max(0, prev + gain);
+  }
+
+  rel.trust = rel.bond_level; // keep trust in sync
+  rel.lastSeen = `Year ${GS.world.year}`;
+}
+
+// Patch sendQuickAction to apply bond after the action fires
+const _sqaWithBond = sendQuickAction;
+sendQuickAction = function(npcId, actionType) {
+  // Apply bond BEFORE sending (so it's in the state when the response comes back)
+  applyConvoBond(npcId, actionType);
+  updateRelationsTab();
+  return _sqaWithBond(npcId, actionType);
+};
+
+// Patch sendNPCMessage to apply bond on every message sent
+const _msgWithBond = sendNPCMessage;
+sendNPCMessage = function(npcId) {
+  applyConvoBond(npcId, 'message');
+  updateRelationsTab();
+  return _msgWithBond(npcId);
+};
+
+// Also: when the AI reports trust changes, sync to bond_level more aggressively
+const _bspWithQiClarity = buildSystemPrompt;
+buildSystemPrompt = function() {
+  let prompt = _bspWithQiClarity();
+  try {
+    const c  = GS.char;
+    const qi = c.qi || {};
+    if((qi.stageIndex||0) > 0 || (qi.current||0) > 0) {
+      const pct = qi.max > 0 ? Math.round((qi.current/(qi.max||1))*100) : 0;
+      const bpct = qi.breakthroughAt > 0 ? Math.round((qi.current/(qi.breakthroughAt||1))*100) : 0;
+      const ready = qi.breakthroughReady ? 'READY FOR BREAKTHROUGH — the player should attempt it.' : `${bpct}% to breakthrough threshold`;
+      const cultivNote = `\nQI CULTIVATION STATUS: ${QI_STAGES[qi.stageIndex||0]?.name} | ${qi.current}/${qi.max} Qi (${pct}%) | Breakthrough: ${ready}
+HOW TO CULTIVATE: Player actions involving meditation, breathing exercises, Qi circulation, or dedicated cultivation sessions should include "qiChange": N (positive number) in the response. Even small amounts accumulate. When breakthrough threshold is reached, the player can attempt advancement through a cultivation action.`;
+      prompt = prompt.replace('## ABSOLUTE RULES', cultivNote + '\n\n## ABSOLUTE RULES');
+    }
+  } catch(e) {}
+  return prompt;
 };
 
 console.log('Murim Chronicles fully loaded.');
