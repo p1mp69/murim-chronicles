@@ -6196,7 +6196,7 @@ CURRENT GAME STATE:
 - Zeret status: ${w.zeret.active ? 'ACTIVE in '+w.zeret.location+', form: '+w.zeret.form : 'dormant'}
 
 ABSOLUTE RULES — NEVER BREAK THESE:
-1. The player can ONLY reference people they have personally encountered (see "Known people" above). If they reference an unknown person, void the action and explain naturally.
+1. The player can reference anyone — but they can only FIND or INTERACT with people they've actually met. If they reference someone unknown, write what naturally happens: they don't know where to find this person, they ask around and get nothing, or they mistake someone else for them. Never say "you can't do that." Show what happens when they try.
 2. Techniques can ONLY be acquired through: being taught by a known NPC, inheriting them, or finding/reading a tome. "I learn X" with no source = void.
 3. POWER GAP LAW: If an opponent is 2+ cultivation stages above the player AND the power calculation confirms it (considering STR and AGI), the player CANNOT win. Techniques crumble. Qi is suppressed. Describe the gap viscerally. Death, surrender, or flight are valid. A brave attempt is allowed but the outcome is not in doubt. Exception: if player has extremely high STR/AGI raw stats, they can match one stage above.
 4. NPCs have lives and histories before the player. Hidden pasts, old allegiances, old enemies. They do not reveal these unless triggered by events.
@@ -6367,10 +6367,9 @@ function applyAIResponse(res) {
   if(!res) return;
   // Narrative
   if(res.narrative && !isErrorText(res.narrative)) appendNarrative(res.narrative);
-  if(res.actionVoid && res.voidReason) {
-    appendNarrative(`[${res.voidReason}]`);
-    return;
-  }
+  // actionVoid is deprecated — the AI should write narrative failure, not void
+  // If the AI still sends it, just ignore the void flag and let the narrative speak
+  // (res.narrative already handles what happened)
   // Time
   if(res.time && (res.time.days||res.time.months||res.time.years)) {
     advanceTime(res.time.days||0, res.time.months||0, res.time.years||0);
@@ -8256,7 +8255,8 @@ MANDATORY STYLE RULES:
 - Never use: "you feel yourself", "a sense of", "you can't help but", "something tells you", "you realize"
 - Never announce stats, never say "your cultivation advances", never say "you gain X skill"
 - Discoveries, breakthroughs, and growth emerge from the prose — they're not announced
-- Bad action? Describe consequences in narrative. Don't just say "[action voided]"
+- THE PLAYER CAN ALWAYS TRY. Never block an action. Never say "you can't do that." If they attempt something impossible — they try, the world responds, they experience the result. A player who tries to fly jumps and lands hard. A player who tries to fight someone 5 stages above them charges — and gets a lesson. The attempt is always honored. The outcome reflects reality.
+- Bad action? Describe consequences in narrative. Never use "[action voided]" — that phrase should not appear.
 - Minimum 3 paragraphs per response. Scenes have beginnings, texture, and end points.
 - EVERY PERSON HAS A NAME. "A fish merchant" is not a person. "Chen Wei, who has sold fish from the east gate corner for a decade" is. The moment someone becomes significant enough to describe, they are significant enough to name. Never leave a character as "the old man" or "the woman at the stall" once they've had more than one line. Name them. Use the name. That is how people exist.
 - When an NPC appears for the first time in a session and the known-people list has them, use their name immediately. Don't introduce someone the player already knows as if they're a stranger.
@@ -8316,7 +8316,7 @@ ${w.zeret.active ? 'ZERET: active in '+(LOCATIONS[w.zeret.location]?.name||w.zer
 
 ## ABSOLUTE RULES
 1. **Known people only.** Player references someone not on the Known list → handle in narrative (they don't know who that is, or word has to travel, or they've got it wrong). Never break the 4th wall to explain.
-2. **Techniques require a source.** Taught by someone, inherited, or read from a physical tome. "I learn X" with no source → in narrative: that's not how it works. Show why, don't announce the void.
+2. **Techniques require a source.** Taught by someone, inherited, or read from a physical tome. If the player tries to "learn" something without a source — write what actually happens: they attempt the form from memory and it doesn't cohere, they feel the gap where knowledge should be, they practice something that resembles it but isn't quite it. The attempt happens. The result reflects reality.
 3. **Power gap law.** 2+ cultivation stages above the player = player cannot win, period. No lucky rolls override this. Describe it viscerally: their Qi presses down before they even move, techniques collapse on contact, the gap is physical and absolute. Fleeing, surrendering, death — all valid. Exception only if player's raw STR or AGI is so extreme it closes one stage gap.
 4. **NPCs have whole lives.** Histories, allegiances, secrets, old wounds. They don't share these unless something real triggers it.
 5. **Time doesn't wait.** Scheduled events fire on their date. If the player is in the middle of something else, the NPC arrives, the collector comes, the deadline doesn't care.
@@ -8407,10 +8407,7 @@ function applyAIResponse(res) {
 
   // Narrative
   if(res.narrative && !isErrorText(res.narrative)) appendNarrative(res.narrative);
-  if(res.actionVoid) {
-    if(res.voidReason && !isErrorText(res.voidReason)) appendNarrative(`[${res.voidReason}]`);
-    return;
-  }
+  // actionVoid removed — narrative handles everything, never block the player
 
   // Time
   if(res.time && (res.time.days || res.time.months || res.time.years)) {
@@ -12382,7 +12379,10 @@ function detectImplausibleDeclaration(msg) {
   });
 
   if(!flags.length) return null;
-  return `[IMPLAUSIBLE DECLARATION BLOCKED:\n${flags.map(f => '• ' + f).join('\n')}\nDo NOT allow any of these to succeed. Narrate why they aren't possible in-world, from the world's perspective — not as a meta game statement. The world doesn't care what the player declares; it operates on its own rules.]`;
+  // NEVER block — guide the AI to write natural failure, not void
+  return `[NARRATIVE CONTEXT — the player is attempting something that doesn't work the way they think:
+${flags.map(f => '• ' + f).join('\n')}
+CRITICAL: Do NOT void the action or tell the player it's impossible. Write what ACTUALLY happens when they try. The world responds naturally. They try to declare themselves sect leader — someone laughs. They try to own a mansion they can't afford — they're turned away at the door. They try to instantly master something — they attempt it, it doesn't work, they feel the gap. The story continues. The player is NEVER told "you can't do that" — they experience what happens when reality meets the attempt. Keep it moving.]`;
 }
 
 // ================================================================
@@ -20986,10 +20986,7 @@ updateCharacterTab = function() {
 
     // Narrative
     if(res.narrative && !isErrorText(res.narrative)) safe('narrative', () => appendNarrative(res.narrative));
-    if(res.actionVoid) {
-      if(res.voidReason && !isErrorText(res.voidReason)) appendNarrative(`[${res.voidReason}]`);
-      return;
-    }
+    // actionVoid removed — narrative handles everything
 
     // Time advance
     if(res.time && (res.time.days||res.time.months||res.time.years)) {
@@ -22683,6 +22680,13 @@ extractParentsFromOpening = function(narrativeText) {
   const w = GS.world;
   if(!w._openingCharacters) w._openingCharacters = {};
 
+  // ── ORPHAN ORIGINS: no parents, ever ─────────────────────────
+  const ORPHAN_ORIGINS = new Set([
+    'orphan_streets','discarded_child','bridge_born','left_behind',
+    'street_orphan','abandoned','foundling',
+  ]);
+  const isOrphan = GS.selectedOrigin && ORPHAN_ORIGINS.has(GS.selectedOrigin);
+
   // ── Very large exclusion set — anything that isn't a personal name ──
   const EXCL = new Set([
     // Pronouns
@@ -22792,6 +22796,13 @@ extractParentsFromOpening = function(narrativeText) {
     neighbor:28, acquaintance:18, mentioned:12, encountered:10,
   };
 
+  // ── ORPHAN BLOCK: filter out family roles entirely ────────────
+  const FAMILY_ROLES = new Set(['mother','father','grandmother','grandfather','sister','brother','aunt','uncle','caregiver']);
+  // For orphan origins, also block 'mentioned' patterns that reference parents
+  const filteredPatterns = isOrphan
+    ? EXPLICIT_NAME_PATTERNS.filter(p => !FAMILY_ROLES.has(p.role))
+    : EXPLICIT_NAME_PATTERNS;
+
   // Track extracted roles so we only have ONE entry per role (one mother, one father, etc.)
   const rolesSeen    = new Set();
   const found        = new Map(); // name → { role, sentences, isDeceased, isAbsent }
@@ -22817,7 +22828,7 @@ extractParentsFromOpening = function(narrativeText) {
     return true;
   }
 
-  EXPLICIT_NAME_PATTERNS.forEach(({ r, role }) => {
+  filteredPatterns.forEach(({ r, role }) => {
     r.lastIndex = 0;
     let m;
     while((m = r.exec(narrativeText)) !== null) {
@@ -22828,9 +22839,10 @@ extractParentsFromOpening = function(narrativeText) {
       if(!looksLikeName(name)) continue;
       if(name === c.firstName || name === c.lastName || `${c.firstName} ${c.lastName}` === name) continue;
 
-      // Only one entry per family role
-      const FAMILY_ROLES = ['mother','father','grandmother','grandfather','sister','brother','aunt','uncle'];
-      if(FAMILY_ROLES.includes(role) && rolesSeen.has(role)) continue;
+      // Block ALL family roles for orphan origins
+      if(isOrphan && FAMILY_ROLES.has(role)) continue;
+      // Only one entry per family role for non-orphan
+      if(FAMILY_ROLES.has(role) && rolesSeen.has(role)) continue;
 
       const existing  = found.get(name);
       const roleWeight = { mother:10, father:10, grandmother:9, grandfather:9, sister:8, brother:8,
@@ -28127,7 +28139,7 @@ buildSystemPrompt = function() {
   // Replace the frozen NPC rule with the better one
   prompt = prompt.replace(
     'NPC CONSISTENCY RULE (ABSOLUTE): Every known NPC\'s occupation, location, personality, and context listed above is CANON. If someone is listed as "sells herbs on a mat in the market," they are ALWAYS that person in EVERY scene. They do not become homeless without a narrative reason. They do not forget their relationship with the player. They do not act inconsistently with their listed daily life. If the player hasn\'t caused a change, nothing has changed. This is non-negotiable.',
-    `NPC CONSISTENCY RULE: The listed state for each known NPC is their LAST KNOWN state. NPCs ARE allowed to change — people lose jobs, move, change circumstances. But every change MUST be explained IN THE NARRATIVE when the player encounters it. If a mentor who ran an herb stall is now sleeping on the streets, that scene opens with something: they tell the player what happened, or someone nearby explains it, or it's visually obvious what occurred. The player should NEVER encounter an NPC in a completely different state with zero explanation. The change must make sense with what happened in the game world. If nothing in the game caused a change, the NPC's state persists. When in doubt: show, don't erase. A changed NPC is an opportunity for story — use it.`
+    `NPC CONSISTENCY RULE: The listed state for each known NPC is their LAST KNOWN state. NPCs CAN change — people lose jobs, move, fall on hard times. When they've changed, explain it in the scene: they tell the player, or it's obvious from appearance, or someone nearby mentions it. The player should never encounter a completely different version of someone with zero context. Changed NPC = story opportunity. Never leave it unexplained.`
   );
 
   return prompt;
@@ -28620,8 +28632,8 @@ function renderForgePanel() {
           <span style="font-size:12px;flex:1">${item.name}</span>
         </label>`
       ).join('') : `<div style="text-align:center;padding:12px;color:var(--dim);font-size:12px">
-        No forge materials. Buy from blacksmiths, mine, or forage.
-        <br><br><button class="btn-secondary btn-sm" onclick="grantForgeMaterials()">Get starter materials (admin)</button>
+        No forge materials. Buy iron ore or steel ingots from a blacksmith's shop, or mine and gather materials in the world.
+        ${GS.admin?.unlocked ? `<br><br><button class="btn-secondary btn-sm" onclick="grantForgeMaterials()">Grant starter materials</button>` : ''}
       </div>`}
     </div>
 
