@@ -6906,6 +6906,9 @@ ABSOLUTE RULES — NEVER BREAK THESE:
 12. At 100 renown in a location: people react differently, treat the player as the force they are.
 
 TIME IS MANDATORY: every response must have a non-zero time value. Brief talk = days:1. Training = days:1-7. Travel = days:3-15. Cultivation = days:1-30. Never leave time at {0,0,0} unless the action genuinely took no time at all.
+STATED DURATIONS ARE ABSOLUTE: if the player says "for three weeks" or "weeks go by" or "a month passes," the time field MUST reflect that exactly. The player's stated duration is not a suggestion — it is what happened. "Weeks go by" → days:14 minimum.
+
+PHYSICAL ACTIVITY → STATS: when the player describes physical effort (running, lifting, carrying weight, sparring, climbing, endurance work), return statChanges proportional to the time spent. The word "training" is not required. Running with barrels for two weeks = strength +1, agility +1, endurance +2. Scale to duration and intensity. Never skip statChanges for described physical effort over multiple days.
 
 RESPONSE FORMAT — TWO PARTS, ALWAYS IN THIS ORDER:
 
@@ -9167,27 +9170,58 @@ ${w.zeret.active ? 'ZERET: active in '+(LOCATIONS[w.zeret.location]?.name||w.zer
 10. **Crime has consequences.** Real ones. Law enforcement, sect retaliation, karma weight, rumor spread, NPCs who now won't trust them.
 
 ## TIME — MANDATORY EVERY TURN
-Every action takes time. You MUST return a non-zero time value in every response. The game clock advances based on what you return. The player sees the date update — this is part of immersion.
+Every action takes time. You MUST return a non-zero time value in every response.
 
-Estimate duration based on the action:
-- Glancing at something, quick thought, a word exchanged in passing → hours only → days:0 is acceptable IF it genuinely took no significant time, but use sparingly
-- Brief conversation (5–30 min) → still same day → days:0 or days:1
-- A full conversation, meal, social encounter → half a day to a full day → days:1
-- Training, practicing a technique, focused work → days:1 to days:7 depending on depth
-- Traveling across a district or neighborhood → hours, days:0 or days:1
-- Traveling to another part of the city → days:1
-- Traveling between cities → days:3 to days:15 depending on distance
-- Sleeping or resting for recovery → days:1
-- A cultivation session (meditation, breathing, Qi circulation) → days:1 to days:7
-- Learning a technique through study → days:7 to days:30
-- Waiting and observing over time → days:1 to days:14
-- A fight or violent encounter → hours, days:0 or days:1, recovery may add more
-- A significant event (exam, tournament, siege) → days:3 to days:30
-- A journey of weeks → months:1 or months:2
-- Long-term training arc → months:1 to months:6
+### RULE 1 — STATED DURATIONS ARE ABSOLUTE
+If the player says a duration, your time field MUST match it. No exceptions.
+- "I do this for three weeks" → days: 21
+- "weeks go by" → days: 14 minimum
+- "a month passes" → months: 1
+- "I spend the season training" → months: 3
+- "years later" → years: 1+
+- "for a few days" → days: 3-5
+The player's stated duration overrides everything. If they say weeks, the clock advances weeks. This is non-negotiable.
+
+### RULE 2 — INFER DURATION WHEN NOT STATED
+- Brief conversation or quick exchange → days: 0 or 1
+- Full conversation, meal, social encounter → days: 1
+- Training session, focused work, cultivation → days: 1 to 7
+- Traveling across a district → days: 0 or 1
+- Traveling between cities → days: 3 to 15
+- Sleeping or resting → days: 1
+- Learning a technique → days: 7 to 30
+- Waiting and observing → days: 1 to 14
+- A fight → days: 0 or 1
+- A significant event → days: 3 to 30
+- A journey of weeks → months: 1 or 2
+- Long-term training arc → months: 1 to 6
 
 The current date is Year ${w.year}, ${MONTH_NAMES[w.month]||'Month '+w.month}, Day ${w.day||1}.
-Every response should reflect realistic time passing. A character who meditates "for a while" has spent days, not seconds.
+
+## PHYSICAL TRAINING → STAT CHANGES (MANDATORY)
+When the player describes physical training — even if they don't use the word "training" — return statChanges. The word "training" is not required. The activity is what matters.
+
+ACTIVITY → STAT MAPPING (use proportional to duration and intensity):
+- Running, sprinting, footwork drills → agility +1–3, endurance +1–2
+- Running with added weight (barrels, stones, packs) → strength +1–2, agility +1, endurance +1–2
+- Lifting, carrying heavy loads repeatedly → strength +1–3, endurance +1–2
+- Swimming → endurance +2, agility +1, strength +1
+- Climbing → strength +1–2, agility +1, endurance +1
+- Sparring, combat practice → strength +1, agility +1–2 (+ combat skills)
+- Meditation, breathing work → willpower +1–2, endurance +1, qi refinement
+- Mental study, problem-solving → intelligence +1–2, perception +1
+- Social practice, negotiation → charisma +1–2, perception +1
+- Stealth, observation → perception +1–2, agility +1
+- Endurance activities (holding positions, long marches) → endurance +2–3, willpower +1
+
+SCALE BY DURATION:
+- 1 day of effort → +0 (below the threshold — note progress but no change yet)
+- 3–7 days consistently → +1 to one primary stat
+- 1–2 weeks → +1–2 across primary stats
+- 3–4 weeks → +2–3 across primary stats
+- 1 month+ → +3–5 across primary stats, possibly secondary gains too
+
+IMPORTANT: If the player describes doing something physical over any multi-day period, return statChanges. The absence of the word "training" does not change this. "I run with barrels for two weeks" is identical to "I train endurance for two weeks."
 
 ## RESPONSE FORMAT — TWO PARTS, ALWAYS IN THIS ORDER
 
@@ -32638,9 +32672,12 @@ CRITICAL RULES:
 - NAME: The actual personal name ONLY. "Fumei who works the stall" → name is just "Fumei". Strip any trailing words after the name.
 - No relative clauses: "Fumei who...", "the woman who..." — name stops at the end of the given name.
 - No common English words, place names, abstract nouns as names.
-- interacted=true: spoke to player, gave player something, taught player, cared for player, raised player
-- interacted=false: player only observed them, overheard about them, or they were mentioned by others
-- ORPHAN RULE: ${isOrphan ? 'This character is an ORPHAN. Do NOT include any mother or father.' : 'Family members are valid.'}
+- interacted=true: spoke to player, gave player something, taught player, cared for player, raised player, was present in the same scene, is a family member (parents, siblings, grandparents ALWAYS count as interacted — they raised this person)
+- interacted=false: player only overheard about them second-hand, they were named but never present, purely historical figures
+- FAMILY RULE: Mother, father, siblings, grandparents, caregivers — if they are named in the narrative, interacted=TRUE regardless of whether the player spoke to them in this scene. A father who is described working nearby has interacted with his child. A dead mother who is remembered has interacted with the character. Set interacted=true for ALL family roles unless they abandoned the character before birth.
+- ORPHAN RULE: ${isOrphan ? 'This character is an ORPHAN. Do NOT include any mother or father figures who raised them — they have none.' : 'All family members are valid and must be included.'}
+- DECEASED FAMILY: If a parent or sibling is dead, still include them with deceased=true. Dead family belong in the People tab.
+- ABANDONED FAMILY: If the narrative explicitly says a parent abandoned the character (left, walked away, was never there), set absent=true. These are the ONLY family members to exclude.
 - DESCRIPTION: Write a clean 1-2 sentence description of who this person IS and their relationship to the character. Do NOT quote the narrative directly. Do NOT include em-dashes, asterisks, or unfinished sentences.
   BAD: "*Bowen would have*— and then she stops."
   GOOD: "Bowen is a market vendor who knew the protagonist's family and occasionally looked after them."
@@ -32730,11 +32767,16 @@ Valid roles: mother, father, grandmother, grandfather, sister, brother, aunt, un
       // Update char with cleaned name
       char = { ...char, name: cleanedName };
 
-      if(!char.interacted) return; // only add if actually interacted with
+      // Family members (mother, father, siblings, grandparents, caregivers) ALWAYS appear
+      // in the People tab — even if dead, even if they only appear in memories.
+      // The only exception is if the player is an orphan (handled below).
+      // For everyone else, require actual interaction.
+      const FAMILY_ROLES = new Set(['mother','father','grandmother','grandfather','sister','brother','aunt','uncle','caregiver']);
+      const isFamily = FAMILY_ROLES.has(char.role);
+      if(!char.interacted && !isFamily) return; // non-family: only add if directly interacted
       if(c.relationships.find(r => r.name === char.name)) return; // no duplicates
 
-      // Orphan check
-      const FAMILY_ROLES = new Set(['mother','father','grandmother','grandfather','sister','brother']);
+      // Orphan check — orphans have NO parents in the tab
       if(isOrphan && FAMILY_ROLES.has(char.role)) return;
 
       const npcId = `opening_ai_${char.name.toLowerCase().replace(/\s+/g,'_').replace(/[^a-z0-9_]/g,'')}_${uid().slice(0,4)}`;
