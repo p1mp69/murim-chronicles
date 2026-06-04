@@ -1246,6 +1246,18 @@ hr.divider { border: none; border-top: 1px solid var(--border); margin: 8px 0; }
 .npc-card.unreachable .npc-card-footer { opacity: .35; pointer-events: none; }
 /* ── CURRENCY DISPLAY ── */
 #tb-silver { font-size: 12px; }
+/* ── GENERATION LOCK — nothing clickable while narrative generates ── */
+body.generating button:not(#btn-send):not(.modal-close) {
+  pointer-events: none !important; opacity: 0.45 !important; cursor: not-allowed !important;
+}
+body.generating .npc-qa-btn, body.generating .romance-btn,
+body.generating .npc-msg-btn, body.generating .npc-msg-input,
+body.generating [onclick*="sendRomanceAction"], body.generating [onclick*="sendQuickAction"],
+body.generating [onclick*="sendNPCMessage"], body.generating [onclick*="attemptForge"],
+body.generating [onclick*="attemptAlchemyCombine"], body.generating [onclick*="shopBuyItem"],
+body.generating [onclick*="shopSellItem"], body.generating [onclick*="closeMapGoTo"] {
+  pointer-events: none !important; opacity: 0.45 !important;
+}
 /* ── MINECRAFT-STYLE ACHIEVEMENT TOAST ── */
 #achievement-toasts {
   position: fixed; top: 16px; right: 16px;
@@ -4510,7 +4522,7 @@ function spawnItem(item) {
   if(!item?.name) return null;
   const isTome = !!(item.isTome || item.type === 'tome');
   const isConsumable = !!(item.consumable || item.type === 'consumable');
-  const type = item.type || (isTome ? 'tome' : isConsumable ? 'consumable' : item.slot ? 'equipment' : 'misc');
+  const type = item.type || (isTome ? 'tome' : isConsumable ? 'consumable' : item.slot ? 'equipment' : 'supplies');
 
   const itm = {
     id: uid(),
@@ -4611,7 +4623,7 @@ function giveTrait(traitId, custom=null) {
   if(existing) { toast('Already have this trait', '', 2000); return; }
   let traitDef;
   if(custom) {
-    traitDef = { id:uid(), name:custom, type:'misc', rarity:'common', desc:'A trait gained through your journey.', effects:{} };
+    traitDef = { id:uid(), name:custom, type:'supplies', rarity:'common', desc:'A trait gained through your journey.', effects:{} };
   } else {
     const cat = TRAITS_CATALOG[traitId];
     if(!cat) { toast('Unknown trait', 'error'); return; }
@@ -5593,7 +5605,7 @@ function updateSkillsPane() {
   const grouped = {};
   keys.forEach(k => {
     const s = skills[k];
-    const cat = s.category || 'misc';
+    const cat = s.category || 'supplies';
     if(!grouped[cat]) grouped[cat] = [];
     grouped[cat].push({ key:k, ...s });
   });
@@ -6390,7 +6402,7 @@ function applyAIResponse(res) {
   if(res.newQiStageIndex != null) setQiStage(res.newQiStageIndex);
   // Skills
   if(res.skills?.length) {
-    res.skills.forEach(s => addSkill(s.key||s.label?.toLowerCase().replace(/\s+/g,'_'), s.label||s.key, s.category||'misc', s.desc||''));
+    res.skills.forEach(s => addSkill(s.key||s.label?.toLowerCase().replace(/\s+/g,'_'), s.label||s.key, s.category||'supplies', s.desc||''));
   }
   // Techniques
   if(res.newTechniques?.length) res.newTechniques.forEach(t => grantTechnique(t));
@@ -7959,7 +7971,7 @@ function takePill(itemId) {
 function spawnIngredient(ingKey) {
   const ing = INGREDIENTS[ingKey];
   if(!ing) return;
-  spawnItem({ name: ing.name, type:'misc', rarity:'uncommon', desc: ing.desc, value: ing.value });
+  spawnItem({ name: ing.name, type:'supplies', rarity:'uncommon', desc: ing.desc, value: ing.value });
 }
 
 // ================================================================
@@ -8432,7 +8444,7 @@ function applyAIResponse(res) {
   if(res.newQiStageIndex != null) setQiStage(res.newQiStageIndex);
 
   // Skills
-  if(res.skills?.length) res.skills.forEach(s => addSkill(s.key||s.label?.toLowerCase().replace(/\s+/g,'_'), s.label||s.key, s.category||'misc', s.desc||''));
+  if(res.skills?.length) res.skills.forEach(s => addSkill(s.key||s.label?.toLowerCase().replace(/\s+/g,'_'), s.label||s.key, s.category||'supplies', s.desc||''));
 
   // Techniques + Martial Arts
   if(res.newTechniques?.length) res.newTechniques.forEach(t => grantTechnique(t));
@@ -9160,7 +9172,7 @@ function extractSkillsFromNarrative(text) {
 
   // ── Thievery ──────────────────────────────────────────────────
   if(/\b(picks?\s+pockets?|lifts?\s+\w|quick\s+hands?|borrowed\s+without|stole?\s+from|petty\s+theft)\b/i.test(text))
-    giveSkill('thievery', 'misc', 'Thievery');
+    giveSkill('thievery', 'supplies', 'Thievery');
 
   // ── Observation — city rhythms + watching as explicit skill ───
   if(/\b(knows?\s+the\s+(streets?|alleys?|district|city)|city.{0,15}rhythms?|what\s+you.{0,20}good\s+at.{0,20}watch|good\s+at\s+watch|you\s+notice\s+things|eyes?\s+like\s+a\s+creditor|pays?\s+close\s+attention|you\s+notice\s+everything|catalogu|file\s+it\s+away|paying\s+attention)\b/i.test(text))
@@ -9213,7 +9225,7 @@ function extractSkillsFromNarrative(text) {
 
   // ── Stealth / moving quietly ──────────────────────────────────
   if(/\b(moved?\s+quietly|without\s+being\s+noticed|avoid(ing)?\s+attention|slipped?\s+(past|through)|nobody\s+noticed)\b/i.test(text))
-    giveSkill('stealth', 'misc', 'Stealth');
+    giveSkill('stealth', 'supplies', 'Stealth');
 
   // ── Appraisal / market sense ──────────────────────────────────
   if(/\b(quality\s+of\s+goods?|knows?\s+good\s+cloth|apprais|worth\s+more\s+than|market\s+sense|price\s+of\s+things)\b/i.test(text))
@@ -10185,7 +10197,7 @@ function calcTechQiCost(tech) {
   const base       = RARITY_QI_BASE[tech.rarity] || 5;
   const typeMult   = TECH_TYPE_COST_MULT[tech.type] || 1.0;
   const efficiency = STAGE_EFFICIENCY_COST[Math.min(tech.stage || 0, 6)] || 1.0;
-  const affinity   = getTraitQiMult(tech.category || 'misc'); // affinity discount
+  const affinity   = getTraitQiMult(tech.category || 'supplies'); // affinity discount
   const pathMult   = calcPathCostMult(tech);
   const qi         = GS.char.qi;
   // Scale with stage — higher cultivation stage = larger Qi pools, larger everything
@@ -10232,7 +10244,7 @@ function processTechniqueUse(techniques) {
     totalCost += cost;
     if(cost > 0) {
       const stage = t._isTech ? (TECH_STAGES[t.stage]?.short || 'Unknown') : (MARTIAL_STAGES[t.stage]?.short || 'Unknown');
-      const discount = getTraitQiMult(t.category || 'misc');
+      const discount = getTraitQiMult(t.category || 'supplies');
       const discountNote = discount < 1.0 ? ` (${Math.round((1-discount)*100)}% affinity discount)` : '';
       breakdown.push(`${t.name} [${stage}]: ${cost} Qi${discountNote}`);
     }
@@ -13590,8 +13602,8 @@ function tickEducation(daysElapsed) {
 }
 
 function getSkillCatForInst(type) {
-  const map = { scholarly:'scholarly', medical:'medical', commercial:'social', military:'combat', legal:'scholarly', technical:'craftsman', exploration:'survival', diplomatic:'social', artistic:'misc', historical:'scholarly', philosophical:'misc' };
-  return map[type] || 'misc';
+  const map = { scholarly:'scholarly', medical:'medical', commercial:'social', military:'combat', legal:'scholarly', technical:'craftsman', exploration:'survival', diplomatic:'social', artistic:'supplies', historical:'scholarly', philosophical:'supplies' };
+  return map[type] || 'supplies';
 }
 
 function graduateFromSchool(enrollment) {
@@ -15989,8 +16001,8 @@ const COMBO_COMPAT = {
 };
 
 function assessTechniqueCompatibility(t1, t2) {
-  const cat1 = t1.category?.toLowerCase() || 'misc';
-  const cat2 = t2.category?.toLowerCase() || 'misc';
+  const cat1 = t1.category?.toLowerCase() || 'supplies';
+  const cat2 = t2.category?.toLowerCase() || 'supplies';
 
   // Same category
   if(cat1 === cat2) return COMBO_COMPAT[`same_${cat1}`] || { ok:true, type:'variant', desc:'A variant that blends both approaches.' };
@@ -16817,22 +16829,22 @@ applyAIResponse = function(res) {
 // ── Shop catalog per location type ─────────────────────────────
 const SHOP_CATALOG = {
   capital: {
-    categories: ['weapons','armor','food','medicine','tools','cultivation','clothing','misc'],
+    categories: ['weapons','armor','food','medicine','tools','cultivation','clothing','supplies'],
     note: 'A capital city has most things if you know where to look.',
     blackMarket: true,
   },
   merchant_city: {
-    categories: ['weapons','armor','food','medicine','tools','cultivation','clothing','misc','luxury'],
+    categories: ['weapons','armor','food','medicine','tools','cultivation','clothing','supplies','luxury'],
     note: 'The best selection at negotiable prices. Everything is available. Nothing is fixed.',
     blackMarket: true, priceMult: 1.0, negotiationBonus: 0.9,
   },
   farming_city: {
-    categories: ['food','tools','clothing','misc'],
+    categories: ['food','tools','clothing','supplies'],
     note: 'Food and farming tools are cheap. Weapons and medicine are hard to find.',
     priceMult: 0.75, foodMult: 0.6,
   },
   slum: {
-    categories: ['food','tools','misc','stolen'],
+    categories: ['food','tools','supplies','stolen'],
     note: 'Prices are low. Provenance is not discussed. Some things can only be bought here.',
     priceMult: 0.55, blackMarket: true, qualityNote: 'Goods may be damaged, stolen, or counterfeit.',
   },
@@ -16851,74 +16863,112 @@ const SHOP_CATALOG = {
 // What goods are available per category at a location
 const SHOP_ITEMS = {
   weapons: [
-    { key:'knife_quality',    name:'Quality Knife',        slot:'weapon' },
-    { key:'sword_iron',       name:'Iron Sword',            slot:'weapon' },
-    { key:'sword_steel',      name:'Steel Sword',           slot:'weapon' },
-    { key:'spear_basic',      name:'Spear',                 slot:'weapon' },
-    { key:'bow_basic',        name:'Bow',                   slot:'weapon' },
-    { key:'staff_iron',       name:'Iron Staff',            slot:'weapon' },
+    // Standard weapons
+    { key:'knife_quality',    name:'Quality Knife',                  slot:'weapon', desc:'A well-maintained blade. Standard issue for anyone who takes their personal safety seriously.' },
+    { key:'sword_iron',       name:'Iron Sword',                     slot:'weapon', desc:'Functional iron. Not elegant. Gets the job done.' },
+    { key:'sword_steel',      name:'Steel Sword',                    slot:'weapon', desc:'Properly forged steel. The balance is right. A swordsman would appreciate this.' },
+    { key:'spear_basic',      name:'Spear',                          slot:'weapon', desc:'Six feet of reach. Peasant armies have won wars with spears like this.' },
+    { key:'bow_basic',        name:'Composite Bow',                  slot:'weapon', desc:'Horn and sinew. The draw weight is significant. It takes time to earn this shot.' },
+    { key:'staff_iron',       name:'Iron-Capped Staff',              slot:'weapon', desc:'Wood reinforced at both ends with iron. A monk\'s weapon. A merchant\'s weapon. Deceptively serious.' },
+    { key:'dagger_pair',      name:'Paired Daggers',                 slot:'weapon', desc:'Two blades. The techniques that use both hands are rare and worth finding.' },
+    // Lore weapons
+    { key:'azure_militia_saber', name:'Azure Militia Saber',        slot:'weapon', rarity:'uncommon', desc:'Issued to city wardens of the Azure Empire. The seal is still on the blade. Someone\'s not using it anymore.' },
+    { key:'canal_boatman_hook',  name:'Boatman\'s Hook',            slot:'weapon', desc:'Adapted from a tool. The people of Beggar\'s Rest know which end to hold.' },
+    { key:'cultivator_sword',    name:'Cultivator\'s Practice Sword',slot:'weapon', rarity:'uncommon', desc:'Weighted for Qi circulation training. A cultivator would feel the difference immediately.' },
   ],
   armor: [
-    { key:'armor_leather',    name:'Leather Armor',         slot:'body' },
-    { key:'armor_chain',      name:'Chain Armor',           slot:'body' },
-    { key:'shield_iron',      name:'Iron Shield',           slot:'offhand' },
+    { key:'armor_leather',    name:'Leather Armor',     slot:'body',    desc:'Tanned hide. Cuts and minor blows glance off. Heavy enough to matter.' },
+    { key:'armor_chain',      name:'Chain Armor',        slot:'body',    rarity:'uncommon', desc:'Linked iron rings. A soldier\'s protection. Heavy enough to feel.' },
+    { key:'shield_iron',      name:'Iron Shield',        slot:'offhand', desc:'Round iron shield. Sparring masters call it the honest defense.' },
+    { key:'armor_padded',     name:'Padded Traveling Vest', slot:'body', desc:'Layered cotton. Absorbs some impact. More importantly, it\'s not armor — wardens don\'t ask questions.' },
+    { key:'arm_guards',       name:'Reinforced Arm Guards', slot:'hands', desc:'Leather over bone. Takes a blade hit before your arm does.' },
+    { key:'cultivator_robes', name:'Cultivator\'s Training Robes', slot:'body', rarity:'uncommon', desc:'Woven to allow Qi circulation. The stitching follows meridian paths. A sect sells these.' },
   ],
   food: [
-    { key:'meal_decent',      name:'Decent Meal (×5)',      qty:5, consumable:true },
-    { key:'meal_quality',     name:'Quality Meal (×5)',     qty:5, consumable:true },
+    { key:'meal_decent',      name:'Market Meal (×5)',   qty:5, consumable:true, desc:'Whatever\'s hot at the nearest stall. Fills you. Keeps you moving.' },
+    { key:'meal_quality',     name:'Inn Dinner (×5)',    qty:5, consumable:true, rarity:'uncommon', desc:'A proper meal at a proper table. The kind that stays with you for a day\'s work.' },
+    { key:'travel_rations',   name:'Travel Rations (×10)', qty:10, consumable:true, desc:'Dried meat, hard grain, preserved root. Tastes like necessity.' },
+    { key:'rice_wine_flask',  name:'Rice Wine Flask',    consumable:true, desc:'A flask of decent rice wine. Loosens things. Also useful for wounds.' },
   ],
   medicine: [
-    { key:'physician_basic',  name:'Basic Medical Treatment', consumable:true },
-    { key:'pill_healing_minor',name:'Healing Pill (Minor)',  consumable:true, rarity:'uncommon' },
-    { key:'pill_healing_major',name:'Healing Pill (Major)',  consumable:true, rarity:'rare' },
-    { key:'pill_clarity',     name:'Clarity Pill',           consumable:true, rarity:'uncommon' },
+    { key:'physician_basic',  name:'Physician\'s Treatment', consumable:true, desc:'A physician cleans and dresses the wound. Standard care.' },
+    { key:'pill_healing_minor',name:'Red Vein Pill',       consumable:true, rarity:'uncommon', desc:'Speeds healing. Named for the red veins that appear briefly on skin as it works. Common sect medicine.' },
+    { key:'pill_healing_major',name:'Jade Recovery Pill',  consumable:true, rarity:'rare',     desc:'Restores significant internal damage. The jade-green color fades as the Qi is absorbed.' },
+    { key:'pill_clarity',     name:'Clarity Pill',          consumable:true, rarity:'uncommon', desc:'Clears the mind. Useful for cultivation sessions where focus is failing.' },
+    { key:'wound_powder',     name:'Staunching Powder',     consumable:true, desc:'Applied to wounds. Stops bleeding faster than cloth alone. Canal district doctors carry it.' },
+    { key:'antidote_common',  name:'Common Antidote',       consumable:true, rarity:'uncommon', desc:'Counters most common poisons. Not all of them.' },
+    { key:'herb_bundle',      name:'Medicinal Herb Bundle', consumable:true, desc:'A bundle of three standard healing herbs. For basic treatment.' },
   ],
   cultivation: [
-    { key:'spirit_herb',      name:'Spirit Herb (×3)',       qty:3 },
-    { key:'iron_root',        name:'Iron Root (×3)',         qty:3 },
-    { key:'moonflower',       name:'Moonflower',             rarity:'uncommon' },
-    { key:'beast_core_fragment',name:'Beast Core Fragment',  rarity:'uncommon' },
-    { key:'pill_body_tempering',name:'Body Tempering Pill',  consumable:true, rarity:'uncommon' },
-    { key:'tome_common',      name:'Common Technique Tome',  isTome:true },
-    { key:'tome_uncommon',    name:'Uncommon Technique Tome', isTome:true, rarity:'uncommon' },
+    // Ingredients (proper type)
+    { key:'spirit_herb',         name:'Spirit Herb (×3)',        qty:3, ingredient:true, desc:'The most common cultivation herb. Mild Qi nourishing. Every cultivator knows this smell.' },
+    { key:'iron_root',           name:'Iron Root (×3)',          qty:3, ingredient:true, desc:'Hard, fibrous root. Used in body tempering preparations. Bitter.' },
+    { key:'moonflower',          name:'Moonflower',              rarity:'uncommon', ingredient:true, desc:'Blooms only at night. Its Qi signature is softer, cooler than most herbs.' },
+    { key:'beast_core_fragment', name:'Beast Core Fragment',     rarity:'uncommon', ingredient:true, desc:'A shard of a cultivated beast\'s core. Residual beast Qi still active.' },
+    { key:'clear_water_vial',    name:'Spiritually Clear Water', rarity:'common', ingredient:true, desc:'Water drawn from a Qi-rich source. Slightly luminous. Used as a base in many preparations.' },
+    { key:'charcoal_refined',    name:'Refined Charcoal',        ingredient:true, desc:'Processed specifically for alchemical use. Consistent burn temperature.' },
+    // Pills
+    { key:'pill_body_tempering', name:'Body Tempering Pill',     consumable:true, rarity:'uncommon', desc:'Accelerates body tempering cultivation. Forces meridians to expand. Some pain expected.' },
+    { key:'qi_condensation_draught', name:'Qi Condensation Draught', consumable:true, rarity:'rare', desc:'A liquid cultivation aid. Compresses scattered Qi. Smoother than pills, slower to produce.' },
+    { key:'breath_clearing_pill', name:'Breath Clearing Pill',   consumable:true, rarity:'uncommon', desc:'Clears impurities from the meridians. Unpleasant process. Worth it.' },
+    // Tomes
+    { key:'tome_common',         name:'Outer Technique Manual',  isTome:true, desc:'A common technique manual. The kind outer disciples receive. Some technique of limited scope.' },
+    { key:'tome_uncommon',       name:'Inner Sect Manual',       isTome:true, rarity:'uncommon', desc:'An inner sect technique. Not for sale publicly — which raises the question of where this came from.' },
+    { key:'tome_cultivation_basics', name:'Cultivation Theory: Foundations', isTome:true, desc:'Academic text on Qi cultivation fundamentals. Reading it won\'t grant techniques. Understanding it helps everything.' },
   ],
   tools: [
-    { key:'rope_10m',         name:'Rope (10m)' },
-    { key:'oil_lamp',         name:'Oil Lamp' },
-    { key:'writing_kit',      name:'Writing Kit' },
-    { key:'waterskin',        name:'Waterskin' },
-    { key:'pack_leather',     name:'Leather Pack' },
-    { key:'lantern',          name:'Lantern' },
+    { key:'rope_10m',         name:'Hemp Rope (10m)', tool:true, desc:'Standard rope. Canal workers, climbers, and people with problems all carry rope.' },
+    { key:'oil_lamp',         name:'Oil Lamp',        tool:true, desc:'Reliable light. Better than a candle outdoors.' },
+    { key:'writing_kit',      name:'Writing Kit',     tool:true, desc:'Brush, ink block, paper. The tools of literacy. Not everyone has them.' },
+    { key:'waterskin',        name:'Waterskin',       tool:true, desc:'Treated leather. Keeps water for days without going bad.' },
+    { key:'pack_leather',     name:'Leather Pack',    tool:true, desc:'A good pack. Carries more than it looks like it should.' },
+    { key:'lantern',          name:'Enclosed Lantern', tool:true, desc:'Light that doesn\'t blow out. Windproof glass housing. More expensive than a lamp. Worth it.' },
+    { key:'lockpicks',        name:'Lockpick Set',    tool:true, rarity:'uncommon', desc:'A small leather roll of picks. No explanation needed. No questions asked — at this shop.' },
+    { key:'compass_basic',    name:'Compass',         tool:true, desc:'Needle suspended in oil. Tells direction. Doesn\'t tell you what you\'ll find there.' },
   ],
   clothing: [
-    { key:'clothing_basic',   name:'Basic Clothing' },
-    { key:'clothing_decent',  name:'Decent Clothing' },
-    { key:'clothing_fine',    name:'Fine Clothing',   rarity:'uncommon' },
-    { key:'clothing_formal',  name:'Formal Wear',     rarity:'rare' },
+    // Generic clothing
+    { key:'clothing_basic',   name:'Common Clothing',            slot:'body',   clothing:true, desc:'Clean, functional, local cut. Doesn\'t attract attention.' },
+    { key:'clothing_decent',  name:'Respectable Clothing',       slot:'body',   clothing:true, desc:'Well-made. The kind a merchant or minor official would wear.' },
+    { key:'clothing_fine',    name:'Fine Clothing',              slot:'body',   clothing:true, rarity:'uncommon', desc:'Quality fabric, careful tailoring. People notice. Useful for certain doors.' },
+    { key:'clothing_formal',  name:'Formal Wear',                slot:'body',   clothing:true, rarity:'rare',     desc:'Court-appropriate. Silk, structured, impossible to ignore.' },
+    // Lore-specific clothing
+    { key:'outer_disciple_robes', name:'Outer Disciple Robes',  slot:'body',   clothing:true, rarity:'uncommon', desc:'Grey-white robes with the stitching of whatever sect sells them. Outer disciples wear this.' },
+    { key:'tazar_market_coat',    name:'Tazar Market Coat',      slot:'body',   clothing:true, desc:'Heavy canvas, deep pockets. Half the merchants in Tazar\'s lower district wear something like this.' },
+    { key:'canal_worker_wraps',   name:'Canal Worker Wraps',     slot:'body',   clothing:true, desc:'Wrapped linen for physical labor. Cheap, practical, instantly identifies the wearer\'s occupation.' },
+    { key:'traveling_cloak',      name:'Traveling Cloak',        slot:'body',   clothing:true, desc:'Dark, heavy wool. Rain-resistant. Hides most things underneath.' },
+    { key:'scholar_robe',         name:'Scholar\'s Robe',        slot:'body',   clothing:true, rarity:'uncommon', desc:'The cut and color say examination candidate or administrative clerk. Opens doors in official settings.' },
+    { key:'warrior_uniform',      name:'Buo Warrior\'s Vest',    slot:'body',   clothing:true, rarity:'uncommon', desc:'Hardened leather in the Buo tradition. Functional rather than ceremonial. The cut is distinctive.' },
   ],
   survival: [
-    { key:'bedroll',          name:'Bedroll' },
-    { key:'rope_10m',         name:'Rope (10m)' },
-    { key:'waterskin',        name:'Waterskin' },
-    { key:'spirit_herb',      name:'Spirit Herb',     rarity:'common' },
-    { key:'iron_root',        name:'Iron Root',       rarity:'common' },
+    { key:'bedroll',          name:'Bedroll',          desc:'Wool and canvas. Sleep without a roof.' },
+    { key:'rope_10m',         name:'Hemp Rope (10m)',  desc:'Essential for any serious travel off the road.' },
+    { key:'waterskin',        name:'Waterskin',        desc:'Treated leather water container.' },
+    { key:'spirit_herb',      name:'Spirit Herb',      rarity:'common', ingredient:true, desc:'Found wild in areas with strong Qi. Recognizable by its faint luminescence at dusk.' },
+    { key:'iron_root',        name:'Iron Root',        rarity:'common', ingredient:true, desc:'Grows near mineral deposits. Hard to pull out. Good metaphor.' },
+    { key:'fire_starter',     name:'Fire Starter Kit', desc:'Flint, steel, and tinder. Every traveler needs one.' },
+    { key:'dried_meat',       name:'Dried Meat (×8)',  qty:8, consumable:true, desc:'Preserved for weeks. Tastes like it.' },
   ],
-  misc: [
-    { key:'candle_bundle_10', name:'Candles (×10)' },
-    { key:'blank_paper_10',   name:'Paper (×10)' },
-    { key:'oil_lamp',         name:'Oil Lamp' },
+  supplies: [
+    { key:'candle_bundle_10', name:'Candles (×10)',    desc:'Ten candles. Light a room or leave a trail.' },
+    { key:'blank_paper_10',   name:'Paper Bundle',     desc:'Blank paper for writing or wrapping.' },
+    { key:'ink_block',        name:'Ink Block',        desc:'Ground with water for writing or dyeing.' },
+    { key:'incense_sticks',   name:'Incense Sticks',   desc:'Used in temples, cultivation, and certain rituals. The quality affects the smoke.' },
+    { key:'salt_pouch',       name:'Salt Pouch',       desc:'Preservative, flavoring, and trade good. More useful than it sounds.' },
   ],
   stolen: [
-    { key:'knife_quality',    name:'Knife (no questions)', slot:'weapon', rarity:'common' },
-    { key:'clothing_decent',  name:'Used Clothing', rarity:'common' },
-    { key:'information_street',name:'Street Information' },
-    { key:'poison_common',    name:'Common Poison', rarity:'uncommon', restricted:true },
+    { key:'knife_quality',       name:'Knife (provenance unclear)',   slot:'weapon', rarity:'common', desc:'A good knife with the maker\'s mark filed off.' },
+    { key:'clothing_decent',     name:'Used Clothing',                clothing:true, desc:'Someone\'s second-best outfit. No questions about where it came from.' },
+    { key:'information_street',  name:'Street Intelligence',          desc:'Information from someone who\'s been watching. Reliable unless it isn\'t.' },
+    { key:'poison_common',       name:'Common Poison',                rarity:'uncommon', restricted:true, consumable:true, desc:'A standard contact or ingested poison. Effective. Untraceable to the amateur.' },
+    { key:'stolen_technique',    name:'Copied Technique Fragment',    isTome:true, rarity:'uncommon', desc:'A fragment. Someone copied it badly. Still potentially useful to someone with the right background.' },
+    { key:'smuggled_pill',       name:'Unlabeled Pill',               consumable:true, rarity:'uncommon', desc:'No label. No explanation. You\'re buying on trust.' },
   ],
 };
 
 function getShopForLocation(locKey) {
-  const locType = LOCATIONS[locKey]?.type || 'misc';
-  return SHOP_CATALOG[locType] || { categories:['food','tools','misc'], note:'A small settlement with limited goods.', priceMult:1.0 };
+  const locType = LOCATIONS[locKey]?.type || 'supplies';
+  return SHOP_CATALOG[locType] || { categories:['food','tools','supplies'], note:'A small settlement with limited goods.', priceMult:1.0 };
 }
 
 function getItemShopPrice(itemKey, locKey) {
@@ -16977,7 +17027,7 @@ function buyItem(itemKey, itemName, price, slot, isTome, rarity, isConsumable) {
     return;
   }
   const slotTypeMap = { weapon:'weapon', offhand:'offhand', head:'armor', body:'armor', hands:'armor', feet:'armor', acc1:'accessory', acc2:'accessory' };
-  const itemType = isConsumable ? 'consumable' : isTome ? 'tome' : slot ? (slotTypeMap[slot] || 'equipment') : 'misc';
+  const itemType = isConsumable ? 'consumable' : isTome ? 'tome' : slot ? (slotTypeMap[slot] || 'equipment') : 'supplies';
   const priceDisplay = (typeof formatCoins === 'function') ? formatCoins(price) : price + '◈';
   const item = spawnItem({
     name: itemName, type: itemType,
@@ -17296,7 +17346,7 @@ function tickReputationDecay(daysElapsed) {
 // Adjust reputation gain by location's rumor spread rate
 const _dynamicAddRenown = addRenown;
 addRenown = function(locKey, amount, eventDesc, impact) {
-  const locType  = LOCATIONS[locKey]?.type || 'misc';
+  const locType  = LOCATIONS[locKey]?.type || 'supplies';
   const spread   = RUMOR_SPREAD_RATE[locType] || 1.0;
   const adjusted = Math.round(amount * spread);
   _dynamicAddRenown(locKey, adjusted, eventDesc, impact ? Math.round(impact * spread) : undefined);
@@ -17304,7 +17354,7 @@ addRenown = function(locKey, amount, eventDesc, impact) {
 
 const _dynamicAddInfamy = addInfamy;
 addInfamy = function(locKey, amount, eventDesc, impact) {
-  const locType  = LOCATIONS[locKey]?.type || 'misc';
+  const locType  = LOCATIONS[locKey]?.type || 'supplies';
   const spread   = RUMOR_SPREAD_RATE[locType] || 1.0;
   const adjusted = Math.round(amount * spread);
   _dynamicAddInfamy(locKey, adjusted, eventDesc, impact ? Math.round(impact * spread) : undefined);
@@ -17568,7 +17618,7 @@ function buildForagingInjection(msg) {
     // Actually add to inventory
     for(let j = 0; j < qty; j++) {
       spawnItem({
-        name: ingDef.name, type:'misc',
+        name: ingDef.name, type:'supplies',
         desc: ingDef.desc, value: ingDef.value, rarity:'common',
         ingredientKey: key,
       });
@@ -18544,12 +18594,12 @@ function generateShopContents(shopType) {
     weapons:     ['weapons','armor'],
     food:        ['food','tools'],
     clothing:    ['clothing'],
-    pawn:        ['weapons','armor','tools','misc'],
+    pawn:        ['weapons','armor','tools','supplies'],
     tomes:       ['cultivation'],
-    tools:       ['tools','misc'],
+    tools:       ['tools','supplies'],
     cultivation: ['cultivation'],
-    general:     ['food','tools','clothing','misc','medicine'],
-  }[shopType] || ['misc'];
+    general:     ['food','tools','clothing','supplies','medicine'],
+  }[shopType] || ['supplies'];
 
   // Build item list with dynamic pricing
   const available = [];
@@ -18584,7 +18634,7 @@ function generateShopContents(shopType) {
   const sellable = c.inventory.filter(i => {
     // Can only sell at appropriate shops
     if(shopType === 'weapons' && !['weapon','armor'].includes(i.type)) return false;
-    if(shopType === 'medicine' && !['consumable','misc'].includes(i.type)) return false;
+    if(shopType === 'medicine' && !['consumable','supplies'].includes(i.type)) return false;
     if(shopType === 'clothing' && i.type !== 'clothing' && i.slot !== 'body') return false;
     if(shopType === 'tomes' && !i.isTome) return false;
     if(shopType === 'food' && i.type !== 'consumable') return false;
@@ -18685,10 +18735,24 @@ function renderShopModal(shopType, shopName) {
 function shopBuyItem(key, name, price, slot, isTome, rarity, isConsumable) {
   const check = validateAndSpendSilver(price, `buy ${name}`);
   if(!check.ok) { toast(`Can't afford ${name} — need ${check.shortfall}◈ more`, 'error', 3000); return; }
-  // Determine item type properly by slot
+
+  // Look up the item definition for description and type
+  const allCats = Object.values(SHOP_ITEMS).flat();
+  const itemDef  = allCats.find(i => i.key === key) || {};
   const slotTypeMap = { weapon:'weapon', offhand:'offhand', head:'armor', body:'armor', hands:'armor', feet:'armor', acc1:'accessory', acc2:'accessory' };
-  const itemType = isConsumable ? 'consumable' : isTome ? 'tome' : slot ? (slotTypeMap[slot] || 'equipment') : 'misc';
-  spawnItem({ name, type:itemType, slot:slot||null, rarity:rarity||'common', desc:`Purchased for ${formatCoins(price)}.`, value:Math.floor(price*0.6), isTome:!!isTome });
+  const itemType = isConsumable || itemDef.consumable ? 'consumable'
+    : isTome || itemDef.isTome ? 'tome'
+    : itemDef.ingredient ? 'ingredient'
+    : itemDef.tool ? 'tool'
+    : itemDef.clothing ? 'clothing'
+    : slot ? (slotTypeMap[slot] || 'equipment')
+    : 'supply'; // everything else is supply (candles, paper, etc.) — not misc
+
+  spawnItem({
+    name, type:itemType, slot:slot||null, rarity:rarity||'common',
+    desc: itemDef.desc || `Purchased for ${formatCoins(price)}.`,
+    value:Math.floor(price*0.6), isTome:!!isTome || !!itemDef.isTome,
+  });
   document.getElementById('shop-modal-silver').textContent = `◈ ${formatCoins(GS.char.silver)}`;
   toast(`Bought: ${name} for ${formatCoins(price)}`, 'gold', 2000);
   updateInventoryTab();
@@ -18748,7 +18812,7 @@ function renderAlchemyPanel() {
     if(INGREDIENTS[i.name.toLowerCase().replace(/\s+/g,'_')]) return true;
     if(KNOWN_ING_NAMES.has(i.name.toLowerCase())) return true;
     // Misc items with no slot and no other purpose are potential ingredients
-    return i.type === 'misc' && !i.isTome;
+    return i.type === 'supplies' && !i.isTome;
   });
 
   const discoveries = getAlchemyDiscoveries();
@@ -21036,7 +21100,7 @@ updateCharacterTab = function() {
     });
 
     // Skills
-    safe('skills', () => { res.skills?.forEach(s => addSkill(s.key||s.label?.toLowerCase().replace(/\s+/g,'_'), s.label||s.key, s.category||'misc', s.desc||'')); });
+    safe('skills', () => { res.skills?.forEach(s => addSkill(s.key||s.label?.toLowerCase().replace(/\s+/g,'_'), s.label||s.key, s.category||'supplies', s.desc||'')); });
 
     // Techniques & martial arts
     safe('techniques', () => { res.newTechniques?.forEach(t => grantTechnique(t)); });
@@ -21128,7 +21192,7 @@ updateCharacterTab = function() {
     });
 
     // Sects / race / offspring / death
-    safe('misc', () => {
+    safe('supplies', () => {
       res.newSects?.forEach(s => { const sect = generateSect(s); if(s.name) sect.name=s.name; discoverSect(sect); });
       res.offspring?.forEach(o => { if(!GS.char.offspring.find(c=>c.name===o.name)) createOffspring(o.name, o.gender||'male', false); });
       if(res.raceChange) setRace(res.raceChange);
@@ -21637,11 +21701,11 @@ Object.assign(LOCATION_PRICE_MOD, {
 
 // ── Shop types for new locations ─────────────────────────────────
 Object.assign(SHOP_CATALOG, {
-  industrial_city: { categories:['weapons','armor','tools','food','misc'],       note:'Weapons are produced here. They cost less. Food is imported. It costs more.', weaponMult:0.8 },
-  port_city:       { categories:['food','tools','clothing','misc','cultivation']  , note:'Everything passes through here eventually. Prices reflect that.' },
-  craft_district:  { categories:['cultivation','weapons','armor','tools','misc'], note:'The finest goods in the dynasty. The prices match.' },
-  warrior_city:    { categories:['weapons','armor','medicine','food','misc'],      note:'Combat supplies first. Everything else second.' },
-  hidden_city:     { categories:['weapons','misc','cultivation','stolen'],        note:'Off the books. No receipts. No questions about provenance.', blackMarket:true },
+  industrial_city: { categories:['weapons','armor','tools','food','supplies'],       note:'Weapons are produced here. They cost less. Food is imported. It costs more.', weaponMult:0.8 },
+  port_city:       { categories:['food','tools','clothing','supplies','cultivation']  , note:'Everything passes through here eventually. Prices reflect that.' },
+  craft_district:  { categories:['cultivation','weapons','armor','tools','supplies'], note:'The finest goods in the dynasty. The prices match.' },
+  warrior_city:    { categories:['weapons','armor','medicine','food','supplies'],      note:'Combat supplies first. Everything else second.' },
+  hidden_city:     { categories:['weapons','supplies','cultivation','stolen'],        note:'Off the books. No receipts. No questions about provenance.', blackMarket:true },
   mountain_settlement:{ categories:['food','tools','survival','medicine'],        note:'Limited goods. Everything here is earned through effort, including what you buy.' },
   nature_region:   { categories:['food','survival','medicine'],                   note:'Almost a barter economy. Silver is less useful here than elsewhere.' },
 });
@@ -22336,7 +22400,7 @@ const _withAlchemyRefreshSpawn = spawnItem;
 spawnItem = function(item) {
   const result = _withAlchemyRefreshSpawn(item);
   // If a misc/ingredient item was added and alchemy pane is visible, refresh
-  if(item?.type === 'misc' || item?.ingredientKey || INGREDIENTS?.[item?.name?.toLowerCase().replace(/\s/g,'_')]) {
+  if(item?.type === 'supplies' || item?.ingredientKey || INGREDIENTS?.[item?.name?.toLowerCase().replace(/\s/g,'_')]) {
     const alchPane = document.getElementById('alchemy-pane');
     if(alchPane?.classList.contains('active')) {
       setTimeout(renderAlchemyPanel, 50);
@@ -24140,7 +24204,7 @@ function repairInventory() {
   c.inventory = c.inventory.filter(i => i && i.name); // drop nulls
   c.inventory.forEach(item => {
     // Fix type from slot if type is wrong
-    if(item.slot && item.type === 'misc' && SLOT_TO_TYPE[item.slot]) {
+    if(item.slot && item.type === 'supplies' && SLOT_TO_TYPE[item.slot]) {
       item.type = SLOT_TO_TYPE[item.slot];
     }
     // Ensure isTome flag matches type
@@ -24160,7 +24224,7 @@ function repairInventory() {
     if(!item.id) item.id = uid();
     if(!item.slot) item.slot = slot;
     if(!item.effects || typeof item.effects !== 'object') item.effects = {};
-    if(item.type === 'misc' && SLOT_TO_TYPE[slot]) item.type = SLOT_TO_TYPE[slot];
+    if(item.type === 'supplies' && SLOT_TO_TYPE[slot]) item.type = SLOT_TO_TYPE[slot];
   });
 }
 
@@ -25115,11 +25179,18 @@ sendToAI = async function(overrideMsg) {
   const sendBtn = document.getElementById('btn-send');
 
   // ── READ THE MESSAGE FIRST before touching the input ──────────
-  // Bug fix: clearing input before reading it made everything blank
   const msg = overrideMsg || inputEl?.value?.trim() || '';
-  if(!msg) return; // nothing to send, bail immediately
+  if(!msg) return;
 
-  // NOW clear and lock
+  // Block if already generating (prevents forge/alchemy double-fire)
+  if(window._isGenerating) {
+    toast('Narrative is generating — wait for it to finish.', 'warning', 2000);
+    return;
+  }
+  window._isGenerating = true;
+  document.body.classList.add('generating');
+
+  // Clear and lock the action input
   if(inputEl) { inputEl.value = ''; inputEl.disabled = true; }
   if(sendBtn) {
     sendBtn.innerHTML = '<span class="spinner"></span> Writing…';
@@ -25149,7 +25220,9 @@ sendToAI = async function(overrideMsg) {
   } catch(e) {
     console.error('[sendToAI wrapper]', e);
   } finally {
-    // Unlock UI
+    // Unlock everything
+    window._isGenerating = false;
+    document.body.classList.remove('generating');
     if(inputEl) inputEl.disabled = false;
     if(inputEl) inputEl.focus();
     if(sendBtn) {
@@ -27596,7 +27669,7 @@ function tickAssets(daysElapsed) {
     if(asset.upgrades.includes('herb_garden') && daysElapsed >= 30) {
       const herbs = 1 + Math.floor(Math.random() * 2);
       for(let i = 0; i < herbs; i++) {
-        spawnItem({ name:'Spirit Herb', type:'misc', rarity:'common', desc:`Grown in the herb garden at ${asset.name}.`, value:8 });
+        spawnItem({ name:'Spirit Herb', type:'supplies', rarity:'common', desc:`Grown in the herb garden at ${asset.name}.`, value:8 });
       }
     }
 
@@ -28612,7 +28685,7 @@ function renderForgePanel() {
   // Find forge materials in inventory (metals, wood, leather)
   const materials = c.inventory.filter(i =>
     i && i.name && (
-      i.type === 'misc' ||
+      i.type === 'supplies' ||
       FORGE_MATERIALS[i.name?.toLowerCase().replace(/\s+/g,'_')] ||
       /\b(iron|steel|copper|bronze|metal|ore|ingot|wood|leather|bone|stone|charcoal|alloy)\b/i.test(i.name)
     )
@@ -28658,7 +28731,7 @@ function renderForgePanel() {
 
 window.grantForgeMaterials = function() {
   ['Iron Ore','Iron Ore','Steel Ingot','Hardwood','Charcoal','Leather Strip'].forEach(name => {
-    spawnItem({ name, type:'misc', rarity:'common', desc:`Forge material: ${name}.`, value:6 });
+    spawnItem({ name, type:'supplies', rarity:'common', desc:`Forge material: ${name}.`, value:6 });
   });
   renderForgePanel();
 };
@@ -28685,10 +28758,11 @@ window.attemptForge = function() {
   addSkill('smithing','Smithing','craftsman','Working metal and materials at the forge.');
   updateInventoryTab();
 
-  const highInt   = intel >= 18;
+  const highInt   = intel >= 80;
+  const veryHighInt = intel >= 100;
   const intNote   = highInt
-    ? `CRITICAL: This character has very high intelligence (${intel}). They may intuit design principles far beyond their era. If combining metal + mechanism materials, they might create something that functions in an unprecedented way — describe it FUNCTIONALLY without naming it after modern concepts. "A device that channels force through a chamber" not "a gun." The player does not know they've made something unusual. Write it as a natural discovery.`
-    : `Intelligence: ${intel}. Standard crafting expected.`;
+    ? `CRITICAL — ADVANCED INTELLIGENCE FORGE (INT ${intel}): This character's intelligence is exceptional enough to intuit engineering principles far beyond this era. When combining metals, mechanisms, or pressure-related materials, they may accidentally create something that does not belong to this time period. Describe it PURELY FUNCTIONALLY — what it does, how it works mechanically — NEVER use modern terminology (no "gun", "cannon", "bomb", "grenade", "explosive", "firearm"). Write it as natural discovery: "a chamber that focuses compressed force through a narrow exit" or "a mechanism that uses contained combustion to propel a rod at speed" — the player experiences the function, not the name. They do not know they've done something unusual. This is treated as a matter-of-fact discovery.${veryHighInt ? ' At this intelligence level, the mechanism can be surprisingly refined.' : ''}`
+    : `Intelligence: ${intel}. Standard crafting for this era — conventional weapons and tools only.`;
 
   const inject = `[BLACKSMITHING: The character works the forge, combining ${names.join(' + ')}.
 Smithing skill: ${smith}. ${intNote}
@@ -28729,7 +28803,7 @@ applyAIResponse = function(res) {
       const rarityMap = {masterwork:'epic',fine:'rare',serviceable:'common',crude:'common'};
       spawnItem({
         name: r.name,
-        type: r.type || 'misc',
+        type: r.type || 'supplies',
         slot: r.slot || null,
         rarity: rarityMap[r.quality] || 'common',
         desc: r.desc || 'Forged by hand.',
@@ -28752,6 +28826,88 @@ document.addEventListener('DOMContentLoaded', () => {
     if(document.getElementById('forge-pane')?.classList.contains('active')) renderForgePanel();
   }, 200);
 });
+
+// ================================================================
+// ── NAMED NPC AMBIENT AWARENESS
+// ── If you're alive during a famous figure's era, you HEAR about them.
+// ── NPCs naturally mention legendary people, their deeds, their presence.
+// ================================================================
+
+const _bspWithNPCAmbience = buildSystemPrompt;
+buildSystemPrompt = function() {
+  let prompt = _bspWithNPCAmbience();
+  try {
+    const yr  = GS.world.year;
+    const loc = GS.world.location;
+    const kgdm = LOCATIONS[loc]?.kingdom || 'azure_empire';
+    const famous = [];
+
+    // ── Reo Yamamoto (alive pre-150, active pre-130 in Tazar area) ─
+    if(yr < 150) {
+      const proximity = kgdm === 'azure_empire' ? 'close' : 'distant';
+      const status    = yr < 120 ? 'at the height of his power' : yr < 140 ? 'aging but still present' : 'clearly aging, his city showing it';
+      famous.push({
+        name: 'Reo Yamamoto',
+        status: `Alive. Founder of Tazar, father of speed/lightning/light cultivation. ${status}.`,
+        proximity,
+        ambient: proximity === 'close'
+          ? `People in Azure cities speak of Reo the way people speak of weather — as something present, felt, shaping everything. His wardens are on the streets. His rules hold. Opinions on him range from devoted to quietly critical. NPCs might reference him when talking about safety, law, or cultivation.`
+          : `News from the Azure Empire reaches here. People speak of Reo Yamamoto as a remarkable figure, possibly exaggerated with distance. The name carries weight.`
+      });
+    }
+    if(yr >= 150 && yr < 200) {
+      famous.push({
+        name: 'Reo Yamamoto (recently died)',
+        status: 'Died Year 150. The absence is fresh.',
+        ambient: `The death of Reo Yamamoto is still raw. People reference him in past tense now, with varying emotions: grief, fear about what comes next, relief in some corners. His absence is felt as a presence of its own.`
+      });
+    }
+
+    // ── Ichiro Katsumi (alive pre-130) ─────────────────────────────
+    if(yr < 130) {
+      famous.push({
+        name: 'Ichiro Katsumi',
+        status: `Alive. Father of water/earth/spear/space cultivation. Based near Ooina.`,
+        ambient: kgdm === 'azure_empire'
+          ? `Ichiro Katsumi is a name associated with the deep forest and the hardest cultivation school. People speak of him with a kind of reverence mixed with fear — his forest eats the unprepared. Cultivators who studied under him are distinctive.`
+          : `Ichiro Katsumi is known as one of the two founders — Reo's counterpart. More remote and harder to reach. Stories about him tend toward the severe.`
+      });
+    }
+
+    // ── Láng the Warlord (active Year 134-154) ────────────────────
+    if(yr >= 134 && yr < 155) {
+      const warPhase = yr < 144 ? 'building a raider force' : yr < 150 ? 'commanding a full war' : 'the war winding down after his death';
+      famous.push({
+        name: 'Láng the Warlord',
+        status: `${yr < 154 ? 'Active' : 'Dead (Year 154)'}. No Qi. Pure physical dominance. ${warPhase}.`,
+        ambient: kgdm === 'luo_tin' || kgdm === 'buo'
+          ? `Láng's name is spoken with the weight of immediate threat. Soldiers know what he can do. Civilians know what his armies have done. Even people who've never seen him have an opinion about him.`
+          : `News of Láng the Warlord reaches here. A man without Qi who somehow leads wars. The stories sound exaggerated — they aren't.`
+      });
+    }
+
+    // ── Maligned Lords (if active) ────────────────────────────────
+    const w = GS.world;
+    if(w.zeret?.active) {
+      famous.push({
+        name: 'Something unnamed',
+        status: 'A presence. Most people can\'t name it.',
+        ambient: `There are rumors — not of a person, but of a quality in the air in certain places. A warmth that doesn't belong to the season. People laugh it off or lower their voices depending on who they're talking to.`
+      });
+    }
+
+    if(!famous.length) return prompt;
+
+    const section = `LIVING LEGENDS — PEOPLE WHO EXIST IN THE WORLD RIGHT NOW:
+${famous.map(f => `• ${f.name}: ${f.status}
+  Ambient awareness: ${f.ambient}`).join('\n\n')}
+
+AMBIENT RULE: These figures are REAL to NPCs. Characters don't need to meet them to know about them. A merchant in Tazar might mention Reo's latest decision. A farmer might have opinions about Láng. A cultivator might compare their master's techniques to Ichiro's school. Surface this naturally — not in every scene, but when it fits. These are the famous of this era.`;
+
+    prompt = prompt.replace('## ABSOLUTE RULES', section + '\n\n## ABSOLUTE RULES');
+  } catch(e) {}
+  return prompt;
+};
 
 console.log('Murim Chronicles fully loaded.');
 
