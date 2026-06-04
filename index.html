@@ -5927,6 +5927,23 @@ function buildNPCNetworkSection(r) {
     </div>`);
   }
 
+  // --- Life timeline at trust 50+ ---
+  if(bond >= 50 && npc) {
+    ensureNPCTimeline(npc);
+    const tl = npc.lifeTimeline;
+    if(tl?.length) {
+      const tlHtml = tl.map(e => `
+        <div style="display:flex;gap:8px;margin-bottom:4px">
+          <span style="font-size:9px;color:#554466;flex-shrink:0;padding-top:1px">Yr ${e.year}</span>
+          <span style="font-size:10px;color:#887799;line-height:1.4">${e.event}</span>
+        </div>`).join('');
+      sections.push(`<div style="margin-top:7px;border-top:1px solid #2a1a2a;padding-top:6px">
+        <div style="font-size:9px;color:var(--dim);text-transform:uppercase;letter-spacing:.1em;margin-bottom:5px">Their life</div>
+        ${tlHtml}
+      </div>`);
+    }
+  }
+
   if(!sections.length) return '';
   return `<div class="npc-network-section" style="padding:4px 0 2px">${sections.join('')}</div>`;
 }
@@ -9158,6 +9175,22 @@ function applyAIResponse(res) {
 
   // Race change
   if(res.raceChange) setRace(res.raceChange);
+
+  // NPC timeline events — AI can add new life events to an NPC's history as they're revealed
+  if(res.npcTimelineUpdate?.length) {
+    res.npcTimelineUpdate.forEach(upd => {
+      const npc = GS.world.npcRegistry[upd.npcId];
+      if(!npc) return;
+      ensureNPCTimeline(npc);
+      if(upd.year && upd.event) {
+        // Don't duplicate the same year
+        if(!npc.lifeTimeline.find(e => e.year === upd.year)) {
+          npc.lifeTimeline.push({ year: upd.year, event: upd.event });
+          npc.lifeTimeline.sort((a,b) => a.year - b.year);
+        }
+      }
+    });
+  }
 
   // NPC Network updates — AI can report gained/lost/strained connections on any NPC
   if(res.npcNetworkUpdate?.length) {
@@ -13577,6 +13610,199 @@ function generateNPCDeep(opts = {}) {
   return npc;
 }
 
+// ================================================================
+// NPC LIFE TIMELINE — dated events for every named NPC
+// Every NPC with a name gets actual history, not just descriptors.
+// ================================================================
+
+function generateNPCLifeTimeline(npc) {
+  const birthYear  = npc.birthYear || (GS.world.year - (npc.age || 30));
+  const currentYear = GS.world.year;
+  const age        = currentYear - birthYear;
+  const loc        = npc.location || 'tazar';
+  const kingdom    = LOCATIONS[loc]?.kingdom || 'azure_empire';
+  const occ        = npc.occupation || null;
+  const align      = npc.alignment || 'neutral';
+  const events     = [];
+
+  // Helper: pick one from array, using NPC seed for consistency
+  const pick = arr => arr[Math.abs(hashStr(npc.id + arr.length)) % arr.length];
+
+  function hashStr(s) {
+    let h = 0;
+    for(let i=0; i<s.length; i++) h = (Math.imul(31,h)+s.charCodeAt(i))|0;
+    return h;
+  }
+
+  // ── BIRTH / EARLY YEARS ──────────────────────────────────────────
+  const birthplaces = {
+    azure_empire:   ['a fishing village east of Tazar','the lower district of Tazar','a farming settlement outside Wheat Capital','a small mountain hold in the hills above Jade Province','a labor camp near the northern border'],
+    luo_tin_dynasty:['a village on the plains outside Farm City','the merchant quarter of Luo-Tin Capital','a garrison town along the Great Defensive Giant','a trade post on the eastern road'],
+    buo_kingdom:    ['a river settlement in Buo territory','a quarry town in the stone foothills','the outer ring of Buo Capital','a village that no longer exists'],
+  };
+  const birthplacePool = birthplaces[kingdom] || birthplaces.azure_empire;
+  const birthplace = pick(birthplacePool);
+
+  const familyBirth = pick([
+    `Born the second of five children in ${birthplace}.`,
+    `Born in ${birthplace} to parents who were not poor enough to starve and not comfortable enough to rest.`,
+    `Born in ${birthplace}. Father was absent by the time there was anything to remember. Mother managed.`,
+    `Born in ${birthplace}, the child of two people who worked all their lives and had little to show for it.`,
+    `Born in ${birthplace}. The family had a name once. By the time of this birth, that was all they had left.`,
+    `Born in ${birthplace} to a family that moved twice before the age of five, following work.`,
+    `Born in ${birthplace}. One of the early children in a family that had too many.`,
+  ]);
+  events.push({ year: birthYear, event: familyBirth });
+
+  // ── CHILDHOOD (age 5–12) ─────────────────────────────────────────
+  if(age >= 8) {
+    const childhoodYear = birthYear + pick([5,6,7,8,9,10]);
+    const childEvents = [
+      `Began working alongside family at ${childhoodYear - birthYear}. There was no formal schooling.`,
+      `Learned to read from an older relative who charged in chores for lessons.`,
+      `At ${childhoodYear - birthYear}, watched someone use Qi for the first time. Didn't understand what they had seen until years later.`,
+      `Lost a sibling to illness when ${childhoodYear - birthYear} years old. The family didn't speak of it much after.`,
+      `At ${childhoodYear - birthYear}, the family moved — work dried up, or debts, or something that was never fully explained.`,
+      `Spent ages ${childhoodYear - birthYear} through about twelve in a labor arrangement that passed for an apprenticeship.`,
+      `At ${childhoodYear - birthYear}, was left largely on their own for a stretch — parents working, siblings occupied. Learned to navigate alone.`,
+    ];
+    events.push({ year: childhoodYear, event: pick(childEvents) });
+  }
+
+  // ── WORLD HISTORY INTERSECTIONS ──────────────────────────────────
+  // Ichiro's death (Year 130)
+  if(birthYear <= 120 && currentYear >= 130) {
+    const ageAt130 = 130 - birthYear;
+    if(ageAt130 >= 10) {
+      const ichiroEvents = [
+        `Was ${ageAt130} when Ichiro Katsumi died. Remembers the mood that settled over the region — not grief exactly, more like the feeling that something that had been holding things steady was no longer there.`,
+        `At ${ageAt130}, remembers people talking about Katsumi's death. Adults were more unsettled than they admitted.`,
+        `Old enough at ${ageAt130} to understand what Ichiro Katsumi dying meant — one of the two people who discovered Qi, gone. The world's relationship with cultivation would never be the same.`,
+      ];
+      events.push({ year: 130, event: pick(ichiroEvents) });
+    }
+  }
+
+  // Reo's death / body failing (Year 144-150)
+  if(birthYear <= 135 && currentYear >= 150) {
+    const ageAt150 = 150 - birthYear;
+    if(ageAt150 >= 10) {
+      const reoEvents = [
+        `Was ${ageAt150} when Reo Yamamoto died in Year 150. The official story was age. Anyone who had been watching knew his body had been failing in ways that cultivation couldn't explain for years before the end.`,
+        `At ${ageAt150} years old, in Year 150. Remembers the shift in Tazar — not dramatic, but immediate. Within weeks the first administrator took a bribe. The city had been running on one man's will, and now it wasn't.`,
+        `Lived through Year 150. Reo's death didn't feel real for a long time. The world continued. That was somehow stranger than grief.`,
+      ];
+      events.push({ year: 150, event: pick(reoEvents) });
+    }
+  }
+
+  // Buo-Luo-Tin War (Year 144–154)
+  const warKingdoms = ['buo_kingdom','luo_tin_dynasty','azure_empire'];
+  if(warKingdoms.includes(kingdom) && birthYear <= 135 && currentYear >= 144) {
+    const ageAtWar = 144 - birthYear;
+    if(ageAtWar >= 12) {
+      const warEvents = [
+        `Was ${ageAtWar} when the Buo-Luo-Tin War started. Did not fight. Knew people who did. Some of them came back.`,
+        `The war years, starting Year 144 — was ${ageAtWar} at the outbreak. The price of everything went up. Movement between certain regions became dangerous. Two people known personally never returned.`,
+        `At ${ageAtWar}, the war was a distant thing that kept getting closer. Láng's raiders were in the area by the time it stopped feeling distant.`,
+        `Old enough during the war years to watch it happen and understand what was at stake, too young or too committed elsewhere to be in it.`,
+      ];
+      if(birthYear <= 125 && kingdom === 'buo_kingdom') {
+        warEvents.push(`Was in Buo territory when Láng's forces came through in the early war years. Did not fight. Survived by making themselves uninteresting to anyone with a weapon.`);
+      }
+      events.push({ year: 144, event: pick(warEvents) });
+    }
+  }
+
+  // ── ADOLESCENT TURNING POINT (age 13–20) ────────────────────────
+  if(age >= 15) {
+    const adolYear = birthYear + pick([13,14,15,16,17,18,19]);
+    const adolAge  = adolYear - birthYear;
+    const adolEvents = [
+      `At ${adolAge}, made a decision that changed the direction of their life — at the time it seemed small.`,
+      `At ${adolAge}, left the place they grew up. Not a clean departure.`,
+      `At ${adolAge}, met someone who they measured much of their subsequent life against.`,
+      `At ${adolAge}, tried cultivation for the first time. ${npc.qiStageIndex > 0 ? 'Something was there.' : 'Nothing answered. Has lived with that since.'}`,
+      `At ${adolAge}, did something they have never fully explained to anyone. Still carry it.`,
+      `At ${adolAge}, watched their family's situation deteriorate to a point that required them to act.`,
+      `At ${adolAge}, found work — real work, not family obligation — for the first time. Has been working ever since.`,
+      `At ${adolAge}, had their first serious encounter with someone who wielded real power. Did not enjoy the experience.`,
+    ];
+    events.push({ year: adolYear, event: pick(adolEvents) });
+  }
+
+  // ── OCCUPATION / EARLY ADULTHOOD (age 20–35) ─────────────────────
+  if(age >= 22) {
+    const adultYear = birthYear + pick([20,21,22,24,26,28]);
+    const adultAge  = adultYear - birthYear;
+    const occSpecific = occ ? [
+      `By ${adultAge}, had established themselves in ${occ}. Not the work they imagined. The work that was available.`,
+      `At ${adultAge}, settled into the life they currently have. The path there was less direct than it appears from the outside.`,
+    ] : [];
+    const adultEvents = [
+      ...occSpecific,
+      `At ${adultAge}, moved to ${LOCATIONS[loc]?.name || loc} — not the first choice, but circumstances made it the practical one.`,
+      `By ${adultAge}, had accumulated enough to live without asking for help. That was the goal. Still is.`,
+      `At ${adultAge}, had a relationship that ended in a way they don't describe in detail. The effect was permanent.`,
+      `By ${adultAge}, understood the difference between what they wanted their life to be and what it was going to be. Adjusted.`,
+      `At ${adultAge}, formed a partnership — in work, or something closer — that defined a stretch of years. It ended or changed. They kept going.`,
+      `At ${adultAge}, made an enemy. Still aware of it. Still careful.`,
+      `By ${adultAge}, had learned which doors they could open and which required someone else's name on them. Has been managing that gap since.`,
+    ];
+    events.push({ year: adultYear, event: pick(adultEvents) });
+  }
+
+  // ── MID-LIFE CRISIS OR ACHIEVEMENT (age 30–55) ───────────────────
+  if(age >= 35) {
+    const midYear = birthYear + pick([30,32,35,38,40,44]);
+    const midAge  = midYear - birthYear;
+    const midEvents = [
+      `At ${midAge}, something collapsed — a plan, a relationship, a belief about how things worked. Rebuilt around what was left.`,
+      `At ${midAge}, achieved something that mattered to them and found it didn't resolve the thing underneath it.`,
+      `At ${midAge}, lost someone they had not expected to lose. It reorganized their priorities in ways they are still calculating.`,
+      `At ${midAge}, made a decision they would make differently now. Does not revisit this often. Thinks about it anyway.`,
+      `At ${midAge}, realized they had become someone their younger self would not have fully recognized. That was not all bad.`,
+      `At ${midAge}, had a stretch of years where everything was stable. Spent most of that time waiting for it to end.`,
+      `At ${midAge}, encountered a cultivator who altered the course of events around them significantly. Was not the cultivator.`,
+      `At ${midAge}, came into a sum of money or resource by means they don't discuss. It lasted until it didn't.`,
+    ];
+    events.push({ year: midYear, event: pick(midEvents) });
+  }
+
+  // ── RECENT (last 1–5 years) ──────────────────────────────────────
+  if(age >= 5) {
+    const recentYear = currentYear - pick([1,1,2,2,3,4]);
+    const recentEvents = [
+      `In the last few years, the situation around ${LOCATIONS[loc]?.name || loc} has changed in ways that affect daily life. Navigating that.`,
+      `Recently, a long-standing arrangement ended — not dramatically, just concluded. Still settling into what comes next.`,
+      `In the past year or two, has been more careful than usual. Not paranoid. Just aware of something that wasn't there before.`,
+      `Recently, helped someone and hasn't decided whether it was the right call. Still waiting on the answer.`,
+      `In the last couple of years, has been trying to close out a piece of the past. Progress is slow.`,
+      `Recently had reason to remember something they had been avoiding for a long time. That's still sitting with them.`,
+      `In the last few years, has been rebuilding something — a reputation, a routine, a relationship — that took damage.`,
+    ];
+    events.push({ year: recentYear, event: pick(recentEvents) });
+  }
+
+  // Sort by year, deduplicate nearby years
+  events.sort((a,b) => a.year - b.year);
+
+  // Remove duplicates at same year
+  const seen = new Set();
+  return events.filter(e => {
+    if(seen.has(e.year)) return false;
+    seen.add(e.year);
+    return true;
+  });
+}
+
+// Ensure an NPC has their life timeline generated
+function ensureNPCTimeline(npc) {
+  if(!npc.lifeTimeline || !npc.lifeTimeline.length) {
+    npc.lifeTimeline = generateNPCLifeTimeline(npc);
+  }
+}
+
 // Override addOrUpdateRelationship to use deep NPC if applicable
 const _deepNPCRelUpdate = addOrUpdateRelationship;
 addOrUpdateRelationship = function(npc, type, summary) {
@@ -13593,6 +13819,8 @@ addOrUpdateRelationship = function(npc, type, summary) {
     npc.currentMood = npc.currentMood || rand(['measured','tired','sharp','suspicious','distracted','focused']);
     npc.familySituation = npc.familySituation || rand(NPC_FAMILY_SITUATIONS);
   }
+  // Every named NPC gets a real life timeline when they become known
+  if(npc && !npc.isLore) ensureNPCTimeline(npc);
   return _deepNPCRelUpdate(npc, type, summary);
 };
 
@@ -13636,6 +13864,15 @@ function buildNPCContextForAI() {
     if(npc.currentMood)     lines.push(`    Current mood: ${npc.currentMood}`);
     if(npc.familySituation) lines.push(`    Family: ${npc.familySituation}`);
     if(npc.cultivationView !== 'neutral' && npc.cultivationView) lines.push(`    Cultivation view: ${npc.cultivationView}`);
+
+    // Life timeline — actual dated history, not vague descriptors
+    ensureNPCTimeline(npc);
+    if(npc.lifeTimeline?.length) {
+      lines.push(`    Life history (use naturally in conversation and behavior — do NOT recite this list):`);
+      npc.lifeTimeline.forEach(e => {
+        lines.push(`      Year ${e.year}: ${e.event}`);
+      });
+    }
 
     // What they know and feel about the situation
     if(goalSummary) lines.push(`    Active goals: ${goalSummary}`);
@@ -33214,13 +33451,18 @@ WORLD REALITY — READ THIS CAREFULLY:
    - Direct honest questions when trust is established
    An NPC's former religion, conversion story, or religious doubts are among the most private things they carry. Treat them accordingly.
 
-5. NPC BACKSTORIES ARE HIDDEN BY DEFAULT.
-   Every NPC has history they don't share. Past jobs. Past relationships. Things they've done. Beliefs they hold. Secrets they carry. None of this is offered to a stranger. It reveals through:
+5. NPC BACKSTORIES ARE REAL AND HIDDEN BY DEFAULT.
+   Every NPC with a name has a real life history — actual years, actual events. They were born somewhere. They moved. They worked. They lost people. They made choices. This history exists in their life timeline and it shapes how they speak, what they react to, what they avoid, what they assume about the world.
+
+   None of this is offered to a stranger. It surfaces through:
    - Accumulated trust (bond 40+ before anything private)
-   - Relevant events that intersect their history
+   - Relevant events that intersect their history (mention the war to someone who lived through it, they react differently)
    - Specific questions asked by someone they trust
    - Extreme situations that strip the social layer
-   An NPC who just met the player does not explain themselves. They respond to the immediate situation. Their depth is there — it is not on display.
+
+   NEVER narrate an NPC's history as an info-dump. Let it show. If they were in Buo during the war, they don't say "I was in Buo during the war" — they get quieter when war comes up. They don't romanticize soldiers. They notice things about the player's wounds that civilians wouldn't. The history is real. It expresses sideways.
+
+   When you reveal a piece of their history through natural conversation, use npcTimelineUpdate to record it permanently.
 
 6. CONVERSION IS AN EVENT, NOT A SETTING.
    If an NPC changes their religion, it is because something happened. A significant loss. An encounter. A crisis of faith. An experience that the old framework couldn't explain. Conversion is not casual. It is also not permanent — people can convert, fall away, return, or quietly drift. When an NPC's religious belief changes, there is a story behind it, even if that story is never told to the player.`;
@@ -33296,6 +33538,12 @@ Every NPC's connections are real and change over time. They:
 - They join or leave an organization, causing that circle's connections to shift
 - Time passes and you narrate that they've drifted from someone
 - The player helps repair a strained connection (quality improves)
+
+**"npcTimelineUpdate" — add a real life event to an NPC's history when it's revealed in conversation:**
+"npcTimelineUpdate": [
+  { "npcId": "their_id", "year": 145, "event": "The exact thing that happened to them, written as a sentence about their life." }
+]
+Use this when: the NPC reveals something about their past that you narrate. Don't fabricate things inconsistent with their existing history. The event should be specific — a year, a thing that happened, written in the same voice as the rest of their history. This is their life, recorded.
 
 **npcNetworkUpdate format in JSON response:**
 "npcNetworkUpdate": [
