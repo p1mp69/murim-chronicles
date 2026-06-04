@@ -6907,9 +6907,14 @@ ABSOLUTE RULES — NEVER BREAK THESE:
 
 TIME IS MANDATORY: every response must have a non-zero time value. Brief talk = days:1. Training = days:1-7. Travel = days:3-15. Cultivation = days:1-30. Never leave time at {0,0,0} unless the action genuinely took no time at all.
 
-RESPONSE FORMAT — always return a JSON object inside \`\`\`json blocks:
+RESPONSE FORMAT — TWO PARTS, ALWAYS IN THIS ORDER:
+
+PART 1 — NARRATIVE (plain prose, no JSON, no code blocks):
+Write the story directly. Present tense, second person. Immersive, specific, consequential. Use markdown for emphasis (*word*), scene breaks (---), paragraph spacing. Write as many paragraphs as the scene requires. Do NOT wrap this in any code block or JSON. Just write.
+
+PART 2 — DATA (immediately after the narrative, on its own line):
+\`\`\`json
 {
-  "narrative": "The story text shown to the player. Write immersively, present tense, second person. No fluff. Consequential and specific.",
   "time": { "days": 1, "months": 0, "years": 0 },
   "statChanges": { "hp": 0, "strength": 0, "agility": 0, "endurance": 0, "intelligence": 0, "perception": 0, "willpower": 0, "charisma": 0, "luck": 0, "silver": 0 },
   "qiChange": 0,
@@ -6941,11 +6946,10 @@ RESPONSE FORMAT — always return a JSON object inside \`\`\`json blocks:
   "prisonStatus": null,
   "bounty": 0,
   "death": false,
-  "deathCause": null,
-  "actionVoid": false,
-  "voidReason": ""
+  "deathCause": null
 }
-Only include fields that actually change. Omit zeros and empty arrays.`;
+\`\`\`
+CRITICAL: The narrative is NEVER inside the JSON. The JSON block has NO "narrative" field — the prose above is the narrative. Only include JSON fields that actually changed. Omit unchanged/zero/empty fields entirely.`;
 }
 
 // ================================================================
@@ -6998,19 +7002,103 @@ async function callClaude(userMessage) {
 // ================================================================
 // PARSE & APPLY AI RESPONSE
 // ================================================================
+// Extract and unescape the narrative value from a raw JSON string, even if the JSON is broken.
+// Handles: truncation mid-string, unescaped newlines, markdown inside the value.
+function extractNarrativeFromRawJSON(jsonStr) {
+  const keyIdx = jsonStr.search(/"narrative"\s*:\s*"/);
+  if(keyIdx === -1) return null;
+  const openQuote = jsonStr.indexOf('"', jsonStr.indexOf(':', keyIdx) + 1);
+  if(openQuote === -1) return null;
+
+  let i = openQuote + 1;
+  let out = '';
+  while(i < jsonStr.length) {
+    const ch = jsonStr[i];
+    if(ch === '\\') {
+      const nx = jsonStr[i + 1] || '';
+      if(nx === 'n')      { out += '\n'; i += 2; continue; }
+      if(nx === 't')      { out += '\t'; i += 2; continue; }
+      if(nx === '"')      { out += '"';  i += 2; continue; }
+      if(nx === '\\')     { out += '\\'; i += 2; continue; }
+      out += nx; i += 2; continue;
+    }
+    // Detect end of string: unescaped `"` followed (after whitespace) by `,` or `}`
+    if(ch === '"') {
+      const rest = jsonStr.slice(i + 1).trimStart();
+      if(rest[0] === ',' || rest[0] === '}' || rest[0] === '\n') break;
+      // Unescaped quote mid-string — treat as literal (AI mistake)
+      out += ch; i++; continue;
+    }
+    out += ch; i++;
+  }
+  return out.trim() || null;
+}
+
 function parseAIResponse(text) {
   if(!text) return null;
 
-  // ── Strategy 1: Explicit ```json block ─────────────────────────
+  // ── Strategy 0: Preferred format — prose THEN ```json block ──────
+  // The AI writes the narrative as plain text, then a ```json block
+  // containing ONLY data fields (no "narrative" key).
+  // Regex: grab everything before first ```json as narrative, everything
+  // inside the block as data. No $ anchor so trailing commentary is OK.
+  const splitMatch = text.match(/([\s\S]*?)```json\s*([\s\S]*?)```/);
+  if(splitMatch) {
+    const narrativePart = splitMatch[1].trim();
+    const jsonPart      = splitMatch[2].trim();
+    let parsed = null;
+    try { parsed = JSON.parse(jsonPart); } catch(e) {
+      // JSON block is malformed or truncated — try to repair
+      try {
+        // Close any open structures and retry
+        const repaired = jsonPart.replace(/,\s*$/, '') + '}';
+        parsed = JSON.parse(repaired);
+      } catch(e2) {}
+    }
+    if(parsed && typeof parsed === 'object') {
+      // Narrative lives outside the JSON block
+      if(!parsed.narrative && narrativePart) parsed.narrative = narrativePart;
+      // If AI accidentally included "narrative" in JSON too, the prose version wins
+      if(narrativePart) parsed.narrative = narrativePart;
+      return parsed;
+    }
+    // JSON completely unrecoverable — at least return the prose
+    if(narrativePart) return { narrative: narrativePart };
+  }
+
+  // ── Strategy 1: JSON block present but narrative is inside it ────
+  // (legacy / AI ignored the format instruction)
   const codeMatch = text.match(/```json\s*([\s\S]*?)```/);
   if(codeMatch) {
+    const jsonChunk = codeMatch[1];
     try {
-      const parsed = JSON.parse(codeMatch[1]);
-      if(parsed && (parsed.narrative !== undefined || parsed.time || parsed.statChanges || parsed.newRelationships))
+      const parsed = JSON.parse(jsonChunk);
+      if(parsed && typeof parsed === 'object') {
+        if(!parsed.narrative) {
+          const beforeBlock = text.slice(0, text.indexOf('```')).trim();
+          if(beforeBlock) parsed.narrative = beforeBlock;
+        }
         return parsed;
-    } catch(e) {}
+      }
+    } catch(e) {
+      // Narrative field is almost certainly the cause of breakage —
+      // extract it manually, strip it from the JSON, parse what remains.
+      const nar = extractNarrativeFromRawJSON(jsonChunk);
+      if(nar) {
+        const stripped = jsonChunk
+          .replace(/"narrative"\s*:\s*"[\s\S]*?(?=",\s*"[a-zA-Z_]|",\s*}|$)/, '"narrative":""')
+          .replace(/"narrative"\s*:\s*""[,\s]?/, '');
+        let extras = {};
+        try { extras = JSON.parse(stripped); } catch(e2) {
+          // Try closing open brackets
+          try { extras = JSON.parse(stripped.replace(/,\s*$/, '') + '}'); } catch(e3) {}
+        }
+        return { ...extras, narrative: nar };
+      }
+    }
+    // Couldn't parse at all — return text before the block as narrative
     const beforeBlock = text.slice(0, text.indexOf('```')).trim();
-    return { narrative: beforeBlock || text.replace(/```json[\s\S]*?```/g,'').trim() };
+    return { narrative: beforeBlock || text.replace(/```json[\s\S]*?```/g, '').trim() };
   }
 
   // ── Strategy 2: Find the outermost JSON object ─────────────────
@@ -7031,6 +7119,17 @@ function parseAIResponse(text) {
         else if(ch === '}') { depth--; if(depth === 0) { braceEnd = i; break; } }
       }
     }
+    // If braceEnd === -1, the JSON was truncated (cut off mid-stream).
+    // Try to recover: extract the narrative field at minimum.
+    if(braceEnd === -1 && braceStart >= 0) {
+      const truncated = text.slice(braceStart);
+      const nar = extractNarrativeFromRawJSON(truncated);
+      if(nar) return { narrative: nar };
+      // No narrative field — return whatever prose came before the opening brace
+      const before = text.slice(0, braceStart).trim();
+      if(before.length > 20) return { narrative: before };
+    }
+
     if(braceEnd > braceStart) {
       try {
         const parsed = JSON.parse(text.slice(braceStart, braceEnd + 1));
@@ -7042,21 +7141,18 @@ function parseAIResponse(text) {
           return parsed;
         }
       } catch(e) {
-        // JSON.parse failed — try to extract narrative field with regex
-        // This handles cases where the narrative string has unescaped chars
+        // JSON.parse failed — likely narrative field with unescaped/truncated content
         const jsonChunk = text.slice(braceStart, braceEnd + 1);
-        const narMatch = jsonChunk.match(/"narrative"\s*:\s*"([\s\S]+?)(?:",\s*"|",\s*}|\n\s*"[a-zA-Z])/);
-        if(narMatch) {
-          const narrativeText = narMatch[1]
-            .replace(/\\n/g, '\n')
-            .replace(/\\"/g, '"')
-            .replace(/\\t/g, '\t')
-            .trim();
-          // Try to parse the remaining JSON for other fields
-          const withoutNarrative = jsonChunk.replace(/"narrative"\s*:\s*"[\s\S]+?(?=",\s*"[a-zA-Z]|",\s*})/, '"narrative":""');
+        const nar = extractNarrativeFromRawJSON(jsonChunk);
+        if(nar) {
+          const stripped = jsonChunk
+            .replace(/"narrative"\s*:\s*"[\s\S]*?(?=",\s*"[a-zA-Z_]|",\s*}|$)/, '"narrative":""')
+            .replace(/"narrative"\s*:\s*""[,\s]?/, '');
           let extras = {};
-          try { extras = JSON.parse(withoutNarrative); } catch(e2) {}
-          return { ...extras, narrative: narrativeText };
+          try { extras = JSON.parse(stripped); } catch(e2) {
+            try { extras = JSON.parse(stripped.replace(/,\s*$/, '') + '}'); } catch(e3) {}
+          }
+          return { ...extras, narrative: nar };
         }
       }
     }
@@ -9093,13 +9189,16 @@ Estimate duration based on the action:
 The current date is Year ${w.year}, ${MONTH_NAMES[w.month]||'Month '+w.month}, Day ${w.day||1}.
 Every response should reflect realistic time passing. A character who meditates "for a while" has spent days, not seconds.
 
-## RESPONSE FORMAT
-Return a JSON object inside \`\`\`json\`\`\` fences.
-The "narrative" field is the ONLY thing the player sees. Everything else is state tracking. The narrative should be complete prose — no stat announcements, no system messages.
+## RESPONSE FORMAT — TWO PARTS, ALWAYS IN THIS ORDER
+
+**PART 1 — NARRATIVE** (plain prose, NO code block, NO JSON):
+Write the story. Present tense, second person. Minimum 3 paragraphs. Use *italics*, scene breaks (---), and paragraph spacing freely. This is literature, not a game log. Write it directly — do not wrap it in anything.
+
+**PART 2 — DATA** (immediately after, in a \`\`\`json block):
+The JSON carries ONLY state changes. There is NO "narrative" field in the JSON — the prose above IS the narrative.
 
 \`\`\`json
 {
-  "narrative": "Full prose. Present tense. Second person. Minimum 3 paragraphs. This is literature, not a game log.",
   "time": { "days": 1, "months": 0, "years": 0 },
   "statChanges": { "hp": 0, "strength": 0, "agility": 0, "endurance": 0, "intelligence": 0, "perception": 0, "willpower": 0, "charisma": 0, "luck": 0, "silver": 0 },
   "qiChange": 0,
@@ -9135,11 +9234,11 @@ The "narrative" field is the ONLY thing the player sees. Everything else is stat
   "raceChange": null,
   "death": false,
   "deathCause": null,
-  "actionVoid": false,
-  "voidReason": ""
+  "death": false,
+  "deathCause": null
 }
 \`\`\`
-Omit any field that doesn't change. Zero values and empty arrays are noise — leave them out.`;
+Omit any field that doesn't change. Zero values and empty arrays are noise — leave them out. NEVER put the narrative inside the JSON.`;
 }
 
 // ================================================================
