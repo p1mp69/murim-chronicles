@@ -5568,7 +5568,23 @@ function buildNPCCard(r) {
       </div>
     </div>
     ${buildBondDisplay(r, npc)}
-    <div class="npc-summary" style="margin-top:4px">${r.summary || 'Nothing noted yet.'}</div>
+    <div class="npc-summary" style="margin-top:4px">${
+      (() => {
+        let s = r.summary || 'Nothing noted yet.';
+        // Strip raw narrative fragments from the card display
+        s = s.replace(/\*([^*]+)\*/g, '$1')    // *italic* → italic
+             .replace(/\*\*([^*]+)\*\*/g, '$1') // **bold** → bold
+             .replace(/[—–]\s*(?:and\s+then|but|she|he|they|it)\b.*/gi, '') // trailing em-dash clauses
+             .replace(/^[*_\s—–]+/, '')          // leading markdown
+             .replace(/\s{2,}/g, ' ')             // multiple spaces
+             .trim();
+        // If after cleaning it's just a narrative sentence fragment (< 15 chars or starts with a verb conjugation), show generic
+        if(s.length < 8 || /^(was|is|were|had|has|would|could|should|will)\b/i.test(s)) {
+          s = `${REL_TYPE_LABELS[r.type] || 'Someone'} from ${GS.char?.firstName || 'your'}'s early life.`;
+        }
+        return s;
+      })()
+    }</div>
     ${buildQuickActions(r)}
     <div class="npc-card-footer">
       <input class="npc-msg-input" placeholder="Or say something directly..." id="msg-${r.npcId}">
@@ -31237,11 +31253,15 @@ TASK: Identify every named person in this narrative. For each one, determine:
 5. Are they deceased or absent by the end of the narrative?
 
 CRITICAL RULES:
-- Names must be PERSONAL NAMES (2-20 chars, proper noun format like "Wei Jian" or "Chou")
-- Do NOT include: "Hungry", "Outside", "Then", common English words, place names, abstract nouns
+- NAME: The actual personal name ONLY. "Fumei who works the stall" → name is just "Fumei". Strip any trailing words after the name.
+- No relative clauses: "Fumei who...", "the woman who..." — name stops at the end of the given name.
+- No common English words, place names, abstract nouns as names.
 - interacted=true: spoke to player, gave player something, taught player, cared for player, raised player
 - interacted=false: player only observed them, overheard about them, or they were mentioned by others
 - ORPHAN RULE: ${isOrphan ? 'This character is an ORPHAN. Do NOT include any mother or father.' : 'Family members are valid.'}
+- DESCRIPTION: Write a clean 1-2 sentence description of who this person IS and their relationship to the character. Do NOT quote the narrative directly. Do NOT include em-dashes, asterisks, or unfinished sentences.
+  BAD: "*Bowen would have*— and then she stops."
+  GOOD: "Bowen is a market vendor who knew the protagonist's family and occasionally looked after them."
 
 Return ONLY a JSON array, no other text:
 [
@@ -31249,7 +31269,7 @@ Return ONLY a JSON array, no other text:
     "name": "Nuan Baa",
     "role": "mother",
     "interacted": true,
-    "description": "Runs a textile stall in the market, tall, precise in everything she does.",
+    "description": "The protagonist's mother, who runs a textile stall and is known for her precision and the way she handles difficult customers.",
     "deceased": false,
     "absent": false
   }
@@ -31293,11 +31313,41 @@ Valid roles: mother, father, grandmother, grandfather, sister, brother, aunt, un
       rival:20, enemy:10, employer:25,
     };
 
+    // ── AI is authoritative: wipe regex-extracted opening relationships ──
+    // The regex ran first as a fallback. Now that AI succeeded, start clean.
+    // Keep relationships added through actual gameplay (not fromOpening).
+    const prevRegexAdded = c.relationships.filter(r => r.fromOpening);
+    c.relationships = c.relationships.filter(r => !r.fromOpening);
+
+    // Clean name helper — remove trailing relative pronouns and junk
+    const cleanName = (raw) => {
+      if(!raw || typeof raw !== 'string') return raw;
+      return raw
+        .replace(/\s+(?:who|which|that|whose|whom|where|when|while|as|and|but|or|the|a|an|of|in|at|to|for|with|by|on|from)\b.*/gi, '') // strip trailing words
+        .replace(/[*_~`"']/g, '') // strip markdown chars
+        .replace(/[—–\-]+.*$/, '') // strip em-dash and everything after
+        .trim();
+    };
+
+    // Clean description helper — no markdown fragments, no raw sentences with asterisks
+    const cleanDesc = (raw) => {
+      if(!raw || typeof raw !== 'string') return raw;
+      return raw
+        .replace(/\*([^*]+)\*/g, '$1')    // *italic* → italic
+        .replace(/\*\*([^*]+)\*\*/g, '$1') // **bold** → bold
+        .replace(/—[^.!?]*$/, '')           // trailing em-dash fragments
+        .replace(/^[*_\s—–]+/, '')          // leading markdown
+        .trim();
+    };
+
     let added = 0;
     characters.forEach(char => {
-      // Validate
-      if(!char?.name || typeof char.name !== 'string') return;
-      if(char.name.length < 2 || char.name.length > 28) return;
+      // Clean the name first
+      const cleanedName = cleanName(char?.name);
+      if(!cleanedName || cleanedName.length < 2 || cleanedName.length > 28) return;
+      // Update char with cleaned name
+      char = { ...char, name: cleanedName };
+
       if(!char.interacted) return; // only add if actually interacted with
       if(c.relationships.find(r => r.name === char.name)) return; // no duplicates
 
@@ -31320,10 +31370,11 @@ Valid roles: mother, father, grandmother, grandfather, sister, brother, aunt, un
       }
 
       const bond = BOND_BY_ROLE[char.role] || 15;
+      const cleanedDesc = cleanDesc(char.description) || `Someone from ${c.firstName}'s early life.`;
       const rel = {
         npcId, name:char.name, title:'', type:char.role || 'encountered',
-        summary: char.description || `From ${c.firstName}'s early life.`,
-        fullMemory: char.description || `Met during ${c.firstName}'s early years.`,
+        summary: cleanedDesc,
+        fullMemory: cleanedDesc,
         trust: bond, bond_level: bond,
         alive: !char.deceased,
         isZeret:false, isLore:false, glowColor:null,
@@ -31341,14 +31392,23 @@ Valid roles: mother, father, grandmother, grandfather, sister, brother, aunt, un
       added++;
     });
 
-    if(added > 0) {
+    if(added > 0 || prevRegexAdded.length > 0) {
       updateRelationsTab();
-      console.log(`[People] AI extracted ${added} characters from opening narrative`);
+      console.log(`[People] AI replaced ${prevRegexAdded.length} regex entries with ${added} AI-extracted characters`);
+    } else {
+      // AI found nothing — restore the regex results as fallback
+      c.relationships.push(...prevRegexAdded);
+      updateRelationsTab();
     }
 
   } catch(e) {
     console.error('[People AI extraction]', e);
-    // Silently fail — regex fallback will have already run
+    // On any error, ensure regex results are still there
+    const hasRegex = c.relationships.some(r => r.fromOpening);
+    if(!hasRegex) {
+      // Regex was wiped but AI failed — need to re-run regex
+      try { _extractWithAI(narrativeText); } catch(e2) {}
+    }
   }
 }
 
