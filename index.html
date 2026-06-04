@@ -6376,7 +6376,8 @@ async function callClaude(userMessage) {
     return null;
   }
   const systemPrompt = buildSystemPrompt();
-  const history = GS.narrative.filter(n=>!isErrorText(n)).slice(-6).map((n,i)=>({ role: i%2===0?'user':'assistant', content:n }));
+  // 10 turns of immediate context (was 6 — longer games need more recency)
+  const history = GS.narrative.filter(n=>!isErrorText(n)).slice(-10).map((n,i)=>({ role: i%2===0?'user':'assistant', content:n }));
 
   try {
     const resp = await fetch('https://api.anthropic.com/v1/messages', {
@@ -31004,26 +31005,158 @@ advanceTime = function(days=0, months=0, years=0) {
   } catch(e) {}
 };
 
-// Inject chronicle into system prompt
+// ── TIERED CHRONICLE INJECTION ────────────────────────────────
+// The player can live from age 5 to 40+. We need memory that scales.
+// Three tiers based on how long ago events happened:
+//   RECENT    (last 5 years):  full detail, every entry
+//   MIDDLE    (5-15 years ago): condensed, 1 line per event
+//   ANCIENT   (15+ years ago): AI prose summary (see compaction)
+//
+// Total injected size stays bounded regardless of game length.
+
+function buildTieredChronicle() {
+  const c   = GS.char;
+  const w   = GS.world;
+  const yr  = w.year;
+  const all = c.chronicle || [];
+  if(!all.length && !c.lifeSummaries?.length) return null;
+
+  const parts = [];
+
+  // ── ANCIENT: AI-generated prose summaries for old periods ────
+  if(c.lifeSummaries?.length) {
+    parts.push('LIFE HISTORY (summarized):');
+    c.lifeSummaries.forEach(s => {
+      parts.push(`  [${s.label}]: ${s.summary}`);
+    });
+    parts.push('');
+  }
+
+  // ── MIDDLE: condensed entries 5-15 years ago ─────────────────
+  const middle = all.filter(e => e.year < yr - 5 && e.year >= yr - 15);
+  if(middle.length) {
+    parts.push(`EARLIER YEARS (${yr - 15} – ${yr - 5}):`);
+    middle.forEach(e => {
+      parts.push(`  Yr ${e.year}: ${e.text.slice(0, 80)}${e.text.length > 80 ? '…' : ''}`);
+    });
+    parts.push('');
+  }
+
+  // ── RECENT: full detail for last 5 years ──────────────────────
+  const recent = all.filter(e => e.year >= yr - 5);
+  if(recent.length) {
+    parts.push(`RECENT YEARS (last 5):`);
+    recent.forEach(e => {
+      parts.push(`  Year ${e.year} (Age ${e.age}): ${e.text}`);
+    });
+  } else if(!middle.length && !c.lifeSummaries?.length) {
+    return null; // nothing to show
+  }
+
+  return parts.join('\n');
+}
+
 const _bspWithChronicle = buildSystemPrompt;
 buildSystemPrompt = function() {
   let prompt = _bspWithChronicle();
   try {
-    const chronicle = GS.char.chronicle;
-    if(!chronicle?.length) return prompt;
+    const tiered = buildTieredChronicle();
+    if(!tiered) return prompt;
 
-    // Use last 20 chronicle entries to keep prompt size manageable
-    const recent = chronicle.slice(-20);
-    const lines   = recent.map(e => `Year ${e.year} (Age ${e.age}): ${e.text}`).join('\n');
+    const section = `CHARACTER MEMORY — ${GS.char.firstName} ${GS.char.lastName}'s history:
+${tiered}
 
-    const section = `CHARACTER CHRONICLE — Memory of ${GS.char.firstName} ${GS.char.lastName}'s journey so far:
-${lines}
-
-MEMORY RULE: The chronicle above is PERMANENT HISTORY. Events listed here happened. The character lived through them. Reference this when the past is relevant — don't ask the player to re-explain things that are already in the chronicle. If a milestone is listed, it occurred.`;
+MEMORY RULE: Everything above is PERMANENT HISTORY. It happened. Reference it naturally — don't ask the player to re-explain events already recorded here. If a milestone is listed, it occurred.`;
 
     prompt = prompt.replace('## ABSOLUTE RULES', section + '\n\n## ABSOLUTE RULES');
   } catch(e) {}
   return prompt;
+};
+
+// ── AUTO-COMPACTION: compress old chronicle into AI prose summaries ──
+// Triggered when: old entries (15+ years ago) exceed 15 entries
+// Uses one background API call to write a paragraph about that period.
+// Replaces the old entries with the summary to keep prompt size bounded.
+
+let _compactionRunning = false;
+
+async function maybeCompactChronicle() {
+  if(_compactionRunning) return;
+  const c   = GS.char;
+  const w   = GS.world;
+  const yr  = w.year;
+  const all = c.chronicle || [];
+  if(!all.length) return;
+
+  // Find entries older than 15 years
+  const ancient = all.filter(e => e.year < yr - 15);
+  if(ancient.length < 15) return; // not enough to compact yet
+
+  _compactionRunning = true;
+  try {
+    const apiKey = GS.settings.apiKey;
+    if(!apiKey) return;
+
+    // Group ancient entries into 10-year periods
+    const minYr = ancient[0].year;
+    const maxYr = ancient[ancient.length - 1].year;
+    const label = `Years ${minYr}–${maxYr} (Age ${ancient[0].age}–${ancient[ancient.length-1].age})`;
+    const lines  = ancient.map(e => `- Year ${e.year}: ${e.text}`).join('\n');
+
+    const compactPrompt = `You are writing a concise life chronicle entry for a cultivation RPG character named ${c.firstName} ${c.lastName}.
+
+Summarize the following events from their early life into 3-4 sentences of prose. Write in second person (you). Be specific — name the events, techniques, people, and choices. This summary will be their permanent memory.
+
+Events to summarize:
+${lines}
+
+Write ONLY the summary paragraph. No JSON, no commentary, no title.`;
+
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+      },
+      body: JSON.stringify({
+        model: 'claude-haiku-4-5', // cheaper model for background summarization
+        max_tokens: 300,
+        messages: [{ role: 'user', content: compactPrompt }],
+      }),
+    });
+
+    if(!resp.ok) return;
+    const data   = await resp.json();
+    const summary = (data.content?.[0]?.text || '').trim();
+    if(!summary || summary.length < 20) return;
+
+    // Store the summary and remove the compacted entries
+    if(!c.lifeSummaries) c.lifeSummaries = [];
+    c.lifeSummaries.push({ label, summary, coveredYears: [minYr, maxYr] });
+    c.chronicle = all.filter(e => e.year >= yr - 15); // keep non-ancient entries
+
+    console.log(`[Chronicle] Compacted ${ancient.length} entries into summary for ${label}`);
+  } catch(e) {
+    console.error('[Chronicle compaction]', e);
+  } finally {
+    _compactionRunning = false;
+  }
+}
+
+// Run compaction check periodically (on year advance)
+const _advanceWithCompaction = advanceTime;
+advanceTime = function(days=0, months=0, years=0) {
+  _advanceWithCompaction(days, months, years);
+  try {
+    const elapsed = (years||0) + (months||0)/12;
+    // Only check on meaningful time passages, not every day
+    if(elapsed >= 1 && !_compactionRunning) {
+      // Async — doesn't block gameplay
+      setTimeout(() => maybeCompactChronicle(), 2000);
+    }
+  } catch(e) {}
 };
 
 // On startGame, initialize chronicle tracking state
