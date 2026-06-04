@@ -4543,11 +4543,23 @@ function spawnItem(item) {
   const isConsumable = !!(item.consumable || item.type === 'consumable');
   const type = item.type || (isTome ? 'tome' : isConsumable ? 'consumable' : item.slot ? 'equipment' : 'supplies');
 
+  // Auto-assign slot from type when AI gives type but no slot
+  // This ensures weapons/armor from AI responses are always equippable
+  const TYPE_TO_DEFAULT_SLOT = {
+    weapon:    'weapon',
+    offhand:   'offhand',
+    armor:     'body',
+    accessory: 'acc1',
+    clothing:  'body',
+    equipment: 'weapon', // generic equipment defaults to weapon slot
+  };
+  const resolvedSlot = item.slot || TYPE_TO_DEFAULT_SLOT[type] || null;
+
   const itm = {
     id: uid(),
     name: item.name,
     type,
-    slot: item.slot || null,
+    slot: resolvedSlot,
     rarity: item.rarity || 'common',
     desc: item.desc || '',
     value: item.value || 0,
@@ -4602,10 +4614,53 @@ function unequipItem(slot) {
 }
 
 function dropItem(itemId) {
-  GS.char.inventory = GS.char.inventory.filter(i=>i.id!==itemId);
+  const item = GS.char.inventory.find(i => i.id === itemId);
+  if(!item) return;
+
+  const CONSEQUENCE_RARITIES = new Set(['epic','legendary','mythic','fable']);
+  const hasConsequence = CONSEQUENCE_RARITIES.has(item.rarity);
+
+  GS.char.inventory = GS.char.inventory.filter(i => i.id !== itemId);
   updateInventoryTab();
   hideModal('modal-item');
-  toast('Item dropped.', '', 2000);
+
+  if(hasConsequence) {
+    // Dropping a powerful item shifts the world — someone finds it
+    const w   = GS.world;
+    const loc = LOCATIONS[w.location]?.name || w.location;
+    const c   = GS.char;
+
+    const consequenceText = item.rarity === 'fable' || item.rarity === 'mythic'
+      ? `${c.firstName} ${c.lastName} abandoned a ${item.rarity}-grade item (${item.name}) in ${loc}. Qi disturbances radiated from the area. Multiple factions have already dispatched scouts.`
+      : item.rarity === 'legendary'
+      ? `A legendary item (${item.name}) was abandoned in ${loc} by ${c.firstName} ${c.lastName}. Word is spreading. Anyone with Qi sensitivity within miles felt something shift.`
+      : `An epic-grade item (${item.name}) was left behind in ${loc}. It won't stay unclaimed.`;
+
+    w.worldHistory.push(`Year ${w.year}: ${consequenceText}`);
+    w.activeWorldEvents.push({
+      id: `drop_${uid()}`,
+      year: w.year,
+      name: `${item.rarity === 'legendary' || item.rarity === 'fable' || item.rarity === 'mythic' ? 'World-Shaking' : 'Significant'}: ${item.name} Abandoned`,
+      desc: consequenceText,
+      itemDropped: { name: item.name, rarity: item.rarity, location: w.location },
+    });
+
+    addPersonalEvent(`Dropped ${item.rarity} item: ${item.name} in ${loc}. Year ${w.year}.`);
+    addChronicleEntry(`Abandoned ${item.rarity}: ${item.name} in ${loc}`, item.rarity === 'legendary' || item.rarity === 'fable' || item.rarity === 'mythic' ? 'major' : 'normal');
+
+    // Send to AI to narrate the consequence
+    const severityNote = item.rarity === 'fable' || item.rarity === 'mythic'
+      ? 'This is a world-shaking act. Multiple powerful factions will mobilize. Wars have started over items like this.'
+      : item.rarity === 'legendary'
+      ? 'This will reshape local power dynamics. Powerful figures will come for it.'
+      : 'This item will not stay lost. Someone will find it, and that person will be changed by it.';
+
+    sendToAI(`I drop ${item.name} and leave it behind. [ITEM ABANDONED — ${item.rarity.toUpperCase()}: "${item.name}" was left in ${loc}. ${severityNote} Narrate what this looks and feels like — the moment of abandonment, the immediate sense of something permanent changing. Who or what might already be responding? The world does not ignore things like this.]`);
+
+    toast(`${item.name} abandoned. The world will notice.`, 'warning', 5000);
+  } else {
+    toast('Item dropped.', '', 2000);
+  }
 }
 
 function applyItemEffects(effects, sign) {
@@ -20141,13 +20196,12 @@ function _drawDetailedMap(container) {
   ].forEach(([x,y]) => oinaTrees.push([x,y,'tc',9,13]));
 
   oinaTrees.forEach(([x,y,sym,w,h]) => svg += `<use href="#${sym}" x="${x-w/2}" y="${y-h}" width="${w}" height="${h}"/>`);
+  // Ooina label — no explicit "Ichiro's Forest" and NO tomb marker.
+  // The tomb is a hidden location. Most people don't know it exists.
+  // Players who discover it learn about it through the narrative.
   svg += `
   <text x="88" y="198" fill="#1a5020" font-size="10" font-style="italic" opacity="0.85" text-anchor="middle">Ooina</text>
-  <text x="88" y="211" fill="#1a5020" font-size="8.5" font-style="italic" opacity="0.70" text-anchor="middle">(Forest of Ichiro)</text>`;
-
-  // Ichiro's Tomb marker in Ooina
-  svg += `<use href="#ruin" x="96" y="88" width="14" height="14"/>
-  <text x="106" y="84" fill="#5a4030" font-size="7" font-style="italic" opacity="0.65">Tomb</text>`;
+  <text x="88" y="211" fill="#1a5020" font-size="8.5" font-style="italic" opacity="0.60" text-anchor="middle">Deep Forest</text>`;
 
   // ── WILD BLOOM FOREST (southern Buo) ─────────────────────────
   const wildBloomTrees = [
@@ -24445,6 +24499,11 @@ function repairInventory() {
     head:'armor', body:'armor', hands:'armor', feet:'armor',
     acc1:'accessory', acc2:'accessory',
   };
+  // Reverse: infer default slot from type when slot is missing
+  const TYPE_TO_DEFAULT_SLOT = {
+    weapon:'weapon', armor:'body', offhand:'offhand',
+    accessory:'acc1', clothing:'body', equipment:'weapon',
+  };
 
   // Repair inventory items
   c.inventory = c.inventory.filter(i => i && i.name); // drop nulls
@@ -24452,6 +24511,10 @@ function repairInventory() {
     // Fix type from slot if type is wrong
     if(item.slot && item.type === 'supplies' && SLOT_TO_TYPE[item.slot]) {
       item.type = SLOT_TO_TYPE[item.slot];
+    }
+    // Auto-assign slot from type if item has type but no slot
+    if(!item.slot && TYPE_TO_DEFAULT_SLOT[item.type]) {
+      item.slot = TYPE_TO_DEFAULT_SLOT[item.type];
     }
     // Ensure isTome flag matches type
     if(item.type === 'tome') item.isTome = true;
