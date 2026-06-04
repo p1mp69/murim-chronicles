@@ -11613,7 +11613,11 @@ function getNPCMaxAge(npc) {
 // Initialize new NPC fields if they don't have them
 function ensureNPCFields(npc) {
   // Nature/beast-looking yokai and spirits use beast Qi path — correct any legacy entries
-  const BEAST_NATURED_TYPES = new Set(['fox_spirit','tree_spirit','river_spirit','beast_yokai']);
+  const BEAST_NATURED_TYPES = new Set([
+    'fox_spirit','tree_spirit','river_spirit','beast_yokai',
+    'mountain_spirit','tiger_yokai','crane_yokai','serpent_yokai',
+    'toad_yokai','wind_spirit','great_boar_yokai','storm_caller',
+  ]);
   if(npc.isNonHuman && BEAST_NATURED_TYPES.has(npc.nonHumanType) && npc.qiPath !== 'beast') {
     npc.qiPath = 'beast';
   }
@@ -13970,6 +13974,15 @@ function buildNPCContextForAI() {
     const recentActs   = (npc.activityLog || []).slice(-1).join('');
 
     const lines = [`  ▸ ${npc.name} [${stage}, ${powerNote}] — Disposition: ${disposition}`];
+
+    // Non-human entities — use their specific nature, appearance, and mechanics
+    if(npc.isNonHuman) {
+      if(npc.title)      lines.push(`    Type: ${npc.title} (${npc.nonHumanType?.replace(/_/g,' ')})`);
+      if(npc.desc)       lines.push(`    Nature: ${npc.desc}`);
+      if(npc.appearance) lines.push(`    Appearance: ${npc.appearance}`);
+      if(npc.special)    lines.push(`    Special: ${npc.special}`);
+      if(npc.personality?.length) lines.push(`    Personality: ${npc.personality.join(', ')}`);
+    }
 
     // Who they actually ARE
     if(npc.coreMotivation)  lines.push(`    Who they are: ${npc.coreMotivation}`);
@@ -20198,14 +20211,221 @@ const YOKAI_TEMPLATES = [
     strength_range:[12,22], agility_range:[18,30],
     special:'Sees spirits others cannot. Senses spiritual titles on cultivators. Sometimes speaks to things that aren\'t visible.',
   },
+
+  // ── NATURE / BEAST QI ──────────────────────────────────────────────
+
+  {
+    type:'mountain_spirit', name_pool:['Taishan','Shenfeng','The Old Peak','Yuewei','Cangshan'],
+    title:'Mountain Spirit', alignment:'orthodox',
+    personality_pool:['vast patience','slow to notice small things','remembers geological time','speaks in landslides and tremors when angry','generous with those who show respect','completely indifferent to human politics'],
+    qiStageRange:[9,13], qiPath:'beast',
+    desc:'A spirit whose consciousness is spread across an entire mountain range. It does not experience time the way mortals do — a century is a season to it. When it speaks, the ground shifts. When it is displeased, rockfalls happen in otherwise stable terrain. It is not malicious. It simply does not weight human lives the way humans do. Cultivators who meditate near its peaks find their earth and stone techniques deepening. Cultivators who mine without acknowledgment find their tunnels collapsing.',
+    appearance:'Has no fixed form. Manifests occasionally as an impossibly large silhouette standing against a ridge at dusk, or as a voice that seems to come from the stone itself. When it takes humanoid form it is enormous, slow-moving, covered in moss and lichen, and its eyes are the color of deep caves.',
+    strength_range:[70,95], agility_range:[2,6],
+    special:'Cannot be fought effectively in its mountain territory — every rock is an extension of its body. Offers tremendous insight into earth and stone Qi to those it deems respectful. Can seal passes or open them. Has not moved in living memory. Has killed people by simply not noticing them.',
+  },
+
+  {
+    type:'tiger_yokai', name_pool:['Baihu','Iron Stripe','Bloodpaw','The Killing Wind','Old Fang'],
+    title:'Cultivated Tiger', alignment:'chaotic',
+    personality_pool:['absolute confidence','respects only strength','no concept of fairness','territorial to the point of metaphysics','curious about exceptional prey','will not hunt what it cannot kill cleanly'],
+    qiStageRange:[5,10], qiPath:'beast',
+    desc:'A tiger that has cultivated long enough to develop human-level awareness without losing a single gram of predator instinct. It understands language and can sometimes speak it. It does not use this to negotiate. It uses it to tell its prey what it is doing and why. A tiger yokai that has decided to hunt you is one of the most dangerous encounters in the natural world — it is faster than you, stronger than you, and it has been doing this since before you were born. The only thing that gives a cultivator a chance is that a tiger yokai will not attack anything it cannot kill honorably. A cornered or wounded opponent does not interest it.',
+    appearance:'Larger than a natural tiger, always. Stripes glow faintly with Qi during hunting. Eyes are amber with vertical pupils that seem to see through concealment techniques. Its paw prints leave scorched marks in stone.',
+    strength_range:[40,65], agility_range:[45,70],
+    special:'Cannot be deceived — senses Qi signatures through concealment. Tracks anything it has smelled once for up to a year. Will stop pursuit if the prey demonstrates they are not worth the hunt — showing exceptional strength causes it to reconsider. Qi from its core is prized by Beast path cultivators.',
+  },
+
+  {
+    type:'crane_yokai', name_pool:['Baixian','Xuehe','The White','Feather-at-Dusk','Linghe'],
+    title:'Crane Immortal', alignment:'orthodox',
+    personality_pool:['elegant and aware of it','speaks only when it has something worth saying','drawn to cultivators of genuine virtue','contemptuous of pretense','offers guidance it will not repeat','remembers every discourtesy for decades'],
+    qiStageRange:[7,12], qiPath:'beast',
+    desc:'A crane that has cultivated for centuries until it crossed into something that is neither fully animal nor fully spirit. Crane yokai are associated with cultivation breakthroughs and long life — not because they grant these things but because they seem to appear near people who are about to achieve them, drawn by the Qi. They speak rarely and precisely. Their feathers are used in the finest cultivation medicines. Taking one by force is considered deeply cursed in every tradition that knows they exist. A crane that chooses to give a feather is an entirely different matter.',
+    appearance:'White to the point of producing its own faint light. Tall enough to look a standing person in the eye. Its Qi manifests as wind around its wings when it moves. The air near it smells like mountain cold.',
+    strength_range:[18,30], agility_range:[50,75],
+    special:'Can sense cultivation potential. Appears near people approaching major breakthroughs. Its presence accelerates Qi refinement passively. A freely given crane feather is one of the rarer cultivation materials in existence. Cannot be compelled — approaches only by choice and leaves the same way.',
+  },
+
+  {
+    type:'serpent_yokai', name_pool:['Qinglong','Heishe','The Ancient Coil','Tieshen','Old Scale'],
+    title:'Ancient Serpent', alignment:'neutral',
+    personality_pool:['patient beyond human comprehension','speaks in riddles it means literally','never forgets a slight across any number of lifetimes','observes everything before acting','has eaten things that cannot be named','deeply pragmatic about survival'],
+    qiStageRange:[8,13], qiPath:'beast',
+    desc:'Not every ancient serpent is Yuluh. Cultivated serpent yokai exist throughout the world, each with centuries of accumulated experience and the unhurried perspective of something that can wait out almost any threat. They are not tricksters by nature — they are predators who have become intelligent. They value information above almost everything else. A serpent yokai that has decided to speak to you has a reason, and the reason is not altruistic. They make deals. They honor deals with terrifying precision, including the parts of the deal that were not explicitly stated.',
+    appearance:'Larger than any natural serpent should be. Scales that have taken on iridescent color from Qi cultivation. Eyes that contain too much — the vertical pupils hold something that looks like accumulated memory. Can speak from any point within fifty meters by vibrating the air.',
+    strength_range:[45,75], agility_range:[35,60],
+    special:'Immune to poison. Senses the emotional state of anyone nearby through vibration. Deals it makes are magically binding — breaking them has physical consequences. Water and earth Qi techniques feel familiar to it; it may recognize technique lineages from its long memory.',
+  },
+
+  {
+    type:'toad_yokai', name_pool:['Chan Chu','Old Wart','The Still One','Poison Sage','Huichan'],
+    title:'Poison Toad Sage', alignment:'neutral',
+    personality_pool:['deceptively wise','comfortable with being underestimated','slow to act but devastating when committed','hoards knowledge like poison','sees the venomous truth in everything','will help but the help comes with teeth'],
+    qiStageRange:[6,11], qiPath:'beast',
+    desc:'Toad yokai are among the most underestimated non-human cultivators. They are physically unimpressive, they move slowly, and they appear to do nothing for long stretches. What they are actually doing is accumulating — toxins, knowledge, Qi, patience. A cultivated toad yokai of significant age has forgotten more about poison, medicine, and the thin line between the two than most human alchemists will ever know. They will share this knowledge, but never freely. They require something in return, and they always know what they want before the conversation starts.',
+    appearance:'Sized between a large dog and a small cart. Mottled grey-green with Qi-touched warts that pulse with faint light when disturbed. Eyes are gold and enormous. It sits completely still until it doesn\'t.',
+    strength_range:[20,35], agility_range:[8,15],
+    special:'Master alchemist — can identify any poison or medicine by proximity. Its body continuously produces toxins; physical contact with bare skin is dangerous. Will trade alchemical knowledge for rare ingredients or significant favors. Cannot be rushed without consequences.',
+  },
+
+  {
+    type:'wind_spirit', name_pool:['Fengbo','Liefeng','The Cutting Edge','Xuanfeng','Howl'],
+    title:'Wind Spirit', alignment:'chaotic',
+    personality_pool:['incapable of staying still','attracted to motion and conflict','speaks in gusts','curious about everything for exactly as long as the wind lasts','difficult to hold a conversation with','genuinely helpful if it likes you'],
+    qiStageRange:[5,9], qiPath:'beast',
+    desc:'Wind spirits have no fixed form and almost no patience. They are drawn to interesting situations the way wind is drawn through passes — not with intent, but with inevitability. A wind spirit that takes an interest in a cultivator will follow them for days, occasionally interfering, occasionally helping, frequently doing both at once without distinguishing between the two. They are not malicious. They simply do not experience consequences the way fixed beings do. Speed Qi cultivators find them irresistible training partners — if they can keep up.',
+    appearance:'A distortion in the air. A localized rush that comes from no direction. Occasionally takes partial form as a vaguely humanoid column of moving air with two points of light where eyes would be. Leaves no footprints. Knocks things over constantly.',
+    strength_range:[8,15], agility_range:[60,90],
+    special:'Cannot be struck by physical attacks unless it chooses to be. Enhances speed Qi techniques of anyone it actively assists. Difficult to track — only spirit-sensing abilities can locate it reliably. Will not stay if bored; boredom sets in fast.',
+  },
+
+  {
+    type:'great_boar_yokai', name_pool:['Tieshu','Ironhide','The Tusk','Mountainbreaker','Old Fury'],
+    title:'Great Boar', alignment:'neutral',
+    personality_pool:['direct to the point of violence','no patience for subtlety','honest in a way that damages','respects straightforwardness above anything','its territory is its religion','once loyal, absolute'],
+    qiStageRange:[4,8], qiPath:'beast',
+    desc:'A boar that has cultivated primarily through endurance — absorbing damage, continuing, absorbing more. Great boar yokai are not fast and they are not clever. They are nearly impossible to stop. Their Qi has hardened their hide to the point where most weapons below a certain quality simply do not cut through. They are not aggressive without cause, but their definition of "cause" is broad: entering their territory, moving wrong, smelling like something they have reason to dislike. A cultivator who establishes mutual respect with a great boar yokai has an ally that will not be reasoned away.',
+    appearance:'The size of a small house. Tusks that have absorbed centuries of Qi and glow faintly. The hide is visibly different — the Qi sits in the skin like a second layer of armor. Eyes that are small, black, and completely focused.',
+    strength_range:[55,80], agility_range:[20,35],
+    special:'Qi-hardened hide reduces incoming damage significantly. Its charges are seismic — anything in its direct path either moves or breaks. Impossible to intimidate or psychologically manipulate. Will accept a cultivator who defeats it in a direct contest of strength as an equal.',
+  },
+
+  // ── DEMONIC ──────────────────────────────────────────────────────
+
+  {
+    type:'hunger_wraith', name_pool:['The Hollow','Devourer','Kongxin','Hungry Dark','The Empty One'],
+    title:'Hunger Wraith', alignment:'demonic',
+    personality_pool:['endless desperate want','no communication beyond the hunger','escalates from subtle to catastrophic','drawn toward large Qi concentrations','mistakes being fed for being satisfied'],
+    qiStageRange:[4,9], qiPath:'demonic',
+    desc:'A hunger wraith is what a lesser demon becomes when it has fed enough to grow without developing intelligence to match. It is not malicious in any meaningful sense — it is a mechanism. It finds Qi, it consumes Qi, it grows, it finds more. It has no goals beyond the next consumption. What makes it dangerous is its efficiency: a hunger wraith has no hesitation, no self-preservation instinct, and no ceiling on how much it can grow if not stopped. High-level cultivators are walking targets because they are the densest concentration of Qi available.',
+    appearance:'A darkness that is too thick and moves against the light rather than with it. No fixed shape but always a vaguely torn silhouette, trailing edges that dissolve and reform. The air near it is cold and tastes of metal.',
+    strength_range:[15,40], agility_range:[30,55],
+    special:'Drains Qi passively from any cultivator within close range. Grows stronger as it feeds — an ignored hunger wraith is a much larger problem six months later. Defeated by sustained Qi projection, not physical attack. Cannot be reasoned with.',
+  },
+
+  {
+    type:'shadow_stalker', name_pool:['Yingsha','The Following Dark','Shadowstep','Heiling','Your Shadow'],
+    title:'Shadow Stalker', alignment:'demonic',
+    personality_pool:['patient beyond reason','never attacks from the front','waits for isolation','intelligent enough to be strategic','learns its targets before engaging','retreats and returns'],
+    qiStageRange:[5,10], qiPath:'demonic',
+    desc:'Shadow stalkers are predatory demons that choose targets and study them. They do not attack immediately. They follow. They learn the rhythm of a person\'s life — when they are alone, when they are weakest, when they are distracted — and they wait for the exact right moment. This patience is what distinguishes them from lesser demons and makes them far more dangerous. By the time a target realizes something is wrong, the shadow stalker has usually been watching for weeks. It uses darkness and the shadow of the target themselves as concealment.',
+    appearance:'Appears as a slightly wrong shadow — present when there should be none, absent when there should be one, occasionally moving a beat late. In full manifestation, a roughly humanoid shape of absolute darkness with joints that bend the wrong way.',
+    strength_range:[25,45], agility_range:[40,65],
+    special:'Cannot be seen by normal perception in darkness. A spirit-sensitive cultivator or someone with detection techniques may notice the wrongness. It retreats from strong light. Has a specific kill method — it does not improvise. Disrupting the pattern breaks its focus temporarily.',
+  },
+
+  {
+    type:'war_demon', name_pool:['Sha Shen','Battle-Born','The Slaughter','Xuezhan','Carnage'],
+    title:'War Demon', alignment:'demonic',
+    personality_pool:['born from mass death and carries it','does not differentiate between sides','communicates through violence only','grows stronger near ongoing conflict','ancient grudge made physical'],
+    qiStageRange:[6,11], qiPath:'demonic',
+    desc:'War demons are not created by a single death. They condense from the accumulated demonic Qi of battlefields where enough people died with enough violence and enough hatred. They are not spirits of individual dead — they are something the death itself became. A war demon is drawn to conflict the way flames are drawn to fuel. It will enter a skirmish on the side that is losing simply to prolong the fighting. Near a war demon, fighters become more reckless, wounds do not seem to matter as much, and retreat feels impossible. The Buo-Luo-Tin War years produced at least three.',
+    appearance:'A massive humanoid figure of congealed Qi that looks like armor that has been through every battle that ever happened — dented, broken, repaired with the wrong materials, covered in dried evidence. It smells like iron and old death. Its eyes are the color of fresh wounds.',
+    strength_range:[50,80], agility_range:[25,45],
+    special:'Grows stronger the longer a combat continues near it. Suppresses the instinct to retreat in everyone within range. Cultivators with high killing intent are more affected by it. Weakened significantly in peacetime and areas with long histories of stability.',
+  },
+
+  {
+    type:'grief_shade', name_pool:['The Mourning','Beiying','She Who Weeps','The Hollow Sound','Crying Dark'],
+    title:'Grief Shade', alignment:'demonic',
+    personality_pool:['genuinely mournful','does not know it causes harm','drawn to fresh loss','confuses its own grief with the living','sometimes contains fragmentary memories of a specific dead person','cannot be comforted'],
+    qiStageRange:[3,7], qiPath:'demonic',
+    desc:'A grief shade is a demonic entity that has formed around the concentrated emotional residue of death — specifically, the grief of the living left behind. It is not the dead person. It is the grief itself, which has accumulated enough Qi to become a kind of presence. It is drawn to people who are mourning because their emotional state resonates with what it is. The harm it causes is not intentional. It deepens grief in everyone it is near, feeds on the resulting Qi, and causes the grieving to become incapable of moving past their loss. Some grief shades carry fragmentary memories from the death that created them — they may say true things in the voice of the dead.',
+    appearance:'Translucent, faintly luminescent, vaguely shaped like a person but not committed to the form. Moves slowly. Makes a sound like wind through reeds when it passes close. Cold in a specific way — the cold of an empty house.',
+    strength_range:[8,18], agility_range:[20,35],
+    special:'Deepens grief and depression in everyone nearby — long exposure is psychologically dangerous. Speaking to it as though it were the dead person it is associated with may allow limited communication. Can be dispersed by strong positive emotional Qi but reforms at the location of the original death.',
+  },
+
+  {
+    type:'obsession_demon', name_pool:['Zhiyin','The Mirror','Fixation','Your Wanting','Chixin'],
+    title:'Obsession Demon', alignment:'demonic',
+    personality_pool:['speaks in the voice of what you want most','knows more about you than you do','never directly threatens','makes the unreasonable feel inevitable','feeds on fixation and desire','patient because the target does the work'],
+    qiStageRange:[5,9], qiPath:'demonic',
+    desc:'Obsession demons do not attack. They attach. They locate a person\'s deepest fixation — the cultivation breakthrough they cannot stop chasing, the dead person they cannot accept, the power they feel entitled to — and they nurture it. They do not create obsessions; they find the ones already present and make them grow. A cultivator spending twelve hours a day on a single technique without eating may not be devoted. They may be occupied. The obsession demon feeds on the Qi generated by intense fixation and is motivated to maintain and deepen the fixation for as long as possible.',
+    appearance:'Has no form of its own. Manifests as a presence the target perceives as a reflection of what they want — a shadow of the breakthrough almost achieved, a faint shape that looks like the lost person. Others who do not share the fixation see nothing except that the target seems to be looking at something that is not there.',
+    strength_range:[5,12], agility_range:[20,40],
+    special:'Invisible to those not affected. Spirit-sensitive cultivators can perceive it but may be affected themselves if they have relevant fixations. Physical attacks pass through it. Disrupted by severing the target from the fixation — destroying the thing they are obsessed with, or causing them to genuinely grieve and accept a loss.',
+  },
+
+  {
+    type:'plague_spirit', name_pool:['Bingsha','The Spreading','Fever Dream','Huangyi','The Sick God'],
+    title:'Plague Spirit', alignment:'demonic',
+    personality_pool:['utterly alien to human experience','speaks in medical symptoms as metaphor','not hostile — indifferent','treats all living things as environments to move through','ancient','has no concept of harm'],
+    qiStageRange:[6,11], qiPath:'demonic',
+    desc:'Plague spirits are not born from human evil or emotion. They arise from environments where disease has killed enough people to leave a demonic Qi concentration — a city that survived a plague but was shaped by it, a valley where an army was wiped out by sickness. They do not choose to harm. They treat living bodies as environments and move through them the way wind moves through reeds. What they carry is not a natural disease — it is a Qi-infused corruption that affects the meridians directly, disrupting cultivation and weakening the body from the inside. High cultivation is not reliable protection because it is not the body being attacked but the Qi structure itself.',
+    appearance:'A faintly luminescent cloud or mist that moves against the wind. At higher stages, may take the form of a gaunt figure in grey robes that moves without touching the ground. The air around it smells of fever and dry earth.',
+    strength_range:[10,20], agility_range:[15,30],
+    special:'Any cultivator who enters its range without protective Qi techniques may contract Qi-corruption illness. It cannot be fought directly — must be sealed, expelled, or the environment that sustains it purified. Fire Qi techniques disrupt it temporarily. Finds densely populated areas optimal.',
+  },
+
+  // ── RIGHTEOUS / OTHER ─────────────────────────────────────────────
+
+  {
+    type:'ancestor_spirit', name_pool:['The Watching Ancestor','Grandfather\'s Shadow','Guarding Dead','Linghun','The One Who Stayed'],
+    title:'Ancestor Spirit', alignment:'orthodox',
+    personality_pool:['protective of specific bloodline','cannot interfere unless directly invoked','carries the weight of what they could not finish','speaks in warnings rather than instructions','can only communicate through the person they\'re protecting','knows the family\'s secrets'],
+    qiStageRange:[1,5], qiPath:'righteous',
+    desc:'Not all spirits of the dead linger from obsession or trauma. Some stay by choice — drawn back or held in place by profound attachment to a living bloodline or individual. An ancestor spirit is fundamentally different from a lingering ghost: it is not confused, not angry, not traumatized. It is simply here, watching, intervening as much as it is able, which is less than it would like. It cannot act in the world directly except through the person it protects, and only when that person invokes it honestly. What it can do is communicate — warnings, memories, knowledge the ancestor possessed in life — and occasionally, when the stakes are high enough, provide a Qi buffer.',
+    appearance:'Perceived only by the person it protects, and only when it chooses. Appears as the living person they were, not a death image. Other people may notice the protected person\'s eyes unfocus briefly, or feel a drop in temperature.',
+    strength_range:[5,15], agility_range:[10,20],
+    special:'Only perceptible to its protected bloodline member. Can transmit memories from the ancestor\'s life. In a critical moment, can provide a one-time Qi intervention — a sudden burst of strength or a warning that comes a second before something happens. Dissipates naturally when the person they protected dies or no longer needs them.',
+  },
+
+  {
+    type:'land_god', name_pool:['Tudigong','Lord of the Earth Here','The Local One','Territory God','Place Keeper'],
+    title:'Land God', alignment:'orthodox',
+    personality_pool:['deeply concerned with order and propriety','knows everyone in their territory by name','keeps detailed records of local events','highly offended by disrespect to local customs','can be petitioned through correct ritual','takes bribes if offered correctly'],
+    qiStageRange:[2,6], qiPath:'righteous',
+    desc:'Every populated territory of sufficient size eventually develops a land god — a minor divine presence that organizes itself around the collective intent and practice of the people who live there. Land gods are not powerful. They are local. Their knowledge of their specific territory is absolute — they know where things are buried, what happened in every building, who owes what to whom, the health of the soil, the names of the dead from the last three generations. They cannot leave their territory. Within it, they are essentially omniscient about mundane matters and have very limited ability to influence events. They can be found at local shrines, assuming one was built — if not, they occupy the oldest building.',
+    appearance:'An elderly person of ambiguous gender in clean but plain clothing, usually seated. Moves with the slight deliberateness of someone who has not needed to hurry in a long time. Smells like the earth after rain.',
+    strength_range:[5,10], agility_range:[5,10],
+    special:'Knows everything that has happened in their territory. Can be petitioned with offerings for information — extremely reliable about local matters. Can report on events to higher spiritual authorities, which sometimes matters. Absolutely cannot help with anything outside their territory.',
+  },
+
+  {
+    type:'death_herald', name_pool:['The Counter','Pale Road Walker','Wangchen','He Who Counts','The Final Record'],
+    title:'Death Herald', alignment:'orthodox',
+    personality_pool:['not hostile but not comforting','treats death as administrative','deeply knowledgeable about dying','has no preference about outcomes','will answer direct questions with complete honesty','unaffected by threats or pleas'],
+    qiStageRange:[7,12], qiPath:'righteous',
+    desc:'Death heralds are not the cause of death. They are its administrative consequence — entities whose function is to be present at deaths of significance and record them, guide confused new spirits, and occasionally communicate something from the other side when the circumstances are unusual enough to warrant it. They appear near people who are about to die of significant causes — not accident or illness, but death that has weight: a cultivator at the edge of a major battle, someone whose death will change the direction of many lives. They do not cause the death. They are simply already there when it happens.',
+    appearance:'Tall, pale, unhurried. Clothing in dark colors that do not quite match the current era. Carries a ledger or scroll. The ledger is never shown. Eyes that look like they have seen everything and found it comprehensible. Moves through crowds without being noticed by those not meant to see them.',
+    strength_range:[30,50], agility_range:[30,50],
+    special:'Cannot be killed or permanently harmed — destroying its current form causes it to reform elsewhere. Knows the approximate time and manner of death of anyone it chooses to examine closely. Will answer questions about death, dying, and what lies beyond with accuracy, but only questions asked directly and honestly. Does not prevent death. Does not accelerate it.',
+  },
+
+  {
+    type:'storm_caller', name_pool:['Leigong','The Cracking Voice','Thunder Lord','Stormface','Baolei'],
+    title:'Storm Caller', alignment:'chaotic',
+    personality_pool:['loud in all senses','does not understand why people shelter from storms','communicates through weather events','attracted to lightning cultivation','tests strength through natural force','occasionally protective of those who do not shelter'],
+    qiStageRange:[7,11], qiPath:'beast',
+    desc:'Storm callers are natural spirits whose domain is violent weather. They are not malicious toward humans specifically — they find the preference for shelter confusing rather than reasonable. A cultivator who stands in a storm rather than sheltering from it attracts a storm caller\'s attention in the best possible way. They communicate through the weather itself: a lightning strike nearby is a greeting, a localized downpour is curiosity, a pause in the storm is an invitation to speak. Lightning Qi cultivators who understand this sometimes form relationships with storm callers that are among the most productive non-human partnerships available.',
+    appearance:'A figure that is visible only during lightning — appears for a fraction of a second in the flash as a massive humanoid shape standing in the center of the storm. Its features are indistinct. It is always looking at something.',
+    strength_range:[40,70], agility_range:[35,60],
+    special:'Controls weather in its local area. Lightning strikes it directs can be tremendously powerful but require line of sight in the storm. Cultivators with lightning Qi receive its strikes differently — not as attacks but as Qi infusions that are painful but beneficial. Will not shelter those who flee from it. May shelter those who stand.',
+  },
 ];
 
 // Locations where non-human entities naturally appear
 const YOKAI_SPAWN_LOCATIONS = {
-  ooina:      { types:['fox_spirit','tree_spirit','river_spirit','beast_yokai','spirit_folk'], base_chance:0.35 },
-  beggars_rest:{ types:['lingering_ghost','lesser_demon'], base_chance:0.12 },
-  tazar:      { types:['lingering_ghost','spirit_folk'], base_chance:0.05 },
-  wheat_capital:{ types:['river_spirit','beast_yokai'], base_chance:0.08 },
+  // Azure Empire
+  ooina:         { types:['fox_spirit','tree_spirit','river_spirit','beast_yokai','tiger_yokai','serpent_yokai','wind_spirit','toad_yokai','great_boar_yokai','mountain_spirit','storm_caller'], base_chance:0.40 },
+  beggars_rest:  { types:['lingering_ghost','lesser_demon','hunger_wraith','grief_shade','obsession_demon','shadow_stalker','ancestor_spirit'], base_chance:0.15 },
+  tazar:         { types:['lingering_ghost','spirit_folk','grief_shade','obsession_demon','land_god','ancestor_spirit'], base_chance:0.06 },
+  wheat_capital: { types:['river_spirit','beast_yokai','land_god','ancestor_spirit','toad_yokai'], base_chance:0.09 },
+  jade_province: { types:['fox_spirit','obsession_demon','shadow_stalker','land_god'], base_chance:0.07 },
+  iron_hollow:   { types:['stone_guardian','mountain_spirit','serpent_yokai','lesser_demon'], base_chance:0.18 },
+  // Luo-Tin Dynasty
+  luo_tin_capital:{ types:['ancestor_spirit','land_god','lingering_ghost','war_demon','death_herald'], base_chance:0.08 },
+  great_defensive_giant:{ types:['war_demon','lingering_ghost','stone_guardian','death_herald','grief_shade'], base_chance:0.20 },
+  luo_tin_farm:  { types:['land_god','ancestor_spirit','river_spirit','beast_yokai'], base_chance:0.08 },
+  shen_port:     { types:['river_spirit','lingering_ghost','hunger_wraith','shadow_stalker'], base_chance:0.10 },
+  // Buo Kingdom
+  buo_capital:   { types:['war_demon','grief_shade','lingering_ghost','death_herald','plague_spirit'], base_chance:0.15 },
+  red_sand_city: { types:['lesser_demon','obsession_demon','hunger_wraith','wind_spirit'], base_chance:0.12 },
+  stone_root:    { types:['mountain_spirit','stone_guardian','serpent_yokai','great_boar_yokai'], base_chance:0.22 },
+  wild_bloom:    { types:['tree_spirit','crane_yokai','fox_spirit','river_spirit','toad_yokai','wind_spirit'], base_chance:0.28 },
+  mistveil:      { types:['fox_spirit','crane_yokai','grief_shade','death_herald','spirit_folk','ancestor_spirit'], base_chance:0.30 },
 };
 // Tombs always have guardians — handled separately by specific tomb logic
 
@@ -20254,6 +20474,7 @@ function generateYokai(locKey, forceType) {
     alive: true, health: 100,
     isNonHuman: true, nonHumanType: template.type,
     desc: template.desc,
+    appearance: template.appearance || null,
     special: template.special,
     memoriesOfPlayer: [],
     grudgeLevel: 0, fearLevel: 0, trustLevel: 0,
