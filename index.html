@@ -30144,6 +30144,333 @@ buildSystemPrompt = function() {
   return prompt;
 };
 
+// ================================================================
+// ── BUO-LUO-TIN WAR: DRAFT & CONSCRIPTION SYSTEM
+// ── The war (144-154) is the most brutal conflict in the world's
+// ── living memory. Both sides draft eligible civilians. If you're
+// ── in their territory and old enough, you may not have a choice.
+// ================================================================
+
+const WAR_LORE = `THE BUO-LUO-TIN WAR (Year 144–154+):
+This is the most brutal conflict in living memory. The closest equivalent is a war that grinds people down not through decisive battles but through years of attritional violence, disease, displacement, and the particular cruelty of armies that have stopped believing in what they're fighting for.
+
+LUO-TIN SIDE: The Dynasty frames this as pacification and order. In practice, Láng the Warlord's forces operate with the specific brutality of men paid to win, not to govern. They burn villages they can't hold. They conscript from the populations they're supposed to protect. Their officers write reports using language that sounds administrative and describes atrocities.
+
+BUO SIDE: Defending a homeland that's being systematically destroyed. The Buo fighters know the terrain in ways the Luo-Tin soldiers don't. They also know what happens to the towns the Luo-Tin "pacifies." This knowledge produces a particular kind of desperation. Buo soldiers don't have the option of surrender that seems safe.
+
+THE DRAFT: Both sides conscript men and women from 16 upward. The Luo-Tin draft is organized — notices delivered, registrars who track who hasn't reported. The Buo draft is more raw — village elders pointing at who's able-bodied, sometimes at knifepoint. Neither process is gentle. Neither accepts "I'd rather not."
+
+WHAT IT DOES TO PEOPLE: Soldiers come back changed, if they come back. The ones who don't come back leave families that spend years not knowing. The ones who do come back carry things that don't have names yet. The generation that fought this war will be different from the generation before it for the rest of their lives.
+
+CULTIVATOR EXEMPTIONS: High-stage cultivators (Qi Condensation III+) are sometimes exempted — both sides know that forcing a powerful cultivator into service against their will is how you get a very dangerous deserter. But anyone without cultivation, or with only basic cultivation, is fair game.`;
+
+// Draft eligibility check
+function isDraftEligible() {
+  const c = GS.char;
+  const w = GS.world;
+  const yr = w.year;
+  const age = c.age || 0;
+  const loc = w.location;
+  const kgdm = LOCATIONS[loc]?.kingdom;
+
+  // War is active Year 144-165 (including aftermath conscription)
+  if(yr < 144 || yr > 165) return { eligible:false };
+  // Must be 16+
+  if(age < 16) return { eligible:false };
+  // Must be in Luo-Tin or Buo kingdom
+  if(kgdm !== 'luo_tin' && kgdm !== 'buo') return { eligible:false };
+  // Already drafted
+  if(c._draftStatus?.drafted) return { eligible:false };
+  // Already in prison or bondage
+  if(c.prisonStatus || c.bondStatus) return { eligible:false };
+  // High cultivation exemption (stage 6+ = Qi Condensation III)
+  if((c.qi?.stageIndex || 0) >= 6) return { eligible:false, reason:'cultivation_exempt' };
+  // Sect elder or higher — political exemption
+  const sectRank = GS.world.discoveredSects.find(s=>s.playerRank)?.playerRank;
+  if(['Elder','Grand Elder','Sect Leader'].includes(sectRank)) return { eligible:false, reason:'sect_exempt' };
+
+  // Risk level by location
+  const HIGH_RISK_LOCS  = ['great_defensive_giant','red_sand_city','buo_capital','stone_root'];
+  const MED_RISK_LOCS   = ['luo_tin_capital','luo_tin_farm','mistveil','wild_bloom'];
+  const riskTier = HIGH_RISK_LOCS.includes(loc) ? 'high'
+    : MED_RISK_LOCS.includes(loc) ? 'medium' : 'low';
+
+  // Chance per year of advancement
+  const chancePerYear = { high:0.30, medium:0.15, low:0.07 }[riskTier];
+
+  return {
+    eligible: true,
+    side: kgdm === 'luo_tin' ? 'luo_tin' : 'buo',
+    riskTier,
+    chancePerYear,
+  };
+}
+
+// Fire a draft event
+function fireDraftEvent(eligibility) {
+  const c = GS.char;
+  const w = GS.world;
+
+  const side     = eligibility.side;
+  const sideName = side === 'luo_tin' ? 'Luo-Tin Dynasty' : 'Buo Kingdom';
+  const oppName  = side === 'luo_tin' ? 'Buo Kingdom' : 'Luo-Tin Dynasty';
+
+  // Mark as draft notice received (not yet drafted — player decides how to respond)
+  c._draftNotice = { year: w.year, side, location: w.location };
+
+  // World event
+  w.activeWorldEvents.push({
+    id: `draft_${uid()}`, year: w.year,
+    name: `${sideName} Draft Notice`,
+    desc: `A draft notice has been issued in this area. ${c.firstName} ${c.lastName} is eligible for conscription.`,
+  });
+
+  addPersonalEvent(`Draft notice received from ${sideName}. Year ${w.year}. Age ${c.age}.`);
+
+  // Narrative push — make it feel real
+  const luotinScene = `A notice appears on the post board near the main road. Then another, and another. By midmorning there are men in Luo-Tin administrative colors going door to door. The wording is formal: "By order of the Luo-Tin Dynasty, all able-bodied persons aged sixteen to forty-five residing in this district are required to present themselves for military assessment." The word "required" does a lot of work in that sentence. The men delivering the notices carry clubs as well as papers.`;
+  const buoScene    = `The village elder calls everyone together in the early morning, before the work starts. His voice is flat. He explains what's happening — the Luo-Tin forces are three days away, and the army needs people. He reads names from a list. ${c.firstName} ${c.lastName} is on it. The people whose names are read stand slightly apart from the others without meaning to. The others look at the ground.`;
+
+  GS.narrative.push(side === 'luo_tin' ? luotinScene : buoScene);
+
+  toast(`Draft notice — ${sideName}. Respond in your next action.`, 'error', 6000);
+
+  // Inject into system prompt via personal event so AI knows
+  c.personalEvents.push(`[DRAFT NOTICE — YEAR ${w.year}]: ${c.firstName} has received a conscription notice from the ${sideName}. They have not yet responded. Options in narrative: comply (join the army), flee (desert before reporting), bribe (2-10 gold range), claim medical condition, use cultivation status, seek sect protection, or go into hiding. The draft is real — ignoring it entirely has consequences when soldiers come to find you. Include "draftUpdate": {"action": "drafted|fled|bribed|exempt|hiding", "side": "${side}", "notes": "..."} when the situation resolves.`);
+}
+
+// Handle draft response from AI
+const _applyWithDraft = applyAIResponse;
+applyAIResponse = function(res) {
+  _applyWithDraft(res);
+  try {
+    if(!res?.draftUpdate) return;
+    const u = res.draftUpdate;
+    const c = GS.char;
+    const w = GS.world;
+
+    if(u.action === 'drafted') {
+      c._draftStatus = {
+        drafted: true,
+        side: u.side,
+        rank: u.rank || 'Conscript',
+        unit: u.unit || 'Line infantry',
+        since: w.year,
+        battles: 0,
+        desertionAttempts: 0,
+        notes: u.notes || '',
+      };
+      delete c._draftNotice;
+      addPersonalEvent(`Conscripted into ${u.side === 'luo_tin' ? 'Luo-Tin' : 'Buo'} army. Rank: ${u.rank || 'Conscript'}. Year ${w.year}.`);
+      w.worldHistory.push(`Year ${w.year}: ${c.firstName} ${c.lastName} was conscripted into the ${u.side === 'luo_tin' ? 'Luo-Tin Dynasty' : 'Buo Kingdom'} army.`);
+      toast('Conscripted.', 'error', 4000);
+
+    } else if(u.action === 'fled') {
+      delete c._draftNotice;
+      c._draftDeserter = { side: u.side, year: w.year, location: w.location };
+      c.karma.chaotic = (c.karma.chaotic || 0) + 3;
+      addPersonalEvent(`Fled the draft (${u.side === 'luo_tin' ? 'Luo-Tin' : 'Buo'} Kingdom). Deserter status. Year ${w.year}.`);
+      // Increase infamy in that location
+      const loc = w.location;
+      if(!c.reputation[loc]) c.reputation[loc] = { renown:0, infamy:0, events:[] };
+      c.reputation[loc].infamy = Math.min(100, (c.reputation[loc].infamy || 0) + 20);
+      toast('Fled the draft — deserter status. There will be consequences.', 'warning', 5000);
+
+    } else if(u.action === 'bribed') {
+      delete c._draftNotice;
+      addPersonalEvent(`Bribed way out of draft. Year ${w.year}.`);
+      toast('Draft avoided — for now.', 'gold', 3000);
+
+    } else if(u.action === 'exempt') {
+      delete c._draftNotice;
+      addPersonalEvent(`Draft exemption secured (${u.notes || 'unknown reason'}). Year ${w.year}.`);
+      toast('Draft exemption granted.', 'gold', 3000);
+
+    } else if(u.action === 'hiding') {
+      delete c._draftNotice;
+      c._draftHiding = { side: u.side, year: w.year };
+      addPersonalEvent(`In hiding to avoid draft. Year ${w.year}. If found: serious consequences.`);
+
+    } else if(u.action === 'discharged') {
+      // Released from service
+      if(c._draftStatus) {
+        const served = w.year - c._draftStatus.since;
+        addPersonalEvent(`Discharged from ${u.side === 'luo_tin' ? 'Luo-Tin' : 'Buo'} army after ${served} year(s) of service. Year ${w.year}.`);
+        c._draftHistory = c._draftHistory || [];
+        c._draftHistory.push({ ...c._draftStatus, discharged: w.year, how: u.notes || 'service complete' });
+        delete c._draftStatus;
+        toast('Discharged from military service.', 'gold', 4000);
+      }
+    }
+
+    updateCharacterTab();
+    checkAndSaveAchievements();
+  } catch(e) {}
+};
+
+// Check draft eligibility on every time advance
+const _advanceWithDraft = advanceTime;
+advanceTime = function(days=0, months=0, years=0) {
+  _advanceWithDraft(days, months, years);
+  try {
+    const elapsed = (years||0) + (months||0)/12 + (days||0)/360;
+    if(elapsed < 0.08) return; // don't check more than monthly
+
+    const eligibility = isDraftEligible();
+    if(!eligibility.eligible) return;
+    if(GS.char._draftNotice) return; // already has a pending notice
+    if(GS.char._draftHiding) return; // hiding from draft
+
+    // Roll for draft notice
+    const roll = Math.random();
+    const threshold = eligibility.chancePerYear * elapsed;
+    if(roll < threshold) fireDraftEvent(eligibility);
+  } catch(e) {}
+};
+
+// Wire into system prompt — war context and draft status
+const _bspWithDraft = buildSystemPrompt;
+buildSystemPrompt = function() {
+  let prompt = _bspWithDraft();
+  try {
+    const c  = GS.char;
+    const w  = GS.world;
+    const yr = w.year;
+
+    // Inject war lore when in war era
+    if(yr >= 139 && yr <= 170 && !prompt.includes('BUO-LUO-TIN WAR')) {
+      prompt = prompt.replace('## ABSOLUTE RULES', WAR_LORE + '\n\n## ABSOLUTE RULES');
+    }
+
+    // Draft status context
+    const ds = c._draftStatus;
+    if(ds) {
+      const sideName = ds.side === 'luo_tin' ? 'Luo-Tin Dynasty' : 'Buo Kingdom';
+      const draftCtx = `\nMILITARY SERVICE — ACTIVE:
+Side: ${sideName} | Rank: ${ds.rank} | Unit: ${ds.unit}
+Enlisted: Year ${ds.since} | Battles: ${ds.battles || 0}
+${ds.notes}
+
+MILITARY RULES:
+1. The character is a soldier. Their movement and actions are constrained by orders and military structure.
+2. Desertion is punishable by death on both sides. The punishment is not abstract — it's a specific person who is sent to bring deserters back, or a report that ensures family members are inconvenienced.
+3. Both sides have officers who are trying to win the war and officers who are trying to survive it. Neither kind is particularly safe to be near.
+4. War crimes are happening on both sides. The character may witness them, be ordered to participate, or find themselves in position to prevent something. None of these options are simple.
+5. Use "draftUpdate": {"action": "discharged|deserted|...","side":"${ds.side}","notes":"..."} when military status changes.`;
+      prompt = prompt.replace('## ABSOLUTE RULES', draftCtx + '\n\n## ABSOLUTE RULES');
+    }
+
+    // Draft notice pending
+    const dn = c._draftNotice;
+    if(dn) {
+      const sideName = dn.side === 'luo_tin' ? 'Luo-Tin Dynasty' : 'Buo Kingdom';
+      prompt = prompt.replace('## ABSOLUTE RULES',
+        `\nDRAFT NOTICE PENDING (${sideName}, Year ${dn.year}): The character has received a conscription notice and has not yet responded. Their next action determines their path. The notice is real — ignoring it entirely means soldiers come to find them within 1-3 months. Respond with "draftUpdate": {"action": "drafted|fled|bribed|exempt|hiding", "side":"${dn.side}", "rank":"...", "notes":"..."}\n\n## ABSOLUTE RULES`);
+    }
+
+    // Deserter status
+    if(c._draftDeserter) {
+      const sideName = c._draftDeserter.side === 'luo_tin' ? 'Luo-Tin' : 'Buo';
+      prompt = prompt.replace('## ABSOLUTE RULES',
+        `\nDESERTER STATUS: This character is a deserter from the ${sideName} army (Year ${c._draftDeserter.year}). In ${sideName} territory, wardens and soldiers may recognize or report them. Consequence if caught: summary court martial, which in wartime means a wall and a firing squad, or equivalent.\n\n## ABSOLUTE RULES`);
+    }
+
+    // Add to schema
+    if(!prompt.includes('"draftUpdate"')) {
+      prompt = prompt.replace('"bondageUpdate"', '"draftUpdate": null,\n  "bondageUpdate"');
+    }
+  } catch(e) {}
+  return prompt;
+};
+
+// Character tab — show draft status
+const _charTabWithDraft = updateCharacterTab;
+updateCharacterTab = function() {
+  _charTabWithDraft();
+  try {
+    const c = GS.char;
+    const ds = c._draftStatus;
+    const dn = c._draftNotice;
+    let draftEl = document.getElementById('draft-status-block');
+
+    const shouldShow = ds || dn || c._draftDeserter;
+    if(shouldShow) {
+      if(!draftEl) {
+        draftEl = document.createElement('div');
+        draftEl.id = 'draft-status-block';
+        draftEl.style.cssText = 'margin-top:8px;padding:8px 10px;border-radius:5px;';
+        const bondEl = document.getElementById('bondage-status-block');
+        const qi = document.getElementById('qi-block');
+        const parent = bondEl ? bondEl.parentNode : qi?.parentNode;
+        if(parent) parent.appendChild(draftEl);
+      }
+
+      if(dn) {
+        const sideName = dn.side === 'luo_tin' ? 'Luo-Tin Dynasty' : 'Buo Kingdom';
+        draftEl.style.cssText = 'margin-top:8px;padding:8px 10px;border-radius:5px;background:rgba(180,40,40,.2);border:1px solid #cc3322;';
+        draftEl.innerHTML = `
+          <div style="color:#cc3322;font-weight:700;font-size:11px">⚔ DRAFT NOTICE — ${sideName.toUpperCase()}</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:3px">Year ${dn.year} — Respond through your next action.</div>`;
+      } else if(ds) {
+        const sideName = ds.side === 'luo_tin' ? 'Luo-Tin Army' : 'Buo Forces';
+        draftEl.style.cssText = 'margin-top:8px;padding:8px 10px;border-radius:5px;background:rgba(40,40,180,.15);border:1px solid #4444aa;';
+        draftEl.innerHTML = `
+          <div style="color:#8888cc;font-weight:700;font-size:11px">⚔ ${sideName.toUpperCase()} — ${ds.rank.toUpperCase()}</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:3px">Unit: ${ds.unit} · Since Year ${ds.since}</div>`;
+      } else if(c._draftDeserter) {
+        const sideName = c._draftDeserter.side === 'luo_tin' ? 'Luo-Tin' : 'Buo';
+        draftEl.style.cssText = 'margin-top:8px;padding:8px 10px;border-radius:5px;background:rgba(100,100,0,.15);border:1px solid #888800;';
+        draftEl.innerHTML = `
+          <div style="color:#aaaa00;font-weight:700;font-size:11px">⚠ DESERTER — ${sideName.toUpperCase()}</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:3px">Fled draft Year ${c._draftDeserter.year}. Wanted in ${sideName} territory.</div>`;
+      }
+    } else if(draftEl) {
+      draftEl.remove();
+    }
+  } catch(e) {}
+};
+
+// Opening narrative — inject war context for war-era births in Buo/Luo-Tin
+const _openingWithDraft = generateOpeningNarrative;
+// Patch the system prompt for opening narrative when war applies
+const _bspWithOpeningWar = buildSystemPrompt;
+buildSystemPrompt = function() {
+  let prompt = _bspWithOpeningWar();
+  try {
+    const c  = GS.char;
+    const yr = GS.world.year;
+    const kgdm = LOCATIONS[c.birthCity || GS.world.location]?.kingdom;
+
+    // War-era birth context for opening narrative
+    if(yr >= 144 && yr <= 165 && (kgdm === 'luo_tin' || kgdm === 'buo')) {
+      const warCtx = `\nOPENING NARRATIVE WAR CONTEXT:
+This character was born into the Buo-Luo-Tin War era in ${kgdm === 'luo_tin' ? 'Luo-Tin Dynasty' : 'Buo Kingdom'} territory.
+The war is the texture of this childhood. Not always the foreground — but always present.
+${kgdm === 'luo_tin' ? 'Luo-Tin side: organized, bureaucratic conscription, soldiers in official colors, supply lines, checkpoints.' : 'Buo side: defensive, raw, fighting for survival, village militia, guerrilla resistance.'}
+Adults speak carefully. Food is rationed or scarce. Certain men are absent. Certain women are working in roles they weren't expected to before the war.
+If the character is 16+ at Year ${yr}: they are of draft age. The opening narrative should acknowledge this reality without necessarily resolving it — this is the world they exist in.
+The war is not a backdrop. It is THE context.`;
+      prompt = prompt.replace('## ABSOLUTE RULES', warCtx + '\n\n## ABSOLUTE RULES');
+    }
+  } catch(e) {}
+  return prompt;
+};
+
+// Achievements
+if(typeof ACHIEVEMENTS_DEF !== 'undefined') {
+  ACHIEVEMENTS_DEF.push(
+    { id:'survived_war',     icon:'⚔', name:'Still Standing',
+      desc:'Survive military service in the Buo-Luo-Tin War.',
+      check: gs => gs.char._draftHistory?.length > 0 },
+    { id:'draft_dodger',     icon:'🌘', name:'Ghost',
+      desc:'Successfully evade the draft.',
+      check: gs => gs.char._draftDeserter?.year && !gs.char._draftStatus },
+    { id:'drafted_early',    icon:'🪖', name:'Called Up',
+      desc:'Be drafted at the minimum age (16).',
+      check: gs => gs.char._draftStatus && gs.char.age <= 17 }
+  );
+}
+
 console.log('Murim Chronicles fully loaded.');
 
 </script>
