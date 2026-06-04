@@ -4254,6 +4254,9 @@ function advanceTime(days=0, months=0, years=0) {
     if(n.birthYear) n.age = w.year - n.birthYear;
   });
 
+  // Dynamic NPC network drift (once per year)
+  if(w.year !== prevYear) tickNPCNetworkDrift(prevYear);
+
   // Check scheduled events that are now due
   checkScheduledEvents();
 
@@ -4910,18 +4913,231 @@ function assignNPCReligion(location, alignment) {
 
 // Generate a realistic network for an NPC — who they actually know
 function generateNPCNetwork(location) {
-  const types = ['local_merchants','neighborhood_residents','sect_acquaintances',
-                 'guild_contacts','criminal_contacts','military_contacts',
-                 'religious_community','family_network','work_colleagues'];
-  // Each NPC knows 2-4 types of people, based on their location
-  const count   = 2 + Math.floor(Math.random() * 3);
-  const network = [];
-  const pool    = [...types];
+  // Returns the initial network CATEGORIES (types of people they know)
+  // Specific named connections are tracked separately in npc.connections[]
+  const all = ['local_merchants','neighborhood_residents','sect_acquaintances',
+               'guild_contacts','criminal_contacts','military_contacts',
+               'religious_community','family_network','work_colleagues',
+               'childhood_friends','former_employer','trade_partners'];
+  const count = 2 + Math.floor(Math.random() * 3);
+  const pool  = [...all];
+  const categories = [];
   for(let i = 0; i < count; i++) {
     const idx = Math.floor(Math.random() * pool.length);
-    network.push(pool.splice(idx, 1)[0]);
+    categories.push(pool.splice(idx, 1)[0]);
   }
-  return network;
+  return categories; // what types of people they know — not who specifically
+}
+
+// Initialize a proper connections list on an NPC if it doesn't have one
+function ensureNPCConnections(npc) {
+  if(!npc.connections) {
+    npc.connections = []; // { npcId, name, type, quality, since, notes }
+  }
+  if(!npc.estrangedFrom) {
+    npc.estrangedFrom = []; // { npcId, name, reason, since }
+  }
+  return npc;
+}
+
+// Add a connection between two NPCs
+function addNPCConnection(npcId, targetId, targetName, type, quality, notes) {
+  const npc = GS.world.npcRegistry[npcId];
+  if(!npc) return;
+  ensureNPCConnections(npc);
+  // Don't add if already connected
+  if(npc.connections.find(c => c.npcId === targetId || c.name === targetName)) return;
+  npc.connections.push({
+    npcId:   targetId || null,
+    name:    targetName,
+    type:    type || 'acquaintance', // friend, business, rival, family, religious, criminal, etc
+    quality: quality || 'casual',   // close, casual, strained, broken
+    since:   GS.world.year,
+    notes:   notes || '',
+    gained:  GS.world.year,
+  });
+}
+
+// Remove or strain a connection
+function strainNPCConnection(npcId, targetId, targetName, reason, broken) {
+  const npc = GS.world.npcRegistry[npcId];
+  if(!npc) return;
+  ensureNPCConnections(npc);
+  const conn = npc.connections.find(c => c.npcId === targetId || c.name === targetName);
+  if(conn) {
+    if(broken) {
+      // Move to estranged
+      npc.estrangedFrom.push({ npcId:conn.npcId, name:conn.name, reason, since:GS.world.year });
+      npc.connections = npc.connections.filter(c => c !== conn);
+    } else {
+      conn.quality = 'strained';
+      conn.strainReason = reason;
+    }
+  }
+}
+
+// When two NPCs who are both known to the player interact, they can form a connection
+function introduceNPCs(npc1Id, npc2Id) {
+  const npc1 = GS.world.npcRegistry[npc1Id];
+  const npc2 = GS.world.npcRegistry[npc2Id];
+  if(!npc1 || !npc2) return;
+  addNPCConnection(npc1Id, npc2Id, npc2.name, 'acquaintance', 'casual', 'Introduced by the player');
+  addNPCConnection(npc2Id, npc1Id, npc1.name, 'acquaintance', 'casual', 'Introduced by the player');
+}
+
+// When player is notable in a location, local NPCs gain "know of player" in their network
+function spreadPlayerNotoriety(locKey) {
+  const c   = GS.char;
+  const rep = c.reputation[locKey];
+  if(!rep) return;
+  const notable = (rep.renown >= 40 || rep.infamy >= 40);
+  if(!notable) return;
+  // NPCs in this location gain awareness of the player (not a direct connection, just awareness)
+  Object.values(GS.world.npcRegistry).forEach(npc => {
+    if(npc.location !== locKey) return;
+    if(!npc.awarenessOf) npc.awarenessOf = {};
+    npc.awarenessOf[c.firstName + ' ' + c.lastName] = {
+      renown: rep.renown, infamy: rep.infamy,
+      since: GS.world.year,
+      source: 'local_reputation',
+    };
+  });
+}
+
+// === NPC NETWORK DRIFT — runs once per year boundary ===
+// Handles: connections weakening from inactivity, falling outs, death-severing,
+// location drift, and organic new casual contacts.
+function tickNPCNetworkDrift(prevYear) {
+  const w = GS.world;
+  const allNpcs = Object.values(w.npcRegistry);
+
+  allNpcs.forEach(npc => {
+    if(!npc.alive) return;
+    ensureNPCConnections(npc);
+
+    // 1. Death-sever: if a connected NPC has died, mark it
+    npc.connections = npc.connections.filter(conn => {
+      if(!conn.npcId) return true; // unnamed connections can't be verified dead
+      const other = w.npcRegistry[conn.npcId];
+      if(other && other.alive === false) {
+        // Move to estranged (with death flag)
+        npc.estrangedFrom.push({
+          npcId: conn.npcId,
+          name:  conn.name,
+          reason: 'died',
+          since: w.year,
+          wasType: conn.type,
+        });
+        return false; // remove from active connections
+      }
+      return true;
+    });
+
+    // 2. Strained connections may break entirely
+    npc.connections = npc.connections.filter(conn => {
+      if(conn.quality === 'strained') {
+        // 20% chance per year of breaking off completely
+        if(Math.random() < 0.20) {
+          npc.estrangedFrom.push({
+            npcId: conn.npcId, name: conn.name,
+            reason: conn.strainReason || 'falling out',
+            since: w.year,
+          });
+          return false;
+        }
+      }
+      return true;
+    });
+
+    // 3. Casual connections may drift (age → strained) if both are in different locations
+    npc.connections.forEach(conn => {
+      if(conn.quality !== 'casual') return;
+      if(!conn.npcId) return;
+      const other = w.npcRegistry[conn.npcId];
+      if(!other) return;
+      // If they've been in different locations for a long time, drift
+      if(other.location && npc.location && other.location !== npc.location) {
+        const yearsApart = w.year - (conn.lastSharedYear || conn.gained || w.year);
+        if(yearsApart >= 3 && Math.random() < 0.15) {
+          conn.quality = 'strained';
+          conn.strainReason = 'distance — no longer in the same place';
+        }
+      }
+    });
+
+    // 4. Long-inactive category connections can drift too
+    // (knownNetwork is the category list — occasionally prune one, occasionally add one)
+    if(npc.knownNetwork && Array.isArray(npc.knownNetwork)) {
+      // Small chance to lose a network category (people in that circle moved on)
+      if(npc.knownNetwork.length > 1 && Math.random() < 0.04) {
+        const idx = Math.floor(Math.random() * npc.knownNetwork.length);
+        const lost = npc.knownNetwork.splice(idx, 1)[0];
+        // Record in estranged as a group rather than a person
+        npc.estrangedFrom.push({ name: lost + ' (network)', reason: 'circle dissolved', since: w.year });
+      }
+      // Small chance to gain a new category (they've been living, meeting people)
+      const ALL_CATEGORIES = ['local_merchants','neighborhood_residents','sect_acquaintances',
+        'guild_contacts','criminal_contacts','military_contacts','religious_community',
+        'family_network','work_colleagues','childhood_friends','former_employer','trade_partners'];
+      const available = ALL_CATEGORIES.filter(c => !npc.knownNetwork.includes(c));
+      if(available.length > 0 && Math.random() < 0.06) {
+        const newCat = available[Math.floor(Math.random() * available.length)];
+        npc.knownNetwork.push(newCat);
+      }
+    }
+
+    // 5. NPCs who share a location can gain connections to named NPCs they don't know yet
+    // (only if they have overlapping network categories — they run in the same circles)
+    if(Math.random() < 0.08) {
+      const sameLocation = allNpcs.filter(other =>
+        other !== npc &&
+        other.alive !== false &&
+        other.location === npc.location &&
+        !npc.connections.find(c => c.npcId === other.id)
+      );
+      if(sameLocation.length > 0) {
+        const candidate = sameLocation[Math.floor(Math.random() * sameLocation.length)];
+        // Only connect if they share a network category (they move in overlapping worlds)
+        const npcCats   = npc.knownNetwork       || [];
+        const otherCats = candidate.knownNetwork || [];
+        const overlap   = npcCats.filter(c => otherCats.includes(c));
+        if(overlap.length > 0) {
+          addNPCConnection(npc.id, candidate.id, candidate.name, overlap[0], 'casual',
+            `Met through shared ${overlap[0].replace(/_/g,' ')} circles`);
+          // Reciprocal
+          addNPCConnection(candidate.id, npc.id, npc.name, overlap[0], 'casual',
+            `Met through shared ${overlap[0].replace(/_/g,' ')} circles`);
+        }
+      }
+    }
+  });
+}
+
+// Get a summary of an NPC's network for display / AI context
+function getNPCNetworkSummary(npcId) {
+  const npc = GS.world.npcRegistry[npcId];
+  if(!npc) return '';
+  ensureNPCConnections(npc);
+  const lines = [];
+  // Categories they have contacts in
+  if(npc.knownNetwork?.length) {
+    lines.push(`General network circles: ${npc.knownNetwork.map(c=>c.replace(/_/g,' ')).join(', ')}`);
+  }
+  // Named active connections
+  if(npc.connections.length) {
+    const active  = npc.connections.filter(c => c.quality !== 'broken');
+    const strained = npc.connections.filter(c => c.quality === 'strained');
+    if(active.length)   lines.push(`Known to: ${active.map(c=>`${c.name} (${c.type}, ${c.quality})`).join('; ')}`);
+    if(strained.length) lines.push(`Strained connections: ${strained.map(c=>`${c.name} — ${c.strainReason||'tension'}`).join('; ')}`);
+  }
+  // Estranged
+  if(npc.estrangedFrom?.length) {
+    const estranged = npc.estrangedFrom.filter(e => e.reason !== 'died');
+    const mourned   = npc.estrangedFrom.filter(e => e.reason === 'died');
+    if(estranged.length) lines.push(`Cut off from: ${estranged.map(e=>`${e.name} (${e.reason})`).join('; ')}`);
+    if(mourned.length)   lines.push(`Connections lost to death: ${mourned.map(e=>e.name).join(', ')}`);
+  }
+  return lines.join('\n');
 }
 
 function spawnLoreNPC(loreId) {
@@ -5484,13 +5700,23 @@ function buildQuickActions(r) {
     hasFear && playerPR > npcPR * 0.8
       ? { label: 'Threaten',     type: 'threaten', cls: 'danger' }
       : null,
+    // "Ask about someone" — request referral to someone in their network
+    !isHostile
+      ? { label: 'Ask who they know', type: 'network_probe', cls: '' }
+      : null,
   ].filter(Boolean);
+
+  // Introduce button only if there are other known NPCs to introduce to
+  const canIntroduce = !isHostile && GS.char.relationships.filter(x => x.npcId !== r.npcId && x.alive !== false).length > 0;
+  const introduceBtn = canIntroduce
+    ? `<button class="npc-qa-btn" onclick="introduceNPCsPrompt('${r.npcId}')">Introduce to...</button>`
+    : '';
 
   return `<div class="npc-quick-actions">${
     actions.map(a =>
       `<button class="npc-qa-btn ${a.cls}" onclick="sendQuickAction('${r.npcId}','${a.type}')">${a.label}</button>`
     ).join('')
-  }</div>`;
+  }${introduceBtn}</div>`;
 }
 
 function sendQuickAction(npcId, actionType) {
@@ -5514,6 +5740,16 @@ function sendQuickAction(npcId, actionType) {
     apologize: `I try to repair things with ${name}. I don't minimize what happened — I'm actually sorry and I say so plainly.`,
     insult:    `I say something deliberately unkind to ${name}. I know what I'm doing. I do it anyway.`,
     threaten:  `I make my position clear to ${name}. I'm not performing — I mean it, and they should know I mean it.`,
+    network_probe: (() => {
+      // Build context about what the NPC actually knows so AI can respond realistically
+      const npcData = GS.world.npcRegistry[npcId];
+      ensureNPCConnections(npcData || {});
+      const circles   = (npcData?.knownNetwork || []).map(c => c.replace(/_/g,' ')).join(', ') || 'unknown circles';
+      const named     = (npcData?.connections   || []).filter(c => c.quality !== 'broken').map(c => c.name).join(', ') || 'no specific named contacts revealed';
+      const strained  = (npcData?.connections   || []).filter(c => c.quality === 'strained').map(c => c.name).join(', ');
+      const estranged = (npcData?.estrangedFrom  || []).filter(e => e.reason !== 'died').map(e => e.name).join(', ');
+      return `I ask ${name} who they know around here — whether they might be able to point me toward someone specific, or just tell me what circles they move in.\n\n[NPC NETWORK CONTEXT: ${name} moves in these circles: ${circles}. Named contacts they have: ${named}.${strained ? ` Strained: ${strained}.` : ''}${estranged ? ` Estranged from: ${estranged}.` : ''} The NPC should respond honestly based ONLY on their actual connections. If the player asks for a specific type of person that ${name} genuinely doesn't know, they say so. If they reveal a new named contact from their circles, add them via npcNetworkUpdate in the response.]`;
+    })(),
   };
 
   const msg = actions[actionType];
@@ -5625,6 +5861,73 @@ function buildBondDisplay(r, npc) {
   </div>`;
 }
 
+// Shows mutual contacts and known network circles on NPC cards
+function buildNPCNetworkSection(r) {
+  const npc = GS.world.npcRegistry[r.npcId];
+  if(!npc) return '';
+  ensureNPCConnections(npc);
+
+  const playerRels = GS.char.relationships;
+  const sections   = [];
+
+  // --- Mutual contacts: NPCs the player also knows who are in this NPC's network ---
+  const mutual = (npc.connections || []).filter(conn => {
+    if(!conn.npcId) return false;
+    return playerRels.some(pr => pr.npcId === conn.npcId);
+  });
+
+  if(mutual.length > 0) {
+    const chips = mutual.map(conn => {
+      const qualColor = conn.quality === 'close' ? '#c49a30'
+        : conn.quality === 'strained' ? '#aa4444'
+        : '#7788aa';
+      const tooltip = conn.type ? conn.type.replace(/_/g,' ') : 'contact';
+      return `<span title="${tooltip}" style="
+        font-size:10px; padding:1px 7px; border-radius:10px;
+        background:rgba(30,20,40,.7); border:1px solid ${qualColor}33;
+        color:${qualColor}; cursor:default
+      ">${conn.name}</span>`;
+    }).join(' ');
+    sections.push(`<div style="margin-top:5px">
+      <span style="font-size:9px;color:var(--dim);text-transform:uppercase;letter-spacing:.1em">Also knows: </span>
+      ${chips}
+    </div>`);
+  }
+
+  // --- Estranged contacts the player might know ---
+  const estrangedMutual = (npc.estrangedFrom || []).filter(e => {
+    if(!e.npcId) return false;
+    return e.reason !== 'died' && playerRels.some(pr => pr.npcId === e.npcId);
+  });
+  if(estrangedMutual.length > 0) {
+    const chips = estrangedMutual.map(e => `<span title="${e.reason||'falling out'}" style="
+      font-size:10px; padding:1px 7px; border-radius:10px;
+      background:rgba(30,20,40,.7); border:1px solid #66223344;
+      color:#885566; cursor:default; text-decoration:line-through
+    ">${e.name}</span>`).join(' ');
+    sections.push(`<div style="margin-top:3px">
+      <span style="font-size:9px;color:#664455;text-transform:uppercase;letter-spacing:.1em">Cut off from: </span>
+      ${chips}
+    </div>`);
+  }
+
+  // --- Network circles (only show at trust 30+) ---
+  const bond = r.bond_level || r.trust || 0;
+  if(bond >= 30 && npc.knownNetwork?.length) {
+    const circleChips = npc.knownNetwork.map(c => `<span style="
+      font-size:9px; padding:1px 5px; border-radius:8px;
+      background:rgba(20,15,30,.6); border:1px solid #33284444;
+      color:#665577; cursor:default
+    ">${c.replace(/_/g,' ')}</span>`).join(' ');
+    sections.push(`<div style="margin-top:4px">
+      <span style="font-size:9px;color:var(--dim);opacity:.7">Circles: </span>${circleChips}
+    </div>`);
+  }
+
+  if(!sections.length) return '';
+  return `<div class="npc-network-section" style="padding:4px 0 2px">${sections.join('')}</div>`;
+}
+
 function buildNPCCard(r) {
   const npc      = GS.world.npcRegistry[r.npcId];
   const isZeret  = r.isZeret;
@@ -5697,6 +6000,7 @@ function buildNPCCard(r) {
       })()
     }</div>
     ${buildQuickActions(r)}
+    ${buildNPCNetworkSection(r)}
     <div class="npc-card-footer">
       <input class="npc-msg-input" placeholder="Or say something directly..." id="msg-${r.npcId}">
       <button class="npc-msg-btn" onclick="sendNPCMessage('${r.npcId}')">→</button>
@@ -5786,6 +6090,26 @@ function openMemory(npcId, e) {
   document.getElementById('memory-title').textContent = rel.name;
   document.getElementById('memory-content').textContent = rel.fullMemory || 'Nothing recorded yet.';
   showModal('modal-memory');
+}
+
+// Let the player introduce two NPCs to each other
+function introduceNPCsPrompt(npcId) {
+  const rels = GS.char.relationships.filter(r => r.npcId !== npcId && r.alive !== false);
+  if(rels.length === 0) { alert("You don't know anyone else to introduce them to."); return; }
+  const options = rels.map((r,i) => `${i+1}. ${r.name}`).join('\n');
+  const choice  = prompt(`Introduce to:\n${options}\n\nEnter number:`);
+  const idx     = parseInt(choice) - 1;
+  if(isNaN(idx) || idx < 0 || idx >= rels.length) return;
+  const targetRel = rels[idx];
+  const npc1  = GS.world.npcRegistry[npcId];
+  const npc2  = GS.world.npcRegistry[targetRel.npcId];
+  const rel   = GS.char.relationships.find(r => r.npcId === npcId);
+
+  // Immediately create the connection in the network
+  introduceNPCs(npcId, targetRel.npcId);
+
+  const context = `I introduce ${rel?.name || npc1?.name || 'them'} and ${targetRel.name} to each other. I bring them together and make the introduction myself.\n\n[INTRODUCTION EVENT: The player is personally introducing ${rel?.name || 'NPC A'} (${LOCATIONS[npc1?.location]?.name || 'unknown location'}) and ${targetRel.name} (${LOCATIONS[npc2?.location]?.name || 'unknown location'}) to each other for the first time. Narrate the moment of introduction — how each reacts to the other, whether there's any instant rapport or friction. This is a real first meeting. Update npcNetworkUpdate for both NPCs to confirm the new connection, using quality based on how the meeting went.]`;
+  sendToAI(context);
 }
 
 function sendNPCMessage(npcId) {
@@ -6285,7 +6609,10 @@ function adminStatSet(key, val) {
 function showNPCStats(npcId) {
   const npc = GS.world.npcRegistry[npcId];
   if(!npc) return;
-  const info = `${npc.name}\n${QI_STAGES[npc.qiStageIndex||0]?.name}\nSTR:${npc.strength} AGI:${npc.agility} END:${npc.endurance}\nINT:${npc.intelligence} PER:${npc.perception} WIL:${npc.willpower}\nCHA:${npc.charisma} LCK:${npc.luck}\nAlignment: ${npc.alignment}\nPersonality: ${npc.personality?.join(', ')}\nLocation: ${npc.location}`;
+  ensureNPCConnections(npc);
+  const network  = getNPCNetworkSummary(npcId) || 'No network data';
+  const religion = npc.religion ? `\nReligion: ${npc.religion}${npc.formerReligion ? ` (formerly ${npc.formerReligion})` : ''}` : '';
+  const info = `${npc.name}\n${QI_STAGES[npc.qiStageIndex||0]?.name}\nSTR:${npc.strength} AGI:${npc.agility} END:${npc.endurance}\nINT:${npc.intelligence} PER:${npc.perception} WIL:${npc.willpower}\nCHA:${npc.charisma} LCK:${npc.luck}\nAlignment: ${npc.alignment}\nPersonality: ${npc.personality?.join(', ')}\nLocation: ${npc.location}${religion}\n\n=== NETWORK ===\n${network}`;
   alert(info);
 }
 
@@ -8827,6 +9154,52 @@ function applyAIResponse(res) {
 
   // Race change
   if(res.raceChange) setRace(res.raceChange);
+
+  // NPC Network updates — AI can report gained/lost/strained connections on any NPC
+  if(res.npcNetworkUpdate?.length) {
+    res.npcNetworkUpdate.forEach(update => {
+      const npc = GS.world.npcRegistry[update.npcId];
+      if(!npc) return;
+      ensureNPCConnections(npc);
+
+      // Connections gained
+      (update.gained || []).forEach(g => {
+        addNPCConnection(npc.id, g.npcId || null, g.name, g.type || 'acquaintance', g.quality || 'casual', g.notes || '');
+        // Reciprocal if they're also a registry NPC
+        if(g.npcId && GS.world.npcRegistry[g.npcId]) {
+          addNPCConnection(g.npcId, npc.id, npc.name, g.type || 'acquaintance', g.quality || 'casual', g.notes || '');
+        }
+      });
+
+      // Connections strained
+      (update.strained || []).forEach(s => {
+        strainNPCConnection(npc.id, s.npcId || null, s.name, s.reason || 'tension', false);
+        // Reciprocal
+        if(s.npcId && GS.world.npcRegistry[s.npcId]) {
+          strainNPCConnection(s.npcId, npc.id, npc.name, s.reason || 'tension', false);
+        }
+      });
+
+      // Connections broken / severed
+      (update.lost || []).forEach(l => {
+        strainNPCConnection(npc.id, l.npcId || null, l.name, l.reason || 'falling out', true);
+        if(l.npcId && GS.world.npcRegistry[l.npcId]) {
+          strainNPCConnection(l.npcId, npc.id, npc.name, l.reason || 'falling out', true);
+        }
+      });
+
+      // Network category changes (gained/lost circles)
+      if(update.gainedCircle) {
+        npc.knownNetwork = npc.knownNetwork || [];
+        if(!npc.knownNetwork.includes(update.gainedCircle)) {
+          npc.knownNetwork.push(update.gainedCircle);
+        }
+      }
+      if(update.lostCircle && npc.knownNetwork) {
+        npc.knownNetwork = npc.knownNetwork.filter(c => c !== update.lostCircle);
+      }
+    });
+  }
 
   // Death
   if(res.death) handleDeath(res.deathCause || 'unknown');
@@ -32861,6 +33234,85 @@ buildSystemPrompt = function() {
         rel._religionKnown = npc.religion;
       }
     });
+  } catch(e) {}
+  return prompt;
+};
+
+// === NPC NETWORK — DYNAMIC CONNECTION SYSTEM PROMPT PATCH ===
+const _bspWithNPCNetwork = buildSystemPrompt;
+buildSystemPrompt = function() {
+  let prompt = _bspWithNPCNetwork();
+  try {
+    const c = GS.char;
+    const w = GS.world;
+
+    // Build network context for every NPC the player is currently talking to or nearby
+    // (i.e. NPCs that appear in active relationships / recent chronicle)
+    let networkCtx = '';
+    const activeNpcs = c.relationships?.slice(0, 12) || [];
+    const networkLines = [];
+
+    activeNpcs.forEach(rel => {
+      const npc = w.npcRegistry[rel.npcId];
+      if(!npc) return;
+      const summary = getNPCNetworkSummary(npc.id);
+      if(summary) {
+        networkLines.push(`${npc.name}: ${summary}`);
+      }
+    });
+
+    if(networkLines.length > 0) {
+      networkCtx = `
+## NPC NETWORKS (current state — informs who they can and cannot refer the player to)
+${networkLines.join('\n')}
+
+`;
+    }
+
+    const networkRules = `
+## NPC CONNECTION RULES — DYNAMIC NETWORKS
+
+Every NPC's connections are real and change over time. They:
+- GAIN connections through: shared experiences, new neighbors, working together, joint events, being introduced by a mutual party, time spent in same location
+- LOSE connections through: betrayal, unpaid debts, fundamental disagreements, one party moving away, death, factional conflict, religious divergence, long absence with no contact
+- Have connections STRAIN before they break — a falling out doesn't instantly sever; there's usually a period of tension first
+
+**When to update an NPC's network via "npcNetworkUpdate":**
+- They meet someone new (the player introduces them, or they're in the same scene together)
+- A conflict or betrayal happens that would poison a specific relationship
+- Death of someone in their circle
+- They join or leave an organization, causing that circle's connections to shift
+- Time passes and you narrate that they've drifted from someone
+- The player helps repair a strained connection (quality improves)
+
+**npcNetworkUpdate format in JSON response:**
+"npcNetworkUpdate": [
+  {
+    "npcId": "target_npc_id",
+    "gained": [
+      { "npcId": "other_id_if_known", "name": "Person Name", "type": "friend|business|rival|religious|criminal|family|acquaintance", "quality": "close|casual", "notes": "how they met or why" }
+    ],
+    "strained": [
+      { "npcId": "other_id_if_known", "name": "Person Name", "reason": "what caused the tension" }
+    ],
+    "lost": [
+      { "npcId": "other_id_if_known", "name": "Person Name", "reason": "what broke the connection" }
+    ],
+    "gainedCircle": "optional — one of: local_merchants|neighborhood_residents|sect_acquaintances|guild_contacts|criminal_contacts|military_contacts|religious_community|family_network|work_colleagues|childhood_friends|trade_partners",
+    "lostCircle": "optional — a circle they've been cut off from"
+  }
+]
+
+**CRITICAL: An NPC can only provide introductions to people they ACTUALLY HAVE in their connections or network categories.** If a player asks an NPC to refer them to someone and the NPC has no connection in that direction — they say so honestly. They do not invent convenient contacts.
+
+Gaining a real named contact (someone specific) is harder and rarer than simply knowing people in a category. Named connections come from actual shared history, not from the mere fact of being in the same city.${networkCtx}`;
+
+    // Insert before the absolute rules or at end of prompt
+    if(prompt.includes('## NPC NETWORKS')) {
+      // Already injected somehow — skip
+    } else {
+      prompt = prompt + '\n' + networkRules;
+    }
   } catch(e) {}
   return prompt;
 };
