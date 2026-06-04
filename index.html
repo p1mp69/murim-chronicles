@@ -29856,6 +29856,329 @@ Object.assign(TRAITS_CATALOG, {
 
 }); // end Object.assign TRAITS_CATALOG
 
+// ================================================================
+// ── BONDAGE / SERVITUDE SYSTEM
+// ── Slavery, indentured contracts, debt bondage, war captivity.
+// ── Present in the world since the ancient dynasties.
+// ── The player can be enslaved, can own others, can free people.
+// ================================================================
+
+// Bondage forms in this world:
+// 'slave'       — chattel, fully owned, no legal personhood
+// 'indentured'  — contracted service, usually debt-based, temporary
+// 'sect_bond'   — sect service contract, often permanent until release
+// 'war_captive' — taken in conflict, status varies by captor
+// 'debt_bond'   — silver debt formalized as bodily servitude
+
+const BONDAGE_RULES = `SLAVERY AND BONDAGE IN THIS WORLD:
+Slavery and servitude exist in multiple forms across the three kingdoms. This is historical fact and part of the world.
+
+FORMS OF BONDAGE:
+• Chattel slavery: Full ownership. No legal personhood. Trade, inherit, sell. Most common in regions influenced by the ancient dynasties. Still practiced openly in parts of Buo Kingdom and in underground networks throughout all three kingdoms.
+• Debt bondage: When silver debts cannot be repaid, creditors may formalize the debt as bodily servitude. The debtor works until the debt is cleared — though the debt often grows faster than it shrinks. The most common form in Azure Empire and Luo-Tin Dynasty.
+• Sect service contracts: Some sects require permanent service from those they shelter, train, or rescue. Often voluntary entry, involuntary exit.
+• War captivity: Soldiers, civilians, and cultivators taken in conflict may be held for ransom, labor, or trade. The Buo-Luo-Tin War produced thousands of captives on both sides.
+• Indentured service: Fixed-term contracts, often from economic desperation. Legally binding. Early exit requires repayment of the advance.
+
+LEGAL STATUS BY KINGDOM:
+• Azure Empire: Slavery was never formally abolished by Reo Yamamoto — it was simply discouraged in Tazar specifically. The outer cities are less regulated. Underground networks operate throughout.
+• Luo-Tin Dynasty: Debt bondage is legal and regulated. Chattel slavery officially prohibited but war captive trade persists with official tolerance.
+• Buo Kingdom: No formal prohibition. Warrior culture views captivity as a legitimate outcome of conflict. Red Sand City is a significant trade hub.
+
+PLAYER BONDAGE STATUS:
+If the player is enslaved or indentured, their movement is restricted. They must comply with orders or face consequences. Escape attempts are possible but dangerous. Exceptional cultivation or valuable skills create leverage toward freedom. Others may help — or exploit the situation.
+
+MORAL WEIGHT:
+Freeing enslaved people creates extremely strong bonds (trust 90+). Enslaving someone is one of the heaviest karma costs. The world has people who actively work to end bondage (inspired by Yaqism, by Reo's principles, by personal history) and people who profit from it without guilt. Write the full moral range — not all enslavers are monsters, not all responses to bondage are resistance.`;
+
+// ── Character bondage state ────────────────────────────────────
+function ensureBondageState() {
+  if(!GS.char.bondStatus) {
+    GS.char.bondStatus = null; // null = free
+  }
+  return GS.char.bondStatus;
+}
+
+// Enslave the player character
+function enslavePlayer(opts) {
+  const c  = GS.char;
+  const w  = GS.world;
+  c.bondStatus = {
+    type:       opts.type || 'slave',       // 'slave'|'indentured'|'sect_bond'|'war_captive'|'debt_bond'
+    ownerId:    opts.ownerId || null,        // npcId of owner
+    ownerName:  opts.ownerName || 'Unknown',
+    debtAmount: opts.debtAmount || 0,        // silver owed (debt bondage only)
+    location:   opts.location || w.location,
+    since:      w.year,
+    terms:      opts.terms || 'indefinite',  // 'indefinite'|'N years'|'debt cleared'
+    escapeAttempts: 0,
+    notes:      opts.notes || '',
+  };
+
+  addPersonalEvent(`Enslaved: ${opts.type || 'chattel'}${opts.ownerName ? ' under ' + opts.ownerName : ''}. Year ${w.year}.`);
+  w.worldHistory.push(`Year ${w.year}: ${c.firstName} ${c.lastName} entered bondage (${opts.type || 'slavery'}) near ${GS.world.location}.`);
+
+  // Karma hit for entering bondage involuntarily is 0 — it happened to them
+  // (entering willingly as debt repayment is also neutral)
+
+  updateCharacterTab();
+  toast(`${c.firstName} ${c.lastName} is now in bondage.`, 'error', 5000);
+}
+
+// Free the player character
+function freePlayer(how, benefactor) {
+  const c = GS.char;
+  const w = GS.world;
+  const prev = c.bondStatus;
+  if(!prev) return;
+
+  c.bondStatus = null;
+
+  addPersonalEvent(`Freedom: ${how}${benefactor ? ' — aided by ' + benefactor : ''}. Year ${w.year}.`);
+  w.worldHistory.push(`Year ${w.year}: ${c.firstName} ${c.lastName} gained freedom (${how}).`);
+
+  // If freed by someone, massive relationship boost
+  if(benefactor) {
+    const rel = c.relationships.find(r => r.name === benefactor || r.npcId === benefactor);
+    if(rel) {
+      rel.bond_level = Math.min(100, (rel.bond_level || 0) + 40);
+      rel.trust = Math.min(100, (rel.trust || 0) + 40);
+      rel.summary = `${rel.name} helped free you from bondage. Some debts cannot be repaid.`;
+    }
+  }
+
+  // Karma — escaping without help
+  if(how === 'escape' && !benefactor) {
+    GS.char.karma.chaotic = (GS.char.karma.chaotic || 0) + 2;
+  }
+
+  updateCharacterTab();
+  toast(`${c.firstName} ${c.lastName} is free.`, 'gold', 5000);
+}
+
+// Track if the player frees an NPC (creates very strong bond)
+function freeNPC(npcId, method) {
+  const rel = GS.char.relationships.find(r => r.npcId === npcId);
+  const npc = GS.world.npcRegistry[npcId];
+  if(!rel || !npc) return;
+
+  npc.enslaved = false;
+  rel.bond_level = Math.min(100, (rel.bond_level || 0) + 45);
+  rel.trust = Math.min(100, (rel.trust || 0) + 45);
+  rel.fullMemory = (rel.fullMemory || '') + `\n\nYear ${GS.world.year}: You freed ${rel.name} from bondage (${method}). This is not forgotten.`;
+  rel.summary = `${rel.name} — freed from bondage by you (Year ${GS.world.year}). Bond: absolute.`;
+
+  // Karma boost for freeing someone
+  GS.char.karma.righteous = (GS.char.karma.righteous || 0) + 8;
+
+  addPersonalEvent(`Freed ${rel.name} from bondage. Year ${GS.world.year}.`);
+  toast(`${rel.name} is free.`, 'gold', 5000);
+  updateRelationsTab();
+}
+
+// Wire into applyAIResponse — AI can set bondage status
+const _applyWithBondage = applyAIResponse;
+applyAIResponse = function(res) {
+  _applyWithBondage(res);
+  try {
+    if(res?.bondageUpdate) {
+      const u = res.bondageUpdate;
+      if(u.action === 'enslave') {
+        enslavePlayer(u);
+      } else if(u.action === 'free') {
+        freePlayer(u.how || 'freed', u.benefactor || null);
+      } else if(u.action === 'escape_attempt') {
+        const c = GS.char;
+        if(c.bondStatus) {
+          c.bondStatus.escapeAttempts = (c.bondStatus.escapeAttempts || 0) + 1;
+          if(u.success) {
+            freePlayer('escape', null);
+          } else {
+            addPersonalEvent(`Escape attempt failed (attempt ${c.bondStatus.escapeAttempts}). Consequences followed.`);
+            // Failed escape often increases debt or tightens conditions
+            if(c.bondStatus.debtAmount) c.bondStatus.debtAmount *= 1.5;
+          }
+        }
+      } else if(u.action === 'free_npc' && u.npcId) {
+        freeNPC(u.npcId, u.how || 'freed');
+      } else if(u.action === 'debt_reduced' && u.amount) {
+        if(GS.char.bondStatus?.debtAmount) {
+          GS.char.bondStatus.debtAmount = Math.max(0, GS.char.bondStatus.debtAmount - u.amount);
+          if(GS.char.bondStatus.debtAmount === 0) {
+            freePlayer('debt cleared', null);
+          } else {
+            addPersonalEvent(`Debt reduced to ${GS.char.bondStatus.debtAmount}◈. Still in bondage.`);
+          }
+        }
+      }
+      updateCharacterTab();
+    }
+  } catch(e) {}
+};
+
+// Wire into system prompt
+const _bspWithBondage = buildSystemPrompt;
+buildSystemPrompt = function() {
+  let prompt = _bspWithBondage();
+  try {
+    // Always inject the world context
+    if(!prompt.includes('SLAVERY AND BONDAGE')) {
+      prompt = prompt.replace('## ABSOLUTE RULES', BONDAGE_RULES + '\n\n## ABSOLUTE RULES');
+    }
+
+    // Add player status if enslaved
+    const bs = GS.char.bondStatus;
+    if(bs) {
+      const debtNote = bs.debtAmount ? ` | Debt remaining: ${bs.debtAmount}◈` : '';
+      const termNote = bs.terms !== 'indefinite' ? ` | Terms: ${bs.terms}` : '';
+      const escNote  = bs.escapeAttempts > 0 ? ` | ${bs.escapeAttempts} failed escape attempt(s)` : '';
+      const bondCtx  = `\nPLAYER BONDAGE STATUS — ACTIVE:
+Type: ${bs.type} | Owner/Holder: ${bs.ownerName || 'unknown'} | Location: ${GS.world.location}
+Since: Year ${bs.since}${debtNote}${termNote}${escNote}
+${bs.notes ? 'Notes: ' + bs.notes : ''}
+
+BONDAGE RULES (while enslaved):
+1. Movement is restricted to what the owner permits. The character cannot simply leave.
+2. Direct defiance has consequences — ranging from punishment to sale to a harsher holder.
+3. Escape is possible but risky. Failed attempts worsen conditions.
+4. Leverage exists: exceptional skill, cultivation, valuable knowledge, building trust.
+5. Allies can help from outside: buy freedom, create distraction, forge documents.
+6. Debt bondage: if the character earns silver, they can pay down their debt. If debt reaches 0, freedom.
+7. Certain acts can result in the owner voluntarily freeing the character (rare, but real).
+
+Report bondage events in response: "bondageUpdate": { "action": "free|enslave|escape_attempt|free_npc|debt_reduced", ... }`;
+
+      prompt = prompt.replace('## ABSOLUTE RULES', bondCtx + '\n\n## ABSOLUTE RULES');
+    }
+
+    // Add bondage schema to response
+    if(!prompt.includes('"bondageUpdate"')) {
+      prompt = prompt.replace('"prisonStatus"',
+        '"bondageUpdate": null,\n  "prisonStatus"');
+    }
+  } catch(e) {}
+  return prompt;
+};
+
+// Character tab — show bondage status
+const _charTabWithBondage = updateCharacterTab;
+updateCharacterTab = function() {
+  _charTabWithBondage();
+  try {
+    const bs = GS.char.bondStatus;
+    let bondEl = document.getElementById('bondage-status-block');
+
+    if(bs) {
+      if(!bondEl) {
+        const ps = document.getElementById('prison-section');
+        const wrap = document.createElement('div');
+        wrap.id = 'bondage-status-block';
+        wrap.style.cssText = 'margin-top:8px;padding:8px 10px;background:rgba(80,20,20,.3);border:1px solid #6a1818;border-radius:5px;';
+        if(ps) ps.parentNode.insertBefore(wrap, ps.nextSibling);
+        else document.getElementById('qi-block')?.parentNode.appendChild(wrap);
+        bondEl = wrap;
+      }
+
+      const bondLabels = {
+        slave:'CHATTEL SLAVE', indentured:'INDENTURED', sect_bond:'SECT BONDAGE',
+        war_captive:'WAR CAPTIVE', debt_bond:'DEBT BONDAGE',
+      };
+
+      bondEl.innerHTML = `
+        <div style="color:#cc3322;font-weight:700;font-size:11px;letter-spacing:.06em">${bondLabels[bs.type]||bs.type.toUpperCase()}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:3px">
+          Holder: ${bs.ownerName || 'unknown'} · Since Year ${bs.since}
+          ${bs.debtAmount ? `<br>Debt remaining: ${bs.debtAmount}◈` : ''}
+          ${bs.terms !== 'indefinite' ? `<br>Terms: ${bs.terms}` : ''}
+        </div>
+        <div style="font-size:10px;color:var(--dim);margin-top:3px;font-style:italic">
+          ${bs.escapeAttempts > 0 ? `${bs.escapeAttempts} failed escape attempt(s)` : 'No escape attempts yet'}
+        </div>`;
+    } else if(bondEl) {
+      bondEl.remove();
+    }
+  } catch(e) {}
+};
+
+// NPC enslaved display in People tab — note if known NPC is enslaved
+const _buildNPCCardWithBondage = buildNPCCard;
+buildNPCCard = function(r) {
+  const card = _buildNPCCardWithBondage(r);
+  const npc  = GS.world.npcRegistry[r.npcId];
+  if(npc?.enslaved) {
+    const badge = document.createElement('span');
+    badge.style.cssText = 'font-size:9px;color:#cc3322;padding:1px 6px;border-radius:8px;border:1px solid #6a1818;background:rgba(100,20,20,.2);margin-left:4px';
+    badge.textContent = 'BONDED';
+    badge.title = 'This person is enslaved or in bondage';
+    const nameEl = card.querySelector('.npc-name');
+    if(nameEl) nameEl.appendChild(badge);
+
+    // Add free action if reachable
+    if(npcReachable(r.npcId)) {
+      const qaRow = card.querySelector('.npc-quick-actions');
+      if(qaRow) {
+        const btn = document.createElement('button');
+        btn.className = 'npc-qa-btn positive';
+        btn.textContent = 'Help free them';
+        btn.onclick = () => sendToAI(`I take action to help free ${r.name} from bondage. [FREEING NPC: ${r.name} is enslaved/bonded. The player is actively working to free them. What does this require and what happens? Consider their holder, the player's resources, and what risks are involved. If successful, include "bondageUpdate": {"action": "free_npc", "npcId": "${r.npcId}", "how": "..."}]`);
+        qaRow.appendChild(btn);
+      }
+    }
+  }
+  return card;
+};
+
+// Achievement — freedom from bondage
+// Add to existing achievements
+if(typeof ACHIEVEMENTS_DEF !== 'undefined') {
+  ACHIEVEMENTS_DEF.push(
+    { id:'survived_bondage', icon:'⛓', name:'Unchained',
+      desc:'Experience bondage and live to tell it.',
+      check: gs => gs.char._wasInBondage === true },
+    { id:'freed_someone', icon:'🕊', name:'The Open Hand',
+      desc:'Free someone from bondage.',
+      check: gs => (gs.char._npcsFreed || 0) > 0 },
+    { id:'freed_five', icon:'🌅', name:'Emancipator',
+      desc:'Free five people from bondage.',
+      check: gs => (gs.char._npcsFreed || 0) >= 5 }
+  );
+}
+
+// Track bondage history
+const _applyWithBondageTrack = applyAIResponse;
+applyAIResponse = function(res) {
+  _applyWithBondageTrack(res);
+  try {
+    if(res?.bondageUpdate) {
+      const u = res.bondageUpdate;
+      if(u.action === 'free') {
+        GS.char._wasInBondage = true;
+      }
+      if(u.action === 'free_npc') {
+        GS.char._npcsFreed = (GS.char._npcsFreed || 0) + 1;
+      }
+    }
+  } catch(e) {}
+};
+
+// Make debt bondage interact with the bounty/debt system
+// If silver debt gets extreme and reputation is low, flag risk
+const _bspWithDebtBondageRisk = buildSystemPrompt;
+buildSystemPrompt = function() {
+  let prompt = _bspWithDebtBondageRisk();
+  try {
+    const c = GS.char;
+    const silver = c.silver || 0;
+    // If the player has a very large bounty AND very low silver, risk of bondage
+    if(c.bounty > 200 && silver < 10 && !c.bondStatus) {
+      prompt = prompt.replace('## ABSOLUTE RULES',
+        `DEBT BONDAGE RISK: This character has a significant bounty (${c.bounty}◈) and very little silver (${silver}◈). Creditors, collectors, or bounty contractors may attempt to convert this into indentured service or debt bondage. This is a realistic outcome of the economic situation. If the narrative leads there, report "bondageUpdate": {"action": "enslave", "type": "debt_bond", "debtAmount": N, ...}.\n\n## ABSOLUTE RULES`
+      );
+    }
+  } catch(e) {}
+  return prompt;
+};
+
 console.log('Murim Chronicles fully loaded.');
 
 </script>
