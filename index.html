@@ -28507,7 +28507,7 @@ Write a narrative story (800-1200 words) about this character's life so far.
 
     const resp = await fetch('https://api.anthropic.com/v1/messages', {
       method:'POST',
-      headers:{ 'x-api-key':apiKey, 'anthropic-version':'2023-06-01', 'content-type':'application/json' },
+      headers:{ 'x-api-key':apiKey, 'anthropic-version':'2023-06-01', 'content-type':'application/json', 'anthropic-dangerous-direct-browser-access':'true' },
       body: JSON.stringify({
         model:'claude-opus-4-5',
         max_tokens:1500,
@@ -28994,6 +28994,800 @@ AMBIENT RULE: These figures are REAL to NPCs. Characters don't need to meet them
   } catch(e) {}
   return prompt;
 };
+
+// ================================================================
+// ── HOW TECHNIQUES AND MARTIAL ARTS WORK
+// ── (Injected into system prompt for AI context)
+// ================================================================
+const _bspWithTechExplain = buildSystemPrompt;
+buildSystemPrompt = function() {
+  let prompt = _bspWithTechExplain();
+  const c = GS.char;
+  if(!c.techniques?.length && !c.martialArts?.length) return prompt;
+
+  const techSection = `HOW TECHNIQUES WORK:
+Techniques have 7 mastery stages. Stage determines power, efficiency, and creativity:
+0 Fragmented — knows the shape, can't reliably execute. Qi cost high, output weak.
+1 Imitative — can copy what they've seen. Works under calm conditions. Falls apart in real pressure.
+2 Functional — understands WHY it works. Can use in actual situations. Still rigid.
+3 Refined — efficiency improves. Qi waste drops. Begins to modify timing and flow intuitively.
+4 Intent — the character's INTENT shapes the output. Same technique, different results based on state.
+5 Transcendent — has outgrown the original form. Can modify, break, and rebuild from understanding.
+6 Conceptual Authority — doesn't use the technique. Embodies its underlying concept. Cannot be copied easily.
+
+ACTIVE use: player describes using the technique in an action. Describe the execution based on stage — higher stage = more fluid, more powerful, less Qi waste, more adaptable.
+PASSIVE techniques: drain small Qi each day. Provide ongoing effects. Can be toggled.
+ADVANCEMENT: happens through meaningful use in real stakes, NOT grinding. A staged moment matters more than repeated low-stakes practice.
+VARIANTS: at stage 5+, characters can create divergent techniques based on their understanding of the parent technique.
+
+HOW MARTIAL ARTS WORK:
+Martial arts are physical combat systems, less Qi-dependent than techniques.
+Stages: Untrained → Raw → Basic Form → Trained → Combat Capable → Expert → Master → Living Weapon
+At Living Weapon, the practitioner is the technique. They can begin creating their own style.
+Martial arts can be used without Qi. High-stage martial arts can close the gap against weaker cultivators.
+Self-created martial arts at high stage = something the world has not seen before.`;
+
+  prompt = prompt.replace('## ABSOLUTE RULES', techSection + '\n\n## ABSOLUTE RULES');
+  return prompt;
+};
+
+// ================================================================
+// ── EXTENDED ITEMS — 120 items across all categories
+// ── Every one is lore-connected, world-grounded, no filler
+// ================================================================
+// These push into SHOP_ITEMS arrays after the game loads
+(function extendShopItems() {
+  const push = (cat, ...items) => {
+    if(!SHOP_ITEMS[cat]) SHOP_ITEMS[cat] = [];
+    SHOP_ITEMS[cat].push(...items);
+  };
+
+  // ── WEAPONS (30) ──────────────────────────────────────────────
+  push('weapons',
+    { key:'hook_blade',        name:'Hook Blade',                    slot:'weapon', rarity:'uncommon', desc:'A blade with a pronounced hook at the tip. Used to catch an opponent\'s weapon and redirect it. Takes a specific grip technique to use well.' },
+    { key:'ring_blades_pair',  name:'Ring Blades (pair)',            slot:'weapon', rarity:'uncommon', desc:'Two bladed rings worn on the fingers. Quiet, concealable, lethal at close range. Beggar\'s Rest specialty.' },
+    { key:'whip_iron_chain',   name:'Iron Chain Whip',               slot:'weapon', desc:'Nine-section iron chain. Flexibility makes it unpredictable. Training accidents are common.' },
+    { key:'sleeve_darts_10',   name:'Sleeve Darts (×10)',            slot:'weapon', consumable:true, desc:'Ten small throwing darts. Barely visible in flight. The standard equipment of someone who doesn\'t want to be seen throwing something.' },
+    { key:'wind_blade_fan',    name:'Wind Blade Fan',                slot:'weapon', rarity:'uncommon', desc:'A folded fan reinforced with steel ribs. Opens to strike, closes to defend. Popular in formal settings where blades aren\'t appropriate.' },
+    { key:'ghost_hand_claws',  name:'Ghost Hand Claws',              slot:'hands', rarity:'uncommon', desc:'Iron claws that fit over the fingers. More versatile than they look. Leave distinctive marks.' },
+    { key:'bone_flute_blade',  name:'Hollow Flute (concealed blade)', slot:'weapon', rarity:'uncommon', desc:'A functional flute with a blade sealed inside the joint. Someone spent time on this.' },
+    { key:'copper_knuckles',   name:'Copper Knuckles',               slot:'hands', desc:'Weighted copper rings over the four main knuckles. Simple. Effective. No questions about origin.' },
+    { key:'poisoned_needle_case',name:'Needle Case (×20)',           slot:'weapon', consumable:true, rarity:'rare', desc:'Twenty hollow needles, each pre-loaded. The substance varies. The seller won\'t specify.' },
+    { key:'canal_hook',        name:'Canal Worker\'s Hook',          slot:'weapon', desc:'A large iron hook on a short handle. Adapted from dockwork. The weight distribution is wrong for standard fighting. That\'s why it works.' },
+    { key:'iron_fan_war',      name:'Iron War Fan',                  slot:'weapon', rarity:'rare', desc:'A full-sized fan made of iron plate instead of silk. Blocks blades. Distributes force. Heavy enough to cave in a helmet.' },
+    { key:'sect_training_sword',name:'Sect Training Sword',          slot:'weapon', rarity:'uncommon', desc:'Weighted for meridian development. Blunted edge. Used by outer disciples before they earn a real blade.' },
+    { key:'twin_short_swords', name:'Twin Short Swords',             slot:'weapon', rarity:'uncommon', desc:'Matched pair. Balanced for simultaneous use. Requires an entirely different approach to fighting than a single blade.' },
+    { key:'spiked_gauntlets',  name:'Spiked Gauntlets',              slot:'hands', rarity:'uncommon', desc:'Leather gloves with short iron spikes over the knuckles. Every punch opens skin.' },
+    { key:'weighted_staff',    name:'Weighted Training Staff',        slot:'weapon', desc:'Deliberately heavy. Building strength through the wrong weight until the right weight feels like nothing.' },
+    { key:'hidden_wrist_blade',name:'Wrist Sheath with Blade',       slot:'weapon', rarity:'uncommon', desc:'Strapped to the wrist, concealed under a sleeve. The release mechanism is almost silent.' },
+    { key:'qi_channeling_staff',name:'Qi-Channeling Rod',            slot:'weapon', rarity:'rare', desc:'Hollow iron rod with carved circulation paths along its length. Qi flows through it. Makes certain elemental techniques more precise.' },
+    { key:'buo_war_hammer',    name:'Buo War Hammer',                slot:'weapon', rarity:'uncommon', desc:'Short-handled, wide-headed. Buo warriors don\'t care about elegance. The hammer doesn\'t either.' },
+    { key:'fishing_spear',     name:'River Spear',                   slot:'weapon', desc:'A fishing spear, weighted for throwing at close range. Someone who grew up on the Beggar\'s Canal knows angles you never trained for.' },
+    { key:'assassination_wire', name:'Garrote Wire',                 slot:'weapon', rarity:'uncommon', desc:'A length of thin, strong wire with handles at each end. Requires getting close. Very close.' },
+    { key:'luo_cavalry_saber', name:'Luo-Tin Cavalry Saber',        slot:'weapon', rarity:'uncommon', desc:'Curved, single-edge. Designed for mounted strikes. The curve makes it awkward on foot until you adjust everything.' },
+    { key:'iron_knuckle_sword',name:'Knuckle Sword',                 slot:'weapon', rarity:'rare', desc:'A short sword integrated with a full-hand guard. Defensive and offensive simultaneously. Imperial capital smiths only.' },
+    { key:'bone_handled_dagger',name:'Bone-Handled Dagger',          slot:'weapon', desc:'Old bone handle, warm to hold, good grip. The blade is new. Someone replaced it.' },
+    { key:'thorn_whip',        name:'Thorn Chain',                   slot:'weapon', rarity:'uncommon', desc:'An iron chain with short spikes at intervals. Every wrap takes skin. Every pull is worse.' },
+    { key:'double_hook_swords',name:'Hook Swords (pair)',            slot:'weapon', rarity:'rare', desc:'Two swords with elaborate curved guards and hooked tips. Link together, separate, trap blades. One of the harder weapon systems to learn.' },
+    { key:'spirit_channeling_blade', name:'Spirit-Channeling Blade', slot:'weapon', rarity:'rare', desc:'A blade with a hollow core and carved Qi channels. Designed to conduct spiritual energy. Most weapons fight against Qi. This one accepts it.' },
+    { key:'razor_disc_5',      name:'Razor Discs (×5)',              slot:'weapon', consumable:true, rarity:'uncommon', desc:'Five flat iron discs with sharpened edges. Thrown at close range. Not a long-range weapon — they tumble after 15 feet.' },
+    { key:'warlord_spear_replica', name:'Warlord\'s Spear (replica)', slot:'weapon', rarity:'uncommon', desc:'A replica of the style carried by Láng\'s forces. The real ones are mostly broken or lost. This one is functional and would be recognized.' },
+    { key:'collapsed_staff',   name:'Sectioned Staff',               slot:'weapon', desc:'A staff that collapses into three linked sections. Travels as one. Deploys as three, each connected.' },
+    { key:'broad_cleaver',     name:'Broad Cleaver',                  slot:'weapon', desc:'Wide and heavy. Butcher-derived. Cuts through more per swing than a sword would. Absolutely graceless. Absolutely effective.' }
+  );
+
+  // ── ARMOR (20) ────────────────────────────────────────────────
+  push('armor',
+    { key:'scale_armor',       name:'Scale Armor',          slot:'body', rarity:'uncommon', desc:'Overlapping iron scales on a leather base. Heavier than chain, more flexible than plate. River warriors\' standard.' },
+    { key:'bamboo_armor',      name:'Lacquered Bamboo Armor', slot:'body', desc:'Strips of lacquered bamboo bound together. Surprisingly strong against cuts. Shatters against blunt force.' },
+    { key:'cloth_guards',      name:'Reinforced Guard Wraps', slot:'hands', desc:'Wrist-to-elbow wraps with thin iron strips sewn in. Blocks blade slides to the forearm.' },
+    { key:'iron_gorget',       name:'Iron Throat Guard',     slot:'head', desc:'A solid piece covering the throat and lower jaw. Awkward to talk through. Worth it.' },
+    { key:'cultivator_mesh',   name:'Qi Circulation Mesh',   slot:'body', rarity:'rare', desc:'A mesh undergarment with micro-channels for Qi flow. Worn under anything. Marginally improves Qi circulation speed during combat.' },
+    { key:'greaves_iron',      name:'Iron Greaves',          slot:'feet', rarity:'uncommon', desc:'Lower leg protection. Heavy. Your kicks become weapons. Your walking announces you.' },
+    { key:'face_guard',        name:'Half-Face Guard',       slot:'head', rarity:'uncommon', desc:'Iron plate covering jaw and cheeks. Leaves vision clear. Leaves the eyes unprotected. A choice.' },
+    { key:'battle_bracers',    name:'Combat Bracers',        slot:'hands', rarity:'uncommon', desc:'Thick leather with iron inserts across the forearm. Used to block weapon strikes instead of dodging them.' },
+    { key:'sectioned_back',    name:'Spine Guard Plates',    slot:'body', rarity:'uncommon', desc:'Six iron plates along the spine, connected by leather. Protects the most common target of assassins.' },
+    { key:'sect_robe_inner',   name:'Inner Sect Protection Robe', slot:'body', rarity:'rare', desc:'A robe with impact-absorbing layers from the inner sect store. Looks ceremonial. Functions as light armor.' },
+    { key:'fur_lined_coat_armor', name:'Fur-Lined Battle Coat', slot:'body', rarity:'uncommon', desc:'Thick fur and hide, metal studs across the chest. Northern mountain fighters wear these. Heavy, warm, substantial.' },
+    { key:'rope_sandals_iron', name:'Iron-Threaded Travel Boots', slot:'feet', desc:'Thick soles, iron thread through the base. Long travel at pace. The weight forces proper gait.' },
+    { key:'finger_guards',     name:'Finger Guard Set',      slot:'hands', desc:'Individual leather sheaths for each finger with iron caps. Preserves the grip hand.' },
+    { key:'luo_cavalry_helm',  name:'Luo-Tin Cavalry Helm',  slot:'head', rarity:'uncommon', desc:'Full helm with vision slit. Heavy. Designed to take a lance hit.' },
+    { key:'buo_bone_armor',    name:'Bone-Reinforced Armor', slot:'body', rarity:'uncommon', desc:'Hardened animal bone plates over thick leather. Buo Kingdom traditional. The bones are from something that took a long time to kill.' },
+    { key:'hidden_steel_vest', name:'Concealed Steel Vest',  slot:'body', rarity:'rare', desc:'Looks like a normal cloth vest. Steel rings sewn into every seam. Passes casual inspection. Stops most knife attacks.' },
+    { key:'cloud_step_boots',  name:'Cloud Step Boots',      slot:'feet', rarity:'rare', desc:'Lined with material that dampens sound completely. Normal foot sound. Completely silent footfalls. Someone worked hard on these.' },
+    { key:'iron_kneepads',     name:'Iron Kneepads',         slot:'feet', desc:'Heavy iron protection for the knee joint. Makes kneeling difficult. Makes being struck in the knee survivable.' },
+    { key:'shoulder_plates',   name:'Shoulderplate Pair',    slot:'hands', rarity:'uncommon', desc:'Two iron shoulder plates. Worn over almost anything. Stops most overhead strikes.' },
+    { key:'spirit_absorbing_vest', name:'Spirit-Absorbing Padded Vest', slot:'body', rarity:'epic', desc:'A heavily padded vest treated with a compound that disperses Qi-based attacks slightly. Not eliminated. Dispersed. About 15% reduction.' }
+  );
+
+  // ── CULTIVATION ITEMS (25) ────────────────────────────────────
+  push('cultivation',
+    { key:'void_crystal',        name:'Void Crystal',         ingredient:true, rarity:'epic', desc:'A colorless crystal that absorbs ambient Qi. Used in the highest cultivation preparations. Feels cold even in a heated room.' },
+    { key:'dragon_blood',        name:'Dragon Blood (vial)',   ingredient:true, rarity:'legendary', desc:'A single vial. Not from a true dragon — those don\'t exist here. From something close enough that the distinction is philosophical.' },
+    { key:'heavenly_dew',        name:'Heavenly Dew (vial)',   ingredient:true, rarity:'rare', desc:'Condensed from Qi-rich mountain air at specific elevations. Takes a month to collect a vial. Extremely pure.' },
+    { key:'beast_core_full',     name:'Beast Core (full)',     ingredient:true, rarity:'rare', desc:'A complete core from a cultivated beast. The Qi inside is still active. Handle with care. It has opinions.' },
+    { key:'ancient_spirit_herb', name:'Ancient Spirit Herb',   ingredient:true, rarity:'epic', desc:'A spirit herb that\'s been growing for over a century. The Qi is dense enough to feel against the skin from several feet away.' },
+    { key:'iron_qi_root',        name:'Iron Qi Root',          ingredient:true, rarity:'uncommon', desc:'A root that grows near iron ore deposits. The body tempering applications are significant.' },
+    { key:'five_petal_lotus',    name:'Five-Petal Spirit Lotus', ingredient:true, rarity:'rare', desc:'A lotus that only blooms where Qi naturally pools. Each petal corresponds to a different meridian group.' },
+    { key:'star_sand',           name:'Star Sand',             ingredient:true, rarity:'uncommon', desc:'Mineral sand from high altitudes. Qi adheres to it naturally. Used as a base in pill-making.' },
+    { key:'blood_root',          name:'Blood Root',            ingredient:true, rarity:'uncommon', desc:'A dark-red root that smells like iron. Used in blood karma cultivation preparations. Its applications are legal. Mostly.' },
+    { key:'ghost_mushroom',      name:'Ghost Mushroom',        ingredient:true, rarity:'rare', desc:'Grows in dark places. Phosphorescent. Used in certain unusual concoctions that affect perception and Qi sensitivity.' },
+    { key:'cultivation_incense', name:'Cultivation Incense (bundle)', consumable:true, rarity:'uncommon', desc:'A bundle of specially formulated incense. Burning it during cultivation improves focus. Not a substitute for real practice. Helps.' },
+    { key:'qi_sensing_stone',    name:'Qi Sensing Stone',      consumable:true, rarity:'uncommon', desc:'Held during cultivation. Changes temperature with Qi fluctuations. Useful for identifying blocked meridians by where it gets cold.' },
+    { key:'meridian_salve',      name:'Meridian Opening Salve', consumable:true, rarity:'rare', desc:'Applied to the skin over blocked meridian points. Burns significantly. The blockage clears. Worth it for most cultivators.' },
+    { key:'lotus_pill_minor',    name:'Five-Petal Condensation Pill', consumable:true, rarity:'rare', desc:'Made from five-petal lotus components. Accelerates Qi condensation significantly. Sect supply only, normally.' },
+    { key:'void_breath_pill',    name:'Void Breath Pill',      consumable:true, rarity:'epic', desc:'Allows the cultivation of a fragment of void-element understanding. Single use. The experience is disorienting.' },
+    { key:'iron_body_draught',   name:'Iron Body Draught',     consumable:true, rarity:'uncommon', desc:'A liquid that reinforces meridian walls for 24 hours. Useful during dangerous cultivation sessions or tribulations.' },
+    { key:'path_correcting_pill',name:'Path Correction Pill',  consumable:true, rarity:'epic', desc:'Corrects minor Qi path deviations. Not useful for major deviations — those require a physician. For the small drift that happens over months of imperfect practice.' },
+    { key:'focus_seal',          name:'Concentration Seal',    consumable:true, rarity:'uncommon', desc:'A paper seal placed on the forehead during cultivation. Suppresses external sensory input mildly. Lets the cultivator go deeper.' },
+    { key:'cultivators_water',   name:'Cultivator\'s Prepared Water', consumable:true, desc:'Water infused with minor cultivation-aiding minerals. Drunk during sessions. Slight improvement. Over time, slight improvements add up.' },
+    { key:'beast_blood_tonic',   name:'Beast Blood Tonic',     consumable:true, rarity:'uncommon', desc:'A dark tonic made from the blood of several cultivated beasts. Aggressive body tempering effects. Nauseating to drink. Effective.' },
+    { key:'spirit_sand_bag',     name:'Spirit Sand (practice bag)', ingredient:true, desc:'A bag of star sand for formation practice. Enough for a small practice array.' },
+    { key:'meridian_chart',      name:'Meridian Anatomy Chart', isTome:true, desc:'A detailed chart of all major and minor meridians. Not a technique. Understanding the map helps navigate the territory.' },
+    { key:'qi_theory_primer',    name:'Qi Theory: A Primer',   isTome:true, desc:'Academic foundation of how Qi behaves. Reading it won\'t make you a cultivator. It will make you a slightly better-informed one.' },
+    { key:'deviation_warning_text', name:'Signs of Qi Deviation', isTome:true, desc:'A text identifying the warning signs that Qi cultivation is going wrong. Knowing what to look for doesn\'t prevent deviation. It helps you catch it before it becomes catastrophic.' },
+    { key:'formation_basics',    name:'Foundation Formation Theory', isTome:true, desc:'Basics of spirit stone formation arrays. The simplest three-stone gathering array is described in full. A starting point.' }
+  );
+
+  // ── FOOD (15) ─────────────────────────────────────────────────
+  push('food',
+    { key:'tazar_canal_fish',  name:'Canal Fish (×3)',        qty:3, consumable:true, desc:'Three fish from Tazar\'s canal network. The water quality is questionable. The fish are fine.' },
+    { key:'wheat_bread_loaf',  name:'Wheat Capital Bread',    consumable:true, desc:'Dense, dark bread from Wheat Capital farms. Keeps for five days. Better after two.' },
+    { key:'buo_dried_meat_pack', name:'Buo Dried Meat (×6)', qty:6, consumable:true, rarity:'uncommon', desc:'Six strips of heavily cured Buo-style meat. Spiced. Very spiced. It\'s a cultural thing.' },
+    { key:'mountain_mushrooms',name:'Mountain Mushrooms (×4)', qty:4, consumable:true, desc:'Foraged from high altitudes. Good for cultivation recovery meals. Slightly bitter. Good with salt.' },
+    { key:'qi_rice_wine',      name:'Qi-Infused Rice Wine',   consumable:true, rarity:'uncommon', desc:'Rice wine made with spirit herb components. Mild cultivation benefit. Strong drinking benefit. Both at once.' },
+    { key:'honey_pot',         name:'Wild Honey Jar',         consumable:true, desc:'Harvested wild. Not infused with anything. Just honey. Real, complete, uncomplicated honey.' },
+    { key:'luo_feast_box',     name:'Luo-Tin Formal Meal Box', consumable:true, rarity:'uncommon', desc:'A lacquered box with a formal multi-course meal from the Luo-Tin capital. Cold by now. Still the best meal available without sitting at a table.' },
+    { key:'spirit_herb_tea',   name:'Spirit Herb Tea (×5)',   qty:5, consumable:true, desc:'Five portions of tea brewed from spirit herb. Mild Qi benefit. Mostly just pleasant.' },
+    { key:'survival_biscuits', name:'Iron Ration Biscuits (×15)', qty:15, consumable:true, desc:'Fifteen hard biscuits designed for extended field operations. They taste like necessity and good intentions.' },
+    { key:'iron_root_soup',    name:'Iron Root Broth',        consumable:true, desc:'A bowl of dark broth from iron root. Looks terrible. Helps with meridian fatigue significantly.' },
+    { key:'beast_meat_roast',  name:'Cultivated Beast Meat',  consumable:true, rarity:'uncommon', desc:'Meat from a cultivated beast. The Qi content remains slightly active. More nourishing than normal meat. Unusual flavor.' },
+    { key:'cold_noodles_wrap', name:'Market Noodles (×3)',    qty:3, consumable:true, desc:'Three portions of cold noodles wrapped for travel. Canal district vendor. Good cold. Better hot.' },
+    { key:'preserved_plums',   name:'Salted Plum Pack',       consumable:true, desc:'A pack of salted preserved plums. Combat nausea, extreme fatigue, bad decisions. The cultivator\'s emergency provision.' },
+    { key:'ooina_forage_pack', name:'Ooina Forest Forage',    consumable:true, rarity:'uncommon', desc:'Foraged from Ooina specifically. The Qi saturation in the forest affects everything that grows there. Higher than average spirit content in ordinary plants.' },
+    { key:'inn_breakfast',     name:'Inn Breakfast (×3)',     qty:3, consumable:true, desc:'Three inn breakfasts packed for the road. Hot for about an hour. Worth eating cold.' }
+  );
+
+  // ── TOMES AND BOOKS (15) ──────────────────────────────────────
+  push('cultivation',
+    { key:'smithing_manual',   name:'Ironwork Fundamentals',    isTome:true, desc:'A complete manual of blacksmithing basics: alloy properties, temperature control, hammer technique. Practical, not theoretical.' },
+    { key:'medicine_primer',   name:'Healer\'s Reference',      isTome:true, desc:'A standard medical text covering diagnosis, common injuries, and treatment. The foundation of any physician\'s practice.' },
+    { key:'tracking_guide',    name:'Field Tracking Guide',     isTome:true, desc:'Written by a hunter who clearly spent more time in the wild than at a desk. Practical, specific, occasionally alarming.' },
+    { key:'law_codex',         name:'Legal Codex (standard)',   isTome:true, desc:'The standard legal reference for Azure Empire law. Dense. Comprehensive. The kind of book that creates a career.' },
+    { key:'alchemy_journal',   name:'Alchemist\'s Working Journal', isTome:true, desc:'Someone\'s personal research notes. Illegible in places. The discoveries that made it in are useful. The disasters are instructive.' },
+    { key:'philosophy_text',   name:'On the Nature of Flame',   isTome:true, desc:'A Yaqism-adjacent philosophical text. Not religious instruction — philosophical argument. D\'yaqed\'s flame metaphor applied to the nature of cultivation.' },
+    { key:'combat_manual',     name:'Combat Theory: Fundamentals', isTome:true, desc:'Standard combat theory from a Luo-Tin military academy. Positions, distance management, weapon matching. Academic. Still useful.' },
+    { key:'stealth_text',      name:'The Invisible Traveler',   isTome:true, desc:'A small text on concealment, movement, and passing unnoticed. Written by someone who clearly survived by not being seen.' },
+    { key:'animal_behavior',   name:'Beast Behavior Field Guide', isTome:true, desc:'Behavior patterns of common cultivated and uncultivated beasts. Useful for avoiding, tracking, and occasionally reasoning with them.' },
+    { key:'calligraphy_text',  name:'Brush Method and Line',    isTome:true, desc:'A calligraphy instruction text. Formal, slow, precise. The discipline of the brush applies to cultivation in ways that only become obvious later.' },
+    { key:'commerce_guide',    name:'Trade Route Almanac',      isTome:true, desc:'Prices, routes, seasonal availability, who cheats you in which city. A merchant\'s actual working knowledge.' },
+    { key:'sect_founding_text',name:'On the Founding of Sects', isTome:true, rarity:'uncommon', desc:'Historical and practical text on how sects are formed, maintained, and ended. The political analysis is as useful as the historical content.' },
+    { key:'inner_qi_text',     name:'Inner Cultivation: A Personal Record', isTome:true, rarity:'uncommon', desc:'One cultivator\'s detailed account of their personal cultivation experience through the first six stages. Not a technique manual — a memoir. More useful than most manuals.' },
+    { key:'formation_advanced',name:'Formation Theory: Advanced Patterns', isTome:true, rarity:'rare', desc:'Advanced formation arrays requiring 9+ stones. The mathematics alone require significant foundation. The results justify the difficulty.' },
+    { key:'deception_text',    name:'On Misdirection and Social Architecture', isTome:true, rarity:'uncommon', desc:'A text on social manipulation that is academic enough to be sold openly. The practical applications are left as an exercise.' }
+  );
+
+  // ── TOOLS AND SUPPLIES (15) ───────────────────────────────────
+  push('supplies',
+    { key:'qi_compass',        name:'Qi Compass',            tool:true, rarity:'uncommon', desc:'A compass that responds to Qi signatures rather than magnetic north. Points toward significant Qi concentrations. Drifts in Ooina. Very useful everywhere else.' },
+    { key:'formation_flags_10',name:'Formation Flags (×10)', tool:true, rarity:'uncommon', desc:'Ten formation flags for spirit arrays. Lightweight, deployable quickly, shorter range than stone arrays but portable.' },
+    { key:'climbing_kit',      name:'Climbing Kit',          tool:true, desc:'Rope, iron hooks, grip powder, and instructions. For surfaces that don\'t have stairs.' },
+    { key:'medicinal_kit',     name:'Physician\'s Field Kit', tool:true, rarity:'uncommon', desc:'A physician\'s complete field kit: needles, bandage material, six common medicines, cutting tools. Professional grade.' },
+    { key:'forgery_tools',     name:'Document Forgery Tools', tool:true, rarity:'rare', desc:'Ink, stamps, and the knowledge of how to use them on official documents. The seals are good. Examination is required to be caught.' },
+    { key:'lock_bypass_kit',   name:'Full Locksmith\'s Kit',  tool:true, rarity:'uncommon', desc:'A complete set for working on locks. The difference between this and lockpicks is the ability to also install locks, which is useful for different reasons.' },
+    { key:'signal_mirror',     name:'Signal Mirror',          tool:true, desc:'Polished copper mirror for distance signaling. Works well. Range depends on visibility.' },
+    { key:'writing_kit_fine',  name:'Scholar\'s Writing Kit', tool:true, rarity:'uncommon', desc:'High-quality brush, multiple ink colors, fine paper. Needed for legal documents, formal correspondence, and some cultivation recording.' },
+    { key:'formation_stone_bag',name:'Formation Stones (×6)', tool:true, rarity:'uncommon', desc:'Six spirit stones suitable for formation arrays. Small but functional for basic three-stone gathering arrays.' },
+    { key:'map_current',       name:'Regional Map (current year)', tool:true, desc:'A map of the local region with current roads and known settlements. More accurate than most. Someone was thorough.' },
+    { key:'thieves_tools_advanced', name:'Advanced Thieves\' Tools', tool:true, rarity:'rare', desc:'The full set. Not just picks — also bypass tools for warded locks, Qi-sealed doors, and mechanical traps. Illegal to carry in Luo-Tin.' },
+    { key:'poison_testing_kit',name:'Poison Testing Kit',    tool:true, rarity:'uncommon', desc:'Chemical indicators for common poisons. Not exhaustive. Covers the thirty most common. Applied to food or drink.' },
+    { key:'traveler_disguise', name:'Disguise Components Kit', tool:true, rarity:'uncommon', desc:'Cosmetics, hair coloring, false beard material, and clothing alterations. Not magic. Effective with effort.' },
+    { key:'cultivation_journal',name:'Blank Cultivation Journal', tool:true, desc:'A good blank journal for tracking cultivation sessions, technique development, and Qi observations. Every serious cultivator should keep records.' },
+    { key:'alchemy_portable',  name:'Portable Alchemy Kit',   tool:true, rarity:'uncommon', desc:'A compact alchemy set for field work. Limited but functional. The serious work still requires a lab.' }
+  );
+
+  // ── RARE AND UNIQUE ITEMS (15) ────────────────────────────────
+  push('cultivation',
+    { key:'reo_era_coin',      name:'Year-One Tazar Coin',    rarity:'rare', desc:'A coin minted in the first year of Tazar\'s existence, under Reo Yamamoto\'s founding administration. There\'s a story about why these are rare.' },
+    { key:'ichiro_cedar_chip', name:'Great Cedar Wood Chip',  rarity:'rare', desc:'A chip of wood from the great cedar tree in Ooina — the one Ichiro Katsumi\'s tomb rests beneath. The Qi signature is still faintly active.' },
+    { key:'war_medal',         name:'Buo-Luo War Service Medal', rarity:'uncommon', desc:'Awarded to soldiers on both sides. Now worth different things depending on who\'s looking at it.' },
+    { key:'canal_key',         name:'Tazar Canal District Key', rarity:'uncommon', desc:'A key that opens certain lower-district canal structures. Either stolen from a warden or given by one. The key doesn\'t explain.' },
+    { key:'spirit_stone_spirit', name:'Small Spirit Stone',   rarity:'uncommon', desc:'A properly crystallized spirit stone. Passive Qi output. Cultivators keep these near them during rest.' },
+    { key:'cursed_token',      name:'Unknown Token (Ooina)',   rarity:'rare', desc:'A small stone token with markings not from any known writing system. Found in Ooina. Brings an unusual quality to Qi cultivation near it. Not bad. Not good. Different.' },
+    { key:'old_sect_seal',     name:'Defunct Sect Seal',      rarity:'uncommon', desc:'The official seal of a sect that no longer exists. Still recognized by some old cultivators. Worth something to the right people.' },
+    { key:'luo_jade_pendant',  name:'Luo-Tin Court Jade',     rarity:'rare', desc:'A piece of carved jade from the Luo-Tin Imperial Court. Either given as a diplomatic gift, stolen, or taken from someone who received it as a gift and then had a bad day.' },
+    { key:'poison_antidote_major', name:'Master Antidote Compound', consumable:true, rarity:'epic', desc:'Counters almost all known poisons. Expensive. The formulation requires a master physician or alchemist. Effective within 10 minutes of exposure.' },
+    { key:'night_pearl',       name:'Night Pearl',            rarity:'epic', desc:'A round stone that emits soft light in darkness. Cultivator-grade — the light has faint Qi properties. Very old. The origin is not known.' },
+    { key:'sealed_letter',     name:'Sealed Letter (unknown sender)', rarity:'uncommon', desc:'A letter with an unbroken seal. The seal is from a minor official or notable. It\'s addressed to someone. Whether that someone is the current holder is not clear.' },
+    { key:'cultivation_flag_rare', name:'Formation Flag (Sect-Grade)', rarity:'rare', desc:'A formation flag from a sect\'s supply rather than commercial stock. More precise, longer range, more durable. Not for sale publicly.' },
+    { key:'buo_war_relic',     name:'Buo War Relic',          rarity:'uncommon', desc:'An item from the Buo-Luo-Tin War — the specific object varies by what was in the field. It has history on it. You can tell.' },
+    { key:'merchant_ledger',   name:'Merchant\'s Private Ledger', rarity:'rare', desc:'A complete ledger of transactions that were clearly never meant to be public. Who it belonged to is unclear. What\'s inside is worth knowing.' },
+    { key:'jade_cultivation_bead', name:'Jade Cultivation Bead', rarity:'rare', desc:'A jade bead carved with meridian pathways. Rolled between the fingers during cultivation. The precision effect is real and small and consistent.' }
+  );
+})();
+
+// ================================================================
+// ── EXTENDED TRAITS — 120 traits, every one earning its slot
+// ── Named specifically, mechanically real, no generic filler
+// ================================================================
+Object.assign(TRAITS_CATALOG, {
+
+  // ── SENSORY PERCEPTION ────────────────────────────────────────
+  the_weight_before_rain: {
+    name:'The Weight Before Rain',
+    type:'innate_sensory', rarity:'uncommon', inherited:true,
+    desc:'You feel violence coming before it arrives. Not clairvoyance — something atmospheric. A pressure change, a quality in the light. You\'ve been right enough times to trust it.',
+    effects:{ perception:2, agility:1 },
+    aiHint:'THE WEIGHT BEFORE RAIN: Before violence breaks out — before anyone has made a move — this character gets a brief physical sense of it. Pressure in the chest, a specific quality in the air. Describe it as sensation, not information. They know something is wrong. They don\'t know what yet. Let them act on it or dismiss it.',
+  },
+  the_long_ear: {
+    name:'The Long Ear',
+    type:'innate_sensory', rarity:'rare', inherited:true,
+    desc:'Conversations at distances that shouldn\'t be hearable reach you clearly. You\'ve learned to not react to things you shouldn\'t have caught.',
+    effects:{ perception:4 },
+    aiHint:'THE LONG EAR: This character hears conversations at unusual distance — across a room, through a partly open window, from the end of a corridor. Occasionally surface what they overhear. The skill is knowing when not to react to what you heard.',
+  },
+  hollow_resonance: {
+    name:'Hollow Resonance',
+    type:'innate_sensory', rarity:'uncommon', inherited:true,
+    desc:'By pressing your palm against stone or metal you can feel what\'s on the other side. Vibrations, movement, weight. Like hearing through your hand.',
+    effects:{ perception:3 },
+    aiHint:'HOLLOW RESONANCE: When this character presses against a wall, floor, or metal surface, they can sense what\'s on the other side through vibration — movement, weight, number of people. Describe it as a physical sensation in the palm rather than a vision.',
+  },
+  mineral_tongue: {
+    name:'Mineral Tongue',
+    type:'innate_sensory', rarity:'uncommon', inherited:true,
+    desc:'You identify substances by taste with accuracy that suggests something pre-learned. Metals, minerals, certain compounds. You don\'t know why you know what iron tastes like at distance.',
+    effects:{ perception:2, intelligence:1 },
+    aiHint:'MINERAL TONGUE: This character can identify substances by taste, smell, and even proximity — particularly metals, minerals, and certain cultivation compounds. Useful for detecting poison, identifying ores, or reading what has been in a space. Describe it matter-of-factly, not as a supernatural power.',
+  },
+  acoustic_memory: {
+    name:'Acoustic Memory',
+    type:'innate_sensory', rarity:'uncommon', inherited:true,
+    desc:'A voice heard once is remembered exactly. Not the words — the voice itself. You would recognize it a decade later in complete darkness.',
+    effects:{ perception:2, intelligence:2 },
+    aiHint:'ACOUSTIC MEMORY: This character permanently remembers the exact vocal signature of anyone they\'ve spoken to or heard speak. In scenes where voice matters — someone trying to disguise themselves, a familiar voice in an unexpected place — surface it naturally.',
+  },
+  rust_tongue: {
+    name:'Rust Tongue',
+    type:'innate_sensory', rarity:'common', inherited:true,
+    desc:'You know what\'s been used recently. From the warmth of a handle, the wear pattern on a surface, the way a room smells when it\'s been occupied in the last hour.',
+    effects:{ perception:2 },
+    aiHint:'RUST TONGUE: This character can tell how recently something was used from physical evidence — warmth of a weapon grip, fresh wear marks, residual body heat in a space, smell of recent occupation. Describe these observations as natural deductions, not magical sensing.',
+  },
+  the_fracture_line: {
+    name:'The Fracture Line',
+    type:'innate_sensory', rarity:'rare', inherited:true,
+    desc:'You see where things will break before they do. Objects and situations alike. The cracked joint in the negotiation, the structural weakness in the wall. You\'ve been right more than is comfortable.',
+    effects:{ perception:3, intelligence:2 },
+    aiHint:'THE FRACTURE LINE: This character perceives structural weaknesses — in objects (where a wall will crack, where a weapon will fail) and in situations (the point where a negotiation will collapse, the weakness in an alliance). Surface this as an observation rather than a prediction. They see what\'s already wrong.',
+  },
+  soft_pressure: {
+    name:'Soft Pressure',
+    type:'innate_sensory', rarity:'uncommon', inherited:true,
+    desc:'Through the soles of your feet you sense weight distribution. How many people are in the room above, roughly. Where they\'re standing. Whether they\'re moving.',
+    effects:{ perception:2 },
+    aiHint:'SOFT PRESSURE: Through contact with the floor, this character senses weight distribution — how many people are above or adjacent, their approximate positions, whether they\'re moving. More useful in buildings than outdoors. Describe it as a felt sense rather than visual information.',
+  },
+
+  // ── INNATE BODY ───────────────────────────────────────────────
+  ghost_step: {
+    name:'Ghost Step',
+    type:'innate_body', rarity:'rare', inherited:true,
+    desc:'You leave no tracks on most surfaces. Dry earth, wood, stone — no impression. You didn\'t train this. It\'s simply how you walk.',
+    effects:{ agility:2 },
+    aiHint:'GHOST STEP: This character leaves no footprints or tracking evidence on most surfaces. Not trained — physical fact. When tracking would normally reveal them, it doesn\'t. NPCs attempting to follow their trail find nothing. This is not invisibility — they can still be seen, heard, smelled.',
+  },
+  wrong_footsteps: {
+    name:'Wrong Footsteps',
+    type:'innate_body', rarity:'uncommon', inherited:true,
+    desc:'Your footfalls don\'t match what you look like. A large person who moves silently. A small person who sounds heavy. Something is consistently off in a way that\'s hard to explain.',
+    effects:{ agility:1, luck:2 },
+    aiHint:'WRONG FOOTSTEPS: This character\'s sound signature doesn\'t match their appearance. When people hear them approach without seeing them, they expect someone different. This creates a small consistent advantage — the person who arrives is not who was anticipated.',
+  },
+  hard_landing: {
+    name:'Hard Landing',
+    type:'innate_body', rarity:'uncommon', inherited:true,
+    desc:'You absorb falls that would seriously injure most people. Not unharmed — you hit hard and get up again. The bone density is wrong for what the body should be capable of.',
+    effects:{ endurance:3 },
+    damageMult:{ fall:0.4 },
+    aiHint:'HARD LANDING: This character falls from significant heights and walks away damaged rather than incapacitated. They hit hard — describe the impact — but the damage is a fraction of what it should be. Bones don\'t shatter. The wind gets knocked out. They get up.',
+  },
+  smoke_joints: {
+    name:'Smoke Joints',
+    type:'innate_body', rarity:'uncommon', inherited:true,
+    desc:'Your joints bend in directions that suggest a different body architecture. Not painful. Actually quite comfortable. Very useful in tight spaces and when someone is trying to hold you still.',
+    effects:{ agility:3 },
+    aiHint:'SMOKE JOINTS: This character\'s joints have unusual flexibility — not painful, natural to them. They can fit through spaces others can\'t, escape holds and grabs that rely on normal anatomy, and move in directions that look wrong. In combat, describe this as their body doing something the opponent didn\'t expect was possible.',
+  },
+  second_skin: {
+    name:'Second Skin',
+    type:'innate_body', rarity:'common', inherited:true,
+    desc:'You adapt to temperature extremes within a few hours. Not immune — you feel cold and heat. You just stop being damaged by them while your body adjusts.',
+    effects:{ endurance:2 },
+    aiHint:'SECOND SKIN: This character adapts to extreme temperatures within hours. Cold regions that would damage others are uncomfortable at first and then not. Hot environments similarly. The adaptation is physical — describe it as their skin color changing slightly, their breathing pattern shifting. They\'re not immune to fire or ice attacks. Sustained extreme temperature is survivable.',
+  },
+  the_borrowed_life: {
+    name:'The Borrowed Life',
+    type:'innate_body', rarity:'epic', inherited:false,
+    desc:'You survived something that statistically kills everyone. The body remembers. You heal from serious injury faster. You don\'t fully process fear the way others do. Something is different about dying around you.',
+    effects:{ endurance:5, willpower:3 },
+    aiHint:'THE BORROWED LIFE: This character survived something that should have killed them. The effects: they heal serious injuries faster than they should, they don\'t respond to near-death situations with the expected fear response, and they seem to have an unusual relationship with mortality. Occasionally surface this as NPCs noticing something is off about how they survived, or the character themselves finding their own lack of fear strange.',
+  },
+  unmarked: {
+    name:'Unmarked',
+    type:'innate_body', rarity:'uncommon', inherited:true,
+    desc:'Wounds heal without leaving visible scars. The memory remains. The mark doesn\'t. You carry a history that isn\'t written on your skin.',
+    effects:{ endurance:1 },
+    aiHint:'UNMARKED: This character\'s wounds heal clean — no visible scars from injuries. The damage happened. The evidence doesn\'t persist. NPCs who know about injuries they should have sustained may be confused by the clean skin. The character remembers every wound. It just doesn\'t show.',
+  },
+  patient_zero: {
+    name:'Patient Zero',
+    type:'innate_body', rarity:'uncommon', inherited:true,
+    desc:'Illnesses reach you first. They pass quickly and leave you immune. You\'ve been briefly contagious more times than you\'ve been seriously sick.',
+    effects:{ endurance:2 },
+    damageMult:{ illness:0.3 },
+    aiHint:'PATIENT ZERO: This character catches illnesses first and burns through them quickly. They get sick fast, feel terrible briefly, and recover with immunity. They may be briefly contagious. The benefit: most diseases they\'ve encountered they\'ve already had. The cost: they catch the new ones first.',
+  },
+
+  // ── MENTAL / COGNITIVE ────────────────────────────────────────
+  the_third_look: {
+    name:'The Third Look',
+    type:'innate_mental', rarity:'uncommon', inherited:true,
+    desc:'You need to see or hear something three times before you fully understand it. The third time, you never forget. People who teach you know something is different about how you learn.',
+    effects:{ intelligence:3 },
+    aiHint:'THE THIRD LOOK: This character learns through repetition — first exposure registers, second exposure clarifies, third exposure embeds permanently. They\'re not slow — they\'re thorough. Once something is learned this way, it cannot be unlearned. Teachers find them satisfying to work with. The learning curve looks slow from outside. The result is complete.',
+  },
+  the_counting_mind: {
+    name:'The Counting Mind',
+    type:'innate_mental', rarity:'common', inherited:true,
+    desc:'You count things without deciding to. Steps, heartbeats, coins, people in a room. The number is always there. It\'s occasionally intrusive and more often useful.',
+    effects:{ intelligence:2, perception:1 },
+    aiHint:'THE COUNTING MIND: This character automatically counts things in their environment — people, steps, heartbeats, items. Surface this occasionally as a detail they notice without trying. The count is always accurate. They can give exact numbers for things others would estimate. In tense situations, the counting sometimes continues audibly.',
+  },
+  the_fever_logic: {
+    name:'The Fever Logic',
+    type:'innate_mental', rarity:'uncommon', inherited:true,
+    desc:'When ill, your reasoning improves. Intuition sharpens. Things you couldn\'t quite see while healthy become clear. You\'ve made your best decisions delirious.',
+    effects:{ intelligence:2 },
+    aiHint:'THE FEVER LOGIC: When sick, this character\'s reasoning and intuition improve rather than degrading. Describe them, while obviously unwell, suddenly seeing a solution or connection they missed while healthy. NPCs find this unsettling. The character often doesn\'t remember the insights clearly afterward.',
+  },
+  loose_grip_on_time: {
+    name:'Loose Grip on Time',
+    type:'innate_mental', rarity:'uncommon', inherited:true,
+    desc:'Extended action feels compressed. Waiting feels infinite. An hour of fighting might feel like five minutes. Three minutes waiting for someone might feel like an hour.',
+    effects:{ agility:2, willpower:-1 },
+    aiHint:'LOOSE GRIP ON TIME: This character experiences time differently in different states. During action, time compresses — they operate faster relative to their own perception. During inaction, it stretches painfully. In combat, describe them acting quickly without it feeling rushed. In waiting situations, describe the weight of it specifically.',
+  },
+  the_living_library: {
+    name:'The Living Library',
+    type:'innate_mental', rarity:'rare', inherited:false,
+    desc:'You forget techniques but the fragments remain and later reassemble. Something you couldn\'t execute last month comes back as if learned this morning. Your knowledge doesn\'t leave — it hides.',
+    effects:{ intelligence:4 },
+    aiHint:'THE LIVING LIBRARY: This character\'s knowledge persists even when it seems forgotten. Techniques they haven\'t practiced in months return fully formed. Skills that seemed to degrade actually didn\'t — they were compressed. When they return to something old, describe it as recognition rather than relearning.',
+  },
+  the_accountants_eye: {
+    name:'The Accountant\'s Eye',
+    type:'innate_mental', rarity:'uncommon', inherited:true,
+    desc:'Complex calculations happen as quickly as looking at numbers. You see the math before you think about it. Not learned — innate.',
+    effects:{ intelligence:3 },
+    aiHint:'THE ACCOUNTANT\'S EYE: This character processes mathematics instantly and accurately — prices, proportions, distances, odds, quantities. In commercial or strategic situations, they have immediate accurate figures where others would estimate. Describe this as numbers simply appearing rather than being calculated.',
+  },
+  the_missing_step: {
+    name:'The Missing Step',
+    type:'innate_mental', rarity:'uncommon', inherited:true,
+    desc:'You miss footing in ways that coincidentally avoid danger. You trip over the threshold right as the blade passes through where you were standing. Accident or something else.',
+    effects:{ luck:4, agility:-1 },
+    aiHint:'THE MISSING STEP: This character\'s clumsiness and accidents coincide with danger in a way that protects them. When danger is imminent, describe them doing something awkward — dropping something, misjudging a step — that happens to move them out of the path. This is luck, not skill. They don\'t know it\'s happening.',
+  },
+  crystalline_focus: {
+    name:'Crystalline Focus',
+    type:'innate_mental', rarity:'rare', inherited:true,
+    desc:'You can extend one sense to its absolute limit for 30 seconds. Then all senses become unreliable for an hour. The window is short. What you see in it is perfect.',
+    effects:{ perception:4, intelligence:1 },
+    aiHint:'CRYSTALLINE FOCUS: Once, when needed, this character can extend a single sense to extraordinary precision for about 30 seconds — hearing across a field, seeing detail at extreme range, or analyzing something with complete accuracy. After this, their senses become fuzzy and unreliable for an hour. The limitation is real. The 30 seconds are genuinely extraordinary.',
+  },
+
+  // ── SOCIAL / INTERPERSONAL ────────────────────────────────────
+  the_soft_touch: {
+    name:'The Soft Touch',
+    type:'innate_social', rarity:'uncommon', inherited:true,
+    desc:'Physical contact with a person briefly reveals their current emotional state. Not readable — felt. A handshake and you know whether they\'re afraid.',
+    effects:{ charisma:2, perception:2 },
+    aiHint:'THE SOFT TOUCH: When this character makes brief physical contact with someone, they receive a flash of that person\'s emotional state — not thoughts, just feeling. Fear, calm, excitement, grief, deception. Describe it as a brief somatic sensation when they touch someone. They can act on this or pretend not to know.',
+  },
+  the_unasked_question: {
+    name:'The Unasked Question',
+    type:'innate_social', rarity:'uncommon', inherited:true,
+    desc:'You know when someone wants to say something and hasn\'t. Not what they want to say. Just that there\'s something there, and they haven\'t said it.',
+    effects:{ perception:2, charisma:1 },
+    aiHint:'THE UNASKED QUESTION: This character physically senses when someone has something unsaid — a question, a confession, a warning. They don\'t know the content. They just know there\'s something held back. Occasionally surface this during conversations as the character noticing hesitation where others would not.',
+  },
+  borrowed_authority: {
+    name:'Borrowed Authority',
+    type:'innate_social', rarity:'rare', inherited:false,
+    desc:'You can convincingly impersonate authority you don\'t hold. Not through disguise — through bearing, vocabulary, and the specific confidence that makes people step aside.',
+    effects:{ charisma:4 },
+    aiHint:'BORROWED AUTHORITY: When this character chooses to present as a figure of authority — an official, a sect elder, a wealthy merchant — they can do so convincingly without lying about their identity. Something in their bearing produces compliance. NPCs who should question them often don\'t. The effect fails if they claim specific named individuals.',
+  },
+  crowd_dissolve: {
+    name:'Crowd Dissolve',
+    type:'innate_social', rarity:'uncommon', inherited:true,
+    desc:'In large groups of people, you become invisible. Not literally — you just stop attracting attention. The eye slides off you.',
+    effects:{ luck:2, agility:1 },
+    aiHint:'CROWD DISSOLVE: In crowds, this character doesn\'t register to casual attention. Wardens looking for someone don\'t pick them out. Witnesses remember a crowd, not a specific person. The effect doesn\'t work when they\'re the only person in a space or when they draw attention through action.',
+  },
+  the_double_voice: {
+    name:'The Double Voice',
+    type:'innate_social', rarity:'uncommon', inherited:true,
+    desc:'When you speak, two emotional tones carry simultaneously — one intended, one instinctive. Perceptive listeners sometimes react to the one you didn\'t mean.',
+    effects:{ charisma:2, perception:1 },
+    aiHint:'THE DOUBLE VOICE: When this character speaks in emotionally loaded situations, sensitive NPCs sometimes respond to an undertone they didn\'t intend — genuine emotion beneath the controlled surface. This can be advantageous (the fear they\'re suppressing reads as threat) or disadvantageous (the care they\'re hiding reads as weakness). Surface it as NPCs occasionally responding to what the character meant rather than what they said.',
+  },
+  the_mirror_test: {
+    name:'The Mirror Test',
+    type:'innate_social', rarity:'uncommon', inherited:true,
+    desc:'You\'re physically uncomfortable when you\'re the one being deceptive. Not morally — physically. A specific tension in the face and hands that trained observers can read.',
+    effects:{ charisma:1, willpower:2 },
+    aiHint:'THE MIRROR TEST: When this character lies or deliberately misleads, they experience a physical reaction — slight facial tension, particular hand position. They know it\'s there. They can manage it with effort. Occasionally describe the effort they make to control it, or moments when it slips.',
+  },
+  the_red_thread: {
+    name:'The Red Thread',
+    type:'innate_social', rarity:'rare', inherited:true,
+    desc:'You sense connections between people — alliances, resentments, debts, love, fear — as a kind of intuition. You see the web without being told what\'s in it.',
+    effects:{ perception:3, charisma:2 },
+    aiHint:'THE RED THREAD: In social situations with multiple people, this character intuitively perceives the relationships between them — who defers to whom, where there\'s tension, where there\'s affection, where there\'s debt. Surface this as them noticing things others wouldn\'t: the glance between two people, the way one body language shifts when a third person enters.',
+  },
+  glass_throat: {
+    name:'Glass Throat',
+    type:'innate_social', rarity:'uncommon', inherited:true,
+    desc:'Your voice carries naturally at distances that shouldn\'t be possible. Not shouting — normal speaking volume, crossing rooms and thin walls. People often think you\'re closer than you are.',
+    effects:{ charisma:2 },
+    aiHint:'GLASS THROAT: This character\'s voice carries at unusual distance and through thin barriers. In social situations, describe their voice reaching across a room when they don\'t intend it to. In useful situations, they can communicate with people at range without obvious effort.',
+  },
+
+  // ── COMBAT AND PRESSURE ───────────────────────────────────────
+  the_opposite_of_fear: {
+    name:'The Opposite of Fear',
+    type:'innate_mental', rarity:'rare', inherited:false,
+    desc:'When afraid, you become more precise. Not braver — fear is still fear. But the mind clears, the hands steady, and the action that comes out is better than it would be calm.',
+    effects:{ willpower:4, agility:2 },
+    aiHint:'THE OPPOSITE OF FEAR: When this character is genuinely afraid — and they feel it like anyone else — their execution improves rather than degrading. Describe the fear as real and present, but their actions as precise and controlled. This is not courage. This is a specific physiological response that happens to be useful.',
+  },
+  the_slow_burn: {
+    name:'The Slow Burn',
+    type:'innate_mental', rarity:'uncommon', inherited:true,
+    desc:'Your anger never spikes. It accumulates. Over days, weeks, sometimes months. When it finally arrives, it is complete. It doesn\'t pass until it\'s done.',
+    effects:{ willpower:3, strength:2 },
+    aiHint:'THE SLOW BURN: This character doesn\'t have anger responses in the moment. Insults, failures, and injustices get filed. Later — sometimes much later — the accumulation reaches a threshold. When it does, describe the anger as complete and quiet rather than explosive. It doesn\'t look like rage. It looks like a decision.',
+  },
+  borrowed_stillness: {
+    name:'Borrowed Stillness',
+    type:'innate_mental', rarity:'uncommon', inherited:true,
+    desc:'In situations of extreme external chaos, your internal state goes quiet. Not calm — quiet. The decision-making continues without the noise of stress.',
+    effects:{ willpower:3 },
+    damageMult:{ mental:0.5 },
+    aiHint:'BORROWED STILLNESS: When external circumstances are most chaotic — combat, crisis, high emotional situations — this character\'s internal state becomes unusually quiet. They\'re not unaffected. They just don\'t feel the interference. Describe them as oddly functional in situations where others become erratic.',
+  },
+  asymmetric: {
+    name:'Asymmetric',
+    type:'innate_body', rarity:'uncommon', inherited:true,
+    desc:'One side of your body is slightly different from the other. One eye picks up peripheral movement faster. One hand is stronger. The difference is specific and useful.',
+    effects:{ perception:2, strength:1 },
+    aiHint:'ASYMMETRIC: This character has a specific physical asymmetry that functions as a specialization. One eye sees peripheral motion first. One hand has grip strength the other doesn\'t. One ear picks up certain frequencies better. In situations where this specific advantage matters, surface it. The asymmetry is real and visible if looked for.',
+  },
+  forgetful_hands: {
+    name:'Forgetful Hands',
+    type:'innate_body', rarity:'uncommon', inherited:true,
+    desc:'Once your hands learn the correct grip or movement, they never hold the wrong version again. Bad habits don\'t stick. Neither does incorrect technique.',
+    effects:{ agility:2, intelligence:1 },
+    aiHint:'FORGETFUL HANDS: Once this character learns the correct physical execution of something — the right grip, the precise movement — their hands don\'t fall back into wrong habits. Incorrect technique simply doesn\'t persist. This accelerates physical skill development and prevents cultivators from "re-learning" bad patterns.',
+  },
+  the_wound_map: {
+    name:'The Wound Map',
+    type:'innate_sensory', rarity:'rare', inherited:true,
+    desc:'You can read a person\'s injury history from their body. Old fractures, healed cuts, the posture compensation for a shoulder injury. A person\'s violence is written in them.',
+    effects:{ perception:3, intelligence:1 },
+    aiHint:'THE WOUND MAP: Through observation and brief contact, this character reads the injury history of a person\'s body — old breaks, healed wounds, patterns of abuse or hard labor, compensation for old damage. In fights, this reveals weak points. In conversation, it reveals history. Surface this as them noticing something visible that others don\'t look for.',
+  },
+  stolen_reflexes: {
+    name:'Stolen Reflexes',
+    type:'innate_body', rarity:'epic', inherited:false,
+    desc:'After watching a skilled fighter move in real combat, something in your body begins to imitate them — not the technique, the timing. The rhythm of their violence.',
+    effects:{ agility:4, strength:2 },
+    aiHint:'STOLEN REFLEXES: After observing a skilled fighter in actual combat (not sparring — real violence), this character\'s body begins to incorporate their timing patterns. Not the technique — the rhythm and spacing. Describe them, in subsequent encounters, moving with a familiar quality that observers might recognize. The stolen rhythm only comes from real combat observation.',
+  },
+  pressure_cooker: {
+    name:'Pressure Cooker',
+    type:'innate_mental', rarity:'uncommon', inherited:false,
+    desc:'Backed into a corner with no options, you consistently perform above your apparent ceiling. Not courage — something else. The options narrow and the action gets cleaner.',
+    effects:{ strength:2, agility:2, willpower:2 },
+    aiHint:'PRESSURE COOKER: When genuinely cornered — real stakes, no clear path, significant threat — this character performs above their normal capability. Describe the execution in these moments as sharper, faster, or more inventive than usual. This doesn\'t work in training or low-stakes situations. It requires real constraint.',
+  },
+
+  // ── CULTIVATION-SPECIFIC ──────────────────────────────────────
+  mountain_dreaming: {
+    name:'Mountain Dreaming',
+    type:'innate_mental', rarity:'uncommon', inherited:true,
+    desc:'Cultivation advances more in wild places than in cities. Near stone, water, old growth, altitude. Your Qi responds to something in natural formations that built environments suppress.',
+    effects:{ endurance:1 },
+    qiCostMult:{ cultivation_in_nature:0.8 },
+    aiHint:'MOUNTAIN DREAMING: This character cultivates more effectively in natural environments — mountains, forests, riversides, high altitude — than in cities or buildings. Describe cultivation sessions outdoors as going deeper and faster. In urban settings, cultivation feels like pushing against something.',
+  },
+  appetite_for_distance: {
+    name:'Appetite for Distance',
+    type:'innate_mental', rarity:'uncommon', inherited:false,
+    desc:'Cultivation advances faster the further you are from your birthplace. Something in the Qi responds to unfamiliarity. The familiar suppresses you.',
+    effects:{ luck:2 },
+    aiHint:'APPETITE FOR DISTANCE: This character\'s cultivation is more effective when they\'re far from where they were born. New cities, foreign territory, unfamiliar Qi signatures — all improve their cultivation speed. The further from home, the faster the growth. Near home, progress feels slower and more difficult.',
+  },
+  twice_broken: {
+    name:'Twice-Broken Meridians',
+    type:'innate_body', rarity:'epic', inherited:false,
+    desc:'Your meridians were damaged and healed. The scar tissue makes cultivation harder in certain paths and easier in others. The breaks changed the map.',
+    effects:{ endurance:3, willpower:2 },
+    qiCostMult:{ standard:1.2, scar_path:0.7 },
+    aiHint:'TWICE-BROKEN MERIDIANS: This character\'s meridians show old damage — the kind that changes cultivation permanently. Standard Qi circulation is slightly more effortful. But the specific paths formed by scar tissue are exceptionally efficient. Describe this as cultivation that is harder in standard techniques but produces unusual results in paths that use the damaged-and-rebuilt channels.',
+  },
+  bad_weather: {
+    name:'Bad Weather',
+    type:'innate_mental', rarity:'uncommon', inherited:true,
+    desc:'Your emotional state has a minor effect on nearby Qi distribution. Not enough to cultivate — enough that sensitive cultivators can read your mood from the air.',
+    effects:{ charisma:2, perception:1 },
+    aiHint:'BAD WEATHER: This character\'s strong emotions create minor disturbances in ambient Qi that sensitive cultivators can detect. Grief feels like a drop in Qi density. Anger creates a subtle warmth. Cultivators nearby may comment on an atmospheric quality when this character is in an intense emotional state. The character doesn\'t know it\'s happening.',
+  },
+  signal_fire: {
+    name:'Signal Fire',
+    type:'innate_body', rarity:'epic', inherited:false,
+    desc:'In moments of genuine danger, your Qi signature briefly spikes to visibility — readable by any cultivator within range. You become a beacon right when you need to be invisible.',
+    effects:{ perception:2 },
+    aiHint:'SIGNAL FIRE: When this character is in genuine mortal danger, their Qi signature briefly flares — visible to any cultivator in range as a sudden Qi spike. This can be protective (alerts allies) or dangerous (alerts enemies). The character cannot control it. Describe it as something cultivators feel rather than see.',
+  },
+  threshold_sickness: {
+    name:'Threshold Sickness',
+    type:'innate_body', rarity:'uncommon', inherited:true,
+    desc:'Crossing significant spiritual or physical thresholds makes you briefly ill. City gates, sect barriers, entering a location with strong Qi. You always feel when you\'ve entered somewhere that matters.',
+    effects:{ perception:3 },
+    aiHint:'THRESHOLD SICKNESS: When crossing significant thresholds — entering a powerful sect\'s territory, passing through a Qi formation barrier, crossing a spiritually significant boundary — this character experiences brief nausea or discomfort. This functions as a reliable detector of significant places. They always feel when they\'ve entered somewhere that matters.',
+  },
+
+  // ── EMOTIONAL / PSYCHOLOGICAL ─────────────────────────────────
+  stone_patience: {
+    name:'Stone Patience',
+    type:'innate_mental', rarity:'uncommon', inherited:true,
+    desc:'You can wait without deteriorating. Hours of stillness don\'t cost you anything. The mind doesn\'t fill the space with anxiety or frustration. You simply wait.',
+    effects:{ willpower:4 },
+    aiHint:'STONE PATIENCE: This character can wait — genuinely wait, without deterioration — for extended periods. Hours of inaction don\'t produce impatience or anxiety for them. In ambush situations, stakeouts, negotiations with time pressure, describe them as unaffected where others are visibly eroding.',
+  },
+  ugly_luck: {
+    name:'Ugly Luck',
+    type:'innate_mental', rarity:'uncommon', inherited:true,
+    desc:'When things go wrong, they go spectacularly wrong. But they rarely go fatally wrong. You\'ve survived disasters that should have killed you, in the most inconvenient ways possible.',
+    effects:{ luck:5, charisma:-1 },
+    aiHint:'UGLY LUCK: When this character\'s luck goes bad, it goes dramatically bad — the worst possible outcome of the plan, the most embarrassing failure, the maximum collateral. But the worst possible outcome is rarely death or permanent ruin. They survive their disasters intact, usually having made a mess, occasionally having accidentally solved something else.',
+  },
+  sound_sleep: {
+    name:'Sound Sleep',
+    type:'innate_body', rarity:'common', inherited:true,
+    desc:'Sleep is complete and absolute. You cannot be woken by noise, light, or subtle disturbance — only by physical intervention or serious threat. You recover fully in six hours regardless of conditions.',
+    effects:{ endurance:2 },
+    aiHint:'SOUND SLEEP: When this character sleeps, they\'re essentially unreachable by normal means. Footsteps, doors, voices, light — none of it registers. Physical shaking wakes them instantly. Real danger does too, somehow. Between those extremes, they\'re gone. The recovery benefit is real: six hours anywhere and they\'re fully rested.',
+  },
+  the_honest_body: {
+    name:'The Honest Body',
+    type:'innate_mental', rarity:'common', inherited:true,
+    desc:'You cannot hold still when lying. A specific small movement — a finger tap, a weight shift — that you\'ve never been able to suppress. Observant people figure it out eventually.',
+    effects:{ willpower:1, charisma:-1 },
+    aiHint:'THE HONEST BODY: When this character lies, they make a specific involuntary movement — a particular finger gesture, a weight shift, an eye movement. They know it happens and cannot stop it. Perceptive NPCs eventually identify it. Describe the tell occasionally, and NPC reactions when they notice.',
+  },
+  scar_script: {
+    name:'Scar Script',
+    type:'innate_sensory', rarity:'uncommon', inherited:false,
+    desc:'Old wounds ache when the thing that caused them is near. The scar from a specific enemy\'s blade aches when that enemy is within range. The break from a fall aches near drop points.',
+    effects:{ perception:2 },
+    aiHint:'SCAR SCRIPT: Old injuries on this character function as environmental sensors. An old wound from a specific source aches when that source is near. A scar from a blade aches near that blade or someone carrying it. A break from a specific event aches near similar conditions. Describe this as physical sensation in old wounds, not vision or hearing.',
+  },
+  perfect_pitch: {
+    name:'Perfect Pitch',
+    type:'innate_sensory', rarity:'uncommon', inherited:true,
+    desc:'You can reproduce any sound you\'ve heard once — voice, tone, environmental sound. Not perfectly, but accurately enough to be useful.',
+    effects:{ charisma:2, perception:1 },
+    aiHint:'PERFECT PITCH: This character can reproduce sounds they\'ve heard — voices, tones, specific environmental sounds — with enough accuracy to be useful. A voice at distance. A specific sound to attract attention. An imitation of something that shouldn\'t be there. Not perfect reproduction, but recognizable.',
+  },
+
+  // ── CRAFT AND CREATION ────────────────────────────────────────
+  the_correction: {
+    name:'The Correction',
+    type:'innate_mental', rarity:'uncommon', inherited:true,
+    desc:'When something near you is done incorrectly — a technique, a craft action, a calculation — you feel it as physical discomfort. You always know when something is wrong even if you can\'t name why.',
+    effects:{ intelligence:2, perception:2 },
+    aiHint:'THE CORRECTION: When someone near this character executes something incorrectly — a technique with flawed form, a calculation error, a craftwork mistake — they feel a brief physical discomfort. They might not be able to explain what\'s wrong. But they know something is. This makes them useful teachers and unreliable observers when everyone around them is doing things wrong.',
+  },
+  unseen_hands: {
+    name:'Unseen Hands',
+    type:'innate_body', rarity:'uncommon', inherited:true,
+    desc:'Manipulation of small objects in low visibility. You work by feel in darkness as well as others work in light, but only with small things, and only at close range.',
+    effects:{ agility:2, perception:1 },
+    aiHint:'UNSEEN HANDS: Fine manipulation of small objects in complete darkness comes naturally to this character. Lock mechanisms, small tools, items close to the body — they work by touch as accurately as sight. This doesn\'t extend to combat or large objects. It\'s specifically the precision work that depends on sensation rather than vision.',
+  },
+  worn_roads: {
+    name:'Worn Roads',
+    type:'innate_mental', rarity:'uncommon', inherited:true,
+    desc:'A route walked once is remembered vaguely. A route walked twice is known completely. No map required. No forgetting after that.',
+    effects:{ intelligence:2, perception:1 },
+    aiHint:'WORN ROADS: Any route this character walks twice they know permanently and completely — every branch, every landmark, every detail. A single walk registers but fades. Two walks creates a permanent mental map. In situations requiring navigation, describe them finding their way through places they\'ve visited before with perfect recall.',
+  },
+  borrowed_tongue: {
+    name:'Borrowed Tongue',
+    type:'innate_social', rarity:'rare', inherited:true,
+    desc:'After ten minutes of hearing a language or dialect, you speak it without accent. Not fluently — the vocabulary is still limited. But whatever you do say sounds native.',
+    effects:{ charisma:2, intelligence:2 },
+    aiHint:'BORROWED TONGUE: After a brief exposure to a language or regional dialect, this character speaks it without foreign accent. Their vocabulary is limited to what they\'ve heard and know. But the sounds are perfect. Native speakers assume they\'re local until the vocabulary gaps become obvious.',
+  },
+  collectors_instinct: {
+    name:'The Collector\'s Instinct',
+    type:'innate_sensory', rarity:'uncommon', inherited:true,
+    desc:'In unfamiliar spaces, you know where things are stored without being told. Not specifically — you know which rooms are for storage, which furniture holds things, which panels might open.',
+    effects:{ perception:2, luck:2 },
+    aiHint:'THE COLLECTOR\'S INSTINCT: In unfamiliar buildings and spaces, this character intuitively identifies where things are stored — which furniture has hidden compartments, which rooms serve as actual storage versus display, where valuables would logically be kept. Not magic. Pattern recognition applied to spaces.',
+  },
+
+  // ── WORLD-CONNECTED (tied to specific lore) ───────────────────
+  reos_shadow: {
+    name:'Reo\'s Shadow',
+    type:'upbringing', rarity:'uncommon', inherited:false,
+    desc:'You grew up in Tazar under Reo Yamamoto\'s administration. The specific quality of justice and order he maintained is your reference point for what governance can be. When you see it fail, you know exactly what failure looks like.',
+    effects:{ willpower:2, charisma:1 },
+    aiHint:'REO\'S SHADOW: This character grew up experiencing what governance actually looks like when someone competent and ethical runs it. They have an internal reference standard for institutions that most people lack. When they encounter corruption or incompetence, they recognize it precisely rather than generally. And they know, specifically, what would fix it.',
+  },
+  ooina_raised: {
+    name:'Ooina-Raised',
+    type:'upbringing', rarity:'rare', inherited:false,
+    desc:'You grew up in or regularly visited Ichiro\'s forest. The Qi there is heavier, older, and occasionally active in ways it shouldn\'t be. Your Qi sense was trained by something most cultivators never encounter.',
+    effects:{ perception:3, endurance:1 },
+    aiHint:'OOINA-RAISED: This character\'s Qi sense was shaped by exposure to Ichiro\'s forest — one of the most Qi-dense and unusual places in the world. Their baseline for what Qi feels like is skewed toward intense and strange. They notice Qi disturbances earlier than others and calibrate to unusual signatures faster. Ooina NPCs and Qi-entities may respond to them differently.',
+  },
+  war_child: {
+    name:'War Child',
+    type:'upbringing', rarity:'uncommon', inherited:false,
+    desc:'The Buo-Luo-Tin War was part of your childhood. Not its politics — its texture. Shortages, displacement, the specific way adults talk when they\'re afraid to tell you the truth.',
+    effects:{ willpower:2, perception:1 },
+    aiHint:'WAR CHILD: This character grew up with the Buo-Luo-Tin War as background reality — shortages, movement, fear, the specific way adults lie to protect children. They read instability early. They recognize when normal life is suspended. They know what certain kinds of silence mean. NPCs from the war zones recognize something in them.',
+  },
+  bridge_bred: {
+    name:'Bridge-Bred',
+    type:'upbringing', rarity:'common', inherited:false,
+    desc:'You grew up in Beggar\'s Rest or somewhere exactly like it. The specific social code of people who have nothing to protect except each other is part of how you read the world.',
+    effects:{ charisma:1, perception:1, willpower:1 },
+    aiHint:'BRIDGE-BRED: This character grew up where there was nothing to protect except community. They read people through a specific lens — who keeps their word, who doesn\'t, what it costs to be the person who breaks it. In Beggar\'s Rest and similar places, they move with fluency. The unspoken codes are native to them.',
+  },
+  canal_rat: {
+    name:'Canal Rat',
+    type:'upbringing', rarity:'common', inherited:false,
+    desc:'You know the canal district the way you know your own hands. The specific geography of Tazar\'s underbelly — which routes avoid the wardens, who runs what, where things actually happen versus where they appear to happen.',
+    effects:{ agility:2, intelligence:1 },
+    aiHint:'CANAL RAT: This character has specific, complete knowledge of the Tazar canal district — the real version, not the official version. Which stalls have back exits. Which wardens take payment. Which routes are safe which hours. This knowledge is granular, current, and personal.',
+  },
+  buo_survivor: {
+    name:'Buo Survivor',
+    type:'upbringing', rarity:'uncommon', inherited:false,
+    desc:'You came through something in Buo Kingdom that you shouldn\'t have. The war, the aftermath, a specific disaster. The survival shows in ways you can\'t always explain.',
+    effects:{ endurance:3, willpower:1 },
+    aiHint:'BUO SURVIVOR: This character survived something significant in Buo — a battle, an occupation, a personal disaster during the war period. The survival shows in practical knowledge that shouldn\'t be there (how to navigate destroyed infrastructure, how to assess immediate threat, how to function on minimal resources). NPCs from Buo recognize something.',
+  },
+
+  // ── NEGATIVE-POSITIVE (both drawback and power) ───────────────
+  the_long_memory: {
+    name:'The Long Memory',
+    type:'innate_mental', rarity:'uncommon', inherited:true,
+    desc:'You forget nothing you\'ve experienced directly. Every embarrassment, every failure, every wound, every cruelty received. Nothing fades. Nothing softens. The accuracy is complete.',
+    effects:{ intelligence:4, willpower:-2 },
+    aiHint:'THE LONG MEMORY: This character forgets nothing they\'ve directly experienced. Useful memories are as complete as painful ones. They can recall any direct experience with full detail. The cost: nothing softens with time. Old wounds are as fresh as new ones when recalled. They have no mercy from their own history.',
+  },
+  the_honest_fool: {
+    name:'The Honest Fool',
+    type:'innate_social', rarity:'uncommon', inherited:true,
+    desc:'You physically cannot deliver convincing insincere praise. Flattery sounds wrong coming from you. People can tell when you mean something because they can also tell when you don\'t.',
+    effects:{ charisma:3, intelligence:1 },
+    aiHint:'THE HONEST FOOL: This character cannot deliver convincing insincerity. When they mean something, it sounds genuine. When they don\'t, that\'s audible too. NPCs over time develop a specific relationship with this — they trust what this character says sincerely more than they trust most. The cost is social friction where performance would serve better.',
+  },
+  needle_sleep: {
+    name:'Needle Sleep',
+    type:'innate_body', rarity:'uncommon', inherited:true,
+    desc:'You only need three hours of sleep to function fully. Below that, you\'re impaired. Above that, you don\'t improve further. Your rest requirement is specific and fixed.',
+    effects:{ endurance:1, willpower:1 },
+    aiHint:'NEEDLE SLEEP: This character requires exactly three hours of sleep to function fully — no more benefit from sleeping more, no impairment from sleeping less above that threshold. Below three hours, they\'re genuinely impaired. This is useful in some contexts (more waking hours) and a liability in others (no safety margin).',
+  },
+  always_early: {
+    name:'Always Early',
+    type:'innate_sensory', rarity:'common', inherited:true,
+    desc:'You sense when something is about to happen — not what, not how. Just that something is about to change. You\'re the one who\'s already standing up when the fight starts.',
+    effects:{ agility:2, perception:1 },
+    aiHint:'ALWAYS EARLY: This character senses impending change before it happens — not specifically, just imminently. They\'re already in motion when things start. In situations where others are surprised, describe them as already reacting. Not prescience — early reading.',
+  },
+  the_useful_past: {
+    name:'The Useful Past',
+    type:'innate_mental', rarity:'uncommon', inherited:false,
+    desc:'Things that hurt you in the past become practical tools. The betrayal teaches you what to look for. The failure teaches you the specific weak point. You learn from loss with unusual efficiency.',
+    effects:{ intelligence:3, willpower:1 },
+    aiHint:'THE USEFUL PAST: After experiencing a specific kind of failure, betrayal, or harm, this character develops specific practical knowledge from it. Not wisdom — specific operational knowledge. The person who betrayed them taught them exactly how that betrayal is set up. The technique that failed showed them precisely where it fails. Reference this when relevant.',
+  },
+
+  // ── PHYSICAL QUIRKS THAT MATTER ───────────────────────────────
+  the_waiting_room: {
+    name:'The Waiting Room',
+    type:'innate_body', rarity:'uncommon', inherited:true,
+    desc:'You can hold completely still for hours without discomfort. No fidgeting urge. No need to shift. You can simply stop moving and remain stopped for as long as necessary.',
+    effects:{ willpower:2, endurance:1 },
+    aiHint:'THE WAITING ROOM: This character can hold complete stillness for extended periods without physical discomfort or psychological difficulty. An hour of motionless waiting is easy. Several hours is possible. In ambush, surveillance, or situations requiring patience, describe them as genuinely undisturbed by the waiting.',
+  },
+  the_sleepwalkers_path: {
+    name:'The Sleepwalker\'s Path',
+    type:'innate_body', rarity:'uncommon', inherited:true,
+    desc:'When exhausted or half-conscious, you navigate correctly. Better than when fully awake. Something takes over that doesn\'t need the thinking part of the brain.',
+    effects:{ agility:1, endurance:2 },
+    aiHint:'THE SLEEPWALKER\'S PATH: When this character is exhausted or operating at the edges of consciousness — sleep-deprived, recovering from injury, partially incapacitated — they navigate and perform physical tasks with unusual accuracy. Describe the body moving correctly when the mind can\'t fully supervise it.',
+  },
+  river_memory: {
+    name:'River Memory',
+    type:'innate_sensory', rarity:'uncommon', inherited:true,
+    desc:'You don\'t forget anything heard near water. Conversations, names, information — anything received while near a river, canal, pond, or rain becomes permanent.',
+    effects:{ intelligence:2, perception:1 },
+    aiHint:'RIVER MEMORY: Everything this character hears while near water is permanently retained with perfect accuracy. Conversations at canal-side stalls, negotiations at river crossings, information received in rain — all of it permanent. Events away from water fade normally. This quirk is consistent and reliable.',
+  },
+  the_grieving_nose: {
+    name:'The Grieving Nose',
+    type:'innate_sensory', rarity:'uncommon', inherited:true,
+    desc:'You smell grief. Not metaphorically — a specific chemical change in the body that accompanies loss. You always know who in a room has experienced recent death.',
+    effects:{ perception:3 },
+    aiHint:'THE GRIEVING NOSE: This character smells the specific biochemistry of grief — a real physiological change associated with recent loss. They always know who in a space has experienced recent death. This is not emotional perception — it\'s chemical. Describe it as a specific scent they identify without being able to explain easily.',
+  },
+  the_creditors_walk: {
+    name:'The Creditor\'s Walk',
+    type:'innate_social', rarity:'uncommon', inherited:true,
+    desc:'Your posture and movement carry the implicit message that you are owed something. People unconsciously defer, make room, lower their voices. You didn\'t develop this — you were born this way.',
+    effects:{ charisma:3 },
+    aiHint:'THE CREDITOR\'S WALK: Without conscious effort, this character\'s bearing suggests entitlement — not arrogance, but the specific quality of someone who is owed. People make room. Crowds part slightly. Officials soften. This is entirely involuntary and the character may be genuinely confused by the deference they receive.',
+  },
+  map_head: {
+    name:'Map Head',
+    type:'innate_mental', rarity:'uncommon', inherited:true,
+    desc:'An internal compass and spatial memory that functions as a complete map. You know where north is. You know the relative position of every place you\'ve been. You don\'t get lost.',
+    effects:{ intelligence:2, perception:2 },
+    aiHint:'MAP HEAD: This character always knows their cardinal orientation and the spatial relationship between everywhere they\'ve been. They don\'t get lost. Their mental map of any space they\'ve navigated is accurate and complete. In unfamiliar territory, they track their position continuously without effort.',
+  },
+
+  // ── UNIQUE / HIGH-RARITY ──────────────────────────────────────
+  the_dreaming_eye: {
+    name:'The Dreaming Eye',
+    type:'innate_sensory', rarity:'epic', inherited:true,
+    desc:'Occasionally you wake with a fragment — a face, a word, a place — that carries some accuracy. Not always. Not reliably. But often enough that ignoring it feels like a choice you\'re making.',
+    effects:{ perception:3, luck:3 },
+    aiHint:'THE DREAMING EYE: Occasionally — not every session — this character wakes with a dream fragment that carries some truth: a face they haven\'t met yet, a warning about something coming, a specific detail about a situation. Present it cryptically, as something they woke with rather than a vision or power. They can act on it or dismiss it. It\'s accurate enough that dismissal is a real choice with real consequences.',
+  },
+  the_borrowed_name: {
+    name:'The Borrowed Name',
+    type:'innate_social', rarity:'legendary', inherited:false,
+    desc:'You are able to become entirely someone else — not through disguise, but through something in how you occupy the role. People who should recognize you don\'t. People who should question you don\'t. You step into an identity and it fits.',
+    effects:{ charisma:5, luck:3 },
+    aiHint:'THE BORROWED NAME: When this character chooses to present as someone else — not a specific named person, but a role — the assumption holds against scrutiny it shouldn\'t survive. A guard who should check credentials finds themselves waving through. A merchant who should ask questions finds themselves making space. The effect is not unlimited and eventually breaks, but it holds much longer than it should.',
+  },
+  debt_sense: {
+    name:'Debt Sense',
+    type:'innate_sensory', rarity:'rare', inherited:true,
+    desc:'You feel when someone nearby is in desperate need of something. Not the specific need — the quality of desperation. You\'ve always been able to find people at the end of their options.',
+    effects:{ perception:3, charisma:2 },
+    aiHint:'DEBT SENSE: This character physically senses when someone nearby has reached a point of desperation — near the end of their options, in genuine crisis. Not what they need — the feeling of need itself. They have an involuntary tendency to end up near people at the limit. Describe this as a pull, a noticing.',
+  },
+  the_sleepless_record: {
+    name:'The Sleepless Record',
+    type:'innate_mental', rarity:'legendary', inherited:false,
+    desc:'During sleep, you process and retain everything from the day completely. You wake with total clarity of the day before. No fog. No forgetting. The integration is complete every morning.',
+    effects:{ intelligence:5, endurance:2 },
+    aiHint:'THE SLEEPLESS RECORD: Each morning this character wakes with complete integration of the previous day — every conversation, observation, and experience processed and retained in full. No details lost to sleep. No confusion about what happened. This compounds over time: they build a more accurate, complete picture of the world than most people are capable of holding.',
+  },
+
+}); // end Object.assign TRAITS_CATALOG
 
 console.log('Murim Chronicles fully loaded.');
 
