@@ -32292,7 +32292,20 @@ const WORLD_RELIGIONS = {
     deity: null, // not deity-worshipping — practice-based
     core_belief: 'The universe is in constant motion. Suffering comes from trying to move with it. The practitioner learns to be still within the current. The water is always moving. The stone at the bottom is always still. Be the stone.',
     origin: 'Azure Empire canal and river communities, pre-Year 1. Believed to have existed before Qi cultivation was discovered, gaining new depth once cultivators noticed the correlation between stillness practice and natural Qi gathering.',
-    regions: ['tazar', 'jade_province', 'beggars_rest', 'ooina'],
+    regions: ['tazar', 'jade_province', 'beggars_rest', 'ooina', 'wheat_capital', 'iron_hollow'],
+    timeline: [
+      { year:-200, event: 'The earliest known record of Still Water practice — a canal worker\'s account of sitting beside the water each morning before the shift. No religion. Just the practice.' },
+      { year:0,    event: 'When Reo Yamamoto selects the location for Tazar, he comments that the canal district already has a specific quality — a quietness he attributes to the people who have lived there for generations. Still Water practitioners exist in the area before the city is formally established.' },
+      { year:20,   event: 'As Tazar grows, the canal district develops its own culture distinct from the upper city. Still Water becomes loosely formalized here — meeting points beside the canals, shared language for the practices, older practitioners passing the River Sitting method to younger ones.' },
+      { year:65,   event: 'Reo Yamamoto is documented visiting a Still Water gathering near the central canal. He does not join the practice. He stays for several hours. He asks one question: "What do you do when the water is frozen?" The practitioner says: "You wait." Reo leaves without comment.' },
+      { year:100,  event: 'Still Water spreads to Beggar\'s Rest almost naturally — the canal community under the bridge develops their own version. The practice survives there with modifications: the "water" is metaphorical for some who cannot reliably sit beside it.' },
+      { year:150,  event: 'Reo Yamamoto\'s death. Still Water communities in Tazar hold a sitting — not a memorial service, simply their regular practice, on the day of his death. Multiple practitioners note that the water seemed unusually still that day. They debate whether this means anything.' },
+      { year:155,  event: 'As Tazar\'s governance degrades, Still Water practitioners in the canal district become increasingly important to the community\'s social fabric. They are not leaders. But they are reliable. Their stillness in a volatile neighborhood is noticed.' },
+      { year:200,  event: 'The practice reaches Ooina through traders and hermit-cultivators. The forest version develops differently — the "water" is Ichiro\'s forest itself. Practitioners sit within the dense Qi of the trees rather than beside a canal.' },
+      { year:280,  event: 'A Still Water practitioner known as The Quiet Tide writes the Stillwater Sutras — a collection of forty-four observations, each one sentence, each apparently about water. Scholars debate which ones are also about cultivation, which ones are about governance, and which ones are simply about water.' },
+    ],
+    npcs_connected: ['reo_yamamoto'],
+    yaqism_relation: 'Still Water and Yaqism have occasional friction — Yaqism\'s central image is a flame within, which practitioners of Still Water find conceptually hostile to stillness. Some practitioners resolve this by saying the flame IS the current and stillness is how you carry it without burning. Others consider Yaqism fundamentally opposed.',
     practices: {
       river_sitting: {
         name: 'River Sitting',
@@ -32323,7 +32336,20 @@ const WORLD_RELIGIONS = {
     deity: 'Heaven, specifically understood as a witness — Heaven watches oaths and remembers them.',
     core_belief: 'The spoken word, sworn before Heaven, cannot be unsaid. Your word is your soul\'s contract. A man who breaks his oath has broken himself in a way that does not heal.',
     origin: 'Luo-Tin Dynasty, warrior traditions. The formalization of oath-keeping predates the current Dynasty but was codified by a general named Xu Feng who died keeping his word to an enemy he had sworn to protect — in front of troops who were watching, which they never forgot.',
-    regions: ['luo_tin_capital', 'great_defensive_giant', 'luo_tin_farm'],
+    regions: ['luo_tin_capital', 'great_defensive_giant', 'luo_tin_farm', 'shen_port', 'silver_district'],
+    timeline: [
+      { year:-150, event: 'General Xu Feng swears to a captured Buo officer that he will see the officer safely returned to his family. His own generals warn him this oath is dangerous. He keeps it. They attempt to prevent it. He dies preventing them. The officer survives. The army watches.' },
+      { year:-140, event: 'The story of Xu Feng spreads through Luo-Tin military culture. It is not presented as religious instruction. It is presented as a story about what a soldier is. The Sworn Road formalization begins here.' },
+      { year:0,    event: 'The Sworn Road is practiced throughout the Luo-Tin Dynasty\'s military and administrative classes by Year 1. Blood oaths in official contracts are legally recognized. Breaking them carries formal consequences.' },
+      { year:80,   event: 'When the Luo-Tin capital is established (Year 80), the first public oath-post is installed in the main square — a carved stone where oaths can be spoken and witnessed. It is used constantly from the first year.' },
+      { year:130,  event: 'Ichiro Katsumi dies (Year 130). Three Sworn Road practitioners at the Great Defensive Giant swear an oath that his forest will not be entered for desecration. This oath is still technically active.' },
+      { year:134,  event: 'Láng begins building his raider force. He is offered a formal blood oath contract by a Luo-Tin official. He refuses — he does not swear oaths. Sworn Road practitioners who hear about this find it more alarming than any of his military actions. A man who will not swear is a man who will not be bound.' },
+      { year:139,  event: 'Luo-Tin hires Láng. The contract he signs is a merchant contract, not a blood oath. Sworn Road practitioners in the military note this with unease. A man on a merchant contract is not the same as a man on an oath.' },
+      { year:144,  event: 'The war begins. Sworn Road practitioners who swore oaths to protect Buo civilians find themselves in impossible positions as Láng\'s forces act without restraint. The number of oath-violations in this period creates a theological crisis within the tradition.' },
+      { year:154,  event: 'Láng dies. Several Sworn Road practitioners note that he never once swore an oath and died having never been bound. They debate what this means. One faction says: his whole life was a cautionary tale about a man who existed outside the balance. Another says: he died of his own choices without ever owing anything to anyone, which is a kind of freedom.' },
+    ],
+    npcs_connected: ['lang_warlord', 'ichiro_katsumi'],
+    yaqism_relation: 'The Sworn Road and Yaqism have deep theological tension. Yaqism holds that the flame within every person is equal. The Sworn Road holds that people who break oaths have damaged themselves — which implies unequal states. D\'la\'s encounter with Irarum (a murderer who confessed and was forgiven) is cited by Yaqists as proof of the flame\'s persistence. Sworn practitioners argue this doesn\'t account for what the broken oath costs.',
     practices: {
       blood_oath: {
         name: 'The Blood Oath',
@@ -32354,7 +32380,20 @@ const WORLD_RELIGIONS = {
     deity: 'The Earth itself, understood as a living system with memory — not a being with will, but an accumulation of everything that has ever been put into it.',
     core_belief: 'The earth remembers everything you put into it and everything you take from it. What you tend grows. What you neglect withers. The debt is always calculated. The harvest is always honest.',
     origin: 'Buo Kingdom farming communities, pre-Year 1. Independent development from agricultural observation: certain fields had Qi and others did not, and the ones that did were the ones tended with specific practices.',
-    regions: ['buo_capital', 'red_sand_city', 'stone_root', 'wild_bloom'],
+    regions: ['buo_capital', 'red_sand_city', 'stone_root', 'wild_bloom', 'wheat_capital'],
+    timeline: [
+      { year:-300, event: 'The earliest Red Earth practices predate any formal religion. Farmers in the Buo region develop burial rites that improve crop yields near burial sites. The mechanism is not understood. The practice becomes tradition.' },
+      { year:0,    event: 'By Year 1, Red Earth is the dominant cultural framework in Buo farming communities. It is not organized — no central authority, no formal clergy. It is simply the way things are done.' },
+      { year:50,   event: 'Contact between Buo farmers and Azure Empire merchants introduces Red Earth practices to Wheat Capital. The Wheat Capital version develops independently and becomes more formalized — written Seasonal Scrolls appear here first.' },
+      { year:90,   event: 'The Great Defensive Giant fortress is built on land that Red Earth practitioners consider ancestral. Luo-Tin builders do not consult them. Red Earth communities in the surrounding region hold a formal accounting of the debt and declare it unpayable. This is considered one of the earliest formal grievances between Buo religious communities and Luo-Tin expansion.' },
+      { year:140,  event: 'Yaqism reaches Buo territory (via D\'la\'s followers who scattered after Year 389 — wait, that\'s the future). Small Yaqist communities in Red Sand City encounter Red Earth practitioners. The initial reception is complicated: Red Earth\'s transactional cosmology and Yaqism\'s flame-within-everything theology seem incompatible, but both treat the earth and its creatures with specific respect.' },
+      { year:144,  event: 'The Buo-Luo-Tin War begins. Láng\'s forces burn farms. For Red Earth practitioners, this is not simply military destruction — it is a desecration of the earth\'s memory. The debt incurred by burning a cultivated field is considered by practitioners to be unpayable.' },
+      { year:148,  event: 'A Red Earth Elder issues a formal accounting of what the war has cost the earth. It is not addressed to any military authority. It is buried in a specific field at the heart of the worst-affected territory. The document states what is owed and that the earth will collect it in its own time.' },
+      { year:154,  event: 'Láng dies. Red Earth practitioners do not celebrate. They note it in their seasonal scrolls as one entry among many. The debt he incurred against the earth, they say, will be paid through the land itself over generations.' },
+      { year:160,  event: 'Post-war reconstruction begins. Red Earth practitioners are central to it — their practices for determining which land can be recovered and which cannot are the most accurate available. They charge nothing. They say the work is part of the accounting.' },
+    ],
+    npcs_connected: ['lang_warlord'],
+    yaqism_relation: 'Red Earth and Yaqism have a complex relationship. Both treat non-human life with specific respect. Red Earth\'s transactional view ("the earth remembers debts") and Yaqism\'s equalizing view ("the flame lives in everyone") sometimes align and sometimes conflict. The specific area of conflict: Yaqism holds that every person can be forgiven. Red Earth holds that some debts are simply too large to forgive — the earth will collect regardless of spiritual state.',
     practices: {
       planting_ceremony: {
         name: 'The Planting Ceremony',
@@ -32385,7 +32424,19 @@ const WORLD_RELIGIONS = {
     deity: 'The Moment — specifically the irreversible moment of a decision. The Doctrine holds that truth is only ever found at the point of no return.',
     core_belief: 'The moment of the blade is the most honest moment that exists. Everything that matters happens at the edge — of a decision, of a blade, of a life. You learn nothing in the comfortable middle. You learn everything when something is committed and cannot be taken back.',
     origin: 'Developed gradually from warrior traditions across multiple kingdoms. Has no single founder. The closest thing to a founding event is an unnamed swordsman who survived a battle he had no right to survive and spent the rest of his life trying to understand the moment that made the difference.',
-    regions: ['buo_capital', 'red_sand_city', 'great_defensive_giant', 'luo_tin_capital'],
+    regions: ['buo_capital', 'red_sand_city', 'great_defensive_giant', 'luo_tin_capital', 'iron_hollow'],
+    timeline: [
+      { year:-100, event: 'The Survivor — an unnamed swordsman — wins a battle against someone who should have killed him. He spends years trying to reconstruct the moment. His students adopt the practice of reconstruction. The Doctrine begins forming.' },
+      { year:0,    event: 'The Doctrine of Edges exists informally across multiple kingdoms by Year 1. It has no central organization, no formal structure. It is a set of practices that fighters develop independently and recognize in each other.' },
+      { year:60,   event: 'Ichiro Katsumi is examined by Doctrine of Edges practitioners who have heard about him. He is not a practitioner, but they observe that his combat style operates exactly at the edge — the minimum necessary force, the precise moment, the irreversible decision. They consider him an accidental practitioner. He would consider this irrelevant.' },
+      { year:100,  event: 'The Great Defensive Giant fortress becomes a center for Doctrine practitioners in the Luo-Tin military. The combination of martial culture and the specific edge-awareness of fortress defense creates fertile ground. The Cutting Fast is practiced widely before major combat operations here.' },
+      { year:130,  event: 'After Ichiro\'s death (Year 130), some Doctrine practitioners attempt to claim him posthumously. The debate over whether he belonged to their tradition or preceded it continues.' },
+      { year:134,  event: 'Láng emerges. Doctrine of Edges communities across multiple kingdoms are immediately fascinated. He operates entirely without cultivation, at the absolute edge of what human physicality allows, and has never been wrong about which decisions were irreversible. Some call him the greatest living practitioner. Others say he has inverted the Doctrine — he lives at the edge constantly, which the Doctrine says is the failure mode, not the mastery.' },
+      { year:144,  event: 'The war begins. Doctrine practitioners fight on both sides. Some report that the war has a quality of the edge that they have never encountered in their practice — nothing is reversible, every decision carries permanent weight. Some find this liberating. Some find it harrowing.' },
+      { year:154,  event: 'Láng dies trying to become more than human. Doctrine practitioners debate this for years. One faction: he reached for something beyond the edge and found there was nothing there. Another: he lived so close to the irreversible that his own death became an edge he was always going to cross. A third: he just took the wrong pills.' },
+    ],
+    npcs_connected: ['lang_warlord', 'ichiro_katsumi'],
+    yaqism_relation: 'The Doctrine of Edges and Yaqism rarely interact. Their concerns are entirely different. The Doctrine is about the quality of irreversible moments. Yaqism is about the flame within all beings. They do not contradict each other. When they do meet — a Doctrine practitioner and a Yaqist in conversation — the Yaqist finds the Doctrine amoral (it does not distinguish good edges from bad). The Doctrine practitioner finds Yaqism impractical (the flame within someone does not change whether the moment is irreversible).',
     practices: {
       edge_meditation: {
         name: 'Edge Meditation',
@@ -32416,7 +32467,20 @@ const WORLD_RELIGIONS = {
     deity: 'The Balance — an impersonal cosmic principle of exchange. Not a being. A system. Every transaction is a prayer to the system.',
     core_belief: 'The universe is made of exchanges. Every connection is a form of prayer. Honest trade is worship. Dishonest trade is sacrilege — not because it harms others, but because it lies to the balance that sustains everything.',
     origin: 'Jade Province merchant communities, developed over decades in parallel with the province\'s commercial growth. Formalized by a merchant named Shen Yao who maintained perfectly honest accounts for thirty years and experienced a Qi breakthrough during a routine accounting session.',
-    regions: ['jade_province', 'tazar', 'buo_capital'],
+    regions: ['jade_province', 'tazar', 'buo_capital', 'shen_port', 'silver_district'],
+    timeline: [
+      { year:20,   event: 'Jade Province is formally established. The merchant culture that develops here has a specific ethical concern with honest dealing — partly practical (reputation is worth money over time) and partly from the early cultural formation of the province.' },
+      { year:50,   event: 'Shen Yao begins his accounts. He is a cloth merchant in the eastern market, known primarily for being reliable. He starts keeping his books with a specific intention: perfect accuracy, no favorable rounding, no self-serving interpretations.' },
+      { year:80,   event: 'Shen Yao, twenty years into his practice, begins to notice that other merchants who maintain similar standards have a quality to their business that he can only describe as "clear." He begins writing down his observations.' },
+      { year:82,   event: 'Shen Yao\'s thirtieth year of perfect accounts. During routine mid-year accounting, his Qi spontaneously forms a stable path. He has never cultivated. He has no teacher. The breakthrough is witnessed by his apprentice, who is understandably confused.' },
+      { year:82,   event: 'Shen Yao spends the remaining years of his life writing The Balance Sheets of Heaven. The first third of the text is accounting theory. Most readers who find it believe they are reading a merchant\'s manual.' },
+      { year:100,  event: 'The Balance Sheets of Heaven circulates in Jade Province. The practice spreads slowly — it is an extremely demanding commitment for a religious tradition, and the benefits are not obvious until years in.' },
+      { year:130,  event: 'A Transactions practitioner at a Luo-Tin guild meeting attempts to introduce the practice to the military procurement system. The attempt fails — military accounting is understood to require "flexibility." The practitioner is asked to leave.' },
+      { year:144,  event: 'The war disrupts trade. For Ten Thousand Transactions practitioners, the war creates an impossible accounting problem: the value being destroyed cannot be quantified. Several practitioners withdraw from commercial practice entirely and keep only personal accounts during the conflict.' },
+      { year:160,  event: 'Post-war reconstruction. Transactions practitioners are disproportionately involved in the rebuilding of commercial infrastructure, both in Buo and in the border territories. Their reputation for honest measurement makes them the preferred partners for reconstruction contracts.' },
+    ],
+    npcs_connected: ['reo_yamamoto'],
+    yaqism_relation: 'Transactions and Yaqism have an unusual relationship. Shen Yao\'s writing makes passing reference to a tradition "in the southern territories that speaks of the flame within all beings." Some scholars believe this is a reference to proto-Yaqism, which would make the contact earlier than previously documented. More practically: both traditions hold that honesty is spiritually significant, though they mean entirely different things by it.',
     practices: {
       perfect_accounting: {
         name: 'Perfect Accounting',
@@ -32447,7 +32511,18 @@ const WORLD_RELIGIONS = {
     deity: 'What Cannot Be Named — a presence described exclusively in terms of what it is not. Practitioners consider naming it a category error.',
     core_belief: 'What is seen is not what is real. What is hidden is not what is real. What exists between them — in the space that is neither the visible nor the hidden — that is where truth lives. The Silence is the practice of finding that space.',
     origin: 'Beggar\'s Rest and underground canal communities, developed by people whose survival depended on not being seen. The practice began as survival technique and became spiritual practice when practitioners noticed that the states it induced had effects that went beyond concealment.',
-    regions: ['beggars_rest', 'mistveil', 'tazar'],
+    regions: ['beggars_rest', 'mistveil', 'tazar', 'red_sand_city'],
+    timeline: [
+      { year:-50,  event: 'In the communities under what will become Beggar\'s Rest, a specific survival practice develops: the ability to be genuinely unnoticed. Not hidden — unnoticed. People who develop this report it changes how they experience their own identity.' },
+      { year:100,  event: 'Beggar\'s Rest formally exists. The Silence has no formal existence here — it is simply the culture of a community that has survived by not being seen. Practitioners don\'t call themselves practitioners.' },
+      { year:130,  event: 'The first text emerges in Beggar\'s Rest — a blank book with a title on the cover: "What Cannot Be Named." The book is passed between practitioners. Each fills their own pages and leaves them undecipherable to others. No two copies are the same.' },
+      { year:150,  event: 'Reo Yamamoto dies. In the power vacuum that follows, Beggar\'s Rest becomes more dangerous. Silence practitioners, who have survived every previous change in governance by being invisible to it, are more useful to their communities than ever.' },
+      { year:350,  event: 'Yaqists — D\'la\'s followers who scattered after his transformation — reach Tazar\'s canal district. Some of them find shelter with Silence communities. Silence practitioners do not discuss theology with them. They provide shelter without requiring explanation. This is considered, by those who know about it, one of the most Silence-aligned acts in the tradition\'s history.' },
+      { year:380,  event: 'A Silence practitioner in Red Sand City is asked to give testimony about a Yaqist they harbored. The practitioner gives a factually accurate account that reveals nothing of substance. This is the only documented intersection between the Silence and the Yaqist persecution.' },
+      { year:400,  event: 'Yaqism becomes more organized and visible. Silence communities debate whether to associate with them. The conclusion, reached independently in three separate communities: being associated with a visible movement contradicts the core practice. They do not associate. They continue to help individual Yaqists who need shelter.' },
+    ],
+    npcs_connected: ['reo_yamamoto', 'dla'],
+    yaqism_relation: 'The Silence and Yaqism have one of the most interesting relationships among the religions. The Silence has sheltered Yaqists when they were persecuted, without theological agreement. They have never publicly associated. Yaqism\'s central metaphor is fire — visible by definition. The Silence\'s central practice is invisibility. They are opposite in form and share values in action.',
     practices: {
       face_covering: {
         name: 'The Covering',
@@ -32492,19 +32567,177 @@ buildSystemPrompt = function() {
 
     if(!presentReligions.length && !yaqPresent) return prompt;
 
-    const relLines = presentReligions.map(rel =>
-      `• ${rel.name}: "${rel.core_belief.slice(0,100)}..." — practiced here. Practitioners exist in this area.`
-    );
-    if(yaqPresent) relLines.push(`• Yaqism: D'la's following — the flame of D'yaqed within all living things. Active communities here.`);
+    const relLines = presentReligions.map(rel => {
+      // Find most recent timeline event at or before current year
+      const recentEvent = rel.timeline ? [...rel.timeline].reverse().find(e => e.year <= yr) : null;
+      const recentCtx   = recentEvent ? ` [As of Year ${yr}: ${recentEvent.event.slice(0, 120)}...]` : '';
+      return `• ${rel.name} (${rel.shortName}): ${rel.core_belief.slice(0,100)}...${recentCtx}`;
+    });
+    if(yaqPresent) {
+      const yaqRecent = YAQISM_LORE?.timeline ? [...YAQISM_LORE.timeline].reverse().find(e => e.year <= yr) : null;
+      relLines.push(`• Yaqism: D'la's following — the flame of D'yaqed within all living things.${yaqRecent ? ` [Year ${yaqRecent.year}: ${yaqRecent.event.slice(0,100)}...]` : ''}`);
+    }
 
-    const section = `RELIGIONS IN THIS AREA:
+    const section = `RELIGIONS IN THIS AREA (Year ${yr}):
 ${relLines.join('\n')}
 
-RELIGION RULE: Religious practitioners in this area reflect their beliefs in behavior and speech. NPCs who practice these traditions act accordingly — Still Water practitioners are unusually calm, Sworn Road practitioners are careful with their words, Red Earth practitioners speak in terms of debts and returns. Religion is not background color — it shapes how people think.`;
+RELIGION RULE: Religious practitioners reflect their beliefs. Still Water = unusual calm. Sworn Road = careful speech, never idle oaths. Red Earth = everything framed as debt/return/harvest. Doctrine of Edges = testing language, comfort with violence as honest. Ten Thousand Transactions = everything treated as an exchange, accounting metaphors. The Silence = anonymity-comfortable, suspicious of visibility.
+Not everyone in a region practices — but the dominant religion SHAPES THE CULTURE even for non-practitioners. The Doctrine of Edges shapes how Buo fighters talk about war even if they don't formally practice.`;
 
     prompt = prompt.replace('## ABSOLUTE RULES', section + '\n\n## ABSOLUTE RULES');
   } catch(e) {}
   return prompt;
+};
+
+// ================================================================
+// ── PRODIGY TRAITS
+// ── All innate. Each one accelerates a specific domain.
+// ── Prodigies don't just learn faster — they see the domain
+// ── differently from the first contact with it.
+// ================================================================
+
+Object.assign(TRAITS_CATALOG, {
+
+  literary_prodigy: {
+    name: 'Words Before Understanding',
+    type: 'innate_mental', rarity: 'uncommon', inherited: true,
+    desc: 'You read and write with an ease that confuses people who watch you learn. The relationship between meaning and symbol feels natural in a way that takes most people years to develop. You were reading before you were taught.',
+    effects: { intelligence: 3, perception: 1 },
+    gameplay: 'Literacy skill starts at level 3. Reading tomes and written texts produces skill gains and comprehension at double the normal rate. You can decipher partially damaged or archaic texts that others cannot.',
+    aiHint: 'WORDS BEFORE UNDERSTANDING: This character\'s relationship with written language is intuitive rather than learned. They read quickly, retain everything, and make connections between texts that others miss. Describe them skimming a long document and having precise recall of specific passages. In situations where literacy matters — legal documents, technique scrolls, historical records — they are immediately effective without effort.',
+  },
+
+  law_prodigy: {
+    name: 'Born to the Letter',
+    type: 'innate_mental', rarity: 'rare', inherited: true,
+    desc: 'Rules, codes, and legal structures make immediate intuitive sense to you. You see the architecture of law — where the exceptions live, where the contradictions are, where someone with the right knowledge could move through the gaps.',
+    effects: { intelligence: 3, charisma: 2 },
+    gameplay: 'Law skill starts at level 3. Loopholes, procedural errors, and legal inconsistencies are visible to you that others miss. Officials find you harder to dismiss in formal settings.',
+    aiHint: 'BORN TO THE LETTER: This character sees legal and regulatory structure the way a skilled carpenter sees wood grain — the patterns are obvious and reveal where things can move. In interactions with officials, magistrates, or formal proceedings, describe them noticing things: a procedural error, an exception clause that applies, a legal definition that means something different than the official is acting like it means. They\'re not just knowledgeable — they\'re structurally fluent.',
+  },
+
+  cooking_prodigy: {
+    name: 'The Knowing Palate',
+    type: 'innate_sensory', rarity: 'uncommon', inherited: true,
+    desc: 'You taste the composition of a dish, not just its flavor. You know what\'s in something after eating it once, understand proportions instinctively, and can reverse-engineer recipes from a single serving. You have never forgotten a flavor.',
+    effects: { perception: 3, intelligence: 1 },
+    gameplay: 'Cooking skill starts at level 3. Can identify ingredients in prepared food (useful for poison detection). Cooking sessions produce higher-quality food with the same materials.',
+    aiHint: 'THE KNOWING PALATE: This character can identify the components of any dish they eat — ingredients, preparation methods, rough proportions. Describe this as them tasting something and immediately breaking it down rather than just experiencing it. In cultivation contexts: this palate extends to Qi-infused foods and pills, giving them unusual sensitivity to what is and isn\'t in a preparation.',
+  },
+
+  sword_prodigy: {
+    name: 'The Blade Remembers',
+    type: 'innate_body', rarity: 'epic', inherited: true,
+    desc: 'The sword makes sense to you in a way that is difficult to describe to people who don\'t feel it. Not that you\'re good at it — that you understand it. The blade is a specific language and you were born knowing the alphabet.',
+    effects: { agility: 4, strength: 2, perception: 2 },
+    gameplay: 'Weaponry (sword) skill starts at level 3. Sword techniques advance to the next stage with 40% less practice than normal. Watching another swordsman for 10+ minutes grants partial insight into their technique style. Sword-Saint achievement track begins from a more advanced position.',
+    aiHint: 'THE BLADE REMEMBERS: Swords are natural to this character in a way that other weapons are not. Describe their handling of a blade as intuitive even the first time — finding the right grip without being shown, understanding weight balance without explanation. When learning sword techniques, describe the learning as recognition rather than acquisition: "Yes, that\'s what it\'s supposed to do." Other swordsmen notice something.',
+  },
+
+  spear_prodigy: {
+    name: 'The Long Reach',
+    type: 'innate_body', rarity: 'rare', inherited: true,
+    desc: 'Spear and staff weapons move through your hands as though you were born holding one. Distance, angle, the leverage points of a long weapon — these are obvious where they are puzzles for others.',
+    effects: { agility: 3, strength: 2, perception: 2 },
+    gameplay: 'Spear/staff technique stages advance 35% faster. Spatial awareness in combat extends to your weapon\'s full reach range naturally. Effective against mounted opponents and groups.',
+    aiHint: 'THE LONG REACH: Spears, staves, and long weapons are natural extensions of this character\'s awareness — they feel the weapon\'s full length instinctively, manage the leverage points without calculation. In combat, describe their spear technique as using the weapon\'s length rather than working against it. Opponents who expect to get inside the reach find the character has anticipated this.',
+  },
+
+  cultivation_prodigy: {
+    name: 'Clear Meridians from Birth',
+    type: 'cultivation', rarity: 'epic', inherited: true,
+    desc: 'Your meridians were unusually clear from birth. Qi flows through them with less resistance than normal. Breakthroughs come earlier and cleaner. You can feel your own Qi pathways in a way that most cultivators spend years developing.',
+    effects: { willpower: 4, perception: 3 },
+    qiCostMult: { cultivation_gain: 1.35, breakthrough_ease: 0.8 },
+    gameplay: 'Cultivation advances 35% faster across all stages. Breakthrough attempts have 20% lower risk. Can sense own meridian state without external examination. Other cultivators who examine you note the unusual clarity.',
+    aiHint: 'CLEAR MERIDIANS FROM BIRTH: This character\'s Qi pathways are unusually clean and responsive. They feel their own meridians clearly — blockages, flows, areas of unusual Qi density are all perceptible without effort. Breakthroughs happen earlier than their teachers expect. Experienced cultivators who examine them describe it as unusual — the meridians look like they\'ve been cleared for years when the character is young. Progress is measurably faster without appearing to be trying harder.',
+  },
+
+  combat_prodigy: {
+    name: 'The Body Already Knows',
+    type: 'innate_body', rarity: 'epic', inherited: true,
+    desc: 'Your body learns combat faster than it should — unarmed, armed, any style. Not that you\'re naturally strong or fast (though you may be), but that you absorb fighting methods from watching and doing at a rate that teachers find unnerving.',
+    effects: { agility: 4, strength: 3, perception: 2, endurance: 2 },
+    gameplay: 'All combat skills (combat_training, weaponry, martial_arts) advance 40% faster. Watching an opponent use a technique for 5+ minutes grants partial understanding of it. Your first encounter with any combat style produces significantly more learning than normal people\'s tenth.',
+    aiHint: 'THE BODY ALREADY KNOWS: Combat information processes through this character differently — the body adapts faster than the mind understands. Describe their first attempt at a technique as producing results that surprise their teacher. After watching someone fight, they incorporate something from it in the next engagement without having been taught. The adaptation is physical and fast. Teachers have conflicted feelings: useful, but also unsettling.',
+  },
+
+  genius: {
+    name: 'The Fractal Mind',
+    type: 'innate_mental', rarity: 'epic', inherited: true,
+    desc: 'You figure things out. Not quickly — structurally. Where others see a problem, you see a pattern. Where others study, you derive. Techniques, systems, languages, structures — you encounter them and understand not just the surface but the architecture underneath.',
+    effects: { intelligence: 6, perception: 3 },
+    gameplay: 'Can derive basic techniques independently without a teacher (at 50% the time it would take to learn from a source). Problem-solving in any domain (combat analysis, cultivation theory, alchemy, engineering) consistently produces insights ahead of the character\'s formal knowledge level. Other geniuses recognize you.',
+    aiHint: 'THE FRACTAL MIND: This character derives rather than learns. When facing a new domain, they see the underlying structure quickly — the principles that generate the specifics rather than needing to memorize the specifics. Describe them understanding the WHY of something before they can execute it, and then closing that gap faster than normal. In technique creation or problem-solving: describe the process as pattern-recognition rather than calculation. Other intelligent people notice something specific about how this character thinks.',
+  },
+
+  political_prodigy: {
+    name: 'Born to the Room',
+    type: 'innate_social', rarity: 'epic', inherited: true,
+    desc: 'You read power dynamics the way other people read faces. Who defers to whom. Where the real authority is versus the apparent authority. What someone wants versus what they\'re asking for. You were doing this before you knew there was a word for it.',
+    effects: { charisma: 5, perception: 3, intelligence: 2 },
+    gameplay: 'In political situations, NPC motivations and hidden agendas are more transparent. Faction relationships and power structures become clear faster. Sect politics and kingdom politics advance faster when you\'re involved. NPCs in positions of power respect or fear you earlier than your rank would suggest.',
+    aiHint: 'BORN TO THE ROOM: This character sees political structure intuitively — who holds actual power vs apparent power, what the room\'s real agenda is vs its stated one, which relationships matter. In any gathering with more than two people, describe them noticing dynamics others miss. In formal settings: they know what the exchange is really about. In faction situations: they understand what everyone wants before anyone has said it. This is read as intelligence by some, as threat by others.',
+  },
+
+  alchemy_prodigy: {
+    name: 'Ingredient Instinct',
+    type: 'innate_sensory', rarity: 'rare', inherited: true,
+    desc: 'You sense ingredient compatibility the way some people sense weather. Combinations that will work, combinations that will fail, combinations that will produce something unexpected — you feel this before you test it.',
+    effects: { intelligence: 3, perception: 2 },
+    gameplay: 'Alchemy skill starts at level 3. Failed alchemy combinations rarely destroy ingredients — you pull back before the worst outcomes. Unusual combinations produce discoveries at double the normal rate. Can sense approximate Qi content of herbs and materials.',
+    aiHint: 'INGREDIENT INSTINCT: This character feels ingredient interactions before they test them. Describe them handling materials and having immediate impressions about combinations — not always precise, but directionally accurate. Failed experiments are less catastrophic because they notice the warning signs early. Unusual combinations feel "interesting" to them in ways that produce discoveries.',
+  },
+
+  medical_prodigy: {
+    name: 'The Body Speaks Clearly',
+    type: 'innate_sensory', rarity: 'rare', inherited: true,
+    desc: 'Illness and injury declare themselves to you. You see a person\'s physical state the way a skilled mechanic sees a broken machine — the symptom points to the cause, the cause points to the repair.',
+    effects: { perception: 3, intelligence: 3 },
+    gameplay: 'Medicine skill starts at level 3. Diagnosis comes faster and more accurately. Pharmaceutical interactions and treatment compatibility are intuitive. Patients heal faster under your care through more precisely targeted treatment.',
+    aiHint: 'THE BODY SPEAKS CLEARLY: This character reads physical states quickly and accurately. Describe them noticing things about a person\'s health status that others walk past — posture compensation for old injuries, skin tone indicating specific deficiencies, breathing patterns suggesting internal issues. Diagnosis is faster than their training should allow. Patients with rare or complex conditions benefit from this more than routine ones.',
+  },
+
+  smithing_prodigy: {
+    name: 'The Metal Remembers',
+    type: 'innate_body', rarity: 'rare', inherited: true,
+    desc: 'You feel metal responding to work. Temperature, tension, crystalline structure — these are sensory information to you, not data you have to reason about. The forge is a conversation and you were born knowing the language.',
+    effects: { strength: 2, intelligence: 3, perception: 2 },
+    gameplay: 'Smithing skill starts at level 3. Forge combinations produce results of one quality tier higher. Can feel flaws in metal and alloy compositions by touch. Advanced (INT 60+) designs manifest more readily.',
+    aiHint: 'THE METAL REMEMBERS: This character receives direct sensory information from working metal — temperature gradients, tension buildup, grain structure — that experienced smiths spend years learning to infer. Describe their work at the forge as a dialogue: the metal communicates and they respond. When examining metalwork, they notice quality and construction details immediately. The INT 60+ advanced discovery path opens more readily for them.',
+  },
+
+}); // end prodigy traits
+
+// Wire prodigy traits to give skill bonuses on game start
+const _startWithProdigySkills = startGame;
+startGame = function(isLoad=false) {
+  _startWithProdigySkills(isLoad);
+  try {
+    const c = GS.char;
+    const PRODIGY_SKILLS = {
+      literary_prodigy:  [{ key:'literacy',    label:'Literacy',    cat:'scholarly',  lvl:3 }],
+      law_prodigy:       [{ key:'law',          label:'Law',         cat:'scholarly',  lvl:3 }],
+      cooking_prodigy:   [{ key:'cooking',      label:'Cooking',     cat:'craftsman',  lvl:3 }],
+      sword_prodigy:     [{ key:'weaponry',     label:'Weaponry',    cat:'combat',     lvl:3 }, { key:'swordsmanship', label:'Swordsmanship', cat:'combat', lvl:3 }],
+      spear_prodigy:     [{ key:'weaponry',     label:'Weaponry',    cat:'combat',     lvl:2 }],
+      combat_prodigy:    [{ key:'combat_training', label:'Combat Training', cat:'combat', lvl:3 }],
+      alchemy_prodigy:   [{ key:'alchemy',      label:'Alchemy',     cat:'craftsman',  lvl:3 }],
+      medical_prodigy:   [{ key:'medicine',     label:'Medicine',    cat:'medical',    lvl:3 }],
+      smithing_prodigy:  [{ key:'smithing',     label:'Smithing',    cat:'craftsman',  lvl:3 }],
+    };
+    c.traits?.forEach(t => {
+      const skills = PRODIGY_SKILLS[t.id];
+      if(skills) {
+        skills.forEach(s => {
+          if(!c.skills[s.key] || c.skills[s.key].level < s.lvl) {
+            c.skills[s.key] = { label:s.label, category:s.cat, level:s.lvl, xp:0,
+              firstUsed:`Year ${GS.world.year} (prodigy)`, desc:`Natural talent from birth.` };
+          }
+        });
+      }
+    });
+  } catch(e) {}
 };
 
 console.log('Murim Chronicles fully loaded.');
