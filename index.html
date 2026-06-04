@@ -22871,12 +22871,12 @@ const YAQISM_LORE = {
     { year:385,   event:'D\'la\'s following grows across the Red Sand City territory. He teaches the three practices: fasting from cooked food, ṣlōtā b-lēlyā (night prayer), and speaking to D\'yaqed inside a qlaytā (a private dark sacred space).' },
     { year:386,   event:'Reports of D\'la reach Hammurabi, king of the Luo Kingdom — seed of Aruwium, his fourth-generation descendant. Hammurabi considers D\'la an insult to the regional gods and a political threat.' },
     { year:387,   event:'Hammurabi sends a message to Zimri-Lim, Duke of Red Sand City (then an independent state): D\'la must be dead in front of him or he will bring war. Zimri-Lim panics and sends his armies through the streets. D\'la is being harbored by Urur. When Urur hears of the warrant, he grows afraid. D\'la asks for two more weeks. Urur agrees and watches D\'la for those two weeks — at the end, Urur helps hide him further.' },
-    { year:388,   event:'Hammurabi launches a military campaign into Red Sand City territory. D\'la is captured and imprisoned in Hammurabi\'s dungeon. Zimri-Lim offers no resistance. The Babylonian occupation begins.' },
+    { year:388,   event:'Hammurabi launches a military campaign into Red Sand City territory. D\'la is captured and imprisoned in Hammurabi\'s dungeon. Zimri-Lim offers no resistance. The Luo occupation begins.' },
     { year:388,   event:'Urur, Inim-shara, and Irarum attempt to petition Hammurabi peacefully for D\'la\'s release. Hammurabi denies them and attempts to capture them. They escape.' },
     { year:389,   event:'The followers of D\'yaqed gather. On the morning of the planned liberation attempt, D\'yaqed appears to Inim-shara during his qlaytā and speaks: "Free D\'la and tell him the bucket is full. In this I will grant you the strength of ten men. Bring Urur and Irarum to me." D\'yaqed grants Irarum skill with a blade that no man could rival. He amplifies Urur\'s memory-gift further, granting him intelligence beyond mortal generation. Inim-shara punches through the gate of Hammurabi\'s castle.' },
-    { year:389,   event:'D\'la is found in his cell staring at a sliver of sunlight through the wall. Inim-shara breaks open the cell. D\'la is told the bucket is full — he nods. He walks out through the bloodshed without turning his head. To the three, he says: "Do not worry. D\'yaqed is not done with you three. Though he is with me. Spread across the Euphrates and the Gulf. You will know when it is time for us to prosper once more." D\'la begins to shift — he becomes a great flame that consumes the northern region of Babylonia. Hammurabi watches, enraged, demanding D\'la return and fight. D\'la does not return.' },
+    { year:389,   event:'D\'la is found in his cell staring at a sliver of sunlight through the wall. Inim-shara breaks open the cell. D\'la is told the bucket is full — he nods. He walks out through the bloodshed without turning his head. To the three, he says: "Do not worry. D\'yaqed is not done with you three. Though he is with me. Spread across the Stone River and the Southern Sea. You will know when it is time for us to prosper once more." D\'la begins to shift — he becomes a great flame that consumes the northern Luo Empire. Hammurabi watches, enraged, demanding D\'la return and fight. D\'la does not return.' },
     { year:389,   event:'Red Sand City is absorbed into the Luo Kingdom, officially ending its independent status. Zimri-Lim is allowed to remain as a puppet governor.' },
-    { year:390,   event:'Urur, Inim-shara, and Irarum scatter as D\'la instructed — across the Euphrates and the Gulf. They carry the dīatiqē and the word of D\'yaqed. Yaqism begins spreading.' },
+    { year:390,   event:'Urur, Inim-shara, and Irarum scatter as D\'la instructed — across the Stone River and the Southern Sea. They carry the dīatiqē and the word of D\'yaqed. Yaqism begins spreading.' },
     { year:400,   event:'Small communities of Yaqists form quietly in several locations. The religion is not tolerated by Hammurabi\'s Luo Kingdom, but the followers are difficult to find and rarely act in ways that draw attention.' },
     { year:420,   event:'Urur dies. He is believed to have completed the dīatiqē fully before his death — some accounts say he wrote additional commentary. Some communities treat his commentary as equivalent to the five laws. Others do not.' },
     { year:450,   event:'Yaqism reaches the Azure Empire\'s outer territories. It is practiced quietly and underground. The imperial administration does not officially acknowledge it.' },
@@ -22933,7 +22933,7 @@ Object.assign(LORE_NPCS, {
     stats:{ strength:45, agility:60, endurance:80, intelligence:75, perception:95, willpower:100, charisma:95, luck:90 },
     qiStageIndex:0, qiPath:null, noQi:true,
     personality:'D\'la did not pursue power. He pursued understanding. He was persistent without being aggressive, kind without being weak, and completely undeterred by hostility. He cooked a meal for a murderer who planned to kill him. He walked out through a bloodbath without turning his head. He became a flame.',
-    deathNote:'D\'la did not die — he transformed into a great flame in Year 389 that consumed the northern region of Babylonia. Whether this was death, ascension, or something else depends on who is asked.',
+    deathNote:'D\'la did not die — he transformed into a great flame in Year 389 that consumed the northern Luo Empire. Whether this was death, ascension, or something else depends on who is asked.',
     special:true,
   },
 
@@ -23021,7 +23021,7 @@ function buildYaqismContextForAI() {
     lines.push(`YAQISM: An emerging religion (Year 381+) founded on the belief that D'yaqed ("One Who Burns") placed a flame inside every living being. Prophet: D'la, formerly a slave named Enmul. Practices: fasting from cooked food, ṣlōtā b-lēlyā (night prayer), speaking to D'yaqed in a qlaytā (darkened private space). Sacred text: the dīatiqē (five laws), written by Urur.`);
   }
   if(yr >= 389) {
-    lines.push(`D'la's transformation (Year 389): D'la became a great flame that destroyed northern Babylonia. His followers scattered across the Euphrates and Gulf as he instructed. Red Sand City was absorbed into the Luo Kingdom the same year.`);
+    lines.push(`D'la's transformation (Year 389): D'la became a great flame that destroyed northern Luo Empire. His followers scattered across the Stone River and the Southern Sea as he instructed. Red Sand City was absorbed into the Luo Kingdom the same year.`);
   }
   if(yr >= 400) {
     lines.push(`Yaqism is practiced underground in several locations — it is not openly tolerated by imperial authorities but is difficult to suppress. Communities are small and decentralized.`);
@@ -23053,7 +23053,7 @@ buildEraCard = function(yr) {
       ? `<div class="era-section"><div class="era-section-label" style="color:#c4883a">Yaqism — Emerging</div><div class="era-section-body">A slave named Enmul in the Red Sand City region has begun speaking privately of D'yaqed — a deity he believes placed a flame inside every living being. He is one of the only people in the world who holds this belief. He has no texts, no teachers. He simply believes.</div></div>`
       : yr < 389
       ? `<div class="era-section"><div class="era-section-label" style="color:#c4883a">Yaqism — D'la Preaches</div><div class="era-section-body">D'la (formerly Enmul) survived his own execution and is spreading the word of D'yaqed across the Red Sand City territory. He has found three followers who will carry the religion forward: Urur, Inim-shara, and Irarum. Hammurabi of the Luo-Tin Dynasty has taken notice. D'la is being hunted.</div></div>`
-      : `<div class="era-section"><div class="era-section-label" style="color:#c4883a">Yaqism — The Great Flame (Year 389)</div><div class="era-section-body">D'la transformed into a great flame in Year 389, consuming northern Babylonia. His followers scattered as he instructed. Red Sand City was absorbed into the Luo Kingdom. Yaqism is now a religion without its prophet — it will either spread or die in the years ahead.</div></div>`;
+      : `<div class="era-section"><div class="era-section-label" style="color:#c4883a">Yaqism — The Great Flame (Year 389)</div><div class="era-section-body">D'la transformed into a great flame in Year 389, consuming northern Luo Empire. His followers scattered as he instructed. Red Sand City was absorbed into the Luo Kingdom. Yaqism is now a religion without its prophet — it will either spread or die in the years ahead.</div></div>`;
     card = card.replace('</div>', yaqEntry + '\n</div>');
   }
   return card;
@@ -23069,7 +23069,7 @@ buildEraCard = function(yr) {
     { year:378, event:'Met Inim-shara on a walking path outside the city. Inim-shara was a man of excessive appetites who had no particular interest in religion. D\'la walked with him. Three days later, Inim-shara began a thirteen-day fast.' },
     { year:381, event:'Met Irarum, a murderer living on the outskirts of Red Sand City. The meeting was accidental. It ended with Irarum speaking to D\'yaqed alone for an entire day and emerging screaming "D\'yaqed provides!" D\'la had three followers now. D\'yaqed had given each of them something: Urur a massive memory, Inim-shara the strength of ten men, Irarum a blade skill no man could rival.' },
     { year:383, event:'Hammurabi of the Luo Kingdom sent armies to capture D\'la. The Red Sand City military, under Zimri-Lim, joined the search. D\'la continued walking. The three followers made this significantly harder than Hammurabi had anticipated.' },
-    { year:389, event:'Transformed into a great flame in the northern region that consumed the area around him. Whether this was death, ascension, or something else depends on who is asked and what they believe. His last instruction to his followers was to scatter along the Euphrates and the Gulf and carry D\'yaqed with them. They did. Red Sand City was absorbed by the Luo Kingdom the same year.' },
+    { year:389, event:'Transformed into a great flame in the northern region that consumed the area around him. Whether this was death, ascension, or something else depends on who is asked and what they believe. His last instruction to his followers was to scatter along the Stone River and the Southern Sea and carry D\'yaqed with them. They did. Red Sand City was absorbed by the Luo Kingdom the same year.' },
   ];
 
   LORE_NPCS.urur.lifeTimeline = [
@@ -23116,6 +23116,136 @@ buildEraCard = function(yr) {
     { year:405, event:'Died in Year 405 as puppet governor. The city was well-administered in a technical sense. The decisions were made by people Hammurabi had installed. Zimri-Lim signed documents and attended the correct events and understood precisely what he was.' },
   ];
 })();
+
+// ================================================================
+// NAMED SUPPORTING FIGURES — every person mentioned in lore by name
+// gets a proper entry and timeline, not just a passing reference.
+// ================================================================
+Object.assign(LORE_NPCS, {
+
+  // ── ARUWIUM — founder of the Luo ruling bloodline ───────────────
+  aruwium: {
+    id:'aruwium', name:'Aruwium',
+    title:'First King of the Luo Bloodline',
+    gender:'male', alive:false, birthYear:195, deathYear:260,
+    glowColor:'rgba(140,100,200,0.12)', specialGlow:'lore',
+    stats:{ strength:75, agility:65, endurance:70, intelligence:80, perception:72, willpower:88, charisma:85, luck:65 },
+    qiStageIndex:4, qiPath:'righteous',
+    personality:'Aruwium did not found the Luo Kingdom through conquest — he consolidated it through patience, political marriage, and the deliberate construction of obligation networks that took three generations to fully activate. He believed lineage was a technology, not a birthright. He arranged his descendants\' positions the way an architect lays foundations: for weight he would never see carried.',
+    isLore:true,
+    lifeTimeline:[
+      { year:195, event:'Born into a minor noble family in the eastern Luo-Tin territories. Third son of a house with influence but no certainty.' },
+      { year:218, event:'At twenty-three, made a political marriage that his family considered beneath him. He considered it a foundation. The wife\'s family controlled the grain routes along the Stone River.' },
+      { year:235, event:'Consolidated three minor lordships under his authority through debt arrangement, not combat. The lords kept their titles. He kept the decisions. This became his method.' },
+      { year:245, event:'Declared the Luo Kingdom\'s formal lineage — a political act as much as a blood one. He was the first Luo king whose claim was recognized in writing by the surrounding powers. He arranged this recognition over eight years of deliberate relationship-building.' },
+      { year:258, event:'Spent his final years specifically arranging the conditions his descendants would inherit. His personal letters, recovered centuries later, reveal that he expected his fourth-generation descendant to face a religious crisis. He wrote contingency instructions. Hammurabi did not follow them.' },
+      { year:260, event:'Died. His body was interred in a sealed chamber whose location was not recorded publicly — he had read enough history to know that royal tombs become political targets. Three people knew where he was buried. None of them told anyone.' },
+    ],
+  },
+
+  // ── ETUM — ancestor of D'la ──────────────────────────────────────
+  etum: {
+    id:'etum', name:'Etum',
+    title:'Free Citizen — Ancestor of D\'la',
+    gender:'male', alive:false, birthYear:270, deathYear:335,
+    glowColor:'rgba(200,180,120,0.08)', specialGlow:'lore',
+    stats:{ strength:40, agility:45, endurance:55, intelligence:50, perception:48, willpower:60, charisma:42, luck:30 },
+    qiStageIndex:0, qiPath:null, noQi:true,
+    personality:'A free citizen in the Red Sand City region during a period when free citizenship was neither secure nor guaranteed. He and his wife Mammetum lived an ordinary life and their children were enslaved by debt in the generation after them. He did not know he was beginning a line that would end in fire.',
+    isLore:true,
+    lifeTimeline:[
+      { year:270, event:'Born free in the Red Sand City region. The distinction between free and enslaved in this period was a matter of debt, circumstance, and luck as much as birth.' },
+      { year:295, event:'Married Mammetum. Together they maintained a small household — farming, trade in small goods, the ordinary work of people without resources to spare.' },
+      { year:310, event:'Their children were born into freedom. The debt arrangements that would eventually end that freedom were not yet in place. Etum and Mammetum\'s generation had freedom. Their children\'s generation would not.' },
+      { year:320, event:'The debt accumulated over years of poor harvests and rising regional taxes. Etum worked to service it. He did not succeed completely. His children inherited the remainder.' },
+      { year:335, event:'Died. His grandchildren were already in conditions of hereditary debt-servitude. His great-grandchildren would be born into slavery. Four generations later, one of them would become D\'la.' },
+    ],
+  },
+
+  // ── MAMMETUM — ancestor of D'la ─────────────────────────────────
+  mammetum: {
+    id:'mammetum', name:'Mammetum',
+    title:'Free Citizen — Ancestor of D\'la',
+    gender:'female', alive:false, birthYear:272, deathYear:338,
+    glowColor:'rgba(200,180,120,0.08)', specialGlow:'lore',
+    stats:{ strength:35, agility:42, endurance:52, intelligence:55, perception:60, willpower:65, charisma:50, luck:28 },
+    qiStageIndex:0, qiPath:null, noQi:true,
+    personality:'Mammetum kept accounts — informal ones, the household kind that don\'t get recorded in any official register. She knew what they owed and to whom and for how long. She knew before Etum did when the debt became unserviceable. She did not tell him immediately, which she later considered a mistake. She wanted one more good season before the news became real.',
+    isLore:true,
+    lifeTimeline:[
+      { year:272, event:'Born free. Grew up in the same region as Etum, in a family slightly more stable than his — her father was a craftsman whose work had consistent demand.' },
+      { year:295, event:'Married Etum. They were a functional household — not comfortable, not desperate. The margin was narrow but present.' },
+      { year:322, event:'Understood before Etum that the debt would not be discharged in their lifetimes. She kept this knowledge while she worked through what it meant for their children. There was no solution. She arrived at this conclusion and went on with the day.' },
+      { year:338, event:'Died three years after Etum. Her grandchildren were already in debt-servitude. She knew this when she died. She had no comfort for it except that they were alive.' },
+    ],
+  },
+
+  // ── XU FENG — founder of the Sworn Road ─────────────────────────
+  xu_feng: {
+    id:'xu_feng', name:'Xu Feng',
+    title:'General — The Oath That Founded the Sworn Road',
+    gender:'male', alive:false, birthYear:-185, deathYear:-140,
+    glowColor:'rgba(180,160,100,0.15)', specialGlow:'lore',
+    stats:{ strength:82, agility:78, endurance:85, intelligence:70, perception:75, willpower:100, charisma:72, luck:45 },
+    qiStageIndex:3, qiPath:'righteous',
+    personality:'Xu Feng was not a philosophical man. He was a military man who made a promise and then kept it when keeping it killed him. The Sworn Road religion that grew from his death is built on a principle he never articulated — he simply lived it, once, completely, in front of witnesses. He would not have described it as religious. He would have described it as the only available option.',
+    isLore:true,
+    lifeTimeline:[
+      { year:-185, event:'Born into the Luo-Tin military tradition — the third generation of a family that produced soldiers. Military service was the expectation and the identity.' },
+      { year:-162, event:'Rose to general rank through a combination of tactical competence and the kind of stubbornness that military structures either promote or kill. He was the kind to be promoted.' },
+      { year:-150, event:'Took a Buo officer prisoner during a border campaign. The standard outcome was ransom or execution. Xu Feng swore — before his officers and the prisoner — to return the man to his family alive. His own generals warned him this oath created a liability. He did not revise it.' },
+      { year:-148, event:'His generals moved to have the prisoner killed while Xu Feng was away from camp. They believed he would accept the outcome as military necessity. They misunderstood him completely. He returned and found what had been arranged.' },
+      { year:-140, event:'Died preventing the execution of the prisoner he had sworn to protect. The prisoner survived and was returned to his family. The army watched this happen. The story spread before they reached home. No formal religion existed yet — just the story, repeated exactly as it happened, which was somehow enough.' },
+      { year:-130, event:'The Sworn Road formalization begins in Luo-Tin military culture — not as theology but as a story about what a soldier is. The story of Xu Feng is the founding text. He never wrote a word of it.' },
+    ],
+  },
+
+  // ── SHEN YAO — founder of Ten Thousand Transactions ─────────────
+  shen_yao: {
+    id:'shen_yao', name:'Shen Yao',
+    title:'Cloth Merchant — The Balance Sheets of Heaven',
+    gender:'male', alive:false, birthYear:28, deathYear:105,
+    glowColor:'rgba(180,200,120,0.12)', specialGlow:'lore',
+    stats:{ strength:30, agility:38, endurance:45, intelligence:92, perception:88, willpower:85, charisma:65, luck:70 },
+    qiStageIndex:2, qiPath:'righteous',
+    personality:'Shen Yao was a cloth merchant in the eastern Jade Province market. He was known, before anything else, for being reliable. He did not set out to found a religion. He set out to maintain perfectly honest accounts. He maintained them for thirty years. The Qi that followed was, in his own words, an embarrassment — he had no training, no path, no teacher, and no idea why an accountant would experience a breakthrough during mid-year reconciliation. He spent the rest of his life trying to figure out what it meant. The resulting text is two-thirds accounting theory.',
+    isLore:true,
+    lifeTimeline:[
+      { year:28,  event:'Born in Jade Province to a trading family. The commercial environment of his childhood was one where records were kept loosely and disputes were common. He noticed early that the disputes arose from the looseness.' },
+      { year:50,  event:'Opened his cloth stall in the eastern market. Made a private decision: every account he kept would be perfectly accurate. No favorable rounding, no self-serving interpretation of ambiguous entries. He told no one about this decision — it was between him and his books.' },
+      { year:72,  event:'Twenty years in. Began to notice something he could not name: other merchants who kept similar standards had a quality to their dealings that he could only describe as "clear." He started writing observations alongside his accounts. The observations were not commercial.' },
+      { year:82,  event:'Thirty years of perfect accounts. During the mid-year reconciliation of Year 82, his Qi spontaneously formed a stable cultivation path. He had never cultivated. Had no teacher. His apprentice watched it happen and spent several days in a state of theological confusion. Shen Yao went home and wrote about it for six hours.' },
+      { year:82,  event:'Began writing The Balance Sheets of Heaven — a text that starts as accounting theory and shifts, around the fortieth page, into something else. Most readers who encounter the first third believe they are reading a merchant\'s manual. This is not entirely wrong.' },
+      { year:105, event:'Died. The Balance Sheets of Heaven was complete. The first half-dozen people who carried it forward were all merchants or accountants — they had found it in a professional context and read past the accounting into what followed. The religion grew from that readership outward.' },
+    ],
+  },
+
+  // ── THE SURVIVOR — founder of the Doctrine of Edges ─────────────
+  the_survivor: {
+    id:'the_survivor', name:'Kael',
+    title:'The Survivor — First Practitioner of the Doctrine of Edges',
+    gender:'male', alive:false, birthYear:-50, deathYear:30,
+    glowColor:'rgba(160,100,80,0.12)', specialGlow:'lore',
+    stats:{ strength:78, agility:95, endurance:80, intelligence:76, perception:98, willpower:90, charisma:55, luck:55 },
+    qiStageIndex:5, qiPath:'demonic',
+    personality:'Kael did not intend to found anything. He survived a fight he should not have survived and spent the rest of his life trying to understand how. The Doctrine of Edges — the practice of reconstructing every irreversible moment to understand what made it irreversible — came from this obsession. He was not a spiritual man. He was a man who had nearly died and found the not-dying the most interesting thing that had ever happened to him.',
+    isLore:true,
+    lifeTimeline:[
+      { year:-50, event:'Born in the border territory between the Buo Kingdom and what would become the Azure Empire. A fighter by occupation and disposition — the region was unstable and physical capability was a practical asset.' },
+      { year:-25, event:'By twenty-five had a reputation as a capable and decisive fighter. The reputation was accurate. He had been in enough situations to know his own limits and had not yet found them in a way that cost him.' },
+      { year:-5,  event:'The fight. He was outmatched — the other person was faster, stronger, and better trained. He survived. He did not know why. The opponent died. In the following days, Kael found he could not stop reconstructing the encounter: what had been the edge, the moment where survival became possible. He could not identify it clearly. He began writing it down.' },
+      { year:1,   event:'In the year Qi was discovered, Kael had been reconstructing that fight for five years and had found three students who were interested in his method. They were all fighters. The practice was not religious at this point — it was analytical. They called it "working the edge."' },
+      { year:15,  event:'The students had students. The method had evolved — it was no longer just about fights but about any irreversible moment: a decision that closed a door, a word said that could not be unsaid, an action that changed the arrangement of things permanently. Kael was uncomfortable with the expansion but did not prevent it.' },
+      { year:30,  event:'Died. He never named the practice himself — "Doctrine of Edges" was applied by later practitioners. He would not have objected to it. The word that mattered to him was "edges" — the places where things became permanent. Everything he built came from one moment he could not fully explain, and the refusal to stop trying.' },
+    ],
+  },
+
+});
+
+// Yaqism figures get the "isLore" flag too so they're not procedurally overwritten
+['dla','urur','inim_shara','irarum','hammurabi_luo','zimri_lim'].forEach(id => {
+  if(LORE_NPCS[id]) LORE_NPCS[id].isLore = true;
+});
 
 // Initialize Yaqism in world history when game starts
 const _withYaqismInit = startGame;
@@ -33293,7 +33423,7 @@ const WORLD_RELIGIONS = {
       },
     },
     texts: ['No central text — oral tradition. Practitioners carry personal records of decisions made at the edge and their outcomes.'],
-    founding_story: 'An unnamed swordsman, known only as "The Survivor," won a battle against someone who should have killed him. Afterward, he could not explain how. He spent years trying to reconstruct the moment. His students adopted the practice of reconstruction — examining every significant moment before and after the edge — as the core of what became the Doctrine.',
+    founding_story: 'A fighter named Kael, known afterward as "The Survivor," won a battle against someone who should have killed him. He did not know how. He spent the rest of his life reconstructing that moment. His students adopted the practice — examining every irreversible moment before and after the edge — as the core of what became the Doctrine. Kael never named it. He never considered himself a founder. He considered himself a man who had nearly died and found the not-dying interesting.',
     cultivation_relationship: 'Beast Qi path is most common, but Combat Qi and high-stage martial artists often find the Doctrine resonant. The edge meditation practice is used by non-cultivators as well — it predates the discovery of Qi.',
     tensions: 'The Doctrine has a dangerous faction problem: some practitioners take "truth is at the edge" to mean they should seek the edge constantly. These practitioners are considered by mainstream Doctrine to be missing the point — the point is to know the edge without crossing it, not to cross it repeatedly.',
   },
