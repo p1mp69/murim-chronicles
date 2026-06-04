@@ -9705,7 +9705,18 @@ function generateRandomTraits() {
     'bloodline_echo', // too epic to start with randomly
   ]);
 
-  const rarityWeight = { common:40, uncommon:28, rare:18, epic:9, legendary:4, mythic:1, fable:0 };
+  // Per-trait weights — rarity curve that works regardless of pool size.
+  // Each trait's weight is fixed; more traits in a tier = that tier appears more often,
+  // but each specific trait stays at its intended rarity level.
+  //
+  // Target per-slot chance per specific trait:
+  //   common:    ~2.7%  (you'll see common traits often)
+  //   uncommon:  ~0.7%  (about 1 in 4 characters picks a specific uncommon)
+  //   rare:      ~0.27% (genuinely notable)
+  //   epic:      ~0.10% (special)
+  //   legendary: ~0.03% (extraordinary)
+  //   mythic:    0      (not random — earned through extraordinary events)
+  const rarityWeight = { common:400, uncommon:100, rare:40, epic:15, legendary:4, mythic:0, fable:0 };
   const pool = Object.entries(TRAITS_CATALOG)
     .filter(([id]) => !excluded.has(id))
     .map(([id, def]) => ({ id, def, weight: rarityWeight[def.rarity] || 1 }));
