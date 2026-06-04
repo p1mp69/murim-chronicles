@@ -4445,16 +4445,32 @@ function getRepContextForNPC(npcHomeLocation) {
 // SKILL SYSTEM
 // ================================================================
 function addSkill(key, label, category, desc='') {
-  if(GS.char.skills[key]) {
-    // Level it up slightly
-    GS.char.skills[key].xp = (GS.char.skills[key].xp||0) + 1;
-    const xpNeeded = GS.char.skills[key].level * 10 + 10;
-    if(GS.char.skills[key].xp >= xpNeeded) {
-      GS.char.skills[key].level++;
-      GS.char.skills[key].xp = 0;
+  if(!key) return;
+  // Normalise key
+  const normKey = key.toLowerCase().replace(/\s+/g,'_').replace(/[^a-z0-9_]/g,'');
+  if(!normKey) return;
+
+  if(GS.char.skills[normKey]) {
+    // Level up: +1 XP per use. Threshold = level * 8 + 8 (faster than before)
+    // Level 1 → 2: 16 uses · Level 2 → 3: 24 uses · Level 5 → 6: 48 uses
+    const s = GS.char.skills[normKey];
+    s.xp = (s.xp||0) + 1;
+    const needed = s.level * 8 + 8;
+    if(s.xp >= needed) {
+      s.level = Math.min((s.level||1) + 1, 15); // cap at 15
+      s.xp    = 0;
+      if(s.level > 1) toast(`${s.label||label}: Level ${s.level}`, 'gold', 2500);
     }
   } else {
-    GS.char.skills[key] = { label, category, level:1, xp:0, firstUsed:`Year ${GS.world.year}`, desc };
+    // New skill — also update label/category if not set
+    GS.char.skills[normKey] = {
+      label:    label||key,
+      category: category||'misc',
+      level:    1,
+      xp:       0,
+      firstUsed:`Year ${GS.world.year}`,
+      desc:     desc||'',
+    };
   }
   updateSkillsTab();
 }
@@ -6276,10 +6292,20 @@ ABSOLUTE RULES — NEVER BREAK THESE:
 4. NPCs have lives and histories before the player. Hidden pasts, old allegiances, old enemies. They do not reveal these unless triggered by events.
 5. Time is real. If a scheduled event was set for Month 3 and it's now Month 5, that event already happened or was missed. Do not retroactively create it.
 6. Permanent injuries/scars only come from significant, violent or extreme events — never casual mishaps.
-7. SKILLS MUST BE REPORTED — THIS IS CRITICAL. Every time the narrative involves the character using ANY skill, you MUST include it in the "skills" array. This is the ONLY way skills register in the game. If the player does NOT include it here, that skill does not exist for the player.
-   When to include skills: fighting/sparring → combat_training | cooking → cooking | studying/reading → literacy or relevant skill | tracking/wilderness → tracking or survival | forging/smithing → smithing | alchemy/brewing → alchemy | negotiating/selling → commerce | sneaking/hiding → stealth | healing/treating wounds → medicine | observing/watching → observation | meditating/breathing → meditation | calligraphy/writing → calligraphy | cultivation practice → cultivation.
-   Categories to use: combat, survival, craftsman, social, scholarly, medical, artistic, cultivation, passive, misc.
-   Include even for brief or minor use. The skill array accumulates — repeated use levels up skills.
+7. SKILLS — REPORT EVERYTHING. This is the most important mechanical rule after writing quality. The "skills" array is the ONLY way skills register. Anything the character does that involves knowledge, practice, or ability belongs in this array.
+   DO NOT limit yourself to a list. Invent skill names for anything the character demonstrates:
+   • Physical: combat_training, weaponry, archery, swimming, climbing, acrobatics, horse_riding
+   • Craft: cooking, smithing, alchemy, sewing, carpentry, pottery, weaving, papercraft, origami
+   • Social: commerce, deception, intimidation, etiquette, persuasion, leadership, negotiation
+   • Scholarly: literacy, law, history, medicine, mathematics, philosophy, cartography, astronomy
+   • Survival: tracking, foraging, hunting, fishing, wilderness_navigation, animal_handling
+   • Cultivation: cultivation, meditation, qi_sensing, breathing_technique
+   • Stealth/Security: stealth, lockpicking, pickpocketing, surveillance, evasion
+   • Artistic: calligraphy, music, painting, poetry, acting, storytelling
+   • Specialized: canal_navigation, silk_appraisal, herb_identification, poison_identification,
+     criminal_networks, pressure_points, formation_theory, beast_taming, shipcraft — use your judgment
+   Use snake_case for key. Category from: combat, survival, craftsman, social, scholarly, medical, artistic, cultivation, passive, misc.
+   Include even minor use. Repeated use across multiple turns levels the skill up. NEVER skip this.
 8. Qi path is determined naturally by behavior — do not force it. A violent, reactive fighter develops Beast Qi. An ambitious, consuming one develops Demonic Qi. A disciplined, precise one develops Righteous Qi.
 9. Techniques that require a specific Qi path cannot be used by someone of a different path.
 10. World events happen regardless of player participation. If the player ignores the Buo-Luo-Tin War, it still happens and changes things around them.
@@ -22848,19 +22874,60 @@ extractParentsFromOpening = function(narrativeText) {
   // (ORPHAN_ORIGINS and isOrphan defined above)
 
   // ── EXCLUSION SET — words that can't be names ────────────────
+  // Comprehensive: pronouns, prepositions, conjunctions, articles,
+  // common adjectives/adverbs that start sentences, states/conditions,
+  // verbs in gerund form, common nouns, place/location words
   const EXCL = new Set([
-    'You','Your','He','She','They','His','Her','Their','Him','Them','It','Who',
-    'I','Me','My','We','Our','Us','The','This','That','A','An','And','But','Or',
+    // Pronouns
+    'You','Your','He','She','They','His','Her','Their','Him','Them','It','Who','Whose',
+    'I','Me','My','We','Our','Us','Itself','Himself','Herself','Themselves','Yourself',
+    // Articles / conjunctions / prepositions
+    'The','This','That','These','Those','A','An','And','But','Or','So','Yet','Nor',
     'When','With','From','After','Before','Into','Some','Many','Most','Few','All',
-    'Year','Month','Day','Morning','Night','Dawn','Evening','What','Where','Why',
-    'Old','New','Young','Small','Large','Still','Also','Just','Only','Even',
-    'Tazar','Jade','Ooina','Buo','Azure','Luo','Tin','Zeret','Iron',
+    'Both','Each','Every','Any','Either','Neither','Whether','While','Though','Although',
+    'Since','Until','Unless','Because','Although','However','Therefore','Moreover',
+    'Furthermore','Meanwhile','Suddenly','Eventually','Finally','Immediately','Already',
+    'Often','Always','Never','Sometimes','Usually','Rarely','Seldom','Perhaps','Maybe',
+    // Common sentence-starting adjectives / states / conditions
+    'Hungry','Thirsty','Tired','Exhausted','Weary','Dizzy','Sick','Ill','Injured',
+    'Cold','Hot','Warm','Cool','Dark','Light','Bright','Heavy','Empty','Full',
+    'Quick','Slow','Hard','Soft','Long','Short','Wide','Narrow','Deep','High','Low',
+    'Old','New','Young','Small','Large','Big','Great','Good','Bad','Strange','Familiar',
+    'Alone','Together','Awake','Asleep','Afraid','Angry','Sad','Happy','Calm',
+    'Silent','Quiet','Loud','Careful','Slowly','Quickly','Suddenly','Clearly',
+    // Common sentence-starting prepositions / adverbs
+    'Here','There','Near','Far','Inside','Outside','Ahead','Behind','Above','Below',
+    'Between','Against','Around','Through','Under','Over','Upon','Along','Across',
+    'Toward','Beyond','Without','Within','During','Despite','Throughout','Nearby',
+    'Somewhere','Nowhere','Everywhere','Anywhere','Perhaps','Certainly','Probably',
+    // Time words
+    'Year','Month','Day','Morning','Night','Dawn','Evening','Dusk','Week','Winter',
+    'Spring','Summer','Autumn','Today','Yesterday','Tomorrow','Then','Now','Soon',
+    'Later','Earlier','Recently','Finally','Eventually','Before','After','Meanwhile',
+    // Question words
+    'What','Where','Why','How','Which','Whose',
+    // Common sentence-starting verbs (gerund/present)
+    'Running','Standing','Walking','Sitting','Lying','Looking','Speaking','Hearing',
+    'Seeing','Feeling','Knowing','Thinking','Taking','Making','Coming','Going',
+    'Doing','Getting','Being','Having','Saying','Asking','Telling','Showing',
+    'Turning','Moving','Finding','Keeping','Leaving','Reaching','Holding','Watching',
+    'Waiting','Trying','Starting','Stopping','Working','Living','Fighting','Falling',
+    'Stepping','Drawing','Crossing','Opening','Closing','Following','Carrying',
+    // Location/place words (murim setting)
+    'Tazar','Jade','Ooina','Buo','Azure','Luo','Tin','Zeret','Iron','Shen',
     'Empire','Kingdom','Dynasty','District','Street','Gate','Canal','Bridge',
     'Province','Capital','City','Market','River','Mountain','North','South','East','West',
-    'Stone','Copper','Silver','Gold','Water','Fire','Wind','Earth','Wood',
+    'Stone','Copper','Silver','Gold','Water','Fire','Wind','Earth','Wood','Bamboo',
+    'Port','Road','Lane','Row','Path','Way','Valley','Forest','Lake','Ocean','Sea',
+    // Relationship words
     'Mother','Father','Brother','Sister','Grandmother','Grandfather','Aunt','Uncle',
-    'Teacher','Master','Elder','Lord','Lady','Nothing','Something','Everything',
+    'Teacher','Master','Elder','Lord','Lady','Girl','Boy','Man','Woman','Child',
+    'People','Person','Someone','Anyone','Nobody','Stranger','Soldier','Merchant',
+    // Common nouns that start sentences
+    'Nothing','Something','Everything','Anything','Otherwise','Indeed','Somehow',
     'Beggar','Rest','Mine','Field','Farm','Palace','Temple','School','House','Home',
+    'Room','Door','Wall','Floor','Ground','Sky','Air','Light','Shadow','Darkness',
+    'Blood','Bone','Dust','Smoke','Mist','Rain','Wind','Snow','Fire','Heat',
   ]);
 
   function looksLikeName(str) {
@@ -23010,18 +23077,43 @@ extractParentsFromOpening = function(narrativeText) {
   const INTERACT_RE2 = /\b(you|your)\b.{0,80}\b(from|with|to)\s+([A-Z][a-z]{2,14}(?:\s+[A-Z][a-z]{2,14})?)\b/i;
   const VERB_RE = /\b(give|gives?|gave|told|tells?|said|says?|show(?:s|ed)|taught|teaches?|help(?:s|ed)|ask(?:s|ed)|feed|feeds?|raised|watched?|guided?|protect(?:s|ed)|offer(?:s|ed)|invite(?:s|d)|calls?\s+you|greet(?:s|ed)|mentor(?:s|ed))\b/i;
 
+  // Pre-count word frequency across entire text (for multi-occurrence filter)
+  const wordFreq = new Map();
+  const allWordsRe = /\b([A-Z][a-z]{2,14}(?:\s+[A-Z][a-z]{2,14})?)\b/g;
+  let wm;
+  while((wm = allWordsRe.exec(narrativeText)) !== null) {
+    const w = wm[1].trim();
+    wordFreq.set(w, (wordFreq.get(w)||0) + 1);
+  }
+
   sentences.forEach(sentence => {
     // Does this sentence have any interaction verb?
     if(!VERB_RE.test(sentence)) return;
-    // Extract all proper-name candidates from this sentence
-    const nameRe = /\b([A-Z][a-z]{1,14}(?:\s+[A-Z][a-z]{1,14})?)\b/g;
+    // Extract proper-name candidates — but be much more conservative
+    const nameRe = /\b([A-Z][a-z]{2,14}(?:\s+[A-Z][a-z]{2,14})?)\b/g;
     let nm;
     while((nm = nameRe.exec(sentence)) !== null) {
       const candidate = nm[1].trim();
       if(!looksLikeName(candidate)) continue;
       if(candidate === c.firstName || candidate === c.lastName) continue;
-      if(found.has(candidate)) continue; // already has a role from naming patterns
-      // This name appears in a sentence with interaction — add as acquaintance
+      if(found.has(candidate)) continue;
+
+      const isTwoWord = candidate.includes(' '); // "Mei Shuang" — reliable
+      const freq = wordFreq.get(candidate) || 0;
+
+      // MULTI-OCCURRENCE RULE:
+      // Single-word names must appear 2+ times in the full text to be real names.
+      // "Hungry" appears once as a sentence-opener → not a name.
+      // "Chou" appears 4 times in the narrative → probably a name.
+      // Two-word names ("Mei Shuang") are reliable even once.
+      if(!isTwoWord && freq < 2) continue;
+
+      // Also skip if the candidate starts at position 0 of the sentence
+      // and is followed by a comma — this is an adjectival use, not a name
+      const sentLower = sentence.trim();
+      const candIdx = sentLower.indexOf(candidate);
+      if(candIdx === 0 || sentLower.startsWith(candidate + ',')) continue;
+
       tryAdd(candidate, 'acquaintance', sentence);
     }
   });
