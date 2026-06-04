@@ -31206,6 +31206,386 @@ migrateSave = function(data) {
   return result;
 };
 
+// ================================================================
+// ── AI-BASED PEOPLE EXTRACTION (replaces regex heuristics)
+// ── After the opening narrative generates, send it to claude-haiku
+// ── and ask it to identify actual characters and their relationships.
+// ── This is far more accurate than pattern matching.
+// ================================================================
+
+async function extractCharactersWithAI(narrativeText) {
+  const c       = GS.char;
+  const w       = GS.world;
+  const apiKey  = GS.settings.apiKey;
+  if(!apiKey || !narrativeText || narrativeText.length < 100) return;
+
+  const ORPHAN_IDS = new Set(['orphan_streets','discarded_child','bridge_born','left_behind']);
+  const isOrphan   = GS.selectedOrigin && ORPHAN_IDS.has(GS.selectedOrigin);
+
+  const prompt = `You are analyzing an opening narrative from a cultivation RPG to identify the characters in it.
+
+CHARACTER: ${c.firstName} ${c.lastName}, Age ${c.age}, born in ${LOCATIONS[c.birthCity]?.name || c.birthCity}
+
+NARRATIVE:
+${narrativeText}
+
+TASK: Identify every named person in this narrative. For each one, determine:
+1. Their actual PERSONAL NAME (e.g., "Nuan Baa", "Zhou Enlai", "Mei Shuang") — NOT generic words
+2. Their relationship to the protagonist
+3. Whether the protagonist DIRECTLY INTERACTED with them (spoke to them, received something from them, was cared for by them, taught by them) — NOT just passively observed
+4. A 1-sentence description based on the narrative
+5. Are they deceased or absent by the end of the narrative?
+
+CRITICAL RULES:
+- Names must be PERSONAL NAMES (2-20 chars, proper noun format like "Wei Jian" or "Chou")
+- Do NOT include: "Hungry", "Outside", "Then", common English words, place names, abstract nouns
+- interacted=true: spoke to player, gave player something, taught player, cared for player, raised player
+- interacted=false: player only observed them, overheard about them, or they were mentioned by others
+- ORPHAN RULE: ${isOrphan ? 'This character is an ORPHAN. Do NOT include any mother or father.' : 'Family members are valid.'}
+
+Return ONLY a JSON array, no other text:
+[
+  {
+    "name": "Nuan Baa",
+    "role": "mother",
+    "interacted": true,
+    "description": "Runs a textile stall in the market, tall, precise in everything she does.",
+    "deceased": false,
+    "absent": false
+  }
+]
+
+Valid roles: mother, father, grandmother, grandfather, sister, brother, aunt, uncle, caregiver, teacher, mentor, neighbor, friend, acquaintance, rival, enemy, employer, encountered`;
+
+  try {
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version':'2023-06-01',
+        'anthropic-dangerous-direct-browser-access':'true',
+      },
+      body: JSON.stringify({
+        model:'claude-haiku-4-5', // fast + cheap for this extraction task
+        max_tokens:800,
+        messages:[{ role:'user', content:prompt }],
+      }),
+    });
+
+    if(!resp.ok) return;
+    const data = await resp.json();
+    const rawText = (data.content?.[0]?.text || '').trim();
+    if(!rawText) return;
+
+    // Parse the JSON array
+    const jsonMatch = rawText.match(/\[[\s\S]*\]/);
+    if(!jsonMatch) return;
+
+    const characters = JSON.parse(jsonMatch[0]);
+    if(!Array.isArray(characters)) return;
+
+    const BOND_BY_ROLE = {
+      mother:78, father:78, grandmother:68, grandfather:68,
+      aunt:55, uncle:55, sister:62, brother:62,
+      caregiver:72, teacher:50, mentor:55,
+      friend:45, neighbor:28, acquaintance:18, encountered:10,
+      rival:20, enemy:10, employer:25,
+    };
+
+    let added = 0;
+    characters.forEach(char => {
+      // Validate
+      if(!char?.name || typeof char.name !== 'string') return;
+      if(char.name.length < 2 || char.name.length > 28) return;
+      if(!char.interacted) return; // only add if actually interacted with
+      if(c.relationships.find(r => r.name === char.name)) return; // no duplicates
+
+      // Orphan check
+      const FAMILY_ROLES = new Set(['mother','father','grandmother','grandfather','sister','brother']);
+      if(isOrphan && FAMILY_ROLES.has(char.role)) return;
+
+      const npcId = `opening_ai_${char.name.toLowerCase().replace(/\s+/g,'_').replace(/[^a-z0-9_]/g,'')}_${uid().slice(0,4)}`;
+
+      if(!w.npcRegistry[npcId]) {
+        w.npcRegistry[npcId] = {
+          id:npcId, name:char.name, title:'', alive:!char.deceased, isLore:false, glowColor:null,
+          qiStageIndex:0, strength:8, agility:8, endurance:8, intelligence:8,
+          perception:8, willpower:8, charisma:8, luck:8,
+          memoriesOfPlayer:[`Part of ${c.firstName}'s early life.`],
+          personality:[], alignment:'orthodox', hiddenHistory:[],
+          location: char.absent ? 'unknown' : (c.birthCity || w.location),
+          homeLocation: c.birthCity || w.location,
+        };
+      }
+
+      const bond = BOND_BY_ROLE[char.role] || 15;
+      const rel = {
+        npcId, name:char.name, title:'', type:char.role || 'encountered',
+        summary: char.description || `From ${c.firstName}'s early life.`,
+        fullMemory: char.description || `Met during ${c.firstName}'s early years.`,
+        trust: bond, bond_level: bond,
+        alive: !char.deceased,
+        isZeret:false, isLore:false, glowColor:null,
+        lastSeen: char.deceased ? `Deceased — Year ${w.year}` : char.absent ? 'Whereabouts unknown' : `Year ${w.year}`,
+        fromOpening: true,
+      };
+
+      if(char.deceased) {
+        rel.deathYear  = w.year;
+        rel.deathCause = 'From the opening years — cause unknown';
+      }
+
+      c.relationships.push(rel);
+      w._openingCharacters[npcId] = { name:char.name, role:char.role, npcId, isDeceased:char.deceased, isAbsent:char.absent, context:char.description };
+      added++;
+    });
+
+    if(added > 0) {
+      updateRelationsTab();
+      console.log(`[People] AI extracted ${added} characters from opening narrative`);
+    }
+
+  } catch(e) {
+    console.error('[People AI extraction]', e);
+    // Silently fail — regex fallback will have already run
+  }
+}
+
+// Override extractParentsFromOpening to use AI extraction when possible
+// The regex fallback still runs first (immediate), AI refines after (async)
+const _extractWithAI = extractParentsFromOpening;
+extractParentsFromOpening = function(narrativeText) {
+  // Run regex extraction immediately (synchronous, no API key needed)
+  try { _extractWithAI(narrativeText); } catch(e) {}
+  // Then run AI extraction in background (async, much more accurate)
+  setTimeout(() => extractCharactersWithAI(narrativeText), 500);
+};
+
+// ================================================================
+// ── TRAIT MATH FIX — clarify what the counts actually mean
+// ── Origin cards always give 1-2 traits. Random traits are additional.
+// ── Actual starting count: origin traits + 0-3 random = typically 1-4
+// ================================================================
+// (No code change needed — the system already works correctly.
+//  The 20/40/30/10 distribution is for RANDOM traits only, on top of
+//  the 1-2 traits guaranteed from origin cards.)
+
+// ================================================================
+// ── SIN SEED PROGRESSION — actual mechanics to evolve seeds
+// ── Seeds → Saplings → Trees through specific in-game behavior
+// ================================================================
+
+// What triggers each seed's evolution
+const SIN_SEED_TRIGGERS = {
+  seed_lust: {
+    evolves: 'sapling_lust',
+    keywords: /\b(zeret|desire|lust|beauty|longing|warmth\s+in\s+(?:your\s+)?chest|seed.*stir|seed.*warm|pull\s+toward|something.*beautiful|overwhelm.*want)\b/i,
+    condition: (c, res) => {
+      // Zeret active and player interacted, OR very high charisma situations
+      const zeretMet  = c.relationships.some(r => r.isZeret);
+      const narrative = res?.narrative || '';
+      return zeretMet || SIN_SEED_TRIGGERS.seed_lust.keywords.test(narrative);
+    },
+    desc: 'The Lust seed has taken root. Zeret\'s voice reaches you now.',
+  },
+  seed_wrath: {
+    evolves: 'sapling_wrath',
+    keywords: /\b(rage|fury|overwhelming\s+anger|something\s+surged|couldn.t\s+control|violence\s+came\s+naturally|kill(?:ed|ing)|slaughter|power\s+spike|combat.*rage|berserk)\b/i,
+    condition: (c, res) => {
+      const narrative = res?.narrative || '';
+      const bloodKarma = c.karma?.blood || 0;
+      return bloodKarma >= 10 || SIN_SEED_TRIGGERS.seed_wrath.keywords.test(narrative);
+    },
+    desc: 'The Wrath seed has taken root. Rage accumulates instead of passing.',
+  },
+  seed_envy: {
+    evolves: 'sapling_envy',
+    keywords: /\b(envy|envious|they\s+have\s+what|coveted?|power\s+(?:you\s+don.t|gap)|watching\s+(?:them|him|her)\s+(?:advance|grow|surpass)|left\s+behind|not\s+enough)\b/i,
+    condition: (c, res) => {
+      const narrative = res?.narrative || '';
+      const stageGap  = (GS.world.npcRegistry) && Object.values(GS.world.npcRegistry).some(n => (n.qiStageIndex||0) >= (c.qi?.stageIndex||0) + 3);
+      return stageGap || SIN_SEED_TRIGGERS.seed_envy.keywords.test(narrative);
+    },
+    desc: 'The Envy seed has taken root. Others\' strengths register as specific pain.',
+  },
+  seed_sloth: {
+    evolves: 'sapling_sloth',
+    keywords: /\b(stillness|motionless|days\s+pass(?:ed)?|weeks?\s+(?:of\s+)?(?:rest|stillness|quiet)|endurance\s+(?:without|requiring\s+less)|need\s+less|lasted\s+longer\s+than)\b/i,
+    condition: (c, res) => {
+      const narrative = res?.narrative || '';
+      const longRest  = c._continuousRestDays > 7;
+      return longRest || SIN_SEED_TRIGGERS.seed_sloth.keywords.test(narrative);
+    },
+    desc: 'The Sloth seed has taken root. Stillness has become structural.',
+  },
+  seed_pride: {
+    evolves: 'sapling_pride',
+    keywords: /\b(command(?:ed|ing)\s+(?:attention|respect|the\s+room)|wouldn.t\s+(?:back\s+down|retreat|yield)|presence.*felt|refused\s+to\s+(?:kneel|submit|back\s+down)|authority\s+(?:came\s+naturally|you\s+hold))\b/i,
+    condition: (c, res) => {
+      const narrative = res?.narrative || '';
+      const highRenown = Object.values(c.reputation||{}).some(r => (r.renown||0) >= 50);
+      return highRenown || SIN_SEED_TRIGGERS.seed_pride.keywords.test(narrative);
+    },
+    desc: 'The Pride seed has taken root. Your presence now carries weight.',
+  },
+  seed_greed: {
+    evolves: 'sapling_greed',
+    keywords: /\b(wealth|accumulate|acquired|fortune|noticed\s+(?:the\s+)?(?:coin|silver|value)|found\s+(?:silver|gold|valuables)|couldn.t\s+resist\s+(?:taking|having|acquiring))\b/i,
+    condition: (c, res) => {
+      const narrative = res?.narrative || '';
+      const richEnough = (c.silver || 0) >= 50;
+      return richEnough || SIN_SEED_TRIGGERS.seed_greed.keywords.test(narrative);
+    },
+    desc: 'The Greed seed has taken root. Value is sensed before it\'s seen.',
+  },
+  seed_gluttony: {
+    evolves: 'sapling_gluttony',
+    keywords: /\b(consumed\s+(?:more|everything|all\s+of\s+it)|still\s+hungry|hunger\s+(?:didn.t|never)\s+(?:stop|leave|pass)|absorbed|devour(?:ed|ing)|couldn.t\s+stop\s+(?:eating|consuming|taking))\b/i,
+    condition: (c, res) => {
+      const narrative = res?.narrative || '';
+      const alchDisc  = (c._alchemyDiscoveries || 0) >= 3;
+      return alchDisc || SIN_SEED_TRIGGERS.seed_gluttony.keywords.test(narrative);
+    },
+    desc: 'The Gluttony seed has taken root. Consumption has become structural.',
+  },
+};
+
+// Also handle sapling → tree evolution
+const SIN_SAPLING_TRIGGERS = {
+  sapling_lust:     { evolves:'tree_lust',    minBond:75, narrative:/\b(completely\s+changed|no\s+longer\s+(?:just|merely)|becoming\s+something|boundary.*thin|recognizes\s+you)\b/i },
+  sapling_wrath:    { evolves:'tree_wrath',   bloodMin:25, narrative:/\b(catastrophe|couldn.t\s+control|environmental|ground\s+(?:cracked|shook)|armies?\s+fear)\b/i },
+  sapling_envy:     { evolves:'tree_envy',    narrative:/\b(absorbed|took\s+(?:from|their)|technique.*yours\s+now|stolen\s+(?:his|her|their)\s+(?:technique|ability|skill))\b/i },
+  sapling_sloth:    { evolves:'tree_sloth',   narrative:/\b(injuries?\s+(?:healed\s+faster|closed)|physician.*inexplicable|impossible\s+recovery|body\s+refused\s+to\s+break)\b/i },
+  sapling_pride:    { evolves:'tree_pride',   narrative:/\b(room\s+(?:went|fell)\s+quiet|stopped\s+(?:speaking|arguing|moving)\s+when\s+you|presence.*suppres|lesser\s+wills)\b/i },
+  sapling_greed:    { evolves:'tree_greed',   narrative:/\b(sensed\s+(?:the\s+)?(?:silver|gold|value)|Qi\s+capacity.*(?:larger|beyond|exceeded)|accumulated\s+beyond)\b/i },
+  sapling_gluttony: { evolves:'tree_gluttony',narrative:/\b(consumed\s+(?:the\s+)?technique|devoured|absorbed\s+(?:their|his|her|the)\s+(?:technique|method|qi))\b/i },
+};
+
+function checkSinSeedProgression(res) {
+  if(!res?.narrative) return;
+  const c   = GS.char;
+  const narrative = res.narrative;
+
+  // Check AI-explicit trigger
+  if(res.sinSeedProgress) {
+    const traitId = res.sinSeedProgress;
+    if(TRAITS_CATALOG[traitId]) {
+      giveTrait(traitId, null);
+      toast(`Sin seed evolved: ${TRAITS_CATALOG[traitId]?.name || traitId}`, 'gold', 5000);
+      addChronicleEntry(`Sin evolution: ${TRAITS_CATALOG[traitId]?.name || traitId}`, 'major');
+      return;
+    }
+  }
+
+  // Check seed → sapling
+  Object.entries(SIN_SEED_TRIGGERS).forEach(([seedId, trigger]) => {
+    const hasSeed = c.traits.some(t => t.id === seedId);
+    if(!hasSeed) return;
+    const hasSapling = c.traits.some(t => t.id === trigger.evolves);
+    if(hasSapling) return; // already evolved
+
+    if(trigger.condition(c, res)) {
+      // Chance to evolve on this turn (not guaranteed — takes repeated triggers)
+      c._sinSeedPressure = c._sinSeedPressure || {};
+      c._sinSeedPressure[seedId] = (c._sinSeedPressure[seedId] || 0) + 1;
+
+      const pressure = c._sinSeedPressure[seedId];
+      // Evolution requires 3+ triggers (not all at once)
+      if(pressure >= 3) {
+        c._sinSeedPressure[seedId] = 0;
+        giveTrait(trigger.evolves, null);
+        const name = TRAITS_CATALOG[trigger.evolves]?.name || trigger.evolves;
+        GS.narrative.push(trigger.desc);
+        toast(`✦ ${name}`, 'gold', 6000);
+        addChronicleEntry(`Sin seed progressed: ${name}`, 'major');
+        addPersonalEvent(`Sin seed evolution: ${name}. Year ${GS.world.year}.`);
+      } else {
+        // Small signal that the seed is stirring
+        if(pressure === 2) addPersonalEvent(`The ${seedId.replace('seed_','')} seed stirs more intensely. Year ${GS.world.year}.`);
+      }
+    }
+  });
+
+  // Check sapling → tree
+  Object.entries(SIN_SAPLING_TRIGGERS).forEach(([saplingId, trigger]) => {
+    const hasSapling = c.traits.some(t => t.id === saplingId);
+    if(!hasSapling) return;
+    const hasTree = c.traits.some(t => t.id === trigger.evolves);
+    if(hasTree) return;
+
+    let conditionMet = trigger.narrative.test(narrative);
+
+    // Additional conditions for specific saplings
+    if(saplingId === 'sapling_wrath' && trigger.bloodMin) {
+      conditionMet = conditionMet && (c.karma?.blood||0) >= trigger.bloodMin;
+    }
+    if(saplingId === 'sapling_lust' && trigger.minBond) {
+      const zeretRel = c.relationships.find(r => r.isZeret);
+      conditionMet = conditionMet && zeretRel && (zeretRel.bond_level||0) >= trigger.minBond;
+    }
+
+    if(conditionMet) {
+      c._sinSeedPressure = c._sinSeedPressure || {};
+      const key = `${saplingId}_tree`;
+      c._sinSeedPressure[key] = (c._sinSeedPressure[key] || 0) + 1;
+      if(c._sinSeedPressure[key] >= 4) {
+        c._sinSeedPressure[key] = 0;
+        giveTrait(trigger.evolves, null);
+        const name = TRAITS_CATALOG[trigger.evolves]?.name || trigger.evolves;
+        toast(`✦✦ ${name} — Fully grown`, 'gold', 8000);
+        addChronicleEntry(`Sin fully grown: ${name}`, 'major');
+        addPersonalEvent(`Sin tree: ${name}. Year ${GS.world.year}.`);
+      }
+    }
+  });
+}
+
+// Wire sin progression into applyAIResponse
+const _applyWithSinProg = applyAIResponse;
+applyAIResponse = function(res) {
+  _applyWithSinProg(res);
+  try { checkSinSeedProgression(res); } catch(e) {}
+};
+
+// Tell the AI about sin seed progression
+const _bspWithSinProg = buildSystemPrompt;
+buildSystemPrompt = function() {
+  let prompt = _bspWithSinProg();
+  try {
+    const c = GS.char;
+    const seeds = c.traits.filter(t => t.id?.startsWith('seed_') || t.id?.startsWith('sapling_'));
+    if(!seeds.length) return prompt;
+
+    const seedInfo = seeds.map(t => {
+      const trigger = SIN_SEED_TRIGGERS[t.id] || SIN_SAPLING_TRIGGERS[t.id];
+      const evolves = trigger?.evolves;
+      const catalog = evolves ? TRAITS_CATALOG[evolves] : null;
+      const pressure = (c._sinSeedPressure?.[t.id] || 0);
+      return `• ${t.name} (${t.id}): pressure ${pressure}/3 toward evolution${evolves ? ` → ${catalog?.name || evolves}` : ''}`;
+    }).join('\n');
+
+    const sinCtx = `\nSIN SEED PROGRESSION:
+${seedInfo}
+
+SIN SEED RULE: When the narrative involves the character experiencing events that align with their sin seed's nature (see triggers below), include in response: "sinSeedProgress": "sapling_lust" (or whatever the evolved ID is). This advances the seed.
+- Lust seed: moments of overwhelming desire, Zeret encounters
+- Wrath seed: genuine uncontrollable rage, kills, power surge in anger
+- Envy seed: moments of specific pain at others' power, desire to take their capability
+- Sloth seed: extended periods of minimal need, unusual endurance
+- Pride seed: commanding situations, refusing to back down publicly
+- Greed seed: finding valuable things, accumulating beyond normal
+- Gluttony seed: consuming cultivation resources, devouring things physically or spiritually
+Seeds evolve after the relevant experience happens 3+ times across different sessions.`;
+
+    prompt = prompt.replace('## ABSOLUTE RULES', sinCtx + '\n\n## ABSOLUTE RULES');
+    if(!prompt.includes('"sinSeedProgress"')) {
+      prompt = prompt.replace('"draftUpdate"', '"sinSeedProgress": null,\n  "draftUpdate"');
+    }
+  } catch(e) {}
+  return prompt;
+};
+
 console.log('Murim Chronicles fully loaded.');
 
 </script>
