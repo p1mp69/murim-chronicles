@@ -3895,6 +3895,114 @@ const LORE_NPCS = {
   },
 };
 
+// ================================================================
+// LORE NPC TIMELINES — hand-written canon history for named figures
+// The procedural timeline generator is NEVER applied to these.
+// ================================================================
+(function assignLoreTimelines() {
+
+  // ── REO YAMAMOTO ─────────────────────────────────────────────────
+  LORE_NPCS.reo_yamamoto.birthYear = -35;
+  LORE_NPCS.reo_yamamoto.lifeTimeline = [
+    { year:-35, event:'Born in a region that had no name he would have used. Neither poor nor rich — a life where work was assumed and ambition was private. He learned early that what you want and what you show are two different things.' },
+    { year:-15, event:'By his early twenties, had already developed the habit that would define everything he built: studying how power actually moves, not how it claims to. Not through rulers but through the structures that rulers depend on. The people who controlled access, who held information, who decided what reached the top. He was already thinking in systems before he had anything to apply them to.' },
+    { year:1,   event:'Discovered Qi alongside Ichiro Katsumi. Of the two, he is the one who immediately began thinking about what this means at scale — who gets it, what it does to the ones who have it, what it does to the ones who don\'t. Ichiro was working through something personal. Reo was already taking notes.' },
+    { year:18,  event:'Began laying the groundwork for what would become Tazar. Not as a city yet — as a logic. A place that would be stable not because everyone in it was good but because the incentives were structured to make stability the profitable choice. He understood that goodness doesn\'t scale. Interest does.' },
+    { year:50,  event:'Tazar is established as the Azure Empire\'s capital. It works. It works better than anything anyone has built in living memory. The people inside it call it proof of his goodness. He does not correct this. It is useful for them to believe it.' },
+    { year:100, event:'The city has outgrown its design. The canal district has developed an internal logic that he did not install. He understands it. He addresses the immediate problems. He is clear-eyed that one man\'s will is not a substitute for structure, and that the structure is already beginning to depend on him rather than on itself.' },
+    { year:130, event:'Ichiro Katsumi dies. Reo speaks at the remembrance and the speech is shorter than anyone expected. What he understood about Ichiro he did not say publicly. What he felt he did not say at all. The following year he began working longer hours. This was not grief. It was something for which he did not have a precise word.' },
+    { year:145, event:'His body is failing in ways that his cultivation cannot address or explain. He does not share this publicly. He does not discuss it. He is aware that something has been done to him from a direction he cannot locate. The Qi is still there. The foundation under it is not.' },
+    { year:150, event:'Died. Ichiro\'s death-curse, the Katsumi Seal, completed its work. His body failed at the foundation — not through damage but through a rewriting he could not undo and could not explain. Whether he knew in the end what had been done to him, and by whom, is not recorded anywhere that has survived.' },
+  ];
+
+  // ── ICHIRO KATSUMI ───────────────────────────────────────────────
+  LORE_NPCS.ichiro_katsumi.birthYear = -38;
+  LORE_NPCS.ichiro_katsumi.lifeTimeline = [
+    { year:-38, event:'Born. The circumstances were ordinary. The person who emerged from them was not.' },
+    { year:-25, event:'By his early teens, the cruelty was already there and already precise. He did not hurt people from rage or insecurity. He hurt them because he found it interesting — the specific way people came apart, what they tried to hide, what finally showed. He understood this about himself clearly. He did not stop.' },
+    { year:-10, event:'By his late twenties, has left a trail that he has never accounted for. Women. People beneath him in circumstance. People who could not defend themselves. He did not think of this as evil. He thought of it as accurate — the strong do what they are capable of, the weak bear what they must. He believed this without uncertainty.' },
+    { year:1,   event:'Discovered Qi alongside Reo Yamamoto. Something changed. Not what he wanted — the urges were still there, unchanged, as loud as they had always been. What changed was his relationship to them. He could suddenly see them the way you see furniture in a lit room — clearly, from a distance, without being inside them. He understood for the first time that they could be refused. Not that they should be. That they could be. He stood with this for a long time before he decided what to do with it.' },
+    { year:12,  event:'Has been making the choice against himself for over a decade. It is not easier. It is not natural. The urges are not diminished by being refused — they are simply refused. He does not talk about this. He does not explain himself to anyone. He builds.' },
+    { year:60,  event:'Ooina — the forest he chose for his domain — reflects what he believes. He has made it safer than it wants to be, but deliberately not safe. Growth through contact with what is real. He does not build shelters in it. He does not place guides in it. He believes the world owes no one protection from itself. This is a philosophy and it is also a mirror.' },
+    { year:100, event:'Is aware, clearly, that he and Reo could live indefinitely if they chose to. He has been thinking about this for decades. The logic is simple: two men who discovered Qi should not be its permanent authorities. No one should be. But simple logic and actual choice are different things. He knows what he wants. He knows what he is capable of wanting. He is not going to pretend otherwise.' },
+    { year:125, event:'Begins work on the Katsumi Seal. A death-curse he designs to pass through the bond between the two founders — threaded not through Qi but through the foundation beneath it. It will not activate until he is gone. When it does, Reo\'s body will fail from underneath in a way that no cultivation can address, because it is not damage. It is a rewriting. He designs it carefully.' },
+    { year:130, event:'Died. By choice, on his terms, at a time he selected. The seal passed to Reo the moment he went. Yuluh was present at the root. Whether Ichiro said anything before the end is between him and the serpent.' },
+  ];
+
+  // ── LÁNG ─────────────────────────────────────────────────────────
+  LORE_NPCS.lang_warlord.lifeTimeline = [
+    { year:110, event:'Born. The exact location is disputed in later accounts — three villages claim him and the claim mostly reflects what people think about him. What is consistent: he was physically exceptional from infancy in a way that was noticeable by the time he was walking.' },
+    { year:122, event:'At twelve, understood for certain that no Qi would answer him. He had watched others cultivate. He had tried everything available to try. Nothing. This was the question: what to do with that fact. He did not choose bitterness. He chose to make the absence into a statement. What he could do without Qi, he would make terrifying.' },
+    { year:130, event:'Twenty years old when Ichiro Katsumi died. Noticed the shift in the cultivation world — the way cultivators talked about themselves changed slightly, some of the certainty went out of their faces. Filed this observation for later use. He was already thinking about how cultivation power could be defeated by a sufficiently organized force of people who didn\'t have it.' },
+    { year:134, event:'Began building the raider force. Not as bandits — as a structure. People who were not cultivators, led by someone who had made non-cultivation into a philosophy. The force grew because he was right about something: there are more people without Qi than with it, and most of them have been told that makes them inferior. He told them it didn\'t.' },
+    { year:139, event:'Hired by the Luo-Tin Dynasty. He understood exactly what this meant: they were buying his force as a tool against Buo. He understood also that tools get discarded. He negotiated terms that left him operational flexibility they probably did not fully grasp when they agreed to them.' },
+    { year:144, event:'Ignited the Buo-Luo-Tin War. What began as a political conflict became the thing he had been building toward — a demonstration that massed physical force, correctly organized, could achieve what cultivation could not. He was right. He was also burning down a world that would take decades to recover.' },
+    { year:150, event:'Duke and imperial advisor to the Buo Emperor. Reo Yamamoto died this year. Láng, who had thought about the cultivation world\'s hierarchies longer than most non-cultivators ever had, noticed this. Said nothing publicly. Was already trying to find a way to make himself something more than what he was — the body had given him everything it had. He wanted more.' },
+    { year:154, event:'Died. Wrong Qi pills — he had been acquiring them from multiple sources, trying to find something that would work on a body that had never opened a single meridian. The dose that killed him was not a mistake. He knew what he was doing. He simply chose wrong about whether the risk was worth taking.' },
+  ];
+
+  // ── YULUH ────────────────────────────────────────────────────────
+  LORE_NPCS.yuluh.lifeTimeline = [
+    { year:-999, event:'Existing long before the world had a calendar for it. Ancient before the oldest empire had a name. What Yuluh was in those years is not recorded and could not be recorded — there was no one with the language for it. The serpent was there. That is what is known.' },
+    { year:-200, event:'Already in the forest that would become Ooina. Already watching the living things that moved through it and feeding on the misery those living things produced — not maliciously. The way roots feed on rain. It did not judge the rain for falling.' },
+    { year:1,    event:'Qi enters the world. Yuluh felt this immediately — the entire texture of living things changed. Something new was available for the first time in all the years it had been watching. Yuluh studied this with the patience of something that has no reason to hurry.' },
+    { year:60,   event:'Ichiro Katsumi came to the root of the great cedar in Ooina. The meeting was not accidental from either side. Yuluh respected Ichiro in the specific way it respected very few things: here was a man who could see his own nature clearly, who did not flinch from what it was, and who chose against it anyway. This was interesting to something that had watched countless creatures be entirely defined by their nature without question or resistance.' },
+    { year:130,  event:'Ichiro died at the root. Yuluh was present. What passed between them in the final hours is not known. The serpent has never said. What is observable: after Ichiro\'s death, Yuluh became less passive about the tomb. The legend-grade yokai that fill it now serve a guardian function that did not exist before Year 130.' },
+    { year:150,  event:'Reo Yamamoto died. Yuluh observed this from a distance, sensing it through the Qi currents in the world. Said nothing. Filed the event in whatever record a creature of its age keeps.' },
+  ];
+
+  // ── ZERET ────────────────────────────────────────────────────────
+  LORE_NPCS.zeret_lust.lifeTimeline = [
+    { year:-80,  event:'Born to a woman who sold what she had to survive. The exact year is unknown — Zeret does not discuss his birth and those who knew him then are not available to confirm it. What is established: he survived a drowning at some point in his youth that he should not have survived. Something changed during or after that event. He emerged from it different.' },
+    { year:-60,  event:'Already using what he had become. Not deliberately at first — the effect on people around him was ambient and preceded his understanding of it. He learned to use it consciously before he understood what it was. He never fully understood what it was. He didn\'t need to.' },
+    { year:166,  event:'First recorded spawn — Year 166. He returns to the world in his original form. Those who encounter him in this period describe the effect as sudden and difficult to explain afterward.' },
+    { year:199,  event:'Spawn Year 199. This time reborn as a child in the lower district of a city whose name was not preserved. The accounts describe an unremarkable beggar child who, over a period of months, changed the social fabric of three city blocks without visibly doing anything.' },
+    { year:255,  event:'Spawn Year 255. Encountered a religious figure in what is now the Luo-Tin Dynasty\'s western territory. The encounter did not go the way the religious figure expected. The texts from that community stop referring to him for the following decade.' },
+    { year:500,  event:'The year Aym becomes possible. He has not met her yet. This is the first year that he could. The full implications of that meeting — what it would do to him — are not yet in motion. But the door has opened.' },
+  ];
+
+  // ── XELAAD ───────────────────────────────────────────────────────
+  LORE_NPCS.xelaad_pride.lifeTimeline = [
+    { year:-950, event:'Born in the Kingdom of Elthir, eldest royal child. The obsession with superiority was already present before he could name it — he ranked everyone around him by instinct, from infancy, and arranged himself at the top.' },
+    { year:-920, event:'His mother. Her suicide was not caused by a single thing he said or did but by the accumulated weight of what it meant to be looked at by him every day and found insufficient. He understood this afterward. He noted it as a data point about what he was capable of, not as a loss.' },
+    { year:-910, event:'Arranged his brother\'s war — a conflict his brother did not want and did not survive. The maneuvering took years and left no evidence that pointed to Xelaad. He was not interested in being caught. He was interested in the result.' },
+    { year:-902, event:'Dueled his father for the throne. Won. Was killed during his own coronation by his father\'s death-pact with something from a domain Xelaad had not researched. He died. What came back some days later was not entirely the same in every way. The ranking instinct was still there. Everything else had been sharpened.' },
+    { year:200,  event:'First spawn year in the new Qi calendar. He entered a kingdom in the middle of a succession crisis and spent forty years ensuring the wrong person won, then watching the result. He was not there when the kingdom fell. He was already elsewhere.' },
+    { year:288,  event:'Spawn Year 288. Made contact with a cultivator sect that was on the verge of becoming the most powerful in the Azure Empire. Spent four years in the sect as a visiting scholar. Left before anyone identified him. The sect collapsed within a generation — not from anything he did directly, but from what he had quietly arranged for them to believe about themselves.' },
+    { year:350,  event:'Spawn Year 350. First documented interaction with Iasiba since their origins. The two spent a year in the same city without coordinating — their interests simply intersected. Xelaad found this arrangement tolerable. Iasiba found it infuriating, which Xelaad considered sufficient reason to maintain it.' },
+  ];
+
+  // ── IASIBA ───────────────────────────────────────────────────────
+  LORE_NPCS.iasiba_envy.lifeTimeline = [
+    { year:-930, event:'Born in the port city of Cierro del Mar. From early childhood: a consuming awareness of what others had and he did not. Not the want itself — the gap. The space between what was his and what existed in the world without being his. He could not close that gap. He learned to eliminate it differently.' },
+    { year:-900, event:'By his early thirties, had moved through the city\'s social structures by taking. Not by acquisition — by removal. He could not have what another person had, so the resolution was to ensure they did not have it either. He left things emptier behind him.' },
+    { year:-888, event:'Executed for the last of these. The blade fell. A ring — one he had spent three years coveting from a dying magistrate who would not give it up — was pressed into his palm at the last moment. The execution was completed. What rose afterward was the question. He has never explained it. He considers the explanation irrelevant.' },
+    { year:244,  event:'First spawn year. He moved through the Jade Province region for twelve years, leaving a specific kind of damage: talented people who one day found their talent absent, confident people who found their confidence hollowed. He was methodical. He did not hurry.' },
+    { year:333,  event:'Spawn Year 333. An encounter with Xelaad that lasted four months. Each regarded the other as the most relevant person in the room, which was its own kind of compliment and its own kind of war.' },
+    { year:510,  event:'Spawn Year 510. The sin shift event is approaching on the horizon — Year 500+ is when Aym becomes possible. Iasiba has noted this. He does not know what it means yet. He knows it involves Zeret, which he finds simultaneously worthless and, under examination, somewhere between curious and consuming.' },
+  ];
+
+  // ── DRANOEL ──────────────────────────────────────────────────────
+  LORE_NPCS.dranoel_greed.lifeTimeline = [
+    { year:-880, event:'Born in the small farm village of Harrow\'s End. The hunger was there from the beginning — not literal, though that too. An orientation toward more that began before he could quantify what "more" meant.' },
+    { year:-855, event:'Took the family farm. Legal — every document in order. His father was alive to see it. The acquisition was complete and clean and left his father with nothing. Dranoel considered this efficient.' },
+    { year:-840, event:'The acquisitions escalated in both scale and nature. Land became livestock. Livestock became influence. Influence became people. Each one reduced the hunger for approximately the time it took to complete the transaction. Then the gap was back, the same size it had been before.' },
+    { year:-808, event:'Year 112 of the Old Calendar: consumed a pig god in a ritual he had designed himself over the preceding decade. The god\'s divine appetite merged with his own existing hunger. What this produced was not satisfaction. It was a hunger that was now structurally incapable of being satisfied — the two hungers compounded into something that no acquisition could reduce for longer than a moment. He understood this immediately. He continued acquiring.' },
+    { year:270,  event:'First spawn year. Entered the Azure Empire through Jade Province — the commerce, the goods, the accumulated wealth of a trade hub. He spent forty years there. The merchants who dealt with him in those years consistently reported that trade had been good and that they somehow had less at the end than when they started. No fraud was ever documented.' },
+    { year:560,  event:'Spawn Year 560. His presence during this period coincided with a period of unusual resource depletion across three kingdoms. Not warfare — extraction. Systematic, patient, and difficult to attribute. By the time anyone connected the events, he was already gone.' },
+  ];
+
+  // ── NORMAC ───────────────────────────────────────────────────────
+  LORE_NPCS.normac_sloth.lifeTimeline = [
+    { year:-865, event:'Born Year 45. What the purpose of his birth was, who trained him from infancy, and why — these are questions that have no preserved answer. What is documented is the product: by the time he was old enough to speak, he was already being trained for a singular purpose that no one had bothered to define in writing.' },
+    { year:-820, event:'Reached the peak of human physical capability around Year 90 of the Old Calendar. Stopped. Not to rest — because the ceiling was there and the ceiling was real. No further progress was possible within the existing frame. He stood at this ceiling for seven years, completely still, waiting for something to present itself.' },
+    { year:-813, event:'Cave collapse during a training exercise in Year 97. Three witnesses. Three different accounts of what happened in the three days before he walked out. All three agree it involved blood that was not his and a decision he made alone. What he walked out as was not what walked in. The ceiling was gone.' },
+    { year:310,  event:'First spawn year. He appeared near the great defensive fortresses of the Luo-Tin Dynasty\'s northern border. Did not interact with the military structures there. Stood outside them for two months and then left. The soldiers who had been observing him reported that standing in shifts watching him had been the most physically uncomfortable experience of their careers, despite his never moving.' },
+    { year:620,  event:'Spawn Year 620. The only recorded spawn year where Normac was observed interacting directly with a cultivator. The encounter lasted under ten seconds and ended the cultivator\'s career permanently. No hostility preceded it. The cultivator had approached him. Normac had asked them to leave. They had not.' },
+  ];
+
+})();
+
 const ASCENSION_PATHS = {
   ascended_human: {
     name:'Ascended Human (Perfect Meridian Body)',
@@ -13796,11 +13904,12 @@ function generateNPCLifeTimeline(npc) {
   });
 }
 
-// Ensure an NPC has their life timeline generated
+// Ensure an NPC has their life timeline generated.
+// Lore NPCs use hand-written timelines; never apply the procedural generator to them.
 function ensureNPCTimeline(npc) {
-  if(!npc.lifeTimeline || !npc.lifeTimeline.length) {
-    npc.lifeTimeline = generateNPCLifeTimeline(npc);
-  }
+  if(npc.lifeTimeline && npc.lifeTimeline.length) return; // already set
+  if(npc.isLore || npc.special) return; // lore figures have hand-written timelines in LORE_NPCS
+  npc.lifeTimeline = generateNPCLifeTimeline(npc);
 }
 
 // Override addOrUpdateRelationship to use deep NPC if applicable
@@ -22949,6 +23058,64 @@ buildEraCard = function(yr) {
   }
   return card;
 };
+
+// ── YAQISM FIGURE TIMELINES ──────────────────────────────────────
+(function assignYaqismTimelines() {
+  LORE_NPCS.dla.lifeTimeline = [
+    { year:345, event:'Born into slavery as Enmul — fourth-generation descendant of slaves. His entire family had been enslaved before he existed. The labor was agricultural. The conditions were what agricultural slavery in that region was. He did not distinguish himself in any visible way.' },
+    { year:362, event:'At seventeen, began speaking privately about D\'yaqed — a deity he believed had placed a flame inside every living being. He had no text, no teacher, no tradition. He simply believed this with the completeness of someone who had received something he could not explain. He told no one for some time. When he began to tell people, they were largely uninterested.' },
+    { year:375, event:'Execution attempt — the exact crime recorded against him was blasphemy, though what precisely he had said is not fully preserved. He survived. The accounts of how are inconsistent. He emerged calling himself D\'la (the One Who Burns\' Messenger), having discarded the name Enmul entirely. He began walking.' },
+    { year:375, event:'Arrived in the Red Sand City territory and met Urur, a stockman who planned to give him up to those searching for him. D\'la cooked a meal for Urur instead. Two weeks later, Urur did not give him up.' },
+    { year:378, event:'Met Inim-shara on a walking path outside the city. Inim-shara was a man of excessive appetites who had no particular interest in religion. D\'la walked with him. Three days later, Inim-shara began a thirteen-day fast.' },
+    { year:381, event:'Met Irarum, a murderer living on the outskirts of Red Sand City. The meeting was accidental. It ended with Irarum speaking to D\'yaqed alone for an entire day and emerging screaming "D\'yaqed provides!" D\'la had three followers now. D\'yaqed had given each of them something: Urur a massive memory, Inim-shara the strength of ten men, Irarum a blade skill no man could rival.' },
+    { year:383, event:'Hammurabi of the Luo Kingdom sent armies to capture D\'la. The Red Sand City military, under Zimri-Lim, joined the search. D\'la continued walking. The three followers made this significantly harder than Hammurabi had anticipated.' },
+    { year:389, event:'Transformed into a great flame in the northern region that consumed the area around him. Whether this was death, ascension, or something else depends on who is asked and what they believe. His last instruction to his followers was to scatter along the Euphrates and the Gulf and carry D\'yaqed with them. They did. Red Sand City was absorbed by the Luo Kingdom the same year.' },
+  ];
+
+  LORE_NPCS.urur.lifeTimeline = [
+    { year:330, event:'Born. A stockman — keeper of animals. An ordinary man by every available measure at his birth.' },
+    { year:375, event:'D\'la came to his property. Urur\'s plan was to give him up to those searching. He offered hospitality first — this was a custom. D\'la cooked a meal. Urur spent two weeks deciding. He did not give D\'la up.' },
+    { year:375, event:'D\'yaqed granted Urur a massive memory during this period — he began retaining everything he encountered with perfect recall. Later his intelligence was amplified beyond any natural limit. He began writing.' },
+    { year:381, event:'Watched D\'la give Irarum his gift and observed all three gifts being given. Started understanding that what D\'la was distributing was not symbolic. These were real things. He started writing more carefully.' },
+    { year:389, event:'Was present at the transformation. D\'la\'s last words to him were specific and Urur recorded them exactly. Scattered as instructed, carrying the dīatiqē — the five laws of D\'yaqed — which he had written over the preceding years.' },
+    { year:395, event:'Established a Yaqist community in a new location. The dīatiqē was complete. He continued writing commentary on it for the rest of his life. Some accounts place the additional commentary as important as the laws themselves.' },
+    { year:420, event:'Died in Year 420. Urur considered the flame within himself something he had borrowed and was returning. He had done what he was given the capacity to do. He did not consider this a tragedy.' },
+  ];
+
+  LORE_NPCS.inim_shara.lifeTimeline = [
+    { year:348, event:'Born. A man of appetites — food, physical sensation, activity. Not unusual. Not particularly remarkable. The appetites were larger than average but the world is full of large appetites.' },
+    { year:378, event:'Met D\'la on a walking path around the Red Sand City territory. Did not seek him out. Was not interested in religion before this. D\'la walked with him for three days.' },
+    { year:378, event:'Began a thirteen-day fast. Ate the fish of the nearby pond on the thirteenth day. D\'yaqed gave him the strength of ten men — a gift that was immediate and physical and left no room for interpretation about whether it was real. He never doubted D\'yaqed after that moment.' },
+    { year:383, event:'When Hammurabi sent armies, Inim-shara was the one who charged. He broke through the castle gate with his fist. He went first every time. This was not strategy — it was what he was for and he understood it clearly.' },
+    { year:389, event:'Present at the transformation. Scattered as instructed. Continued fasting for extended periods for the rest of his life and became the Yaqist exemplar of this practice — the proof that the fast was not symbolic but transformative.' },
+    { year:440, event:'Died in Year 440. Still physically extraordinary at his death. His final fast lasted thirty-one days. He ended it with a meal he prepared himself and shared with everyone present.' },
+  ];
+
+  LORE_NPCS.irarum.lifeTimeline = [
+    { year:342, event:'Born. The violence was present early — not cultivated or trained, just present. He used it because it was available and effective. He killed people. He did not think much about this.' },
+    { year:381, event:'Met D\'la in the market by accident. The encounter should have ended with D\'la dead. Instead it ended with Irarum sitting alone in a qlaytā — a darkened private space — for an entire day speaking to D\'yaqed. He emerged screaming "D\'yaqed provides!" Something fundamental had changed. He could not explain it and did not try.' },
+    { year:381, event:'D\'yaqed gave him blade skill that no man could rival. He understood immediately that this was not a gift for continuing what he had been. It was a gift for something different. He used it rarely afterward. The restraint was not weakness. It was a choice he made and kept making.' },
+    { year:383, event:'Fought when fighting was necessary — specifically when D\'la\'s safety required it. The fighting was clean and surgical and ended things quickly. When it was over he returned to stillness. He performed ṣlōtā b-lēlyā every night.' },
+    { year:389, event:'Present at the transformation. Scattered as instructed. Built one of the most enduring early Yaqist communities because the people in it understood that the flame D\'la spoke of existed in everyone, including people who had done what Irarum had done. This was not a small thing to offer.' },
+    { year:450, event:'Died in Year 450. Did not die in violence. Died in the qlaytā, which those present understood as correct.' },
+  ];
+
+  LORE_NPCS.hammurabi_luo.lifeTimeline = [
+    { year:335, event:'Born into the Luo ruling line — fourth-generation descendant of Aruwium. The expectation of authority was established before he was. He grew up understanding that his function was to maintain and expand what had been built before him.' },
+    { year:375, event:'Reports reached him of a slave named Enmul in the Red Sand City territory speaking publicly of D\'yaqed and claiming to carry a divine mandate. His initial assessment was that this was a minor political problem — the kind that resolved itself if handled quickly. He sent local forces first.' },
+    { year:381, event:'The local forces had not resolved it. D\'la had not been captured. Three people were now visibly transformed. He recognized this as a larger problem and sent a proper military response.' },
+    { year:389, event:'Was present — at a distance — when D\'la transformed. He demanded that D\'la return and fight, which the accounts record accurately and which was as futile as it sounds. He watched the transformation complete and was absorbed by the Luo Kingdom the same year Red Sand City came under his control. He had gotten the territory. He had lost something he did not know how to name.' },
+    { year:410, event:'Died in Year 410. His rule was successful by all measurable standards. The Yaqist communities that formed from D\'la\'s followers continued to grow in the territories he controlled. He never found a satisfactory response to this.' },
+  ];
+
+  LORE_NPCS.zimri_lim.lifeTimeline = [
+    { year:340, event:'Born to the ruling family of Red Sand City. Became Duke and ruler during a period of relative stability. His primary skill was maintaining the city\'s independence through careful political maneuvering with the surrounding powers.' },
+    { year:375, event:'D\'la arrived in Red Sand City territory. Zimri-Lim\'s initial response was tolerance — the city had no strong religious establishment and no particular reason to act. He waited to see what Hammurabi would do.' },
+    { year:381, event:'Hammurabi\'s response became clear. Zimri-Lim sent his own forces to find D\'la, not from religious conviction but from fear of Hammurabi\'s reaction if Red Sand City appeared to be sheltering a fugitive. The forces did not find D\'la quickly enough.' },
+    { year:389, event:'Red Sand City was absorbed into the Luo Kingdom the same year D\'la transformed. Hammurabi allowed Zimri-Lim to remain as governor. This was presented as mercy. It was a demonstration of control: Zimri-Lim remained in his city with his title and no actual authority. He accepted this.' },
+    { year:405, event:'Died in Year 405 as puppet governor. The city was well-administered in a technical sense. The decisions were made by people Hammurabi had installed. Zimri-Lim signed documents and attended the correct events and understood precisely what he was.' },
+  ];
+})();
 
 // Initialize Yaqism in world history when game starts
 const _withYaqismInit = startGame;
