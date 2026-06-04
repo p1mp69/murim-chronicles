@@ -2423,7 +2423,7 @@ const LOCATIONS = {
   // ── Azure Empire ──────────────────────────────────────────────
   tazar: {
     name:'Tazar', kingdom:'azure_empire', type:'capital', spawnable:true, founded:0,
-    desc:'Capital of the Azure Empire. Founded by Reo Yamamoto as a safe haven. After his death in Year 150, it became corrupt, hollow, and full of poverty.',
+    desc:'Capital of the Azure Empire. Built by Reo Yamamoto, who understood that a city people believed in was more useful than one they feared. After his death in Year 150, the mechanisms he built to maintain the appearance of fairness outlasted the will to actually be fair.',
     history:[
       { era:'Year 0–30',    label:'The New City',
         desc:'Tazar does not exist yet — then suddenly it does. Reo Yamamoto chose this location for a reason he never fully explained. Within thirty years it is a functioning city. Clean streets by the standards of the age. Officials who can be argued with. A place where a cultivator and a fishmonger might sit at the same meal and both feel like they belong there. This is so unusual that most people do not realize how unusual it is until later.' },
@@ -3739,7 +3739,7 @@ const LORE_NPCS = {
     glowColor:'rgba(255,255,255,0.15)', specialGlow:'reo',
     stats:{ strength:85, agility:100, endurance:88, intelligence:95, perception:97, willpower:99, charisma:90, luck:80 },
     qiStageIndex:13, qiPath:'righteous',
-    personality:'Calm, visionary, believed in order and sanctuary. His idealism built Tazar. His death unmade it.',
+    personality:'Calculated. Patient. Self-interested in a way he never acknowledged even to himself. He built Tazar because he understood that stability is the ultimate form of power — more durable than conquest, more total than fear. The city was his design, and its design served him. The people in it believed it served them. They were not entirely wrong. But they were also not entirely right.',
     tomb:'Reo\'s Tomb is heavily trapped. Stone guards walk its corridors. When someone enters the main chamber, his residual Qi is released. The result depends entirely on the intruder\'s cultivation — shaken core, broken core, or death. His artifact: G\'S\\shock — a red watch that stops time. Mythic grade.',
     knownTo:'The world remembers the name. Whether the person knows them is another matter.',
   },
@@ -4863,9 +4863,65 @@ function generateNPC(opts={}) {
     hiddenHistory: opts.hiddenHistory || [],
     occupation: opts.occupation || null,
     isLore: false,
+    // Religion: assigned by location and background, may be null (no religion)
+    religion: opts.religion !== undefined ? opts.religion : assignNPCReligion(location, alignment),
+    formerReligion: opts.formerReligion || null, // if converted, what they used to follow
+    // Hidden network: who this NPC actually knows. Interactions outside this are not possible.
+    knownNetwork: opts.knownNetwork || generateNPCNetwork(location),
+    // Backstory reveal level — how much of their hidden history the player knows (0-100)
+    backstoryReveal: 0,
   };
   GS.world.npcRegistry[npc.id] = npc;
   return npc;
+}
+
+// Assign religion based on location demographics and alignment
+function assignNPCReligion(location, alignment) {
+  const kgdm = LOCATIONS[location]?.kingdom;
+  const yr   = GS.world.year;
+
+  // ~25% of NPCs have no religion at all
+  if(Math.random() < 0.25) return null;
+
+  // Location-appropriate religions (weighted)
+  const relWeights = [];
+  if(['tazar','jade_province','beggars_rest','wheat_capital','iron_hollow','ooina'].includes(location)) {
+    relWeights.push(['still_water', 35], ['the_silence', 15], ['ten_thousand', 10]);
+  }
+  if(['luo_tin_capital','great_defensive_giant','luo_tin_farm','shen_port','silver_district'].includes(location)) {
+    relWeights.push(['sworn_road', 40], ['ten_thousand', 15], ['doctrine_of_edges', 10]);
+  }
+  if(['buo_capital','red_sand_city','stone_root','wild_bloom','mistveil'].includes(location)) {
+    relWeights.push(['red_earth', 40], ['doctrine_of_edges', 25]);
+  }
+  if(yr >= 400 && ['red_sand_city','buo_capital','mistveil','ooina','beggars_rest'].includes(location)) {
+    relWeights.push(['yaqism', 20]);
+  }
+
+  if(!relWeights.length) return null;
+  const totalW = relWeights.reduce((s,[,w]) => s+w, 0);
+  let roll = Math.random() * totalW;
+  for(const [rel, w] of relWeights) {
+    roll -= w;
+    if(roll <= 0) return rel;
+  }
+  return null;
+}
+
+// Generate a realistic network for an NPC — who they actually know
+function generateNPCNetwork(location) {
+  const types = ['local_merchants','neighborhood_residents','sect_acquaintances',
+                 'guild_contacts','criminal_contacts','military_contacts',
+                 'religious_community','family_network','work_colleagues'];
+  // Each NPC knows 2-4 types of people, based on their location
+  const count   = 2 + Math.floor(Math.random() * 3);
+  const network = [];
+  const pool    = [...types];
+  for(let i = 0; i < count; i++) {
+    const idx = Math.floor(Math.random() * pool.length);
+    network.push(pool.splice(idx, 1)[0]);
+  }
+  return network;
 }
 
 function spawnLoreNPC(loreId) {
@@ -7924,7 +7980,7 @@ function updateWorldTab() {
     const KINGDOM_POLITICS = {
       azure_empire: {
         eras:[
-          { until:130, text:'Under Reo Yamamoto\'s influence, the Azure Empire is the closest thing the world has to a functioning example of good governance. This will not last.' },
+          { until:130, text:'Reo Yamamoto controls the Azure Empire through Tazar. He is not a good person — he is an effective one. His city functions because he understands that a city people believe in is more powerful than one maintained by force. The distinction between benevolence and calculated self-interest is not always obvious from inside.' },
           { until:150, text:'Ichiro died Year 130. Reo is aging. The empire holds, but cracks show. His discipline kept the rot out. The discipline is weakening.' },
           { until:154, text:'Reo died Year 150. What followed was not dramatic — it was administrative. The first bribe in weeks. The first appointment made on politics instead of merit. The descent is quiet and total. The Buo-Luo-Tin War (Year 144) complicates everything.' },
           { until:9999, text:'The Azure Empire is a declining power that uses Reo\'s name to justify decisions he would have opposed. Tazar is corrupt. The outer cities function with varying degrees of neglect. The lower districts govern themselves because the official government stopped being present.' },
@@ -8494,7 +8550,7 @@ MANDATORY STYLE RULES:
 
 ## WORLD
 Year 1 = Qi discovered by Ichiro Katsumi and Reo Yamamoto (both born well before Year 1 — adults when they found it).
-- **Reo Yamamoto** (died Yr 150): speed/lightning/light/time cultivation. Founded Tazar as safe haven. Tomb: trapped, stone guardians, his residual Qi fills the chamber on entry — can shatter cores or kill. Holds G'S\\shock (red watch, stops time, Mythic).
+- **Reo Yamamoto** (died Yr 150): speed/lightning/light/time cultivation. Built Tazar — not as charity but because he understood stability is the most durable power. He was not good or moral or righteous. He was exceptionally intelligent and deeply self-interested, and those qualities produced a city that worked, which is not the same as a city built for good reasons. His tomb is trapped; entering the main chamber releases his residual Qi — shattered cores or death. This trap was not installed to protect the city. It was installed because he did not want what he left behind to be taken. Holds G'S\\shock (red watch, stops time, Mythic).
 - **Ichiro Katsumi** (died Yr 130): water/earth/spear/space cultivation. Tomb under great cedar tree, thousands of miles deep, legend-grade yokai throughout. Root guarded by Yuluh the Immortal Serpent.
 - **Yuluh**: Ancient. Trickster. Liar. Feeds on human misery not maliciously but naturally, the way fire feeds on wood. Respects Ichiro uniquely. Can grant immortality — at cost. Senses Qi and the full weight of past deeds.
 - **Láng the Warlord** (died Yr 154): no Qi at all, ever. Pure physical force. Started as raiders (134), hired by Luo-Tin (139), ignited Buo-Luo-Tin War (144), became Duke and imperial advisor (150). Died of wrong Qi pills at 154 — trying to become more than human.
@@ -10935,7 +10991,7 @@ function buildEraCard(yr) {
   if(yr <= 10)      politics = 'No kingdoms have yet been reshaped by Qi. Political power is traditional — armies, trade, bloodlines.';
   else if(yr <= 50) politics = 'Azure Empire stable. Reo Yamamoto\'s influence keeps Tazar functioning as designed. Luo-Tin and Buo Kingdom at uneasy peace.';
   else if(yr <= 100)politics = 'Azure Empire steady. The three kingdoms maintain their boundaries. Cultivation is changing what "power" means but the maps haven\'t changed yet.';
-  else if(yr <= 129)politics = 'Azure Empire at relative peace. Tazar is still functioning — still the safe haven Reo built it to be. The Luo-Tin Dynasty eyes Buo Kingdom territory.';
+  else if(yr <= 129)politics = 'Azure Empire at relative peace. Tazar is still functioning. Reo built it to function — not out of virtue, but because a functional city is more useful than a broken one, and Reo understood this. The Luo-Tin Dynasty eyes Buo Kingdom territory.';
   else if(yr <= 133)politics = 'Azure Empire losing coherence slowly. Ichiro\'s death left power vacuums in his elemental schools. Luo-Tin Dynasty growing aggressive.';
   else if(yr <= 138)politics = `<span class="era-war">Warning:</span> Láng has begun building a mercenary force in Year 134. He will be hired by Luo-Tin by Year 139. The Buo-Luo-Tin War is approaching.`;
   else if(yr <= 143)politics = `<span class="era-war">Prewar:</span> Láng's forces are raiding Buo Kingdom border towns under Luo-Tin contract (since Year 139). War has not officially begun but people are dying.`;
@@ -32738,6 +32794,75 @@ startGame = function(isLoad=false) {
       }
     });
   } catch(e) {}
+};
+
+// ================================================================
+// ── WORLD REALITY RULES — injected into every system prompt
+// ── The world doesn't revolve around the player.
+// ── NPCs have bounded, hidden lives.
+// ── Reo was not a good person.
+// ================================================================
+
+const _bspWithWorldReality = buildSystemPrompt;
+buildSystemPrompt = function() {
+  let prompt = _bspWithWorldReality();
+  try {
+    const worldRules = `
+WORLD REALITY — READ THIS CAREFULLY:
+
+1. REO YAMAMOTO WAS NOT A GOOD PERSON.
+   He was intelligent, self-interested, and effective. He built Tazar because stable cities are more powerful than conquered ones — not out of goodness. His rules worked because they served his vision. NPCs who knew him have complicated views: some loved him, some feared him, some were destroyed by him, very few knew what he was actually thinking. "Reo built something good" is what people say who benefited from it. It is not the full truth.
+
+2. THE WORLD DOES NOT REVOLVE AROUND THE PLAYER.
+   The player is a person who exists in the world. The world was here before them and continues when they sleep. Events they aren't involved in happen anyway. People they haven't met have lives they don't know about. Factions are moving without them. Reo died at Year 150 whether or not the player was involved. Láng started his raider force whether or not the player ever hears of it. The player is not special to most people they meet. They are a stranger who walked in.
+
+3. NPC NETWORKS ARE BOUNDED AND REAL.
+   Every NPC knows specific people based on their actual life history. If an NPC is a market vendor, they know: their regular customers, neighboring vendors, maybe a few guild officials, their family, people from their neighborhood. They do NOT know: sect elders they've never met, religious figures from temples they don't attend, cultivators outside their social class, officials in buildings they've never entered.
+
+   If the player asks a market vendor about Yaqism and expects a referral to a temple contact — that vendor can only provide this if they ACTUALLY KNOW someone from a Yaqist community. If they don't, they say so. "I don't know anyone like that" is a complete and realistic answer. Convenient connections that aren't grounded in the NPC's history do not exist.
+
+4. NPC RELIGION IS THEIR OWN BUSINESS.
+   NPCs have religions (or don't) based on where they grew up and who raised them. They don't volunteer this. They don't bring it up casually. They reveal it through:
+   - Long familiarity (it comes up naturally after weeks of interaction)
+   - Specific triggers (something the player does or says that relates to their practice)
+   - High trust (they share something private)
+   - Direct honest questions when trust is established
+   An NPC's former religion, conversion story, or religious doubts are among the most private things they carry. Treat them accordingly.
+
+5. NPC BACKSTORIES ARE HIDDEN BY DEFAULT.
+   Every NPC has history they don't share. Past jobs. Past relationships. Things they've done. Beliefs they hold. Secrets they carry. None of this is offered to a stranger. It reveals through:
+   - Accumulated trust (bond 40+ before anything private)
+   - Relevant events that intersect their history
+   - Specific questions asked by someone they trust
+   - Extreme situations that strip the social layer
+   An NPC who just met the player does not explain themselves. They respond to the immediate situation. Their depth is there — it is not on display.
+
+6. CONVERSION IS AN EVENT, NOT A SETTING.
+   If an NPC changes their religion, it is because something happened. A significant loss. An encounter. A crisis of faith. An experience that the old framework couldn't explain. Conversion is not casual. It is also not permanent — people can convert, fall away, return, or quietly drift. When an NPC's religious belief changes, there is a story behind it, even if that story is never told to the player.`;
+
+    prompt = prompt.replace('## ABSOLUTE RULES', worldRules + '\n\n## ABSOLUTE RULES');
+  } catch(e) {}
+  return prompt;
+};
+
+// Wire NPC religion into the knownNPCs display in system prompt
+const _bspWithNPCReligion = buildSystemPrompt;
+buildSystemPrompt = function() {
+  let prompt = _bspWithNPCReligion();
+  try {
+    // Update the knownNPCs to include religion where known (only at trust 50+)
+    const c = GS.char;
+    c.relationships?.forEach(rel => {
+      if((rel.bond_level || 0) < 50) return;
+      const npc = GS.world.npcRegistry[rel.npcId];
+      if(!npc) return;
+      // At high trust, player would know NPC's religion
+      if(npc.religion && !rel._religionKnown) {
+        rel._religionKnown = npc.religion;
+      }
+    });
+  } catch(e) {}
+  return prompt;
 };
 
 console.log('Murim Chronicles fully loaded.');
