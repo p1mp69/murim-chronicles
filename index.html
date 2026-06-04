@@ -22816,59 +22816,66 @@ extractParentsFromOpening = function(narrativeText) {
   const w = GS.world;
   if(!w._openingCharacters) w._openingCharacters = {};
 
+  // ── ORPHAN CHECK — done first, done hard ──────────────────────
+  // Check BOTH selectedOrigin AND character's origin card traits
+  const ORPHAN_IDS = new Set(['orphan_streets','discarded_child','bridge_born','left_behind','street_orphan','abandoned','foundling']);
+  const isOrphan = !!(
+    (GS.selectedOrigin && ORPHAN_IDS.has(GS.selectedOrigin)) ||
+    // Also check traits — orphan origins grant iron_will or similar but NOT parent traits
+    (c.traits?.some(t => ['orphan_streets','discarded_child','bridge_born','left_behind'].includes(t.id)))
+  );
+
+  // Hard-coded exclusion: orphan narratives sometimes MENTION absence of parents
+  // ("unlike children who knew their mothers"). Strip any names that later get role=family.
+  // We enforce this as a post-cleanup too (see bottom of function).
+  const FAMILY_ROLES = new Set(['mother','father','grandmother','grandfather','sister','brother','aunt','uncle']);
+
+
   // ── ORPHAN ORIGINS: no parents, ever ─────────────────────────
-  const ORPHAN_ORIGINS = new Set([
-    'orphan_streets','discarded_child','bridge_born','left_behind',
-    'street_orphan','abandoned','foundling',
-  ]);
-  const isOrphan = GS.selectedOrigin && ORPHAN_ORIGINS.has(GS.selectedOrigin);
+  // (ORPHAN_ORIGINS and isOrphan defined above)
 
-  // ── Very large exclusion set — anything that isn't a personal name ──
+  // ── EXCLUSION SET — words that can't be names ────────────────
   const EXCL = new Set([
-    // Pronouns
     'You','Your','He','She','They','His','Her','Their','Him','Them','It','Who',
-    'I','Me','My','We','Our','Us',
-    // Articles/conjunctions
-    'The','This','That','These','Those','A','An','And','But','Or','So','Yet',
-    'When','With','From','After','Before','Into','Over','Under','Above','Below',
-    'Some','Many','Most','Few','All','Both','Each','Every','Any',
-    // Time words
-    'Year','Month','Day','Morning','Night','Dawn','Evening','Week','Winter',
-    'Spring','Summer','Autumn','Today','Yesterday','Tomorrow',
-    // Question words
-    'What','Where','Why','How','Which',
-    // Common English words that start sentences
-    'Still','Also','Just','Only','Even','Already','Always','Never','Then',
-    'Now','Here','There','Up','Down','In','Out','Back','No','Not','For',
-    'But','If','As','At','By','On','Of','To','Do','Did','Was','Were',
-    'Has','Had','Have','Will','Would','Could','Should','May','Might',
-    'Is','Are','Am','Be','Been','Being',
-    'Old','New','Young','Small','Large','Big','Good','Bad','Long','Short',
-    'First','Last','Next','Same','Other','Another','Such',
-    'One','Two','Three','Four','Five','Six','Seven','Eight','Nine','Ten',
-    // Location words (common in murim narratives)
+    'I','Me','My','We','Our','Us','The','This','That','A','An','And','But','Or',
+    'When','With','From','After','Before','Into','Some','Many','Most','Few','All',
+    'Year','Month','Day','Morning','Night','Dawn','Evening','What','Where','Why',
+    'Old','New','Young','Small','Large','Still','Also','Just','Only','Even',
     'Tazar','Jade','Ooina','Buo','Azure','Luo','Tin','Zeret','Iron',
-    'Empire','Kingdom','Dynasty','District','Street','Gate','Canal',
-    'Province','Capital','City','Market','Bridge','River','Mountain',
-    'North','South','East','West','Bridge','Beggar','Rest','Stone',
-    'Port','Road','Lane','Row','Path','Way','Field',
-    // Common words that get capitalized at sentence starts
-    'Just','What','Nothing','Something','Everything','Anything',
-    'That','This','There','Here','They','Those','These',
-    'His','Her','Its','Their','Your','Our','My',
-    'She','He','It','We','You',
-    // Generic relationship words that aren't names
-    'Mother','Father','Brother','Sister','Grandmother','Grandfather',
-    'Aunt','Uncle','Teacher','Master','Elder','Lord','Lady',
-    // Verbs that start sentences
-    'Stone','Copper','Silver','Gold','Iron','Water','Fire','Wind','Earth',
-    'Her','His',
+    'Empire','Kingdom','Dynasty','District','Street','Gate','Canal','Bridge',
+    'Province','Capital','City','Market','River','Mountain','North','South','East','West',
+    'Stone','Copper','Silver','Gold','Water','Fire','Wind','Earth','Wood',
+    'Mother','Father','Brother','Sister','Grandmother','Grandfather','Aunt','Uncle',
+    'Teacher','Master','Elder','Lord','Lady','Nothing','Something','Everything',
+    'Beggar','Rest','Mine','Field','Farm','Palace','Temple','School','House','Home',
   ]);
 
-  // ── Only look for EXPLICIT naming patterns ─────────────────────
-  // These are patterns where the narrative specifically introduces
-  // someone with their actual name. No heuristics, no frequency counting.
-  const EXPLICIT_NAME_PATTERNS = [
+  function looksLikeName(str) {
+    if(!str || str.length < 2 || str.length > 28) return false;
+    if(EXCL.has(str) || EXCL.has(str.split(' ')[0])) return false;
+    if(!/^[A-Z]/.test(str)) return false;
+    if(str === str.toUpperCase()) return false;
+    const lowerRatio = (str.match(/[a-z]/g)||[]).length / str.length;
+    if(lowerRatio < 0.5) return false;
+    const COMMON = /^(The|This|That|She|He|It|They|Was|Were|Had|Has|Have|Will|Could|Would|Should|May|Might|Being|Been|When|Where|What|How|Why|And|But|Or|So|Not|No|If|As|By|At|On|Of|To|In|Out|Up|Down|For|With|From|Into|Through|Stone|Iron|Steel|Gold|Silver|Water|Fire|Wind|Earth|Wood|Metal|Jade|Dragon|Tiger|Heaven|Sky|Cloud|Sea|River|Mountain|Bridge|Gate|Wall|Road|Market|Canal|District|Street|Lane|Path|Way|Beggar|Rest|Field|Farm|Palace|Temple|School|House|Home|Room)$/;
+    if(COMMON.test(str)) return false;
+    return true;
+  }
+
+  const BOND_BY_ROLE = {
+    mother:78, father:78, grandmother:68, grandfather:68,
+    aunt:55, uncle:55, sister:62, brother:62,
+    caregiver:72, teacher:50, mentor:55,
+    neighbor:28, acquaintance:18, mentioned:12, encountered:10,
+  };
+
+  const sentences = narrativeText.split(/(?<=[.!?])\s+/);
+  const found     = new Map(); // name → { role, nameSentences, isDeceased, isAbsent }
+  const rolesSeen = new Set();
+
+  // ══ PASS 1: EXPLICIT NAMING PATTERNS ════════════════════════════
+  // These establish the ROLE. Only run explicit role-assigning patterns first.
+  const NAMING_PATTERNS = [
     // "your mother, [Name]" or "your mother [Name]"
     { r:/your\s+mother[,\s]+([A-Z][a-z]{1,14}(?:\s+[A-Z][a-z]{1,14})?)/gi,      role:'mother'     },
     { r:/your\s+father[,\s]+([A-Z][a-z]{1,14}(?:\s+[A-Z][a-z]{1,14})?)/gi,       role:'father'     },
@@ -22949,182 +22956,113 @@ extractParentsFromOpening = function(narrativeText) {
     { r:/call(?:s|ed)?\s+(?:her|him|them)\s+([A-Z][a-z]{2,14}(?:\s+[A-Z][a-z]{2,14})?)\b/gi, role:'mentioned' },
   ];
 
-  const BOND_BY_ROLE = {
-    mother:78, father:78, grandmother:68, grandfather:68,
-    aunt:55, uncle:55, sister:62, brother:62,
-    caregiver:72, teacher:50, mentor:55,
-    neighbor:28, acquaintance:18, mentioned:12, encountered:10,
+  // ══ STEP 1: Run NAMING_PATTERNS to assign roles ═════════════════
+  const ROLE_WEIGHT = { mother:10, father:10, grandmother:9, grandfather:9,
+    sister:8, brother:8, aunt:7, uncle:7, caregiver:8, teacher:7, mentor:8,
+    neighbor:5, acquaintance:4, mentioned:2, encountered:2 };
+  // (rolesSeen, found, sentences already declared above)
+
+  const tryAdd = (name, role, text) => {
+    if(!looksLikeName(name)) return;
+    if(name === c.firstName || name === c.lastName) return;
+    if(`${c.firstName} ${c.lastName}` === name) return;
+    if(isOrphan && FAMILY_ROLES.has(role)) return;  // hard orphan block
+    if(FAMILY_ROLES.has(role) && rolesSeen.has(role)) return; // one per family role
+    const existing = found.get(name);
+    if(existing && (ROLE_WEIGHT[existing.role]||0) >= (ROLE_WEIGHT[role]||0)) return;
+    const ns = sentences.filter(s => s.includes(name));
+    const dead = ns.some(s => /\b(died|dead|passed|killed|grave|buried|execution)\b/i.test(s));
+    const gone = !dead && ns.some(s => /\b(left|gone|missing|disappeared)\b/i.test(s));
+    found.set(name, { role, nameSentences:ns, isDeceased:dead, isAbsent:gone });
+    if(FAMILY_ROLES.has(role)) rolesSeen.add(role);
   };
 
-  // ── ORPHAN BLOCK: filter out family roles entirely ────────────
-  const FAMILY_ROLES = new Set(['mother','father','grandmother','grandfather','sister','brother','aunt','uncle','caregiver']);
-  // For orphan origins, also block 'mentioned' patterns that reference parents
-  const filteredPatterns = isOrphan
-    ? EXPLICIT_NAME_PATTERNS.filter(p => !FAMILY_ROLES.has(p.role))
-    : EXPLICIT_NAME_PATTERNS;
-
-  // Track extracted roles so we only have ONE entry per role (one mother, one father, etc.)
-  const rolesSeen    = new Set();
-  const found        = new Map(); // name → { role, sentences, isDeceased, isAbsent }
-  const sentences    = narrativeText.split(/(?<=[.!?])\s+/);
-
-  // Validate that a string looks like an actual personal name
-  function looksLikeName(str) {
-    if(!str || str.length < 2 || str.length > 28) return false;
-    if(EXCL.has(str)) return false;
-    if(EXCL.has(str.split(' ')[0])) return false; // first word excluded
-    // Must start with uppercase
-    if(!/^[A-Z]/.test(str)) return false;
-    // No all-uppercase (acronyms)
-    if(str === str.toUpperCase()) return false;
-    // Must be mostly lowercase after first char
-    const lowerRatio = (str.match(/[a-z]/g)||[]).length / str.length;
-    if(lowerRatio < 0.5) return false;
-    // Common English words that get capitalized — blocklist
-    const COMMON_WORDS = /^(The|This|That|She|He|It|They|We|I|My|Your|His|Her|Their|Our|Was|Were|Had|Has|Have|Will|Could|Would|Should|May|Might|Being|Been|When|Where|What|How|Why|Which|And|But|Or|So|Not|No|If|As|By|At|On|Of|To|In|Out|Up|Down|For|With|From|Into|Through|Among|Between|Stone|Iron|Steel|Copper|Silver|Gold|Water|Fire|Wind|Earth|Wood|Metal|Jade|Dragon|Tiger|Phoenix|Heaven|Sky|Cloud|Sea|River|Mountain|Bridge|Gate|Wall|Road|Market|Canal|District|Street|Lane|Row|Road|Path|Way|Beggar|Rest|Mine|Field|Farm|Camp|Fort|Palace|Temple|School|House|Home|Room|Door|Window|Floor|Roof)$/;
-    if(COMMON_WORDS.test(str)) return false;
-    // Only allow Chinese-style names (consonant-vowel patterns typical of romanized names)
-    // OR standard Western name patterns
-    return true;
-  }
-
-  filteredPatterns.forEach(({ r, role }) => {
+  NAMING_PATTERNS.forEach(({ r, role }) => {
     r.lastIndex = 0;
     let m;
     while((m = r.exec(narrativeText)) !== null) {
-      const raw  = (m[1] || '').trim();
-      // Clean up any leading/trailing non-name chars
-      const name = raw.replace(/^(a|an|the)\s+/i, '').trim();
-
-      if(!looksLikeName(name)) continue;
-      if(name === c.firstName || name === c.lastName || `${c.firstName} ${c.lastName}` === name) continue;
-
-      // Block ALL family roles for orphan origins
-      if(isOrphan && FAMILY_ROLES.has(role)) continue;
-      // Only one entry per family role for non-orphan
-      if(FAMILY_ROLES.has(role) && rolesSeen.has(role)) continue;
-
-      const existing  = found.get(name);
-      const roleWeight = { mother:10, father:10, grandmother:9, grandfather:9, sister:8, brother:8,
-        aunt:7, uncle:7, caregiver:8, teacher:7, mentor:8, neighbor:5,
-        acquaintance:4, mentioned:2, encountered:2 };
-
-      if(!existing || (roleWeight[role]||0) > (roleWeight[existing.role]||0)) {
-        const nameSentences = sentences.filter(s => s.includes(name));
-        const isDeceased = nameSentences.some(s => /\b(died|dead|passed|killed|murder|grave|buried|execution|drowned)\b/i.test(s));
-        const isAbsent   = !isDeceased && nameSentences.some(s => /\b(left|gone|missing|disappeared|never\s+came\s+back|stopped|away)\b/i.test(s));
-        found.set(name, { role, nameSentences, isDeceased, isAbsent });
-        if(FAMILY_ROLES.has(role)) rolesSeen.add(role); // FIX: Set uses .has() not .includes()
-      }
+      const name = (m[1]||'').replace(/^(a|an|the)\s+/i,'').trim();
+      tryAdd(name, role, narrativeText);
     }
   });
 
-  // ── PROXIMITY FALLBACK: names near family words ────────────────
-  // Many narratives introduce names in the sentence following a family reference.
-  // e.g. "Your mother runs the stall. Nuan Baa, the merchants call her..."
-  // This catches names that appear within 3 sentences of a family/relationship word.
-  const FAMILY_WORDS_RE = /\b(mother|father|grandmother|grandfather|sister|brother|aunt|uncle|caregiver|guardian|raised you|your parent)\b/i;
-  const CLOSE_INTERACTION_RE = /\b(runs?|works?|lives?|sells?|makes?|keeps?|said|says?|told|tells?|gave|gives?|feeds?|watches?|raised|cared?|helped?|looked?\s+after|watched?\s+over)\b/i;
+  // ══ STEP 2: SENTENCE-LEVEL INTERACTION SCAN ═════════════════════
+  // The real fix: scan every sentence. If it contains BOTH a proper name AND
+  // an interaction verb (or the name does something to the player), add them.
+  // This catches "Mei Shuang, the old woman..., will give you a sheet" where
+  // the name is far from the verb within the same sentence.
 
-  // Scan the narrative in sentence windows
-  for(let i = 0; i < sentences.length; i++) {
-    if(!FAMILY_WORDS_RE.test(sentences[i])) continue;
-    // Family word in sentence i — check sentences i and i+1 and i+2 for names
-    const window = sentences.slice(i, Math.min(sentences.length, i + 3)).join(' ');
-    const nameRe  = /\b([A-Z][a-z]{1,14}(?:\s+[A-Z][a-z]{1,14})?)\b/g;
+  // Verbs that imply direct interaction with the player
+  const INTERACT_RE = /\b(give|gives?|gave|told|tells?|said|says?|taught|teaches?|show(?:s|ed)|helped?|ask(?:s|ed)|raised|fed|feeds?|watch(?:es|ed)\s+(?:you|over\s+you)|looked?\s+after|cared?\s+for|spoke\s+to|speaks?\s+to|called?\s+to|greet(?:s|ed)|offer(?:s|ed)|invite(?:s|d)|mentor(?:s|ed)|guided?|protect(?:s|ed))\b.*\b(you|your)\b|\b(you|your)\b.*\b(from|with|by|to)\s+([A-Z][a-z]{2,14})/i;
+  const INTERACT_RE2 = /\b(you|your)\b.{0,80}\b(from|with|to)\s+([A-Z][a-z]{2,14}(?:\s+[A-Z][a-z]{2,14})?)\b/i;
+  const VERB_RE = /\b(give|gives?|gave|told|tells?|said|says?|show(?:s|ed)|taught|teaches?|help(?:s|ed)|ask(?:s|ed)|feed|feeds?|raised|watched?|guided?|protect(?:s|ed)|offer(?:s|ed)|invite(?:s|d)|calls?\s+you|greet(?:s|ed)|mentor(?:s|ed))\b/i;
+
+  sentences.forEach(sentence => {
+    // Does this sentence have any interaction verb?
+    if(!VERB_RE.test(sentence)) return;
+    // Extract all proper-name candidates from this sentence
+    const nameRe = /\b([A-Z][a-z]{1,14}(?:\s+[A-Z][a-z]{1,14})?)\b/g;
     let nm;
-    while((nm = nameRe.exec(window)) !== null) {
+    while((nm = nameRe.exec(sentence)) !== null) {
       const candidate = nm[1].trim();
       if(!looksLikeName(candidate)) continue;
       if(candidate === c.firstName || candidate === c.lastName) continue;
-      if(found.has(candidate)) continue; // already found by patterns
-      // Only add if this person is doing something (not just mentioned in passing)
-      const candidateSentences = sentences.filter(s => s.includes(candidate));
-      if(!candidateSentences.some(s => CLOSE_INTERACTION_RE.test(s))) continue;
-      // Determine role from which family word triggered this
-      const role = /\bmother\b/i.test(sentences[i]) ? 'mother'
-        : /\bfather\b/i.test(sentences[i]) ? 'father'
-        : /\bsister\b/i.test(sentences[i]) ? 'sister'
-        : /\bbrother\b/i.test(sentences[i]) ? 'brother'
-        : 'mentioned';
-      if(isOrphan && FAMILY_ROLES.has(role)) continue;
-      if(FAMILY_ROLES.has(role) && rolesSeen.has(role)) continue;
-      const isDeceased = candidateSentences.some(s => /\b(died|dead|passed|killed|grave)\b/i.test(s));
-      found.set(candidate, { role, nameSentences:candidateSentences, isDeceased, isAbsent:false });
-      if(FAMILY_ROLES.has(role)) rolesSeen.add(role);
+      if(found.has(candidate)) continue; // already has a role from naming patterns
+      // This name appears in a sentence with interaction — add as acquaintance
+      tryAdd(candidate, 'acquaintance', sentence);
     }
-  }
+  });
 
-  // ── NEGATIVE CONTEXT FILTER ─────────────────────────────────────
-  // Remove any name whose ALL occurrences in the text are in:
-  //   • "you notice that [Name]" — pure observation, no interaction
-  //   • "you watch [Name]" — distant watching
-  //   • "you see [Name]" — passive seeing
-  //   • "[you] heard [Name]" / "whispered [Name]" — overheard, second-hand
-  //   • "like [Name]'s situation" — mentioned in passing by others
-  // These are people the character watched or heard about — not met.
+  // ══ STEP 3: OBSERVATION-ONLY FILTER ═════════════════════════════
+  // Remove people who ONLY appear in observation ("you notice that X")
+  // or overheard ("you heard the name X") contexts.
+  // Seed them as background characters the AI knows about.
 
-  const OBSERVATION_ONLY_RE = /\b(?:notice(?:d)?\s+that|notice(?:d)?\s+\w{1,20}\s+\w{1,20}\s+(?:who|that)|watch(?:es|ed)?\s+(?:you|them|him|her)|you\s+see\s+|you\s+observed?|you\s+spotted?|you\s+glimpsed?|heard\s+(?:it|the\s+name|once|about|from|whispered?|that\s+name))\b/i;
-  const OVERHEARD_RE = /\b(?:you\s+heard\s+(?:it|once|the\s+name|it\s+once)|whispered\s+between|overhear|overhead)\b/i;
+  const PURE_OBS_RE  = /\byou\s+(?:notice(?:d)?\s+that|notice(?:d)?\s+\w{1,20}\s+who|watch(?:es|ed)|see\s+|saw\s+|spot(?:ted)?|glimpse(?:d)?|observe(?:d)?)\b/i;
+  const OVERHEARD_RE = /\b(?:you\s+heard\s+(?:it|once|the\s+name)|whispered\s+between|overhear|overhead)\b/i;
+  const ANY_INTERACT = /\b(gave|told|said|taught|showed?|helped?|fed|raised?|cared?\s+for|asked?|called?\s+to|spoke\s+to|speak|greeted?|offer(?:ed)?)\b/i;
 
   found.forEach((data, name) => {
-    // Check if every sentence mentioning this name is in an observation/overheard context
-    const mentioningSentences = sentences.filter(s => s.includes(name));
-    if(!mentioningSentences.length) { found.delete(name); return; }
-
-    // Always keep family — by definition they had interaction
-    const isFamily = FAMILY_ROLES.has(data.role);
-    if(isFamily) return;
-
-    // Check if ALL occurrences are pure observation (notice/watch/see) with ZERO interaction
-    const ACTIVE_INTERACTION_RE = /\b(gave|gives?|told|tells?|said|says?|taught|teaches?|showed?|helped?|feeds?|raised?|cared?\s+for|asked?|answered?|greeted?|works?\s+with|speaks?\s+to|spoke\s+to|called?\s+out)\b/i;
-
-    // If ANY sentence shows active interaction, keep the person
-    const hasInteraction = mentioningSentences.some(s => ACTIVE_INTERACTION_RE.test(s));
-    if(hasInteraction) return; // they interacted — keep in relationships
-
-    // Only apply observation filter if there's ZERO interaction evidence
-    const allObservation = mentioningSentences.every(s => {
-      const lower = s.toLowerCase();
-      const idx = s.indexOf(name);
-      const before = s.slice(Math.max(0, idx - 80), idx).toLowerCase();
-      return /\b(notice\s+(that\s+)?|noticed?\s+(that\s+)?|watch(es|ed)?\s+|see\s+|saw\s+|spotted?\s+|glimpsed?\s+|observed?\s+)/.test(before) ||
-             /you\s+notice\s+that/.test(lower);
-    });
-
-    // Only overheard if the explicit "heard/whispered" language is present
-    const allOverheard = mentioningSentences.every(s => {
-      const lower = s.toLowerCase();
-      return OVERHEARD_RE.test(lower) ||
-             /\b(you\s+heard\s+(?:it|once|the\s+name)|whispered\s+between)\b/.test(lower);
-    });
-
-    if(allObservation || allOverheard) {
-      // Still seed into background characters so AI knows about them
+    if(FAMILY_ROLES.has(data.role)) return; // always keep family (they had interaction by definition)
+    const ns = data.nameSentences || sentences.filter(s => s.includes(name));
+    if(!ns.length) { found.delete(name); return; }
+    const hasInteraction = ns.some(s => ANY_INTERACT.test(s));
+    if(hasInteraction) return;
+    const allObs = ns.every(s => PURE_OBS_RE.test(s));
+    const allOverheard = ns.every(s => OVERHEARD_RE.test(s));
+    if(allObs || allOverheard) {
       const npcId = `bg_${name.toLowerCase().replace(/\s+/g,'_').replace(/[^a-z0-9_]/g,'')}`;
       if(!w.npcRegistry[npcId]) {
         w.npcRegistry[npcId] = {
           id:npcId, name, title:'', alive:true, isLore:false, glowColor:null,
           qiStageIndex:0, strength:8, agility:8, endurance:8, intelligence:8,
           perception:8, willpower:8, charisma:8, luck:8,
-          memoriesOfPlayer:[`Observed but not met in ${c.firstName}'s early life.`],
+          memoriesOfPlayer:[`Observed but not met by ${c.firstName}.`],
           personality:[], alignment:'orthodox', hiddenHistory:[],
-          location: c.birthCity || w.location, homeLocation: c.birthCity || w.location,
+          location:c.birthCity||w.location, homeLocation:c.birthCity||w.location,
         };
       }
-      w._openingCharacters[npcId] = {
-        name, role: data.role, npcId, isDeceased:false, isAbsent:false,
-        context: `Observed but not interacted with. ${mentioningSentences[0]?.slice(0,150)||''}`,
-        observedOnly: true, // flag: do NOT add unless player actually meets them
-      };
-      found.delete(name); // remove from the "add to relationships" set
+      w._openingCharacters[npcId] = { name, role:data.role, npcId, isDeceased:false, isAbsent:false,
+        context:ns[0]?.slice(0,200)||'', observedOnly:true };
+      found.delete(name);
     }
   });
+
+  // ══ STEP 4: ORPHAN HARD CLEANUP (safety net) ════════════════════
+  // Even if something slipped through, strip family roles from orphan characters.
+  if(isOrphan) {
+    found.forEach((data, name) => {
+      if(FAMILY_ROLES.has(data.role)) {
+        // Downgrade to 'mentioned' so they don't show as a parent
+        data.role = 'mentioned';
+        data.nameSentences = data.nameSentences || sentences.filter(s => s.includes(name));
+      }
+    });
+  }
 
   // ── Create relationships for found people ──────────────────────
   let added = 0;
   found.forEach(({ role, nameSentences, isDeceased, isAbsent }, name) => {
-    // Skip duplicates
     if(c.relationships.find(r => r.name === name)) return;
 
     const npcId = `opening_${name.toLowerCase().replace(/\s+/g,'_').replace(/[^a-z0-9_]/g,'')}_${uid().slice(0,4)}`;
