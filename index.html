@@ -4594,24 +4594,83 @@ function applyItemEffects(effects, sign) {
 }
 
 function useTome(itemId) {
-  const itm = GS.char.inventory.find(i=>i.id===itemId);
-  if(!itm || !itm.isTome) return;
+  const itm = GS.char.inventory.find(i => i.id === itemId);
+  if(!itm) return;
+  if(!itm.isTome && itm.type !== 'tome') { toast('This is not a readable tome.', 'error', 2000); return; }
+
+  const name = itm.name || '';
+  const desc = itm.desc || '';
+  const combined = (name + ' ' + desc).toLowerCase();
+
+  // ── 1. Explicit techUnlock ──────────────────────────────────────
   if(itm.techUnlock) {
-    // Grant a technique from the tome
     grantTechnique({
-      name: itm.techUnlock.name || itm.name.replace(/\s*(tome|primer|manual|annotated|scroll)\s*/i,'').trim(),
+      name: itm.techUnlock.name || name.replace(/\s*(tome|primer|manual|annotated|scroll|book)\s*/i,'').trim(),
       category: itm.techUnlock.category || 'elemental',
       type: itm.techUnlock.type || 'utility',
       rarity: itm.rarity, desc: itm.desc,
-      source: `Tome: ${itm.name}`,
+      source: `Tome: ${name}`,
     });
-    // Remove tome after reading
-    GS.char.inventory = GS.char.inventory.filter(i=>i.id!==itemId);
+    GS.char.inventory = GS.char.inventory.filter(i => i.id !== itemId);
     updateInventoryTab();
     hideModal('modal-item');
-    toast(`Read and absorbed: ${itm.name}`, 'gold', 3000);
+    sendToAI(`I read ${name} and absorb what it contains. [TOME LEARNING: The character reads this text. Describe the process of reading and what they learn — specific knowledge, not vague improvement. Time: several hours.]`);
+    return;
+  }
+
+  // ── 2. Skill detection from name/description ────────────────────
+  const SKILL_TOME_MAP = [
+    { re: /\b(alchemy|pill.*mak|herb.*refin|elixir)/i,    skill:'alchemy',        cat:'craftsman',   label:'Alchemy' },
+    { re: /\b(smith|blacksmith|metal.*work|forge.*craft)/i, skill:'smithing',      cat:'craftsman',   label:'Smithing' },
+    { re: /\b(medicine|physician|anatomy|surgery|healing.*art)/i, skill:'medicine', cat:'medical',    label:'Medicine' },
+    { re: /\b(law|legal|judicial|magistrate|court)/i,       skill:'law',           cat:'scholarly',   label:'Law' },
+    { re: /\b(literate|literacy|read.*write|calligraph)/i,  skill:'literacy',      cat:'scholarly',   label:'Literacy' },
+    { re: /\b(commerce|trade|merchant|accounting|economics)/i, skill:'commerce',   cat:'social',      label:'Commerce' },
+    { re: /\b(cook|culinary|cuisine|recipe)/i,              skill:'cooking',       cat:'craftsman',   label:'Cooking' },
+    { re: /\b(track|survival|wilderness|forest.*nav)/i,     skill:'tracking',      cat:'survival',    label:'Tracking' },
+    { re: /\b(formation|array.*theory|spirit.*formation)/i, skill:'alchemy',       cat:'craftsman',   label:'Formation Theory' },
+    { re: /\b(history|historian|ancient.*record)/i,         skill:'history',       cat:'scholarly',   label:'History' },
+    { re: /\b(philosophy|ethics|theology|scripture)/i,      skill:'philosophy',    cat:'scholarly',   label:'Philosophy' },
+    { re: /\b(stealth|concealment|shadow.*move)/i,          skill:'stealth',       cat:'misc',        label:'Stealth' },
+    { re: /\b(apprais|valuation|authentication|gem.*eval)/i,skill:'appraisal',    cat:'social',      label:'Appraisal' },
+    { re: /\b(deception|persuasion|social.*manipul)/i,      skill:'deception',     cat:'social',      label:'Deception' },
+    { re: /\b(meditation|breathwork|qi.*theory|cultivation.*found)/i, skill:'meditation', cat:'cultivation', label:'Meditation' },
+  ];
+
+  let grantedSkill = null;
+  for(const { re, skill, cat, label } of SKILL_TOME_MAP) {
+    if(re.test(combined)) {
+      const existing = GS.char.skills[skill];
+      if(!existing) {
+        GS.char.skills[skill] = { label, category:cat, level:1, xp:0, firstUsed:`Year ${GS.world.year}`, desc:`Learned from ${name}.` };
+        grantedSkill = { skill, label };
+      } else if(existing.level < 10) {
+        existing.level = Math.min(existing.level + 1, 10);
+        existing.xp = 0;
+        grantedSkill = { skill, label, leveled:true };
+      }
+      break;
+    }
+  }
+
+  // ── 3. Technique detection from name ────────────────────────────
+  const isTechniqueTome = /\b(technique|martial|cultivation.*method|secret.*art|qi.*method)\b/i.test(combined);
+
+  // Remove tome and send to AI to narrate the learning
+  GS.char.inventory = GS.char.inventory.filter(i => i.id !== itemId);
+  updateInventoryTab();
+  hideModal('modal-item');
+
+  if(grantedSkill) {
+    const skillNote = grantedSkill.leveled
+      ? `The character's ${grantedSkill.label} skill deepens — they read something that fills a gap they had.`
+      : `The character gains foundational knowledge in ${grantedSkill.label} from this text.`;
+    toast(`${grantedSkill.label} ${grantedSkill.leveled ? 'improved' : 'learned'} from ${name}`, 'gold', 4000);
+    sendToAI(`I spend time reading "${name}". [READING: ${skillNote} ${desc?.slice(0,120)||''} Describe the reading experience — what specifically the character discovers or understands, how long it takes, what changes. Time: 2-6 hours depending on complexity.]`);
+  } else if(isTechniqueTome) {
+    sendToAI(`I study "${name}" carefully. [TECHNIQUE TOME: This text describes a technique or cultivation method. The character reads it through. Whether they can LEARN the technique depends on their current stage, path, and whether they have a foundation for it. If they can learn it, grant a technique via "newTechniques". If they can't yet, they understand the principles but can't execute — describe what they learn and what's still beyond them. This is not automatic success. Time: several hours to days of study.]`);
   } else {
-    toast('This tome requires study — take it to your narrative.', '', 3000);
+    sendToAI(`I read "${name}". [READING SESSION: ${desc?.slice(0,100)||'A text of some kind.'} The character spends time with this. Describe what they gain from it — insight, specific knowledge, a changed perspective. Even a general text teaches something. Time: 1-3 hours.]`);
   }
 }
 
@@ -6670,6 +6729,8 @@ function loadFromSlot(slot) {
     document.getElementById('screen-death')?.classList.add('hidden');
     fullReset(false);
     startGame(true);
+    // Silently initialise achievement state for loaded saves (no toasts)
+    try { checkAndSaveAchievements(true); } catch(e) {}
     toast(`${GS.char.firstName} ${GS.char.lastName} — loaded.`, 'success', 3000);
   } catch(e) { toast('Load failed.', 'error'); console.error(e); }
 }
@@ -9954,18 +10015,22 @@ function getUnlockedAchievements() {
   return unlocked;
 }
 
-function checkAndSaveAchievements() {
+function checkAndSaveAchievements(silent = false) {
+  // Never fire achievements before the player has actually done something
+  // (opening narrative generation doesn't count as a turn)
+  if((GS.turn || 0) < 1 && !silent) return;
+
   const unlocked = getUnlockedAchievements();
   const newlyUnlocked = [];
   ACHIEVEMENTS_DEF.forEach(a => {
     if(!unlocked.has(a.id) && a.check(GS)) {
       unlocked.add(a.id);
-      newlyUnlocked.push(a);
+      if(!silent) newlyUnlocked.push(a);
     }
   });
-  if(newlyUnlocked.length) {
+  if(newlyUnlocked.length || silent) {
     localStorage.setItem('murim_achievements', JSON.stringify([...unlocked]));
-    // Minecraft-style achievement popups — queue them
+    // Only show toasts for genuinely new unlocks during active gameplay
     newlyUnlocked.forEach((a, i) => setTimeout(() => showAchievementToast(a), i * 1200));
   }
 }
@@ -20964,8 +21029,15 @@ updateCharacterTab = function() {
 
     // Shop detection
     safeInject('shop', msg => {
+      // ── Don't trigger shop when player is forging/crafting ─────────
+      // Forge messages: "I take the materials to the forge", "I work them", etc.
+      const isForging  = /\b(work.*forge|forge.*(?:them|this|it|weapon|blade|tool)|take.*materials.*forge|combine.*(?:forge|anvil)|working.*metal|at.*(?:forge|anvil))\b/i.test(msg);
+      const isAlchemy  = msg.includes('[ALCHEMY EXPERIMENT') || msg.includes('[BLACKSMITHING');
+      if(isForging || isAlchemy) return '';
+
       const shopEntry = detectShopType(msg);
       if(shopEntry) {
+        // "forge" without crafting context = visiting the blacksmith shop
         if(shopEntry.type === 'barber') {
           setTimeout(() => openBarberShop(), 100);
           return `[BARBERSHOP VISIT: Player is visiting a barber or hair specialist. Give them a name and describe their craft. Real person, not just a service.]`;
@@ -28545,10 +28617,15 @@ renderAlchemyPanel = function() {
       <div style="background:var(--s2);border:1px solid var(--border);border-radius:6px;padding:6px;max-height:180px;overflow-y:auto">
         ${log.slice().reverse().map(d => {
           const qc = {excellent:'var(--gold)',good:'var(--green)',accident:'#9944cc',basic:'var(--muted)',failure:'var(--red)'}[d.quality]||'var(--muted)';
-          return `<div class="craft-discovery">
-            <span class="qual" style="color:${qc}">[${d.quality}]</span>
-            <span style="color:var(--dim)">${d.ingredients.join(' + ')} →</span>
-            <span style="color:var(--text)">${(d.result||'nothing').slice(0,70)}</span>
+          const recipe = d.ingredients?.length ? d.ingredients.join(' + ') : '(unknown ingredients)';
+          return `<div class="craft-discovery" style="flex-direction:column;padding:6px 8px;gap:2px">
+            <div style="display:flex;align-items:center;gap:6px">
+              <span class="qual" style="color:${qc}">[${d.quality}]</span>
+              <span style="color:var(--text);font-weight:600">${d.result||'nothing'}</span>
+              ${d.type ? `<span style="font-size:9px;color:var(--dim);text-transform:uppercase">${d.type}</span>` : ''}
+            </div>
+            <div style="font-size:10px;color:var(--dim)">Recipe: ${recipe}</div>
+            ${d.desc ? `<div style="font-size:10px;color:var(--muted);font-style:italic">${d.desc.slice(0,80)}${d.desc.length>80?'…':''}</div>` : ''}
           </div>`;
         }).join('')}
       </div>` : '<div style="font-size:12px;color:var(--dim);text-align:center;padding:12px;border:1px dashed var(--border);border-radius:6px">No discoveries yet. Combine ingredients to learn.</div>'}`;
@@ -28572,8 +28649,10 @@ attemptAlchemyCombine = function() {
   const known  = log.find(d => d.key === key);
 
   if(known) {
-    toast(`Already discovered: ${known.result?.slice(0,40)||'failed result'}`, '', 3000);
-    return;
+    // Show the known recipe instead of blocking — let them make it again
+    const recipe = known.ingredients?.join(' + ') || names.join(' + ');
+    toast(`Known: ${recipe} → ${known.result?.slice(0,30)||'?'} · You can still combine for more.`, 'gold', 4000);
+    // Don't return — let them combine again to get more of the item
   }
 
   // Consume ingredients
@@ -28600,6 +28679,8 @@ LOW ALCHEMY SKILL (${alchLvl}): unstable results possible, dangerous gases, cont
 Format the result as normal narrative describing what happened and what was produced. Do NOT list stats — describe what the cultivator discovers through their senses and the substance's behavior.
 Include in response: "alchemyResult": { "name": "...", "type": "...", "quality": "...", "effects": {}, "desc": "...", "value": N }]`;
 
+  // Store ingredient names on GS so the result handler can save them
+  GS.char._pendingAlchemyIngredients = names;
   toast('Combining...', '', 1500);
   sendToAI(`I carefully combine ${names.join(', ')}, watching the reaction.` + '\n\n' + inject);
 };
@@ -28613,13 +28694,18 @@ applyAIResponse = function(res) {
     const r   = res.alchemyResult;
     const log = getAlchemyLog();
 
-    // Save discovery
+    // Save discovery — pull ingredient names from pending state
+    const ingredientNames = GS.char._pendingAlchemyIngredients || [];
+    delete GS.char._pendingAlchemyIngredients;
+    const ingKey = ingredientNames.slice().sort().join('+');
+
     const entry = {
-      key: [r.name].join('+'), // simplified key
-      ingredients: res._alchemyIngredients || [],
+      key: ingKey || r.name,
+      ingredients: ingredientNames,  // actual ingredient names for recipe display
       result: r.name,
       quality: r.quality || 'basic',
       type: r.type || 'substance',
+      desc: r.desc || '',
       timestamp: GS.world.year,
     };
     log.push(entry);
