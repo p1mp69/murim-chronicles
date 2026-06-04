@@ -11612,6 +11612,11 @@ function getNPCMaxAge(npc) {
 
 // Initialize new NPC fields if they don't have them
 function ensureNPCFields(npc) {
+  // Nature/beast-looking yokai and spirits use beast Qi path — correct any legacy entries
+  const BEAST_NATURED_TYPES = new Set(['fox_spirit','tree_spirit','river_spirit','beast_yokai']);
+  if(npc.isNonHuman && BEAST_NATURED_TYPES.has(npc.nonHumanType) && npc.qiPath !== 'beast') {
+    npc.qiPath = 'beast';
+  }
   if(npc.maxAge === undefined) npc.maxAge = getNPCMaxAge(npc);
   if(npc.health === undefined) npc.health = 85 + Math.floor(Math.random()*15);
   if(npc.qiCurrent === undefined) {
@@ -20125,7 +20130,7 @@ const YOKAI_TEMPLATES = [
     type:'fox_spirit', name_pool:['Huli','Saya','Mei Ling','Xiu','Bai'],
     title:'Fox Spirit', alignment:'chaotic',
     personality_pool:['cunning','playful','testing','ancient','curious'],
-    qiStageRange:[6,10], qiPath:'demonic',
+    qiStageRange:[6,10], qiPath:'beast',
     desc:'A yokai that has cultivated through deception and observation. Appears human or close to it. Tests people. Sometimes helps. Never for free.',
     strength_range:[15,25], agility_range:[28,40],
     special:'Can sense dishonesty. Responds differently to people who are straightforwardly themselves.',
@@ -20134,7 +20139,7 @@ const YOKAI_TEMPLATES = [
     type:'tree_spirit', name_pool:['Muran','Shenmu','Baisu','Qingshu'],
     title:'Ancient Tree Spirit', alignment:'orthodox',
     personality_pool:['patient','slow to anger','long memory','protective','indifferent to short timescales'],
-    qiStageRange:[8,13], qiPath:'righteous',
+    qiStageRange:[8,13], qiPath:'beast',
     desc:'Has watched this forest for centuries. Humans are brief. Actions against the forest are remembered long after the human who took them is dust.',
     strength_range:[40,70], agility_range:[5,10],
     special:'Cannot be deceived about intentions. Feels every major action taken in its territory. Time moves differently for it.',
@@ -20143,7 +20148,7 @@ const YOKAI_TEMPLATES = [
     type:'river_spirit', name_pool:['Heshui','Longjiang','Baihe','Qinglan'],
     title:'River Spirit', alignment:'neutral',
     personality_pool:['territorial','unpredictable','generous or dangerous depending on respect','cyclical'],
-    qiStageRange:[5,9], qiPath:'righteous',
+    qiStageRange:[5,9], qiPath:'beast',
     desc:'Water-aspected entity. Deeply territorial about its river or body of water. Offerings work. Disrespect has proportionate consequences.',
     strength_range:[20,35], agility_range:[20,35],
     special:'Controls local water. Drowning and flooding are not accidents near this entity.',
