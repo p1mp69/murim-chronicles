@@ -5121,9 +5121,92 @@ const DEEP_ERA_RELICS = {
 
 };
 
+// Events that fire during the Deep Era for each undiscovered relic.
+// The relic is felt in the world before it is found.
+const RELIC_ERA_EVENTS = {
+  spearblade: [
+    { year:720, id:'spearblade_tides',
+      title:"Unusual Tides off the Luo Coast",
+      desc:"Fishermen along the Luo-Tin coast report tides that don't match the moon. Strange Qi readings in the water — not demonic, not righteous, something that practitioners who examine it describe as 'old, and precise.' No source has been found. Three boats investigating the phenomenon lost their navigational instruments. The Luo-Tin naval command has restricted the area." },
+    { year:775, id:'spearblade_glow',
+      title:"The Underwater Light",
+      desc:"Sailors on the Luo coast have been reporting a faint light visible beneath the water in clear weather. It does not move. It does not respond to anything thrown at it. A sect-sponsored diving expedition found the area too Qi-dense to approach beyond a certain depth. Two divers lost consciousness and were retrieved. What they describe when they wake is a shape — elongated, precise, like something made rather than grown." },
+    { year:820, id:'spearblade_beaching',
+      title:"Objects Washing Ashore",
+      desc:"The stretch of coastline near the underwater light has begun producing objects — nothing significant, debris, but the Qi signature on each piece matches the underwater source. Whatever is down there is slowly moving toward shore. Luo-Tin naval cultivators have set up a watch on that section of beach. They are under orders to report anything that washes up before touching it." },
+  ],
+  robe_of_juu: [
+    { year:650, id:'robe_theft_chain',
+      title:"The Black Market Murders",
+      desc:"A series of thefts and killings in the black market networks connecting Jade Province and Silverwake. No obvious pattern — the victims are different factions, different cultivations, no shared enemies. The only commonality investigators have found: each victim had recently been in possession of a specific item, and each time, the item was taken. What the item is has not been confirmed. The black market is quieter than usual about this one." },
+    { year:710, id:'robe_wearers',
+      title:"The Robe's Effects on Its Wearers",
+      desc:"Rumors through cultivation circles describe an item — a robe of unusual quality, clearly antique, Qi-saturated in ways that suggest a famous maker — that has passed through at least seven hands in three generations. Each holder reportedly experienced the same thing: increased presence, better Qi circulation, and a growing sense that the robe wanted to be somewhere else. Two holders have described the sensation of being observed by whatever the robe was made from." },
+    { year:800, id:'robe_sect_war',
+      title:"The Sect Acquisition Conflict",
+      desc:"Three sects are currently in active, violent conflict over an unnamed item in the deep black market. The item's description matches what cultivation historians have theorized Reo Yamamoto's lost robe would look like. None of the three sects has confirmed this is what they are fighting over. None of them will say what it actually is. The conflict has produced more casualties than most formal sect wars." },
+  ],
+  jade_pendant: [
+    { year:250, id:'pendant_house_luck',
+      title:"The Fortunate House",
+      desc:"A specific house in the eastern Azure Empire has a reputation in its neighborhood for unusual luck. The family that lives there prospers slightly more than their circumstances warrant. Their crops grow marginally better. Their sick recover marginally faster. Three generations of the same family have lived there without understanding why. They have never dug up their backyard." },
+    { year:500, id:'pendant_qi_garden',
+      title:"The Qi Garden",
+      desc:"Cultivation scholars studying land Qi in the eastern territories have identified a small residential property with unusual Qi density concentrated in the garden. The reading is consistent with a buried artifact rather than a natural Qi vein. The property has changed hands twice in the last century. Neither current nor previous owners have reported finding anything. The scholars have not published their findings — they are waiting for the right approach to the property owners." },
+    { year:750, id:'pendant_foreclosure_sect',
+      title:"The Property Dispute",
+      desc:"A sect has filed legal claim to a residential property in the eastern Azure Empire as part of a debt collection. The current occupant — a descendant of an old family — is contesting the foreclosure. The sect's interest in the property is not well explained by the debt amount. Observers who know about the Qi readings from Year 500 have drawn their own conclusions. The legal dispute is ongoing." },
+  ],
+  ichiro_diary: [
+    { year:200, id:'diary_fragments',
+      title:"The Partial Techniques",
+      desc:"A cultivation school in the scholarly district claims to have developed techniques derived from 'recovered pre-founder texts.' Their methods work — partially. Students reach Foundation Building reliably but plateau there in a specific and unusual way. Visiting scholars who examine the source texts note that whoever originally read them misunderstood a key character in several passages. The source documents have since been lost in a library donation." },
+    { year:450, id:'diary_school',
+      title:"The Incomplete School",
+      desc:"Three generations of practitioners have now trained under a tradition built on those partial techniques. The tradition is respected. It produces reliable Foundation Building cultivators who cannot progress beyond a specific point — a ceiling nobody in the school can explain or break through. The founder's texts are now so far removed from the original source that the error is undetectable without the original. The school does not know what they are missing." },
+    { year:700, id:'diary_hunt',
+      title:"The Text Hunters",
+      desc:"A scholarly faction has spent forty years trying to find the source of the Incomplete School's original texts. They have traced it to a library donation in Year 198 and from there through a chain of misfiled acquisitions. They believe the original document still exists somewhere in the library system. They are looking for an unsigned journal, possibly bound in plain cloth, possibly catalogued under the wrong century. They have not found it yet." },
+    { year:850, id:'diary_close',
+      title:"The Librarian's Note",
+      desc:"A librarian at a major scholarly archive has filed an internal note: 'Unsigned cultivation journal, plain binding, content inconsistent with filing date. Language suggests early Qi era. Technique descriptions in sections 4-7 do not match any known school. Cross-referencing against the Incomplete School doctrine finds structural similarity. Recommend specialist review.' The note is in the archive's internal correspondence. Nobody has acted on it yet." },
+  ],
+};
+
+function checkRelicEraEvents() {
+  const w = GS.world;
+  if(!w.relicState) w.relicState = {};
+  if(!w.relicEraEventsFired) w.relicEraEventsFired = {};
+
+  for(const [relicKey, events] of Object.entries(RELIC_ERA_EVENTS)) {
+    // Skip if relic was already found — events stop mattering
+    if(w.relicState[relicKey]?.found) continue;
+
+    for(const ev of events) {
+      if(w.relicEraEventsFired[ev.id]) continue;
+      if(w.year < ev.year) continue;
+
+      // Fire the event
+      w.relicEraEventsFired[ev.id] = w.year;
+      w.worldHistory.push(`Year ${ev.year}: ${ev.title} — ${ev.desc}`);
+      w.activeWorldEvents.push({
+        id: ev.id,
+        name: ev.title,
+        desc: ev.desc,
+        year: ev.year,
+        relicKey,
+        isUnfoundRelicEvent: true,
+      });
+    }
+  }
+}
+
 function checkRelicDiscoveries() {
   const w = GS.world;
   if(!w.relicState) w.relicState = {};
+
+  // First check for era events (relic felt but unfound)
+  checkRelicEraEvents();
 
   for(const [relicKey, relic] of Object.entries(DEEP_ERA_RELICS)) {
     // Skip if already found
