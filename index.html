@@ -464,51 +464,112 @@ a { color: var(--gold); text-decoration: none; }
   align-items: center;
   justify-content: flex-start;
 }
+/* ============================================================
+   CHARACTER CREATION — full revamp
+   ============================================================ */
+#screen-creation {
+  background: var(--bg);
+  overflow-y: auto;
+}
 .creation-wrap {
-  width: 100%; max-width: 680px;
-  padding: 40px 24px 60px;
-  /* horizontal centering via margin, not flex justify */
+  width: 100%; max-width: 720px;
+  padding: 0 0 80px;
   margin: 0 auto;
+  position: relative;
+}
+/* Sticky header */
+.creation-header {
+  position: sticky; top: 0; z-index: 20;
+  background: rgba(8,8,16,.96);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(196,154,48,.1);
+  padding: 16px 24px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.creation-header-title {
+  font-size: 11px; letter-spacing: .25em; text-transform: uppercase;
+  color: rgba(196,154,48,.6);
+}
+.creation-progress {
+  display: flex; gap: 4px; align-items: center;
+}
+.creation-progress-dot {
+  width: 5px; height: 5px; border-radius: 50%;
+  background: rgba(196,154,48,.2);
+  transition: background .3s;
+}
+.creation-progress-dot.done { background: rgba(196,154,48,.6); }
+.creation-progress-dot.active { background: var(--gold); }
+/* Hero section */
+.creation-hero {
+  padding: 40px 24px 32px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+.creation-hero::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(196,154,48,.05) 0%, transparent 70%);
+  pointer-events: none;
 }
 .creation-title {
-  font-size: 2rem; color: var(--gold);
-  letter-spacing: .08em;
-  text-align: center; margin-bottom: 6px;
+  font-size: clamp(1.6rem, 5vw, 2.4rem);
+  font-weight: 700; letter-spacing: .06em;
+  color: var(--gold); margin-bottom: 8px;
+  text-shadow: 0 0 40px rgba(196,154,48,.3);
+  position: relative;
 }
 .creation-subtitle {
-  text-align: center; color: var(--muted);
-  font-size: 13px; margin-bottom: 36px;
-  font-style: italic;
+  color: rgba(180,170,160,.45);
+  font-size: 13px; line-height: 1.8;
+  font-style: italic; max-width: 500px;
+  margin: 0 auto; position: relative;
 }
+/* Form sections */
+.creation-body { padding: 0 24px; }
 .creation-step {
-  background: var(--s1);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 20px;
-  margin-bottom: 14px;
+  margin-bottom: 12px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid rgba(196,154,48,.1);
+  background: rgba(12,10,22,.8);
+}
+.step-header {
+  padding: 14px 18px 12px;
+  border-bottom: 1px solid rgba(196,154,48,.07);
+  display: flex; align-items: baseline; gap: 10px;
 }
 .step-label {
-  font-size: 11px; text-transform: uppercase;
-  letter-spacing: .12em; color: var(--gold);
-  margin-bottom: 10px; font-weight: 700;
+  font-size: 10px; text-transform: uppercase;
+  letter-spacing: .18em; color: rgba(196,154,48,.7);
+  font-weight: 700;
 }
+.step-sub {
+  font-size: 11px; color: rgba(180,170,160,.3);
+  font-style: italic;
+}
+.step-body { padding: 16px 18px; }
 .year-row {
-  display: flex; align-items: center; gap: 14px;
+  display: flex; align-items: center; gap: 16px;
 }
 .year-row input[type=range] {
   flex: 1; accent-color: var(--gold);
   background: none; border: none; padding: 0;
-  -webkit-appearance: none; height: 4px;
+  -webkit-appearance: none; height: 3px;
   cursor: pointer;
+  background: linear-gradient(90deg, rgba(196,154,48,.5) var(--pct,0%), rgba(60,40,80,.5) var(--pct,0%));
+  border-radius: 2px;
 }
 .year-row input[type=range]::-webkit-slider-thumb {
-  -webkit-appearance: none; width: 16px; height: 16px;
+  -webkit-appearance: none; width: 18px; height: 18px;
   background: var(--gold); border-radius: 50%; cursor: pointer;
+  box-shadow: 0 0 10px rgba(196,154,48,.5);
 }
 .year-val {
-  font-size: 1.4rem; color: var(--gold);
-  font-weight: 700; min-width: 80px; text-align: right;
-  white-space: nowrap;
+  font-size: 1.6rem; color: var(--gold);
+  font-weight: 700; min-width: 88px; text-align: right;
+  white-space: nowrap; line-height: 1;
 }
 .year-note { font-size: 12px; color: var(--muted); margin-top: 6px; line-height: 1.5; }
 /* Era card on year selection */
@@ -545,40 +606,91 @@ a { color: var(--gold); text-decoration: none; }
 .tab-content select { position: relative; z-index: 5; }
 .name-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .name-row input { width: 100%; }
-.field-label { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
-#inp-city { width: 100%; }
-.gender-row { display: flex; gap: 8px; }
-.gender-btn, .age-btn {
-  flex: 1; padding: 8px; border: 1px solid var(--border2);
-  background: var(--s2); color: var(--muted);
-  border-radius: 5px; cursor: pointer; font-size: 13px;
-  transition: all .15s;
+.field-label {
+  font-size: 10px; text-transform: uppercase; letter-spacing:.12em;
+  color: rgba(196,154,48,.5); margin-bottom: 6px;
 }
+#inp-city { width: 100%; }
+.gender-row { display: flex; gap: 6px; }
+.gender-btn, .age-btn {
+  flex: 1; padding: 9px 6px; border: 1px solid rgba(196,154,48,.12);
+  background: rgba(20,16,32,.8); color: rgba(180,170,160,.45);
+  border-radius: 6px; cursor: pointer; font-size: 13px;
+  transition: all .15s; font-family: inherit;
+}
+.gender-btn:hover { border-color: rgba(196,154,48,.3); color: rgba(180,170,160,.8); }
 .gender-btn.active, .age-btn.active {
-  border-color: var(--gold); color: var(--gold);
-  background: rgba(196,154,48,.12);
+  border-color: rgba(196,154,48,.5); color: var(--gold);
+  background: rgba(196,154,48,.1);
 }
 .age-btn { min-width: 38px; flex: 0 0 auto; font-weight: 700; font-size: 14px; }
+.age-btn:hover { border-color: rgba(196,154,48,.3); color: rgba(180,170,160,.8); }
 .appearance-box {
-  background: var(--s2); border: 1px solid var(--border);
-  border-radius: 6px; padding: 14px;
-  font-size: 13px; color: var(--text);
-  line-height: 1.7; min-height: 80px;
-  margin-bottom: 8px;
+  background: rgba(20,16,32,.6); border: 1px solid rgba(196,154,48,.08);
+  border-radius: 8px; padding: 16px;
+  font-size: 13px; color: rgba(180,170,160,.75);
+  line-height: 1.8; min-height: 80px;
+  margin-bottom: 10px;
 }
-.origin-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 4px; }
+.origin-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+@media (max-width: 480px) { .origin-grid { grid-template-columns: 1fr; } }
 .origin-card {
-  background: var(--s2); border: 1px solid var(--border);
-  border-radius: 6px; padding: 10px 12px;
-  cursor: pointer; transition: all .15s;
+  background: rgba(20,16,32,.8); border: 1px solid rgba(196,154,48,.1);
+  border-radius: 8px; padding: 12px 14px;
+  cursor: pointer; transition: all .18s;
+  position: relative; overflow: hidden;
 }
-.origin-card:hover { border-color: var(--border2); }
-.origin-card.selected { border-color: var(--gold); background: rgba(196,154,48,.08); }
-.origin-card .origin-name { font-size: 13px; color: var(--text); font-weight: 600; }
-.origin-card .origin-desc { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.origin-card::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0;
+  width: 3px; background: var(--gold); opacity: 0;
+  transition: opacity .18s;
+}
+.origin-card:hover { border-color: rgba(196,154,48,.25); background: rgba(25,20,40,.8); }
+.origin-card:hover::before { opacity: .4; }
+.origin-card.selected { border-color: rgba(196,154,48,.4); background: rgba(196,154,48,.07); }
+.origin-card.selected::before { opacity: 1; }
+.origin-card .origin-name {
+  font-size: 13px; color: rgba(220,210,190,.85);
+  font-weight: 600; margin-bottom: 3px;
+}
+.origin-card .origin-desc {
+  font-size: 11px; color: rgba(180,170,160,.4);
+  line-height: 1.6;
+}
+/* Creation footer — sticky at bottom */
 .creation-footer {
-  margin-top: 24px; text-align: center;
+  position: sticky; bottom: 0; z-index: 10;
+  background: rgba(8,8,16,.97);
+  backdrop-filter: blur(12px);
+  border-top: 1px solid rgba(196,154,48,.1);
+  padding: 16px 24px;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px;
 }
+.creation-footer-note {
+  font-size: 11px; color: rgba(180,170,160,.3);
+  font-style: italic; flex: 1;
+}
+#btn-begin {
+  min-width: 160px;
+  padding: 12px 24px;
+  font-size: 14px; letter-spacing: .06em;
+}
+/* Input styling inside creation */
+#screen-creation input[type=text],
+#screen-creation select {
+  background: rgba(20,16,32,.8);
+  border: 1px solid rgba(196,154,48,.15);
+  border-radius: 6px; color: var(--text);
+  padding: 9px 12px; font-family: inherit;
+  font-size: 13px; width: 100%;
+  transition: border-color .15s;
+}
+#screen-creation input[type=text]:focus,
+#screen-creation select:focus {
+  border-color: rgba(196,154,48,.4); outline: none;
+}
+#screen-creation select option { background: #0e0c1a; }
 
 /* ============================================================
    GAME SCREEN LAYOUT
@@ -1532,7 +1644,7 @@ body.generating [onclick*="shopSellItem"], body.generating [onclick*="closeMapGo
      MAIN MENU
      ============================================================ -->
 <!-- ── STARTUP SCREEN ── -->
-<div id="screen-startup" class="screen">
+<div id="screen-startup" class="screen" onclick="(function(){var s=document.getElementById('screen-startup');s.classList.add('startup-fade-out');setTimeout(function(){s.classList.add('hidden');document.getElementById('screen-menu').classList.remove('hidden');},800)})()">
   <div class="startup-inner">
     <div class="startup-eyebrow">A cultivation life in a world that doesn't care</div>
     <div class="startup-title">
@@ -1657,68 +1769,134 @@ body.generating [onclick*="shopSellItem"], body.generating [onclick*="closeMapGo
      ============================================================ -->
 <div id="screen-creation" class="screen hidden">
   <div class="creation-wrap">
-    <div class="creation-title">Murim Chronicles</div>
-    <div class="creation-subtitle">Year One is when Qi was first discovered. Before that, the world had already turned for centuries.</div>
 
-    <div class="creation-step">
-      <div class="step-label">Birth Year</div>
-      <div class="year-row">
-        <input type="range" id="inp-year" min="1" max="2000" value="1" style="flex:1;accent-color:#c49a30;">
-        <span class="year-val" id="disp-year">Year 1</span>
+    <!-- Sticky top bar -->
+    <div class="creation-header">
+      <div class="creation-header-title">Character Creation</div>
+      <div class="creation-progress">
+        <div class="creation-progress-dot active"></div>
+        <div class="creation-progress-dot"></div>
+        <div class="creation-progress-dot"></div>
+        <div class="creation-progress-dot"></div>
+        <div class="creation-progress-dot"></div>
+        <div class="creation-progress-dot"></div>
+        <div class="creation-progress-dot"></div>
       </div>
-      <div id="year-context"></div>
     </div>
 
-    <div class="creation-step">
-      <div class="step-label">Name</div>
-      <div class="name-row">
-        <div>
-          <div class="field-label">First Name</div>
-          <input type="text" id="inp-fname" placeholder="Given name" style="width:100%">
+    <!-- Hero -->
+    <div class="creation-hero">
+      <div class="creation-title">Who are you?</div>
+      <div class="creation-subtitle">The world doesn't care. But it will remember you anyway.</div>
+    </div>
+
+    <!-- Form body -->
+    <div class="creation-body">
+
+      <!-- Birth Year -->
+      <div class="creation-step">
+        <div class="step-header">
+          <div class="step-label">Birth Year</div>
+          <div class="step-sub">determines the era you live through</div>
         </div>
-        <div>
-          <div class="field-label">Last Name</div>
-          <input type="text" id="inp-lname" placeholder="Family name" style="width:100%">
+        <div class="step-body">
+          <div class="year-row">
+            <input type="range" id="inp-year" min="1" max="2000" value="1">
+            <span class="year-val" id="disp-year">Year 1</span>
+          </div>
+          <div id="year-context"></div>
         </div>
       </div>
-    </div>
 
-    <div class="creation-step">
-      <div class="step-label">Starting Age</div>
-      <div id="age-btn-row" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px"></div>
-      <div id="age-desc" style="font-size:12px;color:var(--muted);font-style:italic;min-height:18px"></div>
-    </div>
-
-    <div class="creation-step">
-      <div class="step-label">Birth City</div>
-      <!-- Options populated dynamically by rebuildCityDropdown(year) -->
-      <select id="inp-city" style="width:100%"></select>
-      <div id="city-note" style="font-size:11px;color:var(--dim);margin-top:4px;font-style:italic"></div>
-    </div>
-
-    <div class="creation-step">
-      <div class="step-label">Gender</div>
-      <div class="gender-row">
-        <button class="gender-btn active" data-g="male">Male</button>
-        <button class="gender-btn" data-g="female">Female</button>
-        <button class="gender-btn" data-g="other">Other</button>
+      <!-- Name -->
+      <div class="creation-step">
+        <div class="step-header">
+          <div class="step-label">Name</div>
+          <div class="step-sub">what people will call you</div>
+        </div>
+        <div class="step-body">
+          <div class="name-row">
+            <div>
+              <div class="field-label">First Name</div>
+              <input type="text" id="inp-fname" placeholder="Given name">
+            </div>
+            <div>
+              <div class="field-label">Last Name</div>
+              <input type="text" id="inp-lname" placeholder="Family name">
+            </div>
+          </div>
+        </div>
       </div>
-    </div>
 
-    <div class="creation-step">
-      <div class="step-label">Appearance <span style="color:var(--dim);font-size:10px;text-transform:none;letter-spacing:0">(generated — reroll freely)</span></div>
-      <div id="appearance-preview" class="appearance-box">Generating...</div>
-      <button id="btn-reroll" class="btn-secondary btn-sm" style="margin-top:6px">↺ Reroll</button>
-    </div>
+      <!-- Starting Age -->
+      <div class="creation-step">
+        <div class="step-header">
+          <div class="step-label">Starting Age</div>
+          <div class="step-sub">younger means more to discover; older means more to carry</div>
+        </div>
+        <div class="step-body">
+          <div id="age-btn-row" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px"></div>
+          <div id="age-desc" style="font-size:12px;color:rgba(180,170,160,.45);font-style:italic;min-height:16px;line-height:1.7"></div>
+        </div>
+      </div>
 
-    <div class="creation-step">
-      <div class="step-label">Origin <span style="color:var(--dim);font-size:10px;text-transform:none;letter-spacing:0">(optional — shapes early life)</span></div>
-      <div id="origin-grid" class="origin-grid"></div>
-    </div>
+      <!-- Birth City -->
+      <div class="creation-step">
+        <div class="step-header">
+          <div class="step-label">Birth City</div>
+          <div class="step-sub">where your story begins</div>
+        </div>
+        <div class="step-body">
+          <select id="inp-city"></select>
+          <div id="city-note" style="font-size:11px;color:rgba(180,170,160,.35);margin-top:8px;font-style:italic;line-height:1.7"></div>
+        </div>
+      </div>
 
+      <!-- Gender -->
+      <div class="creation-step">
+        <div class="step-header">
+          <div class="step-label">Gender</div>
+        </div>
+        <div class="step-body">
+          <div class="gender-row">
+            <button class="gender-btn active" data-g="male">Male</button>
+            <button class="gender-btn" data-g="female">Female</button>
+            <button class="gender-btn" data-g="other">Other</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Appearance -->
+      <div class="creation-step">
+        <div class="step-header">
+          <div class="step-label">Appearance</div>
+          <div class="step-sub">generated — reroll until it fits</div>
+        </div>
+        <div class="step-body">
+          <div id="appearance-preview" class="appearance-box">Generating...</div>
+          <button id="btn-reroll" class="btn-secondary btn-sm">↺  Reroll appearance</button>
+        </div>
+      </div>
+
+      <!-- Origin -->
+      <div class="creation-step">
+        <div class="step-header">
+          <div class="step-label">Origin</div>
+          <div class="step-sub">optional — shapes your early life and starting traits</div>
+        </div>
+        <div class="step-body">
+          <div id="origin-grid" class="origin-grid"></div>
+        </div>
+      </div>
+
+    </div><!-- /creation-body -->
+
+    <!-- Sticky footer -->
     <div class="creation-footer">
-      <button id="btn-begin" class="btn-primary btn-lg">Enter the World</button>
+      <div class="creation-footer-note">Your story is generated by Claude — each life is unique.</div>
+      <button id="btn-begin" class="btn-primary btn-lg">Enter the World →</button>
     </div>
+
   </div>
 </div>
 
