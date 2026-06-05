@@ -6045,20 +6045,115 @@ function updateWorldTab() {
 // ================================================================
 // CREW SYSTEM
 // ================================================================
+// Each type has a progression of labels across tiers
+// Tiers by active member count: nascent<5, small<12, established<30, powerful<75, feared/renowned 75+
 const CREW_TYPES = {
-  criminal:   { label:'Criminal Organization', icon:'🗡',  color:'#cc4444', desc:'Operates outside the law. Income through crime. Heat from authorities.' },
-  merchant:   { label:'Merchant Company',       icon:'📦', color:'#c49a30', desc:'Trade and commerce. Contracts, goods, routes. Power through wealth.' },
-  pirate:     { label:'Pirate Crew',            icon:'⚓', color:'#448888', desc:'Controls waterways. Raids, smuggling, territorial dominance at sea.' },
-  mercenary:  { label:'Mercenary Band',         icon:'⚔',  color:'#888844', desc:'Sells violence professionally. Reputation is inventory.' },
-  gang:       { label:'Gang',                   icon:'🏚', color:'#885544', desc:'Controls territory. Extortion, protection, and street-level influence.' },
-  cult:       { label:'Cult / Sect',            icon:'🌀', color:'#aa44cc', desc:'Spiritual or ideological organization. Devotion as currency.' },
-  espionage:  { label:'Intelligence Network',   icon:'👁', color:'#445566', desc:'Information as the primary product. Everyone is an asset.' },
-  guild:      { label:'Craft Guild',            icon:'🔨', color:'#668844', desc:'Controls a trade or craft. Standards, training, and market access.' },
-  research:   { label:'Research Collective',    icon:'📜', color:'#4488aa', desc:'Knowledge-seeking. Ancient texts, cultivation secrets, forbidden theory.' },
-  clan:       { label:'Family Clan',            icon:'🏮', color:'#aa8844', desc:'Blood ties as foundation. Honor, legacy, and inter-generational power.' },
-  raiders:    { label:'Raider Force',           icon:'🔥', color:'#cc6633', desc:'Mobility and violence. Hit and withdraw. Fear is the product.' },
-  smugglers:  { label:'Smuggling Ring',         icon:'🎭', color:'#556677', desc:'Moving things that shouldn\'t be moved. Networks and discretion.' },
+  criminal: {
+    icon:'🗡', color:'#cc4444',
+    desc:'Operates outside the law. Income through crime. Heat from authorities.',
+    tiers: { nascent:'Crew', small:'Criminal Gang', established:'Criminal Organization', powerful:'Crime Syndicate', feared:'Criminal Empire', renowned:'Criminal Empire' },
+  },
+  merchant: {
+    icon:'📦', color:'#c49a30',
+    desc:'Trade and commerce. Contracts, goods, routes. Power through wealth.',
+    tiers: { nascent:'Partnership', small:'Trading Company', established:'Merchant House', powerful:'Trading Consortium', feared:'Commercial Empire', renowned:'Commercial Empire' },
+  },
+  pirate: {
+    icon:'⚓', color:'#448888',
+    desc:'Controls waterways. Raids, smuggling, territorial dominance at sea.',
+    tiers: { nascent:'Pirate Crew', small:'Pirate Band', established:'Pirate Fleet', powerful:'Pirate Alliance', feared:'Pirate Empire', renowned:'Pirate Legend' },
+  },
+  mercenary: {
+    icon:'⚔', color:'#888844',
+    desc:'Sells violence professionally. Reputation is inventory.',
+    tiers: { nascent:'Mercenary Band', small:'Free Company', established:'Mercenary Company', powerful:'Mercenary Legion', feared:'Private Army', renowned:'Legendary Legion' },
+  },
+  gang: {
+    icon:'🏚', color:'#885544',
+    desc:'Controls territory. Extortion, protection, and street-level influence.',
+    tiers: { nascent:'Street Crew', small:'Gang', established:'Organized Gang', powerful:'Criminal Faction', feared:'Territorial Empire', renowned:'Territorial Empire' },
+  },
+  cult: {
+    icon:'🌀', color:'#aa44cc',
+    desc:'Spiritual or ideological organization. Devotion as currency.',
+    tiers: { nascent:'Circle', small:'Cult', established:'Sect', powerful:'Order', feared:'Hidden Order', renowned:'Ancient Order' },
+  },
+  espionage: {
+    icon:'👁', color:'#445566',
+    desc:'Information as the primary product. Everyone is an asset.',
+    tiers: { nascent:'Cell', small:'Network Node', established:'Intelligence Ring', powerful:'Intelligence Network', feared:'Shadow Directorate', renowned:'Shadow Directorate' },
+  },
+  guild: {
+    icon:'🔨', color:'#668844',
+    desc:'Controls a trade or craft. Standards, training, and market access.',
+    tiers: { nascent:'Workshop', small:'Association', established:'Craft Guild', powerful:'Master Guild', feared:'Grand Guild', renowned:'Grand Guild' },
+  },
+  research: {
+    icon:'📜', color:'#4488aa',
+    desc:'Knowledge-seeking. Ancient texts, cultivation secrets, forbidden theory.',
+    tiers: { nascent:'Study Circle', small:'Research Group', established:'Research Collective', powerful:'Institute', feared:'Hidden Archive', renowned:'Ancient Institute' },
+  },
+  clan: {
+    icon:'🏮', color:'#aa8844',
+    desc:'Blood ties as foundation. Honor, legacy, and inter-generational power.',
+    tiers: { nascent:'Family', small:'Clan', established:'Noble Clan', powerful:'Great Clan', feared:'Dominant Clan', renowned:'Ancient Clan' },
+  },
+  raiders: {
+    icon:'🔥', color:'#cc6633',
+    desc:'Mobility and violence. Hit and withdraw. Fear is the product.',
+    tiers: { nascent:'Raider Crew', small:'Raider Band', established:'Raider Company', powerful:'Raider Horde', feared:'Warlord Force', renowned:'Warlord Force' },
+  },
+  smugglers: {
+    icon:'🎭', color:'#556677',
+    desc:'Moving things that shouldn\'t be moved. Networks and discretion.',
+    tiers: { nascent:'Smuggling Pair', small:'Smuggling Ring', established:'Smuggling Network', powerful:'Shadow Cartel', feared:'Untouchable Cartel', renowned:'Untouchable Cartel' },
+  },
 };
+
+// Determine tier from active member count (auto-updates when members change)
+function getCrewTierFromSize(activeMembers) {
+  if(activeMembers < 5)  return 'nascent';
+  if(activeMembers < 12) return 'small';
+  if(activeMembers < 30) return 'established';
+  if(activeMembers < 75) return 'powerful';
+  return 'feared'; // 75+ = feared or renowned (renowned set by AI when reputation is positive)
+}
+
+// Get the current display label for this crew
+function getCrewLabel(crew) {
+  const typeInfo = CREW_TYPES[crew.type] || CREW_TYPES.criminal;
+  const tier     = crew.tier || 'nascent';
+  return typeInfo.tiers?.[tier] || typeInfo.tiers?.nascent || 'Crew';
+}
+
+// Auto-update tier based on member count, notify if it changes
+function autoUpdateCrewTier(crew) {
+  const active    = (crew.members || []).filter(m => m.alive !== false).length;
+  const newTier   = getCrewTierFromSize(active);
+  const oldTier   = crew.tier;
+
+  // Don't downgrade feared → renowned (renowned is a special positive state set by AI)
+  if(newTier === 'feared' && oldTier === 'renowned') return;
+  // Don't auto-upgrade to feared — that stays AI-driven
+  if(newTier === crew.tier) return;
+
+  const tierOrder = ['nascent','small','established','powerful','feared','renowned'];
+  const newIdx = tierOrder.indexOf(newTier);
+  const oldIdx = tierOrder.indexOf(oldTier);
+
+  if(newIdx > oldIdx) {
+    // Promotion
+    crew.tier = newTier;
+    const newLabel = getCrewLabel(crew);
+    crew.log.push(`Year ${GS.world.year}: Grew to ${newLabel} (${active} members).`);
+    toast(`${crew.name} has grown into a ${newLabel}`, 'gold', 5000);
+    appendNarrative(`With ${active} people now under your banner, ${crew.name} has grown beyond a simple crew. It is a ${newLabel} now. That carries weight — and responsibilities.`);
+  } else if(newIdx < oldIdx) {
+    // Demotion from losses
+    crew.tier = newTier;
+    crew.log.push(`Year ${GS.world.year}: Reduced to ${getCrewLabel(crew)} after losses.`);
+  }
+}
 
 function createCrew(opts) {
   const c = GS.char;
@@ -6094,11 +6189,18 @@ function updateCrewDisplay() {
     return;
   }
   const crew = c.crew;
-  const typeInfo = CREW_TYPES[crew.type] || CREW_TYPES.criminal;
+  const typeInfo  = CREW_TYPES[crew.type] || CREW_TYPES.criminal;
+  const crewLabel = getCrewLabel(crew);
   if(lbl) lbl.textContent = crew.name;
 
-  const tierColors = { nascent:'#666', small:'#888', established:'#aaa', powerful:'#c49a30', feared:'#cc4444', renowned:'#aa88ff' };
-  const tierColor = tierColors[crew.tier] || '#888';
+  const tierColors = { nascent:'#555', small:'#778', established:'#aab', powerful:'#c49a30', feared:'#cc4444', renowned:'#aa88ff' };
+  const tierColor  = tierColors[crew.tier] || '#666';
+  const activeCount = (crew.members || []).filter(m => m.alive !== false).length;
+
+  // Member thresholds for next tier
+  const tierThresholds = { nascent:5, small:12, established:30, powerful:75 };
+  const nextThreshold  = tierThresholds[crew.tier];
+  const progressToNext = nextThreshold ? Math.min(100, Math.round((activeCount / nextThreshold) * 100)) : 100;
 
   const memberRows = (crew.members || []).filter(m => m.alive !== false).map(m => {
     const loyStr = m.loyalty >= 80 ? '★★★' : m.loyalty >= 50 ? '★★☆' : '★☆☆';
@@ -6112,61 +6214,74 @@ function updateCrewDisplay() {
     `<div style="font-size:11px;color:var(--muted);padding:2px 0">▸ ${op}</div>`
   ).join('') || `<div style="font-size:11px;color:var(--dim)">No recorded operations.</div>`;
 
+  const nextTierNames = { nascent:'Small', small:'Established', established:'Powerful', powerful:'Feared' };
+  const progressBar = nextThreshold ? `
+    <div style="margin:6px 0 10px">
+      <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--dim);margin-bottom:3px">
+        <span style="color:${tierColor}">${crewLabel}</span>
+        <span>${activeCount}/${nextThreshold} members → ${nextTierNames[crew.tier] ? getCrewLabel({...crew, tier: {nascent:'small',small:'established',established:'powerful',powerful:'feared'}[crew.tier]}) : '—'}</span>
+      </div>
+      <div style="background:#1a1020;border-radius:3px;height:4px;overflow:hidden">
+        <div style="height:100%;width:${progressToNext}%;background:${typeInfo.color};border-radius:3px;transition:width .3s"></div>
+      </div>
+    </div>` : `<div style="margin:4px 0 8px;font-size:10px;color:${tierColor};font-weight:700;text-transform:uppercase;letter-spacing:.1em">${crewLabel}</div>`;
+
   el.innerHTML = `
-    <div style="margin-bottom:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-      <span style="font-size:18px">${typeInfo.icon}</span>
-      <div>
-        <div style="font-size:13px;font-weight:700;color:${typeInfo.color}">${crew.name}</div>
-        <div style="font-size:10px;color:var(--dim)">${typeInfo.label} · <span style="color:${tierColor};text-transform:capitalize">${crew.tier}</span> · Founded Year ${crew.founded?.year}</div>
+    <div style="margin-bottom:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <span style="font-size:20px">${typeInfo.icon}</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:14px;font-weight:700;color:${typeInfo.color}">${crew.name}</div>
+        <div style="font-size:10px;color:var(--dim)">Founded Year ${crew.founded?.year} · ${LOCATIONS[crew.location]?.name || crew.location || 'Unknown'}</div>
       </div>
     </div>
-    ${crew.description ? `<div style="font-size:11px;color:var(--muted);margin-bottom:8px;line-height:1.6">${crew.description}</div>` : ''}
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:10px">
+    ${progressBar}
+    ${crew.description ? `<div style="font-size:11px;color:var(--muted);margin-bottom:8px;line-height:1.6;font-style:italic">${crew.description}</div>` : ''}
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px;margin-bottom:10px">
       <div style="background:var(--s2);border-radius:5px;padding:6px;text-align:center">
-        <div style="font-size:9px;color:var(--dim);text-transform:uppercase;letter-spacing:.08em">Treasury</div>
-        <div style="font-size:13px;color:var(--gold);font-weight:700">${formatCoins(crew.silver)}</div>
+        <div style="font-size:9px;color:var(--dim);text-transform:uppercase;letter-spacing:.06em">Treasury</div>
+        <div style="font-size:12px;color:var(--gold);font-weight:700">${formatCoins(crew.silver||0)}</div>
       </div>
       <div style="background:var(--s2);border-radius:5px;padding:6px;text-align:center">
-        <div style="font-size:9px;color:var(--dim);text-transform:uppercase;letter-spacing:.08em">Influence</div>
-        <div style="font-size:13px;color:#88aacc;font-weight:700">${crew.influence}/100</div>
+        <div style="font-size:9px;color:var(--dim);text-transform:uppercase;letter-spacing:.06em">Influence</div>
+        <div style="font-size:12px;color:#88aacc;font-weight:700">${crew.influence||0}/100</div>
       </div>
-      ${crew.heat > 0 ? `<div style="background:var(--s2);border-radius:5px;padding:6px;text-align:center">
-        <div style="font-size:9px;color:var(--dim);text-transform:uppercase;letter-spacing:.08em">Heat</div>
-        <div style="font-size:13px;color:#cc4444;font-weight:700">${crew.heat}/100</div>
-      </div>` : `<div style="background:var(--s2);border-radius:5px;padding:6px;text-align:center">
-        <div style="font-size:9px;color:var(--dim);text-transform:uppercase;letter-spacing:.08em">Members</div>
-        <div style="font-size:13px;color:var(--text);font-weight:700">${(crew.members||[]).filter(m=>m.alive!==false).length}</div>
-      </div>`}
+      <div style="background:var(--s2);border-radius:5px;padding:6px;text-align:center">
+        ${crew.heat > 0
+          ? `<div style="font-size:9px;color:#cc6666;text-transform:uppercase;letter-spacing:.06em">Heat</div><div style="font-size:12px;color:#cc4444;font-weight:700">${crew.heat}/100</div>`
+          : `<div style="font-size:9px;color:var(--dim);text-transform:uppercase;letter-spacing:.06em">Members</div><div style="font-size:12px;color:var(--text);font-weight:700">${activeCount}</div>`}
+      </div>
     </div>
-    <div style="font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px">Members</div>
+    <div style="font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.08em;margin-bottom:5px">People (${activeCount})</div>
     <div style="margin-bottom:10px">${memberRows}</div>
-    <div style="font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px">Recent Operations</div>
+    <div style="font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px">Recent</div>
     ${opsHtml}
-    <button class="btn-secondary btn-sm" style="margin-top:8px;width:100%" onclick="sendToAI('I check in with my crew — ${crew.name}. What is the current situation, what needs attention, and what have they been doing while I was occupied.')">Check In With Crew</button>
+    <button class="btn-secondary btn-sm" style="margin-top:8px;width:100%" onclick="sendToAI('I check in with ${crew.name}. What is the current situation, what needs attention, and what have members been doing.')">Check In</button>
   `;
 }
 
-// Add a member to the crew
+// Add a member to the crew — auto-promotes tier when thresholds are crossed
 function addCrewMember(npcId, name, role) {
   const c = GS.char;
   if(!c.crew) return;
-  if(c.crew.members.find(m => m.npcId === npcId || m.name === name)) return; // already member
-  c.crew.members.push({ npcId, name, role: role || 'Member', joinedYear: GS.world.year, loyalty: 60, alive: true });
+  if(c.crew.members.find(m => (npcId && m.npcId === npcId) || m.name === name)) return;
+  c.crew.members.push({ npcId: npcId || '', name, role: role || 'Member', joinedYear: GS.world.year, loyalty: 60, alive: true });
   c.crew.log.push(`Year ${GS.world.year}: ${name} joined as ${role || 'Member'}.`);
+  autoUpdateCrewTier(c.crew); // may trigger promotion
   updateCrewDisplay();
 }
 
-// Remove/lose a crew member
+// Remove/lose a crew member — auto-demotes tier if needed
 function removeCrewMember(npcId, reason) {
   const c = GS.char;
   if(!c.crew) return;
-  const m = c.crew.members.find(m => m.npcId === npcId);
+  const m = c.crew.members.find(m => m.npcId === npcId || m.name === npcId);
   if(m) {
     m.alive = false;
     m.leftYear = GS.world.year;
     m.leftReason = reason || 'departed';
     c.crew.log.push(`Year ${GS.world.year}: ${m.name} — ${reason || 'departed'}.`);
   }
+  autoUpdateCrewTier(c.crew); // may trigger demotion
   updateCrewDisplay();
 }
 
@@ -6192,14 +6307,18 @@ function applyCrewUpdate(update) {
   if(update.operation)   crew.operations.push(update.operation);
   if(update.upgrade)     crew.upgrades.push(update.upgrade);
   if(update.log)         crew.log.push(`Year ${GS.world.year}: ${update.log}`);
-  // Member changes
+  // Member changes (addCrewMember/removeCrewMember each call autoUpdateCrewTier internally)
   (update.addMembers || []).forEach(m => addCrewMember(m.npcId || '', m.name, m.role));
   (update.removeMembers || []).forEach(m => removeCrewMember(m.npcId || m.name, m.reason));
+  // If tier was explicitly set by AI (e.g. 'renowned'), respect it over auto-detection
+  if(update.tier) crew.tier = update.tier;
   // Loyalty changes
   (update.loyaltyChanges || []).forEach(lc => {
     const m = crew.members.find(m => m.npcId === lc.npcId || m.name === lc.name);
     if(m) m.loyalty = Math.max(0, Math.min(100, (m.loyalty||60) + (lc.delta||0)));
   });
+  // Final auto-tier check after all updates
+  if(!update.tier) autoUpdateCrewTier(crew);
   updateCrewDisplay();
 }
 
