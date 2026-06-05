@@ -1644,7 +1644,7 @@ body.generating [onclick*="shopSellItem"], body.generating [onclick*="closeMapGo
      MAIN MENU
      ============================================================ -->
 <!-- ── STARTUP SCREEN ── -->
-<div id="screen-startup" class="screen" onclick="(function(){var s=document.getElementById('screen-startup');s.classList.add('startup-fade-out');setTimeout(function(){s.classList.add('hidden');document.getElementById('screen-menu').classList.remove('hidden');},800)})()">
+<div id="screen-startup" class="screen" onclick="dismissStartup()">
   <div class="startup-inner">
     <div class="startup-eyebrow">A cultivation life in a world that doesn't care</div>
     <div class="startup-title">
@@ -12005,30 +12005,35 @@ function saveAPIKey() {
   toast('API key saved.','success',2000);
 }
 
+function dismissStartup() {
+  const startup = document.getElementById('screen-startup');
+  const menu    = document.getElementById('screen-menu');
+  if(!startup || startup.classList.contains('hidden')) return;
+  // Immediately non-interactive, then fade
+  startup.style.pointerEvents = 'none';
+  startup.style.transition = 'opacity .6s ease, filter .6s ease';
+  startup.style.opacity = '0';
+  startup.style.filter  = 'blur(8px)';
+  setTimeout(() => {
+    startup.classList.add('hidden');
+    startup.style.opacity = '';
+    startup.style.filter  = '';
+    startup.style.transition = '';
+    if(menu) menu.classList.remove('hidden');
+  }, 620);
+}
+
 function initStartupScreen() {
   const startup = document.getElementById('screen-startup');
   if(!startup) return;
-
-  function dismissStartup() {
-    startup.classList.add('startup-fade-out');
-    setTimeout(() => {
-      startup.classList.add('hidden');
-      document.getElementById('screen-menu')?.classList.remove('hidden');
-    }, 800);
-  }
-
-  // Click or any key dismisses
   startup.addEventListener('click', dismissStartup);
   document.addEventListener('keydown', function onKey(e) {
-    if(startup.classList.contains('hidden')) return;
+    if(startup.classList.contains('hidden')) { document.removeEventListener('keydown', onKey); return; }
     document.removeEventListener('keydown', onKey);
     dismissStartup();
   });
-
-  // Auto-advance after 5 seconds
-  setTimeout(() => {
-    if(!startup.classList.contains('hidden')) dismissStartup();
-  }, 5000);
+  // Auto-advance after 6 seconds
+  setTimeout(dismissStartup, 6000);
 }
 
 function initMainMenu() {
