@@ -5714,19 +5714,31 @@ function advanceMAStage(maId) {
 function spawnItem(item) {
   // item: { name, type, slot, rarity, desc, value, effects, isTome, techUnlock, pillId, consumable }
   if(!item?.name) return null;
-  const isTome = !!(item.isTome || item.type === 'tome');
-  const isConsumable = !!(item.consumable || item.type === 'consumable');
-  const type = item.type || (isTome ? 'tome' : isConsumable ? 'consumable' : item.slot ? 'equipment' : 'supplies');
 
-  // Auto-assign slot from type when AI gives type but no slot
-  // This ensures weapons/armor from AI responses are always equippable
+  // Auto-detect type from name if AI didn't specify
+  const nameLower = (item.name || '').toLowerCase();
+  let autoType = item.type;
+  if(!autoType) {
+    if(/necklace|pendant|ring|amulet|bracelet|earring|brooch|jewel/i.test(nameLower)) autoType = 'accessory';
+    else if(/robe|cloak|coat|jacket|shirt|dress|boots|shoes|hat|hood|gloves|clothing/i.test(nameLower)) autoType = 'clothing';
+    else if(/deed|contract|certificate|document|letter|map|scroll|parchment|note/i.test(nameLower)) autoType = 'misc';
+    else if(/book|journal|diary|manual|tome|memoir|record|text/i.test(nameLower)) autoType = 'tome';
+    else if(/herb|ingredient|seed|root|flower|pill|elixir|potion|food|meal|fruit/i.test(nameLower)) autoType = 'consumable';
+    else if(/sword|blade|knife|spear|bow|staff|hammer|axe|weapon/i.test(nameLower)) autoType = 'weapon';
+  }
+
+  const isTome = !!(item.isTome || autoType === 'tome' || item.type === 'tome');
+  const isConsumable = !!(item.consumable || autoType === 'consumable' || item.type === 'consumable');
+  const type = autoType || (isTome ? 'tome' : isConsumable ? 'consumable' : item.slot ? 'equipment' : 'misc');
+
+  // Auto-assign slot
   const TYPE_TO_DEFAULT_SLOT = {
     weapon:    'weapon',
     offhand:   'offhand',
     armor:     'body',
     accessory: 'acc1',
     clothing:  'body',
-    equipment: 'weapon', // generic equipment defaults to weapon slot
+    equipment: 'weapon',
   };
   const resolvedSlot = item.slot || TYPE_TO_DEFAULT_SLOT[type] || null;
 
@@ -8194,7 +8206,17 @@ function updateInventoryTab() {
   items.forEach(itm => {
     const div = document.createElement('div');
     div.className = `inv-item ${rarityClass(itm.rarity)}`;
-    div.innerHTML = `<div class="inv-item-name ${rarityText(itm.rarity)}">${itm.name}</div><div class="inv-item-type">${itm.type}${itm.isTome?' · Tome':''}</div>`;
+    const TYPE_ICONS = {
+      weapon:'⚔', armor:'🛡', clothing:'👘', accessory:'💎', consumable:'💊',
+      tome:'📜', misc:'📦', supplies:'🎒', equipment:'⚙',
+    };
+    const typeIcon = TYPE_ICONS[itm.type] || '◆';
+    const typeLabel = itm.isTome ? 'Tome'
+      : itm.type === 'accessory' ? 'Accessory'
+      : itm.type === 'clothing' ? 'Clothing'
+      : itm.type === 'misc' ? 'Item'
+      : itm.type || 'Item';
+    div.innerHTML = `<div class="inv-item-name ${rarityText(itm.rarity)}">${itm.name}</div><div class="inv-item-type">${typeIcon} ${typeLabel}</div>`;
     div.onclick = () => openItemModal(itm.id, false);
     grid.appendChild(div);
   });
@@ -8652,7 +8674,16 @@ CRITICAL: The narrative is NEVER inside the JSON. The JSON block has NO "narrati
 
 CREW SYSTEM — crewUpdate: Use when the player founds, develops, or loses elements of a crew/organization (criminal gang, merchant company, pirate fleet, mercenary band, research collective, clan, smuggling ring, cult — anything). Format: { "found":true, "name":"...", "type":"criminal|merchant|pirate|mercenary|gang|cult|espionage|guild|research|clan|raiders|smugglers", "description":"...", "tier":"nascent|small|established|powerful|feared|renowned", "silverDelta":0, "influence":0, "heat":0, "operation":"what they did", "upgrade":"what they gained", "addMembers":[{"name":"...","role":"..."}], "removeMembers":[{"name":"...","reason":"..."}] }
 
-TOME RULE: Tomes are PERMANENT — they NEVER disappear from inventory. Reading a tome does not consume it. A mortal with no Qi cultivation cannot learn any Qi technique from a tome regardless of what it says. If a character cannot yet learn a technique (wrong stage, wrong path, needs a master), narrate what they understand and what remains out of reach — do not grant the technique.`;
+TOME RULE: Tomes are PERMANENT — they NEVER disappear from inventory. Reading a tome does not consume it. A mortal with no Qi cultivation cannot learn any Qi technique from a tome regardless of what it says. If a character cannot yet learn a technique (wrong stage, wrong path, needs a master), narrate what they understand and what remains out of reach — do not grant the technique.
+
+INVENTORY RULE — EVERY PHYSICAL ITEM THE CHARACTER RECEIVES GOES IN newItems. No exceptions. This includes:
+- Books, journals, diaries, letters, scrolls (type: "misc" or "tome")
+- Jewelry, necklaces, pendants, rings, amulets (type: "accessory", slot: "acc1")
+- Documents, deeds, contracts, certificates, maps (type: "misc")
+- Clothing, robes, shoes, hats (type: "clothing", slot: "body")
+- Food, ingredients, herbs (type: "consumable" or "supplies")
+- Tools, weapons, anything physical
+Items do NOT need to have special effects or abilities to be tracked. A plain book is still an item. A deed to a house is still an item. A necklace with no Qi infusion is still an item. If the narrative says the character was given something, received something, picked something up, bought something, found something — it goes in newItems. "effects": {} is fine. "value": 0 is fine. "slot": null is fine. The item still belongs in their inventory.`;
 }
 
 // ================================================================
@@ -11039,7 +11070,16 @@ The JSON carries ONLY state changes. There is NO "narrative" field in the JSON �
 Omit any field that doesn't change. Zero values and empty arrays are noise — leave them out. NEVER put the narrative inside the JSON.
 
 CREW — crewUpdate: { "found":true, "name":"...", "type":"criminal|merchant|pirate|mercenary|gang|cult|espionage|guild|research|clan|raiders|smugglers", "description":"...", "tier":"nascent|small|established|powerful|feared|renowned", "silverDelta":0, "influence":0, "heat":0, "operation":"...", "upgrade":"...", "addMembers":[{"name":"...","role":"..."}], "removeMembers":[{"name":"...","reason":"..."}] }
-TOME RULE: Tomes are PERMANENT items — they never leave inventory from being read. A mortal (no Qi) cannot learn cultivation techniques from tomes. If a character is not ready for a technique (wrong stage, wrong path, needs a master first), say so in the narrative and do not grant it. The tome stays.`;
+TOME RULE: Tomes are PERMANENT items — they never leave inventory from being read. A mortal (no Qi) cannot learn cultivation techniques from tomes. If a character is not ready for a technique (wrong stage, wrong path, needs a master first), say so in the narrative and do not grant it. The tome stays.
+
+INVENTORY RULE — EVERY PHYSICAL ITEM RECEIVED GOES IN newItems. No exceptions.
+- Jewelry (necklace, pendant, ring, amulet) → type:"accessory", slot:"acc1"
+- Books, journals, diaries, scrolls → type:"misc" or type:"tome"
+- Documents, deeds, contracts, maps, certificates → type:"misc"
+- Clothing → type:"clothing", slot:"body"
+- Food, herbs, ingredients → type:"consumable" or type:"supplies"
+- Tools, trinkets, personal objects → type:"misc"
+Items do NOT need effects or abilities. "effects":{} and "value":0 are valid. If the player receives, finds, buys, is given, or picks up ANY physical object — it goes in newItems.`;
 }
 
 // ================================================================
