@@ -8688,17 +8688,81 @@ async function callClaude(userMessage) {
       }),
     });
     if(!resp.ok) {
-      const err = await resp.text();
-      console.error('API error:', err);
-      toast('API error — check console', 'error', 4000);
+      let errBody = '';
+      try { errBody = await resp.text(); } catch(_) {}
+      console.error('API error:', resp.status, errBody);
+      showAPIError(resp.status, errBody);
       return null;
     }
     const data = await resp.json();
     return data.content?.[0]?.text || null;
   } catch(e) {
     console.error('Fetch error:', e);
-    toast('Network error', 'error', 3000);
+    showAPIError(0, e?.message || 'Network error');
     return null;
+  }
+}
+
+function showAPIError(status, body) {
+  let title = 'Something went wrong';
+  let detail = '';
+  let action = '';
+
+  if(status === 401) {
+    title = 'Invalid API Key';
+    detail = 'The API key was rejected. This usually means the key is wrong, expired, or has been revoked.';
+    action = 'Open Settings (⚙) and re-enter your key from console.anthropic.com';
+  } else if(status === 429) {
+    const isOverload = body?.includes('overloaded') || body?.includes('529');
+    if(isOverload) {
+      title = 'Claude is Overloaded';
+      detail = 'Anthropic\'s servers are under heavy load right now.';
+      action = 'Wait 30–60 seconds and try again.';
+    } else {
+      title = 'Rate Limit Reached';
+      detail = 'You\'ve hit the request limit for your API tier, or your account is out of credits.';
+      action = 'Check your usage at console.anthropic.com/usage. If out of credits, add more. Otherwise wait a minute and retry.';
+    }
+  } else if(status === 529 || (body && body.includes('overloaded'))) {
+    title = 'Claude is Overloaded';
+    detail = 'Anthropic\'s servers are temporarily overloaded.';
+    action = 'Wait 30–60 seconds and try again.';
+  } else if(status === 500 || status === 502 || status === 503) {
+    title = 'Anthropic Server Error';
+    detail = `Server returned error ${status}. This is on Anthropic's side, not yours.`;
+    action = 'Check status.anthropic.com. Wait a moment and try again.';
+  } else if(status === 0) {
+    title = 'Network Error';
+    detail = 'Could not reach Anthropic\'s API. ' + (body || '');
+    action = 'Check your internet connection. If the connection is fine, Anthropic may be having an outage — check status.anthropic.com.';
+  } else {
+    title = `API Error (${status || 'unknown'})`;
+    detail = body ? body.slice(0, 200) : 'An unexpected error occurred.';
+    action = 'Check the browser console for more details.';
+  }
+
+  // Show as a styled error entry in the narrative
+  const content = document.getElementById('narrative-content');
+  if(content) {
+    const entry = document.createElement('div');
+    entry.className = 'narrative-entry api-error-entry';
+    entry.style.cssText = `
+      border-left: 3px solid rgba(200,60,60,.6);
+      background: rgba(200,60,60,.05);
+      padding: 12px 16px;
+      border-radius: 0 6px 6px 0;
+      margin-bottom: 16px;
+    `;
+    entry.innerHTML = `
+      <div style="font-size:10px;text-transform:uppercase;letter-spacing:.15em;color:rgba(200,80,80,.7);margin-bottom:8px;font-family:inherit">
+        ✕ ${title}
+      </div>
+      <div style="font-size:13px;color:rgba(200,170,170,.7);line-height:1.7;font-family:inherit;margin-bottom:6px">${detail}</div>
+      <div style="font-size:11px;color:rgba(180,150,150,.5);font-style:italic;font-family:inherit">→ ${action}</div>
+    `;
+    content.appendChild(entry);
+    const scroll = document.getElementById('narrative-scroll');
+    if(scroll) scroll.scrollTop = scroll.scrollHeight;
   }
 }
 
