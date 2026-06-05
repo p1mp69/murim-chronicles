@@ -1650,7 +1650,7 @@ body.generating [onclick*="shopSellItem"], body.generating [onclick*="closeMapGo
      MAIN MENU
      ============================================================ -->
 <!-- ── STARTUP SCREEN ── -->
-<div id="screen-startup" class="screen" onclick="dismissStartup()">
+<div id="screen-startup" class="screen" onclick="this.style.display='none';document.getElementById('screen-menu').classList.remove('hidden')" style="cursor:pointer">
   <div class="startup-inner">
     <div class="startup-eyebrow">A cultivation life in a world that doesn't care</div>
     <div class="startup-title">
@@ -1669,7 +1669,7 @@ body.generating [onclick*="shopSellItem"], body.generating [onclick*="closeMapGo
 </div>
 
 <!-- ── MAIN MENU ── -->
-<div id="screen-menu" class="screen">
+<div id="screen-menu" class="screen hidden">
   <div class="menu-layout">
 
     <!-- Left lore pane -->
@@ -12014,9 +12014,11 @@ function saveAPIKey() {
 function dismissStartup() {
   var s = document.getElementById('screen-startup');
   if(!s || s.classList.contains('dismissed')) return;
-  s.style.opacity = '0';
-  s.style.pointerEvents = 'none';
-  setTimeout(function() { s.classList.add('dismissed'); }, 500);
+  // Immediately hide and show menu — belt AND suspenders
+  s.style.display = 'none';
+  s.classList.add('dismissed');
+  var m = document.getElementById('screen-menu');
+  if(m) m.classList.remove('hidden');
 }
 
 function initStartupScreen() {
@@ -12100,16 +12102,20 @@ applyAIResponse = function(res) {
 // Override the existing DOMContentLoaded to add menu init
 // and change startup to show menu instead of creation screen
 document.addEventListener('DOMContentLoaded', () => {
-  // Load API key early
-  const savedKey = localStorage.getItem('murim_apikey') || '';
-  if(savedKey) GS.settings.apiKey = savedKey;
-  initMainMenu();
-  initStartupScreen();
-  // screen-menu is always visible (z-index 1, under startup z-index 200)
-  // Just make sure creation and game screens are hidden at start
-  document.getElementById('screen-creation')?.classList.add('hidden');
-  document.getElementById('screen-game')?.classList.add('hidden');
-  // startup auto-dismisses via CSS animation after 5s; click speeds it up
+  try { initMainMenu(); } catch(e) { console.error('initMainMenu failed', e); }
+  try { initStartupScreen(); } catch(e) {}
+  // Ensure correct initial screen state
+  try {
+    document.getElementById('screen-creation')?.classList.add('hidden');
+    document.getElementById('screen-game')?.classList.add('hidden');
+    document.getElementById('screen-menu')?.classList.add('hidden');
+    document.getElementById('screen-startup')?.classList.remove('hidden');
+  } catch(e) {}
+  // Load API key
+  try {
+    const k = localStorage.getItem('murim_apikey') || '';
+    if(k && GS?.settings) GS.settings.apiKey = k;
+  } catch(e) {}
 });
 
 // ================================================================
