@@ -4836,6 +4836,9 @@ function advanceTime(days=0, months=0, years=0) {
   // Check Zeret spawn on new year
   if(w.year !== prevYear) checkZeretSpawn();
 
+  // Check tomb trigger characters
+  if(w.year !== prevYear) checkTombTriggers();
+
   updateTopbar();
 }
 
@@ -4884,6 +4887,160 @@ function checkZeretSpawn() {
     if(hasLustSeed) {
       GS.narrative.push(`The seed in your chest stirs. A warmth — not from the sun. Not from anything that belongs to this world. Somewhere, something that knows your name has woken up.`);
     }
+  }
+}
+
+// ================================================================
+// TOMB TRIGGER SYSTEM
+// Characters who can find the founders' tombs — each has a specific
+// probability per year, birth year window, and outcome event.
+// ================================================================
+
+const TOMB_TRIGGERS = {
+  reo: {
+    found: false,   // has Reo's tomb been found by a trigger character?
+    foundBy: null,
+    triggers: [
+      {
+        id: 'rin_shizuka',
+        name: 'Rin Shizuka',
+        birthYear: 843,   // 6 years old in Year 849, wanders into lower Tazar
+        activeFrom: 849,  // needs to be old enough to wander
+        activeTo: 860,
+        chancePerYear: 0.08,  // 8% per year — low because she's a child and doesn't know
+        description: 'An orphan girl wandering the lower district of Tazar somehow finds her way to the tomb entrance. Reo\'s residual Qi stirs — something in her resonates with his ideology.',
+        outcome: 'rin_enters_reo',
+      },
+      {
+        id: 'misao_rokuro',
+        name: 'Misao Rokurō',
+        birthYear: 820,
+        activeFrom: 845,  // needs to be adult, determined
+        activeTo: 900,
+        chancePerYear: 0.12, // 12% — actively seeking, but tomb is hard to find
+        description: 'Misao Rokurō, descendant of the explorer who failed with Normac, has spent years researching Reo\'s tomb. He does not come to take — he comes to give.',
+        outcome: 'misao_enters_reo',
+      },
+      {
+        id: 'goblin',
+        name: 'Goblin',
+        birthYear: 828,
+        activeFrom: 850,
+        activeTo: 920,
+        chancePerYear: 0.10, // 10% — calculated the location through research
+        description: 'Goblin has spent twenty years studying Tazar\'s historical geography and calculated that the tomb has to be in its foundations. He was right.',
+        outcome: 'goblin_enters_reo',
+      },
+      {
+        id: 'mosi_rajabu',
+        name: 'Mosi Rajabu',
+        birthYear: 835,
+        activeFrom: 858,  // adult, arrived in Tazar
+        activeTo: 880,
+        chancePerYear: 0.09, // 9% — senses it but doesn't know what it is
+        description: 'Mosi Rajabu arrived in Tazar seeking diplomatic contact and was rejected. While waiting in the lower district, he senses something beneath the city he cannot explain.',
+        outcome: 'mosi_enters_reo',
+      },
+    ],
+  },
+  ichiro: {
+    found: false,
+    foundBy: null,
+    triggers: [
+      {
+        id: 'takehiko_takao',
+        name: 'Takehiko Takao',
+        birthYear: 815,
+        activeFrom: 840,  // has been farming Ooina for years
+        activeTo: 900,
+        chancePerYear: 0.15, // 15% — he knows where it is, just hasn't gone in
+        description: 'Takehiko Takao, who has farmed in Ooina forest his entire life, one day walks to the entrance he has always known about and goes in. No dramatic reason — he was just ready.',
+        outcome: 'takehiko_enters_ichiro',
+      },
+      {
+        id: 'yuuta_hajime',
+        name: 'Yuuta Hajime',
+        birthYear: 825,
+        activeFrom: 848,  // adult, has retreated to Ooina
+        activeTo: 910,
+        chancePerYear: 0.11, // 11% — drawn to it by his Yokai nature and grief
+        description: 'Yuuta Hajime, half-yokai and raised in the forest after leaving human settlements, feels the pull of something ancient in Ooina. He follows it.',
+        outcome: 'yuuta_enters_ichiro',
+      },
+    ],
+  },
+};
+
+function checkTombTriggers() {
+  const w = GS.world;
+  if(!w.tombState) w.tombState = { reoFound:false, reoFoundBy:null, ichiroFound:false, ichiroFoundBy:null };
+
+  // Only fire if player hasn't already found the tomb this playthrough
+  const playerFoundReo    = GS.char.personalEvents?.some(e => /reo.*tomb|tomb.*reo/i.test(e));
+  const playerFoundIchiro = GS.char.personalEvents?.some(e => /ichiro.*tomb|tomb.*ichiro/i.test(e));
+
+  for(const [tombKey, tomb] of Object.entries(TOMB_TRIGGERS)) {
+    const alreadyFound = tombKey === 'reo' ? (playerFoundReo || w.tombState.reoFound) : (playerFoundIchiro || w.tombState.ichiroFound);
+    if(alreadyFound) continue;
+
+    for(const trigger of tomb.triggers) {
+      const yr = w.year;
+      if(yr < trigger.activeFrom || yr > trigger.activeTo) continue;
+
+      if(Math.random() < trigger.chancePerYear) {
+        // Tomb found by this character!
+        if(tombKey === 'reo') {
+          w.tombState.reoFound = true;
+          w.tombState.reoFoundBy = trigger.id;
+        } else {
+          w.tombState.ichiroFound = true;
+          w.tombState.ichiroFoundBy = trigger.id;
+        }
+
+        const tombName = tombKey === 'reo' ? "Reo Yamamoto's Tomb" : "Ichiro Katsumi's Tomb";
+        const eventDesc = `Year ${yr}: ${trigger.name} finds ${tombName}. ${trigger.description}`;
+        w.worldHistory.push(eventDesc);
+        w.activeWorldEvents.push({
+          id: `tomb_${tombKey}_found_${trigger.id}`,
+          name: `${tombName} Breached`,
+          desc: `${trigger.name} has entered ${tombName}. The consequences are unfolding.`,
+          year: yr,
+          foundBy: trigger.id,
+          outcome: trigger.outcome,
+        });
+
+        // Fire outcome-specific effects
+        applyTombTriggerOutcome(trigger.outcome, trigger, yr);
+        break; // only one trigger per tomb per year
+      }
+    }
+  }
+}
+
+function applyTombTriggerOutcome(outcome, trigger, yr) {
+  const w = GS.world;
+  switch(outcome) {
+    case 'rin_enters_reo':
+      w.worldHistory.push(`Year ${yr}: Rin Shizuka, six years old, enters Reo's tomb. She emerges days later. What she carries out are not artifacts. They are understandings. She is the youngest prodigy in recorded cultivation history.`);
+      break;
+    case 'misao_enters_reo':
+      w.worldHistory.push(`Year ${yr}: Misao Rokurō gives his right arm and right eye — infused with Qi — to the tomb's core. Reo Yamamoto stirs. The revival begins. Tazar, already in decay, begins to feel something shift in its foundations.`);
+      w.activeWorldEvents.push({ id:'reo_revival', name:'Reo Yamamoto Stirs', desc:'Something is happening beneath Tazar. The tomb is active. Those sensitive to Qi feel a presence that has been absent for centuries.', year:yr });
+      break;
+    case 'goblin_enters_reo':
+      w.worldHistory.push(`Year ${yr}: Goblin enters Reo's tomb and takes everything he can carry. He is not an evil man. The business he builds from this is the most profitable enterprise in Tazar and likely in Murim.`);
+      break;
+    case 'mosi_enters_reo':
+      w.worldHistory.push(`Year ${yr}: Mosi Rajabu enters Reo's tomb. What he retrieves travels back across the sea with him. The Kalozi Empire learns that Murim has something worth taking. The preparation for war begins.`);
+      w.activeWorldEvents.push({ id:'kalozi_preparation', name:'Kalozi Empire Stirs', desc:'Across the sea, an empire that has never encountered Murim is now aware of it. The preparation is long. The arrival will not be subtle.', year:yr });
+      break;
+    case 'takehiko_enters_ichiro':
+      w.worldHistory.push(`Year ${yr}: Takehiko Takao, a farmer who has lived in Ooina his entire life, walks into Ichiro's tomb for the first time. He says he was just ready. The forest accepts him completely. What he brings out belongs to the forest as much as to him.`);
+      break;
+    case 'yuuta_enters_ichiro':
+      w.worldHistory.push(`Year ${yr}: Yuuta Hajime enters Ichiro's tomb. He emerges as the declared voice of every Yokai in Ooina. The Purge is coming — not genocide but a systematic demand for recognition, territory, and sovereignty backed by the full power of the Yokai nation.`);
+      w.activeWorldEvents.push({ id:'yokai_purge_begins', name:'The Purge Declared', desc:'Yuuta Hajime speaks for the Yokai. Humanity and the Yokai world are in open conflict. The largest war between the natural and human worlds in recorded history has begun.', year:yr });
+      break;
   }
 }
 
