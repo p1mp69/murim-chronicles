@@ -4839,6 +4839,9 @@ function advanceTime(days=0, months=0, years=0) {
   // Check tomb trigger characters
   if(w.year !== prevYear) checkTombTriggers();
 
+  // Check deep-era relic discoveries
+  if(w.year !== prevYear) checkRelicDiscoveries();
+
   updateTopbar();
 }
 
@@ -5043,6 +5046,182 @@ function applyTombTriggerOutcome(outcome, trigger, yr) {
       break;
   }
 }
+
+// ================================================================
+// DEEP ERA RELICS
+// Four relics from the founders' era that were never in the tombs.
+// Each has a yearly discovery probability and a specific destination.
+// ================================================================
+
+const DEEP_ERA_RELICS = {
+
+  spearblade: {
+    name: "The Spearblade",
+    owner: "Ichiro Katsumi",
+    rarity: "legendary",
+    desc: "Ichiro Katsumi's secondary weapon. A spear with a blade so precisely shaped that cultivators who study it cannot agree whether the shaping was done by Qi or simply by a level of craft nobody alive has matched. It washes up on the Luo coast during the Deep Era. No one knows how it got into the sea.",
+    location_desc: "Somewhere in the ocean off the Luo-Tin coast. It washes ashore during high tide in a year when someone is walking that stretch of beach.",
+    activeFrom: 740,   // Deep Era — enough time for it to drift
+    chancePerYear: 0.04, // 4%/yr — it's in the ocean, discovery is chance
+    foundBy: null,
+    foundYear: null,
+    destination: 'luo_military',
+    destinationDesc: "When found, the Spearblade enters the Luo-Tin military immediately. The fisherman or soldier who finds it on the beach doesn't keep it — something about holding it makes the right thing to do obvious. It goes to the highest-ranking general in the Luo-Tin Dynasty at the time of discovery.",
+    effects: { strength:8, agility:5, perception:4 },
+    slot: 'weapon',
+  },
+
+  robe_of_juu: {
+    name: "The Robe of Juu",
+    owner: "Reo Yamamoto",
+    rarity: "legendary",
+    desc: "A robe made from the skin of a Yokai Reo killed — named Juu. Reo imbued it with his Qi over years of wearing it. The Qi in the fabric is functional: it provides protection and augments the wearer's presence. It was in the Azure Imperial Palace until it was stolen. It has been on the black market, in various hands, for a long time.",
+    location_desc: "Somewhere in the black market networks connecting Jade Province, Tazar, and Silverwake. It changes hands quietly.",
+    activeFrom: 620,   // stolen from palace sometime after Reo's decline
+    chancePerYear: 0.07, // 7%/yr — actively circulating in black market
+    foundBy: null,
+    foundYear: null,
+    destination: 'wealthy_or_sect',
+    destinationDesc: "The Robe ends up with whoever can afford it or take it. In practice: a wealthy merchant family, a powerful sect, or a cultivation bloodline with the connections to find it before someone else does. It doesn't stay in the open market — it disappears quickly into a private collection.",
+    effects: { endurance:6, willpower:5, charisma:4 },
+    slot: 'body',
+  },
+
+  jade_pendant: {
+    name: "The Jade Pendant",
+    owner: "Ichiro Katsumi (made for his lover)",
+    rarity: "epic",
+    desc: "A jade pendant Ichiro made for the woman he loved. He imbued it with protective Qi — nothing offensive, only a ward. After his death in Year 130, she buried it in the backyard of her home rather than wear it. She could not look at it. It has been in the ground ever since.",
+    location_desc: "Buried in the backyard of a house that has changed hands many times. The house exists somewhere in the eastern Azure Empire. The current occupants do not know what is beneath their garden.",
+    activeFrom: 200,   // enough time for the home to have changed hands
+    chancePerYear: 0.05, // 5%/yr — either descendants dig it up or a sect forecloses
+    foundBy: null,
+    foundYear: null,
+    destination: 'lover_descendants_or_sect',
+    destinationDesc: "Either a descendant of Ichiro's lover finds it while doing ordinary garden work — the discovery is quiet, private, and reshapes their understanding of their own family — or a sect that has foreclosed on the property during a financial dispute has the land cleared and digs it up. If a sect finds it, they will know what it is. If a descendant finds it, they may not.",
+    effects: { endurance:4, willpower:6, luck:5 },
+    slot: 'accessory',
+  },
+
+  ichiro_diary: {
+    name: "Ichiro's Diary (Unnamed)",
+    owner: "Ichiro Katsumi",
+    rarity: "mythic",
+    desc: "A journal Ichiro kept during the middle years of his life. It has no name on the cover — he did not sign it. It contains partial technique descriptions, personal reflections, and several entries that cultivation scholars have spent centuries arguing about because they describe states of Qi that no one has replicated. It sits on a shelf in a library, misfiled, having passed through several donation collections.",
+    location_desc: "In a library somewhere in the cultivation world — most likely a scholarly institution, a sect archive, or a public collection. It is catalogued incorrectly, listed under a different author, and entirely unremarkable to anyone not reading it carefully.",
+    activeFrom: 180,   // donated to a library after passing through several hands
+    chancePerYear: 0.03, // 3%/yr — someone has to actually read it
+    foundBy: null,
+    foundYear: null,
+    destination: 'scholar',
+    destinationDesc: "Only a scholar, academic, or someone with significant literacy and cultivation theory knowledge will recognize what they are reading. A general reader would find it interesting but not remarkable. Someone who knows cultivation — and reads carefully — will stop at one of several pages and understand that they are holding something that should not exist in a public library.",
+    effects: { intelligence:8, perception:5 },
+    isTome: true,
+  },
+
+};
+
+function checkRelicDiscoveries() {
+  const w = GS.world;
+  if(!w.relicState) w.relicState = {};
+
+  for(const [relicKey, relic] of Object.entries(DEEP_ERA_RELICS)) {
+    // Skip if already found
+    if(w.relicState[relicKey]?.found) continue;
+    if(w.year < relic.activeFrom) continue;
+
+    if(Math.random() < relic.chancePerYear) {
+      // Relic discovered!
+      w.relicState[relicKey] = { found:true, foundYear:w.year };
+
+      // Determine who finds it
+      const holder = determineRelicHolder(relic, w);
+      w.relicState[relicKey].holder = holder;
+
+      // World event
+      const eventDesc = `Year ${w.year}: ${relic.name} (${relic.owner}'s relic) has surfaced. ${relic.destinationDesc}`;
+      w.worldHistory.push(eventDesc);
+      w.activeWorldEvents.push({
+        id: `relic_${relicKey}`,
+        name: `${relic.name} Found`,
+        desc: `${relic.name} has emerged after centuries. It is now in the possession of ${holder}.`,
+        year: w.year,
+        relicKey,
+        holder,
+      });
+
+      // Notify if player would be aware (high perception or relevant skills)
+      const hasLoreSkill = GS.char.skills?.history?.level >= 3 || GS.char.skills?.cultivation?.level >= 4;
+      if(hasLoreSkill) {
+        appendNarrative(`Word reaches you through the usual channels — the kind of rumor that travels through scholarly networks and cultivation circles faster than official reports. ${relic.name} has surfaced. The details are sparse. But anyone who knows what they are looking at will understand the weight of what just entered the world.`);
+      }
+    }
+  }
+}
+
+function determineRelicHolder(relic, w) {
+  const yr = w.year;
+  switch(relic.destination) {
+    case 'luo_military': {
+      // Find the highest Luo-Tin military figure or generic title
+      const generals = ['General Xiang Wei','General Bai Liang','Commander Rei Shou','Grand Marshal Tan Huo','General Yun Kai'];
+      return generals[yr % generals.length] + ', highest-ranking general of the Luo-Tin Dynasty';
+    }
+    case 'wealthy_or_sect': {
+      const discoveredSects = w.discoveredSects || [];
+      if(discoveredSects.length > 0 && Math.random() < 0.5) {
+        const sect = discoveredSects[Math.floor(Math.random() * discoveredSects.length)];
+        return `${sect.name} sect`;
+      }
+      const merchants = ['the Fang Trading House','the Shen Merchant Consortium','an unnamed collector in Jade Province','the Silverwake Banking Coalition'];
+      return merchants[yr % merchants.length];
+    }
+    case 'lover_descendants_or_sect': {
+      if(Math.random() < 0.45) {
+        return "a descendant of Ichiro Katsumi's lover, found during ordinary garden work. They did not know what they had until they began to research the name carved inside.";
+      }
+      const sects = ['an unnamed sect that foreclosed on the property','a cultivation school that purchased the land for expansion','a merchant family that had the garden cleared'];
+      return sects[yr % sects.length];
+    }
+    case 'scholar': {
+      const scholars = ['a librarian cataloguing a donated collection','a cultivation historian researching early-era texts','a young academic who almost shelved it again without reading further','an archivist cross-referencing technique lineages'];
+      return scholars[yr % scholars.length];
+    }
+    default:
+      return 'unknown party';
+  }
+}
+
+// Add relic context to system prompt so AI can reference them
+const _bspWithRelics = buildSystemPrompt;
+buildSystemPrompt = function() {
+  let prompt = _bspWithRelics();
+  try {
+    const w = GS.world;
+    if(!w.relicState) return prompt;
+
+    const foundRelics = Object.entries(DEEP_ERA_RELICS)
+      .filter(([key]) => w.relicState[key]?.found)
+      .map(([key, relic]) => {
+        const state = w.relicState[key];
+        return `• ${relic.name} (${relic.owner}): Found Year ${state.foundYear}. Currently held by ${state.holder}. ${relic.desc}`;
+      });
+
+    const undiscovered = Object.entries(DEEP_ERA_RELICS)
+      .filter(([key]) => !w.relicState[key]?.found && w.year >= DEEP_ERA_RELICS[key].activeFrom)
+      .map(([,r]) => `• ${r.name}: ${r.location_desc}`);
+
+    if(!foundRelics.length && !undiscovered.length) return prompt;
+
+    let section = '\n## FOUNDERS\' ERA RELICS (not in the tombs)\n';
+    if(foundRelics.length) section += `SURFACED:\n${foundRelics.join('\n')}\n`;
+    if(undiscovered.length) section += `UNRECOVERED (location known to lore but not to most people):\n${undiscovered.join('\n')}\n`;
+    section += '\nThese relics are real objects in the world. NPCs who study history or cultivation may know rumors of them. Only the specific holders know where the found ones actually are.\n';
+
+    prompt = prompt + section;
+  } catch(e) {}
+  return prompt;
+};
 
 // ================================================================
 // QI SYSTEM
