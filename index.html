@@ -4793,16 +4793,60 @@ function applyItemEffects(effects, sign) {
 }
 
 function useTome(itemId) {
-  const itm = GS.char.inventory.find(i => i.id === itemId);
+  const c   = GS.char;
+  const itm = c.inventory.find(i => i.id === itemId);
   if(!itm) return;
   if(!itm.isTome && itm.type !== 'tome') { toast('This is not a readable tome.', 'error', 2000); return; }
 
-  const name = itm.name || '';
-  const desc = itm.desc || '';
+  const name    = itm.name || '';
+  const desc    = itm.desc || '';
   const combined = (name + ' ' + desc).toLowerCase();
+  const isCultivationTome = /\b(technique|martial|cultivation.*method|secret.*art|qi.*method|qi.*path|breathing.*method|inner.*force)\b/i.test(combined);
+  const literacyLevel = c.skills?.literacy?.level || 0;
+  const qiStage       = c.qi?.stageIndex ?? c.qiStageIndex ?? 0; // 0 = mortal, no Qi
 
-  // ── 1. Explicit techUnlock ──────────────────────────────────────
-  if(itm.techUnlock) {
+  // ── Literacy gate ─────────────────────────────────────────────────
+  if(literacyLevel === 0) {
+    hideModal('modal-item');
+    appendNarrative(`You open ${name} and stare at the characters on the page. They mean nothing to you. Marks on material. You've seen people read — watched the way their eyes move across lines like they're following water — but nothing in your head translates what you're looking at into meaning. You can't read this.`);
+    return;
+  }
+
+  // ── Mortal gate for Qi-cultivation tomes ──────────────────────────
+  if(isCultivationTome && qiStage === 0) {
+    // Mark as studied without consuming
+    itm.studied = true;
+    itm.studyNote = 'The principles are written here. Without an open meridian, you can understand the theory but cannot execute any of it.';
+    hideModal('modal-item');
+    const literacyNote = literacyLevel < 3
+      ? 'Your reading is slow and effortful — many words you have to sound out, and technical cultivation vocabulary is mostly opaque to you. You understand perhaps a third of what is written.'
+      : 'You can read the text clearly enough.';
+    appendNarrative(`You open ${name} and work through it. ${literacyNote}\n\nThe text describes something that requires a foundation you don't have — open meridians, Qi circulation, a body that can hold and direct internal energy. The techniques described here are not metaphorical. They require cultivation as a prerequisite. You can understand what the author is saying. You cannot do any of it. Not yet. Perhaps not ever if you remain as you are.\n\nThe tome is still yours. The knowledge sits in it, waiting for a version of you that might be able to use it.`);
+    toast(`${name} — you understand the theory but lack the foundation to practice it.`, 'amber', 5000);
+    updateInventoryTab();
+    return;
+  }
+
+  // ── Literacy quality modifier ──────────────────────────────────────
+  let literacyContext = '';
+  if(literacyLevel === 1) {
+    literacyContext = `LITERACY LEVEL 1 (Bare): The character reads slowly and with effort. Common characters they know; technical or archaic vocabulary is largely opaque. They get the broad strokes but miss nuance and specific details. Complex technique tomes are very hard — they can't fully grasp what the author intends. Describe the struggle. They may misread something. They will need to re-read sections. The learning is partial at best.`;
+  } else if(literacyLevel === 2) {
+    literacyContext = `LITERACY LEVEL 2 (Functional): The character can read with moderate effort. They follow the main content but technical or archaic text slows them considerably. Some concepts in the tome may elude them — they get the core idea but not the refinements. Describe the partial comprehension.`;
+  } else if(literacyLevel >= 3 && literacyLevel < 5) {
+    literacyContext = `LITERACY LEVEL ${literacyLevel} (Competent): The character reads well. Technical vocabulary is manageable. They get most of what's in the text. Occasional archaic or highly specialized terms may require inference.`;
+  } else {
+    literacyContext = `LITERACY LEVEL ${literacyLevel} (Scholarly): The character reads fluently, including technical and archaic texts. Full comprehension.`;
+  }
+
+  // ── TOME STAYS IN INVENTORY until AI confirms learning ───────────
+  // Mark as studied — it won't disappear unless the AI sends consumeItem
+  itm.studied = true;
+  updateInventoryTab();
+  hideModal('modal-item');
+
+  // ── 1. Explicit techUnlock (immediate grant) ───────────────────────
+  if(itm.techUnlock && qiStage > 0) {
     grantTechnique({
       name: itm.techUnlock.name || name.replace(/\s*(tome|primer|manual|annotated|scroll|book)\s*/i,'').trim(),
       category: itm.techUnlock.category || 'elemental',
@@ -4810,67 +4854,96 @@ function useTome(itemId) {
       rarity: itm.rarity, desc: itm.desc,
       source: `Tome: ${name}`,
     });
-    GS.char.inventory = GS.char.inventory.filter(i => i.id !== itemId);
+    // Consume the tome now that a technique was granted
+    c.inventory = c.inventory.filter(i => i.id !== itemId);
     updateInventoryTab();
-    hideModal('modal-item');
-    sendToAI(`I read ${name} and absorb what it contains. [TOME LEARNING: The character reads this text. Describe the process of reading and what they learn — specific knowledge, not vague improvement. Time: several hours.]`);
+    sendToAI(`I read ${name} and absorb what it contains. [TOME LEARNING — SUCCESSFUL: The character reads this text and fully internalizes the technique. Describe the process of reading and what they learn — specific, not vague. ${literacyContext} Send consumeItem: "${itemId}" in your JSON to confirm the tome is used up. Time: several hours.]`);
     return;
   }
 
-  // ── 2. Skill detection from name/description ────────────────────
+  // ── 2. Skill detection from name/description ──────────────────────
   const SKILL_TOME_MAP = [
-    { re: /\b(alchemy|pill.*mak|herb.*refin|elixir)/i,    skill:'alchemy',        cat:'craftsman',   label:'Alchemy' },
-    { re: /\b(smith|blacksmith|metal.*work|forge.*craft)/i, skill:'smithing',      cat:'craftsman',   label:'Smithing' },
-    { re: /\b(medicine|physician|anatomy|surgery|healing.*art)/i, skill:'medicine', cat:'medical',    label:'Medicine' },
-    { re: /\b(law|legal|judicial|magistrate|court)/i,       skill:'law',           cat:'scholarly',   label:'Law' },
-    { re: /\b(literate|literacy|read.*write|calligraph)/i,  skill:'literacy',      cat:'scholarly',   label:'Literacy' },
-    { re: /\b(commerce|trade|merchant|accounting|economics)/i, skill:'commerce',   cat:'social',      label:'Commerce' },
-    { re: /\b(cook|culinary|cuisine|recipe)/i,              skill:'cooking',       cat:'craftsman',   label:'Cooking' },
-    { re: /\b(track|survival|wilderness|forest.*nav)/i,     skill:'tracking',      cat:'survival',    label:'Tracking' },
-    { re: /\b(formation|array.*theory|spirit.*formation)/i, skill:'alchemy',       cat:'craftsman',   label:'Formation Theory' },
-    { re: /\b(history|historian|ancient.*record)/i,         skill:'history',       cat:'scholarly',   label:'History' },
-    { re: /\b(philosophy|ethics|theology|scripture)/i,      skill:'philosophy',    cat:'scholarly',   label:'Philosophy' },
-    { re: /\b(stealth|concealment|shadow.*move)/i,          skill:'stealth',       cat:'misc',        label:'Stealth' },
-    { re: /\b(apprais|valuation|authentication|gem.*eval)/i,skill:'appraisal',    cat:'social',      label:'Appraisal' },
-    { re: /\b(deception|persuasion|social.*manipul)/i,      skill:'deception',     cat:'social',      label:'Deception' },
+    { re: /\b(alchemy|pill.*mak|herb.*refin|elixir)/i,    skill:'alchemy',    cat:'craftsman',  label:'Alchemy' },
+    { re: /\b(smith|blacksmith|metal.*work|forge.*craft)/i, skill:'smithing',  cat:'craftsman',  label:'Smithing' },
+    { re: /\b(medicine|physician|anatomy|surgery|healing.*art)/i, skill:'medicine', cat:'medical', label:'Medicine' },
+    { re: /\b(law|legal|judicial|magistrate|court)/i,      skill:'law',        cat:'scholarly',  label:'Law' },
+    { re: /\b(literate|literacy|read.*write|calligraph)/i, skill:'literacy',   cat:'scholarly',  label:'Literacy' },
+    { re: /\b(commerce|trade|merchant|accounting|economics)/i, skill:'commerce', cat:'social',   label:'Commerce' },
+    { re: /\b(cook|culinary|cuisine|recipe)/i,             skill:'cooking',    cat:'craftsman',  label:'Cooking' },
+    { re: /\b(track|survival|wilderness|forest.*nav)/i,    skill:'tracking',   cat:'survival',   label:'Tracking' },
+    { re: /\b(formation|array.*theory|spirit.*formation)/i,skill:'formation_theory', cat:'craftsman', label:'Formation Theory' },
+    { re: /\b(history|historian|ancient.*record)/i,        skill:'history',    cat:'scholarly',  label:'History' },
+    { re: /\b(philosophy|ethics|theology|scripture)/i,     skill:'philosophy', cat:'scholarly',  label:'Philosophy' },
+    { re: /\b(stealth|concealment|shadow.*move)/i,         skill:'stealth',    cat:'misc',       label:'Stealth' },
+    { re: /\b(apprais|valuation|authentication|gem.*eval)/i, skill:'appraisal', cat:'social',   label:'Appraisal' },
+    { re: /\b(deception|persuasion|social.*manipul)/i,     skill:'deception',  cat:'social',     label:'Deception' },
     { re: /\b(meditation|breathwork|qi.*theory|cultivation.*found)/i, skill:'meditation', cat:'cultivation', label:'Meditation' },
+    { re: /\b(poison|toxicology|venom)/i,                  skill:'poison_knowledge', cat:'medical', label:'Poison Knowledge' },
+    { re: /\b(weapon.*craft|sword.*make|blade.*smith)/i,   skill:'weapon_crafting', cat:'craftsman', label:'Weapon Crafting' },
+    { re: /\b(map|cartograph|navigation|geography)/i,      skill:'cartography', cat:'scholarly', label:'Cartography' },
   ];
 
   let grantedSkill = null;
-  for(const { re, skill, cat, label } of SKILL_TOME_MAP) {
-    if(re.test(combined)) {
-      const existing = GS.char.skills[skill];
-      if(!existing) {
-        GS.char.skills[skill] = { label, category:cat, level:1, xp:0, firstUsed:`Year ${GS.world.year}`, desc:`Learned from ${name}.` };
-        grantedSkill = { skill, label };
-      } else if(existing.level < 10) {
-        existing.level = Math.min(existing.level + 1, 10);
-        existing.xp = 0;
-        grantedSkill = { skill, label, leveled:true };
+  // Only grant skill if literacy is high enough to actually comprehend it
+  if(literacyLevel >= 2) {
+    for(const { re, skill, cat, label } of SKILL_TOME_MAP) {
+      if(re.test(combined)) {
+        const existing = c.skills[skill];
+        // Low literacy gives diminished benefit
+        const levelGain = literacyLevel >= 3 ? 1 : 0; // level 1-2 literacy: understand but don't gain the skill level yet
+        if(!existing) {
+          c.skills[skill] = { label, category:cat, level:Math.max(1, levelGain), xp:0,
+            firstUsed:`Year ${GS.world.year}`, desc:`Learned from ${name}.` };
+          grantedSkill = { skill, label, partial: levelGain === 0 };
+        } else if(existing.level < 10 && literacyLevel >= 3) {
+          existing.level = Math.min(existing.level + 1, 10);
+          existing.xp = 0;
+          grantedSkill = { skill, label, leveled:true };
+        }
+        break;
       }
-      break;
     }
   }
 
-  // ── 3. Technique detection from name ────────────────────────────
-  const isTechniqueTome = /\b(technique|martial|cultivation.*method|secret.*art|qi.*method)\b/i.test(combined);
+  // ── 3. Build the AI prompt ─────────────────────────────────────────
+  const studiedBefore = itm._priorStudy;
+  itm._priorStudy = true; // track repeat readings
 
-  // Remove tome and send to AI to narrate the learning
-  GS.char.inventory = GS.char.inventory.filter(i => i.id !== itemId);
-  updateInventoryTab();
-  hideModal('modal-item');
-
-  if(grantedSkill) {
-    const skillNote = grantedSkill.leveled
-      ? `The character's ${grantedSkill.label} skill deepens — they read something that fills a gap they had.`
-      : `The character gains foundational knowledge in ${grantedSkill.label} from this text.`;
-    toast(`${grantedSkill.label} ${grantedSkill.leveled ? 'improved' : 'learned'} from ${name}`, 'gold', 4000);
-    sendToAI(`I spend time reading "${name}". [READING: ${skillNote} ${desc?.slice(0,120)||''} Describe the reading experience — what specifically the character discovers or understands, how long it takes, what changes. Time: 2-6 hours depending on complexity.]`);
-  } else if(isTechniqueTome) {
-    sendToAI(`I study "${name}" carefully. [TECHNIQUE TOME: This text describes a technique or cultivation method. The character reads it through. Whether they can LEARN the technique depends on their current stage, path, and whether they have a foundation for it. If they can learn it, grant a technique via "newTechniques". If they can't yet, they understand the principles but can't execute — describe what they learn and what's still beyond them. This is not automatic success. Time: several hours to days of study.]`);
+  let aiMsg;
+  if(isCultivationTome) {
+    const stageEnough = qiStage >= 1;
+    aiMsg = `I study "${name}" carefully. [TECHNIQUE TOME — ${stageEnough ? 'CULTIVATION CAPABLE' : 'MORTAL — NO QI'}:
+${literacyContext}
+${stageEnough
+  ? `The character has a cultivation foundation (Qi Stage ${qiStage}). Whether they can LEARN this specific technique depends on: their current stage vs. the technique's requirements, their Qi path compatibility, and whether they have the prerequisite understanding. If the technique is learnable: grant it via "newTechniques" AND send "consumeItem": "${itemId}" to remove the tome. If NOT learnable yet: describe what they understand and what's still beyond them. Do NOT grant the technique AND do NOT send consumeItem — the tome stays. "Consult a master" is a valid outcome.`
+  : `This character has NO Qi cultivation. They understand the theory but cannot execute any of it. Do NOT grant any technique. Do NOT send consumeItem — the tome stays for when they may cultivate later.`}
+${studiedBefore ? 'They have read this tome before and remember the content. This is a re-study session.' : ''}
+Time: several hours to days of study.]`;
+  } else if(grantedSkill) {
+    const skillNote = grantedSkill.partial
+      ? `The character begins to grasp the concepts in ${grantedSkill.label} but their reading is not strong enough to fully absorb it yet.`
+      : grantedSkill.leveled
+      ? `The character's ${grantedSkill.label} skill deepens — this text fills a gap they had.`
+      : `The character gains foundational knowledge in ${grantedSkill.label}.`;
+    toast(`${grantedSkill.label} ${grantedSkill.partial ? 'partially grasped' : grantedSkill.leveled ? 'improved' : 'learned'} from ${name}`, 'gold', 4000);
+    // Skill tomes are consumed on first successful read
+    if(!grantedSkill.partial) {
+      c.inventory = c.inventory.filter(i => i.id !== itemId);
+      updateInventoryTab();
+    }
+    aiMsg = `I spend time reading "${name}". [READING: ${skillNote} ${literacyContext} ${desc?.slice(0,120)||''} Describe the reading experience specifically. Time: 2-6 hours.]`;
   } else {
-    sendToAI(`I read "${name}". [READING SESSION: ${desc?.slice(0,100)||'A text of some kind.'} The character spends time with this. Describe what they gain from it — insight, specific knowledge, a changed perspective. Even a general text teaches something. Time: 1-3 hours.]`);
+    aiMsg = `I read "${name}". [READING SESSION: ${desc?.slice(0,100)||'A text.'} ${literacyContext}${studiedBefore ? ' This is a re-read — the character remembers the first time.' : ''} Describe what they take from it. The tome remains in their possession. Time: 1-3 hours.]`;
   }
+
+  sendToAI(aiMsg);
+}
+
+// Called from applyAIResponse when AI confirms a tome was consumed (learning succeeded)
+function consumeTomeById(itemId) {
+  const before = GS.char.inventory.length;
+  GS.char.inventory = GS.char.inventory.filter(i => i.id !== itemId);
+  if(GS.char.inventory.length < before) updateInventoryTab();
 }
 
 // ================================================================
@@ -6583,7 +6656,30 @@ function openItemModal(itemId, isEquipped) {
           Effects when equipped: ${Object.entries(item.effects).map(([k,v])=>`<span style="color:${v>0?'var(--green)':'var(--red)'}">${k} ${v>0?'+':''}${v}</span>`).join(' · ')}
          </div>`
       : ''}
-    ${item.isTome || item.type==='tome' ? '<div class="text-xs" style="margin-top:6px;color:#aa88ff">📜 Tome — reading it may grant a technique or knowledge.</div>' : ''}
+    ${(() => {
+      if(!(item.isTome || item.type==='tome')) return '';
+      const c = GS.char;
+      const litLevel = c.skills?.literacy?.level || 0;
+      const qiStage  = c.qi?.stageIndex ?? c.qiStageIndex ?? 0;
+      const isCultTome = /\b(technique|martial|cultivation.*method|secret.*art|qi.*method|qi.*path|breathing.*method|inner.*force)\b/i.test((item.name||'') + ' ' + (item.desc||''));
+
+      let statusLine = '';
+      if(litLevel === 0) {
+        statusLine = `<div style="margin-top:6px;padding:6px 10px;background:rgba(180,60,60,.15);border:1px solid #aa3333;border-radius:5px;font-size:11px;color:#cc7777">⚠ You cannot read. Without literacy, this tome is marks on material.</div>`;
+      } else if(isCultTome && qiStage === 0) {
+        statusLine = `<div style="margin-top:6px;padding:6px 10px;background:rgba(100,80,20,.2);border:1px solid #887722;border-radius:5px;font-size:11px;color:#ccaa44">
+          ${item.studied ? '📖 Previously studied.' : '📜 Cultivation tome.'} You have no Qi foundation — you can read the theory but cannot execute any of it. <strong>Open your meridians first.</strong>
+        </div>`;
+      } else if(item.studied) {
+        statusLine = `<div style="margin-top:6px;padding:6px 10px;background:rgba(80,60,120,.2);border:1px solid #664488;border-radius:5px;font-size:11px;color:#aa88cc">
+          📖 Previously studied. ${item.studyNote || 'You understand parts of it. Consulting a master or further training may unlock the rest.'}
+        </div>`;
+      } else {
+        const litWarn = litLevel < 3 ? `<br><span style="color:#ccaa44">⚠ Low literacy (Lv ${litLevel}) — comprehension will be limited.</span>` : '';
+        statusLine = `<div style="margin-top:6px;font-size:11px;color:#aa88ff">📜 Tome — reading it may grant a technique or knowledge.${litWarn}</div>`;
+      }
+      return statusLine;
+    })()}
     ${item.type==='consumable' ? '<div class="text-xs" style="margin-top:6px;color:var(--teal)">💊 Consumable — using it applies effects and triggers a narrative.</div>' : ''}`;
 
   // Buttons — visibility driven by item state, not onclick
@@ -6592,9 +6688,20 @@ function openItemModal(itemId, isEquipped) {
 
   const useBtn = document.getElementById('item-use-btn');
   if(useBtn) {
-    const showUse = item.isTome || item.type === 'tome' || item.type === 'consumable';
+    const isTomeItem  = item.isTome || item.type === 'tome';
+    const showUse     = isTomeItem || item.type === 'consumable';
+    const litLevel    = GS.char.skills?.literacy?.level || 0;
+    const canRead     = !isTomeItem || litLevel > 0;
     useBtn.classList.toggle('hidden', !showUse);
-    useBtn.textContent = item.type === 'consumable' ? 'Consume' : 'Read';
+    if(item.type === 'consumable') {
+      useBtn.textContent = 'Consume';
+    } else if(isTomeItem && item.studied) {
+      useBtn.textContent = 'Study Again';
+    } else {
+      useBtn.textContent = 'Read';
+    }
+    useBtn.disabled = !canRead;
+    useBtn.title    = canRead ? '' : 'You cannot read — no literacy skill.';
     // Don't set onclick here — the addEventListener in initAdmin handles routing
   }
 
@@ -6949,10 +7056,14 @@ PART 2 — DATA (immediately after the narrative, on its own line):
   "prisonStatus": null,
   "bounty": 0,
   "death": false,
-  "deathCause": null
+  "deathCause": null,
+  "consumeItem": null
 }
 \`\`\`
-CRITICAL: The narrative is NEVER inside the JSON. The JSON block has NO "narrative" field — the prose above is the narrative. Only include JSON fields that actually changed. Omit unchanged/zero/empty fields entirely.`;
+CRITICAL: The narrative is NEVER inside the JSON. The JSON block has NO "narrative" field — the prose above is the narrative. Only include JSON fields that actually changed. Omit unchanged/zero/empty fields entirely.
+
+TOME RULE — consumeItem:
+When the player reads a cultivation or technique tome, the tome stays in their inventory unless they SUCCESSFULLY learn a technique from it. If and only if you grant a technique via "newTechniques" from a tome reading, also send "consumeItem": "<the item's id>" to remove the tome. If the character can't learn yet (too early in cultivation, needs a master, needs more training), do NOT send consumeItem — the tome stays. A mortal with no Qi cultivation cannot learn any Qi technique from a tome regardless of what it says.`;
 }
 
 // ================================================================
@@ -9268,11 +9379,12 @@ The JSON carries ONLY state changes. There is NO "narrative" field in the JSON �
   "raceChange": null,
   "death": false,
   "deathCause": null,
-  "death": false,
-  "deathCause": null
+  "consumeItem": null
 }
 \`\`\`
-Omit any field that doesn't change. Zero values and empty arrays are noise — leave them out. NEVER put the narrative inside the JSON.`;
+Omit any field that doesn't change. Zero values and empty arrays are noise — leave them out. NEVER put the narrative inside the JSON.
+
+TOME RULE — consumeItem: Only send this when a technique is successfully learned from a physical tome (paired with newTechniques). If the character cannot yet learn (mortal, wrong stage, needs a master), do NOT send consumeItem — the tome stays in their inventory.`;
 }
 
 // ================================================================
@@ -9417,6 +9529,17 @@ function applyAIResponse(res) {
 
   // Race change
   if(res.raceChange) setRace(res.raceChange);
+
+  // Consume a tome — AI sends this when a technique was successfully learned from a physical tome
+  // This is the ONLY way a tome gets removed from inventory (the useTome function no longer does it upfront)
+  if(res.consumeItem) {
+    const id = res.consumeItem;
+    const before = GS.char.inventory.length;
+    GS.char.inventory = GS.char.inventory.filter(i => i.id !== id);
+    if(GS.char.inventory.length < before) {
+      updateInventoryTab();
+    }
+  }
 
   // NPC timeline events — AI can add new life events to an NPC's history as they're revealed
   if(res.npcTimelineUpdate?.length) {
