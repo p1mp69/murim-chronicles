@@ -4951,20 +4951,20 @@ const TOMB_TRIGGERS = {
         id: 'takehiko_takao',
         name: 'Takehiko Takao',
         birthYear: 815,
-        activeFrom: 840,  // has been farming Ooina for years
+        activeFrom: 840,
         activeTo: 900,
-        chancePerYear: 0.15, // 15% — he knows where it is, just hasn't gone in
-        description: 'Takehiko Takao, who has farmed in Ooina forest his entire life, one day walks to the entrance he has always known about and goes in. No dramatic reason — he was just ready.',
+        chancePerYear: 0.15,
+        description: "Takehiko Takao walks to the entrance he has always known about and asks honestly to go in. Yuluh is present. Takehiko doesn't fight. He has no pretense, no ambition, and almost no misery — not interesting prey for Yuluh. Curiosity, more than anything else, is why Yuluh steps aside.",
         outcome: 'takehiko_enters_ichiro',
       },
       {
         id: 'yuuta_hajime',
         name: 'Yuuta Hajime',
         birthYear: 825,
-        activeFrom: 848,  // adult, has retreated to Ooina
+        activeFrom: 848,
         activeTo: 910,
-        chancePerYear: 0.11, // 11% — drawn to it by his Yokai nature and grief
-        description: 'Yuuta Hajime, half-yokai and raised in the forest after leaving human settlements, feels the pull of something ancient in Ooina. He follows it.',
+        chancePerYear: 0.11,
+        description: "Yuuta Hajime reaches the root of the great cedar. Yuluh is waiting. He cannot fight Yuluh — no one can. But Yuluh calculates what Yuuta's path will produce: decades of war between Yokai and humanity, misery in both directions. Yuluh steps aside. Not for the Yokai cause. For what the conflict will feed him.",
         outcome: 'yuuta_enters_ichiro',
       },
     ],
@@ -5035,11 +5035,11 @@ function applyTombTriggerOutcome(outcome, trigger, yr) {
       w.activeWorldEvents.push({ id:'kalozi_preparation', name:'Kalozi Empire Stirs', desc:'Across the sea, an empire that has never encountered Murim is now aware of it. The preparation is long. The arrival will not be subtle.', year:yr });
       break;
     case 'takehiko_enters_ichiro':
-      w.worldHistory.push(`Year ${yr}: Takehiko Takao, a farmer who has lived in Ooina his entire life, walks into Ichiro's tomb for the first time. He says he was just ready. The forest accepts him completely. What he brings out belongs to the forest as much as to him.`);
+      w.worldHistory.push(`Year ${yr}: Takehiko Takao walks to the entrance of Ichiro's tomb and asks honestly to enter. Yuluh is present. Takehiko does not fight, does not bargain. He simply asks. Yuluh — who feeds on misery and finds almost none in this man — steps aside. Out of curiosity, not respect. Takehiko enters. What he brings out belongs to the forest as much as to him.`);
       break;
     case 'yuuta_enters_ichiro':
-      w.worldHistory.push(`Year ${yr}: Yuuta Hajime enters Ichiro's tomb. He emerges as the declared voice of every Yokai in Ooina. The Purge is coming — not genocide but a systematic demand for recognition, territory, and sovereignty backed by the full power of the Yokai nation.`);
-      w.activeWorldEvents.push({ id:'yokai_purge_begins', name:'The Purge Declared', desc:'Yuuta Hajime speaks for the Yokai. Humanity and the Yokai world are in open conflict. The largest war between the natural and human worlds in recorded history has begun.', year:yr });
+      w.worldHistory.push(`Year ${yr}: Yuuta Hajime reaches the root of Ichiro's tomb. Yuluh is there. Yuuta cannot fight Yuluh — nobody can. But Yuluh does not stop him. Yuluh has calculated what Yuuta's path produces: years of conflict between Yokai and humanity, suffering in both directions. He steps aside to let the suffering happen. Yuuta enters the tomb and emerges as the declared voice of every Yokai in Ooina and beyond.`);
+      w.activeWorldEvents.push({ id:'yokai_purge_begins', name:'The Purge Declared', desc:'Yuuta Hajime speaks for the Yokai. Yuluh let him through because the war feeds him. Humanity and the Yokai world are in open conflict.', year:yr });
       break;
   }
 }
@@ -25331,15 +25331,16 @@ Object.assign(LORE_NPCS, {
   // ICHIRO'S TOMB
   takehiko_takao: {
     id:'takehiko_takao', name:'Takehiko Takao',
-    title:'The Farmer in the Forest — The First Who Could Actually Go In',
+    title:'The Farmer in the Forest — The One Yuluh Let Through',
     gender:'male', alive:true,
     birthNote:'A farmer who lives inside Ooina forest. He has lived there his entire life. The forest does not harm him because he does not try to take from it, only tend it. He knows every path in his section of Ooina. He knows where the tomb entrance is. He has always known.',
     glowColor:'rgba(180,220,160,0.2)', specialGlow:'lore',
     stats:{ strength:68, agility:55, endurance:80, intelligence:70, perception:85, willpower:75, charisma:60, luck:78 },
     qiStageIndex:1, qiPath:'beast',
-    personality:'Quiet. Extremely patient. Has been farming the same section of Ooina forest for thirty years. Has watched cultivators attempt to breach Ichiro\'s tomb from a polite distance and has opinions about their methods that he keeps to himself. He has never attempted entry. He does not need to — everything he needs is above ground. If circumstances bring him inside, his relationship with the forest and his minimal ego makes him the only person who has ever entered Ooina\'s depths and not been destroyed by what it recognizes in them.',
+    personality:'Quiet. Extremely patient. Has farmed the same section of Ooina for thirty years. Has watched cultivators attempt to breach Ichiro\'s tomb from a distance and has opinions about their methods he keeps to himself. He has never tried to enter. He does not need to — everything he needs is above ground. When he finally walks to the entrance and asks to go in, Yuluh is present. Takehiko does not fight. He does not bargain. He asks honestly. Yuluh feeds on misery. Takehiko has almost none — he is one of the least miserable people the ancient serpent has ever encountered. Not interesting prey. Not a challenge. Just a man with no pretense who wants to see something. Yuluh has watched thousands of cultivators die trying to force their way in. He has never seen someone simply ask. He lets Takehiko through. Not out of respect. Out of something closer to curiosity.',
     isLore:true,
     special:true,
+    yuluHPassage: 'Takehiko does not fight Yuluh. He asks honestly. Yuluh has never encountered someone with so little misery — not interesting prey. Curiosity is the closest thing to why he lets Takehiko through.',
   },
 
   yuuta_hajime: {
@@ -25350,9 +25351,10 @@ Object.assign(LORE_NPCS, {
     glowColor:'rgba(180,100,180,0.2)', specialGlow:'lore',
     stats:{ strength:85, agility:92, endurance:80, intelligence:78, perception:95, willpower:88, charisma:72, luck:60 },
     qiStageIndex:6, qiPath:'beast',
-    personality:'Yuuta Hajime does not hate humans as individuals. He has watched what they do collectively and drawn a conclusion from the pattern. Yokai, he has observed, are not systematically cruel — they can be dangerous, territorial, unpredictable, but not systematically cruel the way human institutions are. His belief: humanity is the problem, not individual humans. If he finds Ichiro\'s tomb, he will become the declared spokesperson for Yokai across the known world. The Purge will follow — not genocide, but a systematic demand for recognition, territory, and sovereignty backed by the full weight of every Yokai in Ooina and beyond. It will be the largest conflict between the natural and human worlds in recorded history.',
+    personality:'Yuuta Hajime does not hate humans as individuals. He has watched what they do collectively and drawn a conclusion from the pattern. Yokai are not systematically cruel — dangerous, territorial, unpredictable, but not systematically cruel the way human institutions are. His conclusion: humanity is the problem, not individual humans. When he reaches the root of the great cedar, Yuluh is waiting. Yuuta cannot fight Yuluh. Nobody can fight Yuluh. But Yuluh feeds on misery — and what Yuuta is about to do, if he gets through, will generate more suffering than anything since the Buo-Luo-Tin War. The conflict between Yokai and humanity will produce casualties in both directions for decades. Yuluh calculates this in the time it takes Yuuta to say why he is there. Then he moves aside. Not out of sympathy for the Yokai cause. Out of appetite. Yuluh lets Yuuta through because Yuuta\'s path feeds him.',
     isLore:true,
     special:true,
+    yuluHPassage: 'Yuluh makes a deal — not in words, but in action. He steps aside because the war Yuuta will start feeds Yuluh directly. Yuluh does not care about Yokai rights. He cares about the misery the conflict will produce. He moves.',
   },
 
 });
