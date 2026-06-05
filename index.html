@@ -5735,6 +5735,13 @@ function assignNPCReligion(location, alignment) {
   if(yr >= 400 && ['red_sand_city','buo_capital','mistveil','ooina','beggars_rest'].includes(location)) {
     relWeights.push(['yaqism', 20]);
   }
+  // Yumijiyū — strong in eastern/forest regions and Nao Confederacy (Miyu Nao's Path resonated)
+  if(yr >= 30 && ['ooina','wild_bloom','mistveil','wheat_capital','verdant_gate','embercross','naos_reach'].includes(location)) {
+    relWeights.push(['yumijiyū', 30]);
+  }
+  if(yr >= 30 && ['beggars_rest','tazar','ironhaven','silverwake'].includes(location)) {
+    relWeights.push(['yumijiyū', 12]);
+  }
 
   if(!relWeights.length) return null;
   const totalW = relWeights.reduce((s,[,w]) => s+w, 0);
@@ -12719,7 +12726,7 @@ function buildEraCard(yr) {
   else if(yr <= 100)  { eraName = 'The Settling Era'; tagline = 'Three generations of cultivation exist. Schools have history. The founders are living legends.'; }
   else if(yr <= 115)  { eraName = 'The Mature Founders\' Era'; tagline = 'The world Qi built is functioning. For now.'; }
   else if(yr <= 129)  { eraName = 'The Final Founders\' Era'; tagline = 'Ichiro has already decided. Reo does not know yet.'; eraColor = '#aa8830'; }
-  else if(yr === 130) { eraName = 'The Year Ichiro Chose'; tagline = 'The first founder dies by his own design. The Katsumi Seal is set.'; eraColor = '#8a6820'; }
+  else if(yr === 130) { eraName = 'The Year Ichiro Chose'; tagline = 'The first founder dies. The circumstances are his own. The world will not know the full truth for a long time.'; eraColor = '#8a6820'; }
   else if(yr <= 133)  { eraName = 'After Ichiro'; tagline = 'One founder gone. The world adjusts. Reo does not.'; eraColor = '#7a5810'; }
   else if(yr <= 138)  { eraName = 'The Warlord\'s Rise'; tagline = 'Láng is building. Nobody who should be watching is watching.'; eraColor = '#8a4420'; }
   else if(yr <= 143)  { eraName = 'The Prewar Years'; tagline = 'Raids. Contracts. The language of war before war is declared.'; eraColor = '#8a3320'; }
@@ -12768,7 +12775,7 @@ function buildEraCard(yr) {
       : 'Has made his decision. Already working on the Katsumi Seal. Reo doesn\'t know.';
     figureLines.push(`<span class="era-alive">Ichiro Katsumi</span> — Father of Water, Earth, Spear & Space. ${ichiroNote}`);
   } else {
-    figureLines.push(`<span class="era-dead">Ichiro Katsumi</span> — Died Year 130 by choice. Left a death-curse on Reo threaded through their shared bond. His tomb spans thousands of miles under the great cedar in Ooina.`);
+    figureLines.push(`<span class="era-dead">Ichiro Katsumi</span> — Died Year 130. The circumstances are debated. His tomb spans thousands of miles under the great cedar in Ooina. It has never been fully entered.`);
   }
   if(reoAlive) {
     const reoNote = yr <= 100
@@ -12782,7 +12789,7 @@ function buildEraCard(yr) {
       : 'Final year. The curse completes this year. Tazar\'s corruption accelerates within weeks of his death.';
     figureLines.push(`<span class="era-alive">Reo Yamamoto</span> — Father of Speed, Lightning, Light & Time. ${reoNote}`);
   } else {
-    figureLines.push(`<span class="era-dead">Reo Yamamoto</span> — Died Year 150. Not of age — Ichiro\'s death-curse made his body fail from the foundation. His tomb is heavily trapped. Holds G\'S\\shock, a red watch that stops time.`);
+    figureLines.push(`<span class="era-dead">Reo Yamamoto</span> — Died Year 150. The official explanation is age. His tomb is heavily trapped. What it contains is unknown to most — and those who have guessed are mostly wrong.`);
   }
   if(langAlive) {
     const langNote = yr <= 120
@@ -12928,7 +12935,7 @@ function buildEraCard(yr) {
   if(DRANOEL_YEARS.includes(yr))specials.push(`<span style="color:#cc8800">✦ Dranoel Spawn Year</span> — Dranoel of Greed walks the world this year. Wealth concentrates unnaturally. Resources vanish from areas he passes through.`);
   if(NORMAC_YEARS.includes(yr)) specials.push(`<span style="color:#aa66dd">✦ Normac Spawn Year</span> — Normac of Sloth is present this year. His physical presence generates crushing pressure. Soldiers have historically routed rather than engage.`);
   if(yr === 130) specials.push(`<span class="era-dead">⚠ Ichiro dies this year.</span> If you are born early in Year 130, he may still be alive when your story begins. His death changes the cultivation world permanently.`);
-  if(yr === 150) specials.push(`<span class="era-dead">⚠ Reo dies this year.</span> Ichiro's death-curse completes. Tazar begins its collapse within weeks. The era of the founders officially ends.`);
+  if(yr === 150) specials.push(`<span class="era-dead">⚠ Reo dies this year.</span> The official story is age. Tazar begins its collapse within weeks. The era of the founders officially ends.`);
   if(yr === 154) specials.push(`<span class="era-war">⚠ Láng dies this year.</span> Overdose on Qi pills. The war loses its driving force. Everything reorganizes around his absence.`);
   if(yr >= 134 && yr <= 149)  specials.push(`<span class="era-war">You grow up in wartime.</span> The Buo-Luo-Tin War shapes everything about your early world — prices, borders, who lives where, who doesn't come back.`);
   if(yr >= 375 && yr <= 395)  specials.push(`<span style="color:#c4883a">✦ Yaqism Era</span> — D'la (formerly Enmul) is active in the Red Sand City region this decade. Three followers. Hammurabi's forces are searching for him. The religion that will outlast all of them is being born.`);
@@ -25067,6 +25074,132 @@ if(LORE_NPCS.normac_sloth) {
   }
 }
 
+// ================================================================
+// YUMIKO OHAKA — Location + Yumiko LORE_NPC
+// ================================================================
+Object.assign(LOCATIONS, {
+  yumiko_ohaka: {
+    name:'Yumiko Ohaka', kingdom:'azure_empire', type:'religious_city', spawnable:true, founded:30,
+    desc:'The final resting place of Yumiko and the gathering heart of Yumijiyū. Not a temple — a living city divided into four sectors: the farmland and animal grounds, the urban district, the religious sector (open to all faiths), and the entertainment district. It smells of lantern oil and food stalls from half a mile out.',
+    history:[
+      { era:'Year 30–100', label:'The First Ohaka', desc:'Yumiko dies and those who followed her stay. The farmland is rich. The atmosphere is difficult to describe to someone who has not experienced it. Early visitors report feeling, unexpectedly, like they are in the right place.' },
+      { era:'Year 100–300', label:'The Growing Ohaka', desc:'The four-sector structure formalizes. The entertainment district becomes one of the most genuinely joyful places in the known world during festival seasons. The religious sector hosts practitioners of every faith — a rare political neutral zone.' },
+      { era:'Year 300+', label:'Yumiko Ohaka Established', desc:'A permanent city by any measure. The Yumiko Obon three-day festival draws visitors from every kingdom. The Pathway economy within the Ohaka walls continues to confound outside economists. The rice fields adjacent to the main grounds are described in cultivation texts as unusually Qi-rich.' },
+    ],
+  },
+});
+KINGDOMS.azure_empire.locations.push('yumiko_ohaka');
+
+// Yumiko — LORE_NPC
+Object.assign(LORE_NPCS, {
+  yumiko: {
+    id:'yumiko', name:'Yumiko',
+    title:'Child of the Bow — God of Yumijiyū',
+    gender:'female', alive:false, birthYear:-40, deathYear:30,
+    birthNote:'Born as an ordinary kitsune, before Year 1. Cultivator. Former servant of the Rice God of the East. Freed by Ichiro Katsumi\'s intervention. Traveled for a decade before settling at what became Yumiko Ohaka.',
+    affinity:['bow','wind','light','life'],
+    glowColor:'rgba(180,220,255,0.2)', specialGlow:'lore',
+    stats:{ strength:70, agility:99, endurance:88, intelligence:82, perception:95, willpower:92, charisma:96, luck:88 },
+    qiStageIndex:7, qiPath:'beast',
+    appearance:'Long white hair. Fluffy white fox ears. Three white tails with glowing blue accents. Around average height. Pink kimono with yellow accents. Carries her bow and a large hammer — the hammer surprises people the first time they see it, which she considers the point. She smiles constantly. The smile is genuine.',
+    personality:'Yumiko was joyful in a way that was not naive. She had been property. She knew what it cost to be free and she gave that cost freely to others. She did not preach. She demonstrated. Her bow practice was play before it was religion. Her teaching was laughter before it was doctrine. She stopped wars by standing in front of them and shooting arrows at the sky in patterns that made people stop and watch. She fed the hungry because she was hungry once. She died peacefully, which her followers consider her final teaching: it does not have to be harder than it needs to be.',
+    isLore:true,
+    special:true,
+    lifeTimeline:[
+      { year:-40, event:'Born as a kitsune in the eastern territories, eventually bound into service tending rice fields for the man called the Rice God of the East — a wealthy cultivator who purchased children and spirits alike. Her Qi is suppressed by contract and circumstance.' },
+      { year:12,  event:'Ichiro Katsumi passes through the Rice God\'s territories. What passes between him and Yumiko is not fully recorded. She is given something — knowledge, technique, or simply the clarity to see her own strength. She leaves.' },
+      { year:12,  event:'Banished for "corrupting the discipline of the bow." She considers this accurate and accurate is not a bad thing. Begins walking east, practicing her bow not as training but as playing.' },
+      { year:13,  event:'Other kitsune follow. Then humans. Her bow style spreads — not because she teaches it formally but because people watch her and want to do what she is doing. She is having too much fun for anyone nearby to stay serious.' },
+      { year:15,  event:'Stops a border skirmish by firing seven arrows into the sky in a specific pattern. Neither side can explain why they stopped. Both sides eat together afterward. This is how most of her interventions work — not force, but redirection of attention toward something better.' },
+      { year:22,  event:'Arrives at the place that will become Yumiko Ohaka. Says it feels like arriving. Stays. The community that forms around her is not founded — it simply grows, the way things grow near warmth.' },
+      { year:30,  event:'Dies peacefully at Yumiko Ohaka. Her final words: "The path does not end when I do. That was never the point." The Obon festival begins within the month. The religion formalizes not around her commandments but around her example.' },
+    ],
+  },
+
+  // ── TOMB TRIGGER CHARACTERS ──────────────────────────────────────
+
+  // REO'S TOMB
+  rin_shizuka: {
+    id:'rin_shizuka', name:'Rin Shizuka',
+    title:'The Youngest — The One Reo\'s Soul Recognized',
+    gender:'female', alive:true,
+    birthNote:'An orphan girl, age six. She does not know about Reo\'s tomb. She does not know about cultivation theory or historical significance. She knows how to survive in a city that does not care about her.',
+    glowColor:'rgba(255,255,200,0.2)', specialGlow:'lore',
+    stats:{ strength:8, agility:14, endurance:10, intelligence:22, perception:28, willpower:20, charisma:18, luck:95 },
+    qiStageIndex:0, qiPath:null,
+    personality:'Six years old. Observant to a degree that adults find unsettling. Asks questions that should not occur to someone her age. Does not cry easily. Has survived things that should have broken her and appears not to have noticed they were supposed to. Reo Yamamoto\'s residual consciousness, deep in the tomb, stirs when she enters. Something in her ideological structure — her instinctive understanding of what makes things work — resonates with his. If she finds the tomb, she will leave it the youngest prodigy in recorded cultivation history. She will also leave changed in ways she cannot yet articulate.',
+    isLore:true,
+    special:true,
+  },
+
+  misao_rokuro: {
+    id:'misao_rokuro', name:'Misao Rokurō',
+    title:'Descendant of the Failed Explorer — The One Who Revived Reo',
+    gender:'male', alive:true,
+    birthNote:'Descendant of Rokurō Kentarō, the explorer who found Normac\'s cave and caused the destruction of five thousand soldiers in Year 535. The family name has carried that failure for generations. Misao Rokurō has spent his adult life trying to restore it.',
+    glowColor:'rgba(255,200,100,0.2)', specialGlow:'lore',
+    stats:{ strength:72, agility:68, endurance:75, intelligence:88, perception:82, willpower:95, charisma:70, luck:55 },
+    qiStageIndex:6, qiPath:'righteous',
+    personality:'Determined in a way that has calcified into something close to obsession. He came to Reo\'s tomb not to take from it but to give something to it — specifically, himself. He had studied enough to know that revival of the long-dead required exchange of extraordinary value. He gave his right arm and his right eye, infused both with every Qi he had, and forced them into the tomb\'s core. The world is a system of give and take. He gave enough. Reo Yamamoto\'s consciousness stirs. The revival begins. If this path completes: Reo returns, Tazar undergoes a second founding, and Misao Rokurō becomes Reo\'s student and his only peer advisor. None above them in Azure except Reo himself.',
+    isLore:true,
+    special:true,
+  },
+
+  goblin: {
+    id:'goblin', name:'Goblin',
+    title:'The Man Who Took Everything — The Most Righteous',
+    gender:'male', alive:true,
+    birthNote:'Born with a growth deformity that makes him noticeably shorter than average. Mocked from childhood. Has never responded to this with violence. Considers that a source of private pride.',
+    glowColor:'rgba(200,255,200,0.2)', specialGlow:'lore',
+    stats:{ strength:55, agility:60, endurance:72, intelligence:96, perception:90, willpower:88, charisma:65, luck:70 },
+    qiStageIndex:3, qiPath:'righteous',
+    personality:'A man of history and trade. He came to Reo\'s tomb on purpose — not because he was called there, not because of spiritual resonance, but because he had spent twenty years studying Tazar\'s geography and calculated that the tomb had to be somewhere in its foundations. He was right. He took everything he found. He is not an evil man — the things he took, he will use. If Goblin finds the tomb and takes its contents, he will build the most profitable enterprise in Tazar and likely in most of Murim. Not through cultivation. Through the simple, unstoppable force of being the smartest person in every room he enters and having better inventory than anyone.',
+    isLore:true,
+    special:true,
+  },
+
+  mosi_rajabu: {
+    id:'mosi_rajabu', name:'Mosi Rajabu',
+    title:'From Across the Sea — Descendant of O\'saa',
+    gender:'male', alive:true,
+    birthNote:'Born far across the sea, in the lands beyond the known cultivation world. Descendant of O\'saa, a mythic figure from his homeland. He came to the Azure Empire seeking diplomatic relations. Azure, in the current era, is not welcoming of outsiders.',
+    glowColor:'rgba(180,140,255,0.2)', specialGlow:'lore',
+    stats:{ strength:80, agility:75, endurance:84, intelligence:86, perception:98, willpower:88, charisma:78, luck:62 },
+    qiStageIndex:5, qiPath:'beast',
+    personality:'Mosi Rajabu has a gift for sensing ancient things — not Qi exactly, but the weight of age and power in a location. He arrived in Tazar seeking peace and was met with suspicion and dismissal. While waiting in the lower district for an audience that never came, he felt something beneath the city that had no cultivation explanation he recognized. He followed it. If Mosi finds Reo\'s tomb, he will bring it back to the Kalozi Empire — the empire that spans most of the lands he came from. This will trigger a war between Murim and Kalozi, two civilizations that have never fought each other, over artifacts that neither fully understands.',
+    isLore:true,
+    special:true,
+  },
+
+  // ICHIRO'S TOMB
+  takehiko_takao: {
+    id:'takehiko_takao', name:'Takehiko Takao',
+    title:'The Farmer in the Forest — The First Who Could Actually Go In',
+    gender:'male', alive:true,
+    birthNote:'A farmer who lives inside Ooina forest. He has lived there his entire life. The forest does not harm him because he does not try to take from it, only tend it. He knows every path in his section of Ooina. He knows where the tomb entrance is. He has always known.',
+    glowColor:'rgba(180,220,160,0.2)', specialGlow:'lore',
+    stats:{ strength:68, agility:55, endurance:80, intelligence:70, perception:85, willpower:75, charisma:60, luck:78 },
+    qiStageIndex:1, qiPath:'beast',
+    personality:'Quiet. Extremely patient. Has been farming the same section of Ooina forest for thirty years. Has watched cultivators attempt to breach Ichiro\'s tomb from a polite distance and has opinions about their methods that he keeps to himself. He has never attempted entry. He does not need to — everything he needs is above ground. If circumstances bring him inside, his relationship with the forest and his minimal ego makes him the only person who has ever entered Ooina\'s depths and not been destroyed by what it recognizes in them.',
+    isLore:true,
+    special:true,
+  },
+
+  yuuta_hajime: {
+    id:'yuuta_hajime', name:'Yuuta Hajime',
+    title:'Half-Blood — The Voice of the Yokai',
+    gender:'male', alive:true,
+    birthNote:'Born to a Yokai mother and a human father. Grew up in human settlements where his nature was not accepted. Eventually left for Ooina, where his mother\'s people are. What he saw of humanity before he left shaped him permanently.',
+    glowColor:'rgba(180,100,180,0.2)', specialGlow:'lore',
+    stats:{ strength:85, agility:92, endurance:80, intelligence:78, perception:95, willpower:88, charisma:72, luck:60 },
+    qiStageIndex:6, qiPath:'beast',
+    personality:'Yuuta Hajime does not hate humans as individuals. He has watched what they do collectively and drawn a conclusion from the pattern. Yokai, he has observed, are not systematically cruel — they can be dangerous, territorial, unpredictable, but not systematically cruel the way human institutions are. His belief: humanity is the problem, not individual humans. If he finds Ichiro\'s tomb, he will become the declared spokesperson for Yokai across the known world. The Purge will follow — not genocide, but a systematic demand for recognition, territory, and sovereignty backed by the full weight of every Yokai in Ooina and beyond. It will be the largest conflict between the natural and human worlds in recorded history.',
+    isLore:true,
+    special:true,
+  },
+
+});
+
 // Initialize Yaqism in world history when game starts
 const _withYaqismInit = startGame;
 startGame = function(isLoad=false) {
@@ -35344,6 +35477,65 @@ const WORLD_RELIGIONS = {
     founding_story: 'The Silence has no founding story it will admit to. There are several stories about its origin that different practitioners accept. None of them agree. The disagreement is considered correct — a practice whose central tenet is that appearances are not reality should not have an official history.',
     cultivation_relationship: 'Shadow Walker affinity correlates, as does the Stealth skill. High-stage practitioners of the Silence sometimes develop Qi signatures that are unusually quiet — not suppressed, simply understated. Experienced Qi-readers describe it as trying to sense something that is present but not pointing at itself.',
     tensions: 'The Silence has a structural tension built in: it cannot organize because organization requires a visible form. When it tries to teach or spread, it contradicts itself. The communities that practice it are therefore always small, always local, and always slightly different from each other.',
+  },
+
+  // ── 7. YUMIJIYŪ ─────────────────────────────────────────────────
+  yumijiyū: {
+    name: 'Yumijiyū',
+    shortName: 'Yumijiyū',
+    deity: 'Yumiko',
+    core_belief: 'Every person carries an inner light — the Light of the Path — that guides them toward where they belong and what they are meant for. The purpose of living is not only to exist but to find your Path, walk it with devotion, and belong to something real. Freedom is not the absence of purpose; it is the presence of the right one.',
+    origin: 'Founded in the early cultivation era, arising from the life of Yumiko — a kitsune cultivator who broke free from servitude under a powerful landowner known as the Rice God of the East. Ichiro Katsumi gave her the knowledge and strength to break free. Her subsequent decade of travel, during which she stopped wars and fed the hungry, formed the foundation of the faith. She died peacefully. Her final resting place became Yumiko Ohaka.',
+    regions: ['ooina', 'wild_bloom', 'mistveil', 'wheat_capital', 'naos_reach', 'verdant_gate', 'embercross'],
+    timeline: [
+      { year:-30,  event: "A kitsune cultivator who would become known as Yumiko serves the man called the Rice God of the East — a wealthy and cruel landowner who purchased children and kitsune alike to tend his fields. She is a natural cultivator with an unusual gift for the bow, but her Qi is kept suppressed by her circumstances." },
+      { year:12,   event: "Ichiro Katsumi, traveling through the eastern territories, encounters the Rice God's fields and understands immediately what is happening there. He gives Yumiko something — knowledge, techniques, or simply the clarity to see her own strength. The accounts differ. The result is the same: she leaves." },
+      { year:12,   event: "Yumiko is banished from the Rice God's fields for 'corrupting the discipline of the bow.' She considers this a compliment. She begins her journey — playing as much as traveling, practicing her bow style not as training but as joy." },
+      { year:13,   event: "Other kitsune begin following her. The word spreads: someone is practicing the bow freely and it looks nothing like any school anyone has seen. The path she walks becomes known as the Path of the Free Bow." },
+      { year:15,   event: "Yumiko stops a border skirmish between two settlements by standing between the forces and firing seven arrows — none of them at anyone. The arrows create a pattern in the sky. Both sides stop. Neither can explain why." },
+      { year:18,   event: "She is now known across the eastern territories as Yumiko — Child of the Bow. Her practice has evolved into something broader: freedom from what holds you, toward what calls you. The bow is the symbol. The inner light is the teaching." },
+      { year:22,   event: "Yumiko reaches what will later be called Yumiko Ohaka — a stretch of rich farmland and natural beauty. She says it feels like an arrival rather than a stop. She stays. Communities begin forming around her." },
+      { year:30,   event: "Yumiko dies peacefully at Yumiko Ohaka, surrounded by the community she gathered. Her final words, recorded by multiple witnesses: 'The path doesn't end when I do. That was never the point.' The Ohaka is divided into four sectors by those who remain. The religion formalizes around her example rather than her commandments." },
+      { year:50,   event: "Yumijiyū has established formal communities in the eastern Azure Empire and Ooina forest territories. The four-sector structure of Yumiko Ohaka — farmland, urban, religious, entertainment — becomes the template for every major Yumijiyū gathering place built after it." },
+      { year:100,  event: "A generation of practitioners born after Yumiko's death. The faith is now transmitted through elders who knew her, through texts, and through the Ohaka itself. The bow practice has diversified — some practitioners focus on the spiritual techniques, others on the physical bow, some on neither and simply walk the Path." },
+      { year:130,  event: "Ichiro Katsumi's death is observed at Yumiko Ohaka with the full Yumiko Obon — three days of celebration, food, and fireworks. Not in mourning, but because Yumijiyū recognizes that his giving Yumiko her freedom was the first step in everything that followed. He is not worshipped, but he is remembered as someone whose single action changed the direction of the world." },
+      { year:200,  event: "Yumijiyū is one of the major religions of the world. The Pathway economy — where practitioners trade path-for-path rather than silver-for-labor inside the Ohaka — has been adopted by dozens of communities. Outside scholars who visit the Ohaka expecting a religious compound find a functioning, prosperous, unusually joyful city." },
+      { year:381,  event: "Yaqism emerges in the Red Sand City region. Yumijiyū has its first formal theological encounter with a new faith. The response from Yumijiyū leaders: 'The flame they describe may be what we call the inner light. Different name, different road, same direction. They have a place here if they want one.'" },
+      { year:425,  event: "The Nao Rebellion ends. The Nao Confederacy's Verdant Gate and Embercross become strong Yumijiyū communities. The rebel identity — freedom, belonging, purpose found through struggle — resonates deeply with Yumijiyū teachings. Miyu Nao's story is studied in Yumijiyū schools as an example of someone who found their Path and walked it regardless of the cost." },
+    ],
+    practices: {
+      bow_practice: {
+        name: 'The Free Bow (Path Practice)',
+        desc: 'Archery practiced not for accuracy or war but as a form of self-expression and path-finding. No two practitioners develop the same style. The practice is considered a conversation between the person and their inner light. Watching an advanced practitioner shoot is considered one of the most moving things a visitor to Yumiko Ohaka can witness.',
+        effect: 'Long-term practitioners develop unusual Qi-bow affinity and a clarity of purpose that other cultivators describe as rare. Decisions come more easily. Distractions feel lighter.',
+      },
+      yumiko_obon: {
+        name: 'Yumiko Obon (Three Days of Welcome)',
+        desc: 'Three days annually honoring Yumiko\'s spirit. The Ohaka is cleaned, altars set with offerings (particularly food — Yumiko is known to have loved eating). For three days: fireworks, dancing, food stalls beyond counting, music, performances, and the specific joy of people who believe that joy is not a distraction from the divine but an expression of it. Yumiko\'s spirit is believed to return during the Obon.',
+        effect: 'Attendance at the full Obon is considered one of the most spiritually significant experiences a Yumijiyū practitioner can have. Even non-practitioners who attend often describe something they cannot explain — a feeling of rightness.',
+      },
+      path_sharing: {
+        name: 'Pathway Exchange (Community Economy)',
+        desc: 'Within Yumijiyū communities, exchange is path-for-path rather than silver-for-labor. A farmer gives crops; a builder gives construction; a healer gives care. No one who is on their Path within the community charges for that Path\'s expression. No one receives less than what they need. The system produces inequality of resource only upward — it is designed so that feeling less is structurally impossible.',
+        effect: 'Communities running the Pathway economy are consistently wealthier and more stable than comparable communities outside it. The mechanism is debated. Yumijiyū practitioners consider the mechanism obvious: people who love what they do are better at it.',
+      },
+      inner_light_meditation: {
+        name: 'Light-Finding (Meditation)',
+        desc: 'A meditation practice aimed not at emptying the mind but at listening for the inner light — the direction that feels most like self. Practitioners describe it as less like traditional meditation and more like a conversation with yourself that you have been avoiding. Done regularly, it produces clarity about one\'s Path.',
+        effect: 'Some cultivators report that this practice has unusual effects on Qi path formation — practitioners often develop very coherent, specific Qi expressions rather than the broad general cultivation of non-practitioners. Their Qi tends to match who they actually are.',
+      },
+    },
+    four_sins: {
+      wrath:    'Never let anger take control. Never intentionally cause harm unless absolutely required. Anger is a wind — it can fill a sail or tear a sail apart. You control which.',
+      vyrnfall: 'Turning away from communal duty. Forsaking your responsibilities to the collective when you are part of one. Your Path is your own, but you walk it in a world of other people.',
+      nethrend: 'Willfully corrupting sacred knowledge or tradition for personal gain. What was given to you freely, you give freely. What was earned through suffering, you do not sell.',
+      drevosin: 'Refusing to act when action is morally required. Allowing injustice to persist when you have the capacity to address it. Inaction is also a choice and it also has weight.',
+    },
+    inclusion_doctrine: 'Everyone has a place in Yumijiyū. The religion explicitly holds that not all practitioners follow the same form: some believe deeply and pray daily; some find their Path but do not worship Yumiko; some join communities without full doctrinal alignment; some are converted late in life after decades on a different path. The only disqualifying position is refusing to acknowledge that others have valid paths different from your own.',
+    npcs_connected: ['ichiro_katsumi'],
+    yaqism_relation: 'Yumijiyū and Yaqism have a respectful, curious relationship. Yumijiyū was the first established religion to formally welcome Yaqist refugees when Hammurabi was hunting D\'la\'s followers. The theological comparison — inner light vs. D\'yaqed\'s flame — is treated by Yumijiyū as a family resemblance rather than a contradiction. Yaqists find Yumijiyū\'s emphasis on joy and food familiar. The major tension is that Yaqism\'s five laws are binding; Yumijiyū\'s four sins are a framework. One tells you what to do. The other tells you what to avoid.',
+    founding_story: 'Yumiko was a kitsune cultivator serving the Rice God of the East — an angry and wealthy man who bought children for his fields and kept cultivators\' Qi suppressed through debt and contract. Ichiro Katsumi, passing through the eastern territories, saw this and gave Yumiko something that changed the calculation. She left. She was banished. She traveled. She practiced the bow because it brought her joy. She changed lives because she could not help it. She died peacefully and her resting place became the Ohaka. The religion that formed around her example is best understood not as worship of what she was but as an attempt to become something like it.',
+    texts: ['The Path Scrolls — collected accounts of Yumiko\'s journey, written by witnesses', 'The Ohaka Records — practices and governance of Yumiko Ohaka', 'The Free Bow Forms — 108 bow techniques, each named for a lesson Yumiko taught', 'The Obon Liturgy — songs, prayers, and rites for the three-day festival'],
   },
 
 };
