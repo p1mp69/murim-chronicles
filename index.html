@@ -4914,7 +4914,8 @@ function useTome(itemId) {
   const name     = itm.name || '';
   const desc     = itm.desc || '';
   const combined = (name + ' ' + desc).toLowerCase();
-  const isCultivationTome = /\b(technique|martial|cultivation.*method|secret.*art|qi.*method|qi.*path|breathing.*method|inner.*force)\b/i.test(combined);
+  const isCultivationTome = /\b(technique|cultivation.*method|secret.*art|qi.*method|qi.*path|breathing.*method|inner.*force)\b/i.test(combined);
+  const isMartialManual   = /\b(martial.*art|fighting.*style|combat.*form|physical.*style|body.*method|fist.*method)\b/i.test(combined) || itm.maUnlock;
   const qiStage  = c.qi?.stageIndex ?? c.qiStageIndex ?? 0;
   const literacy = checkTomeLiteracy(itm);
   const diff     = literacy.difficulty;
@@ -4938,7 +4939,8 @@ function useTome(itemId) {
   }
 
   // ── Gate 3: Mortal trying to learn Qi techniques ──────────────────
-  if(isCultivationTome && qiStage === 0) {
+  // Note: martial arts manuals (physical techniques) do NOT need Qi — skip this gate for them
+  if(isCultivationTome && !isMartialManual && qiStage === 0) {
     hideModal('modal-item');
     const litNote = literacy.literacy < 3
       ? 'Your reading is slow — cultivation vocabulary is largely opaque to you — but you piece together the core ideas.'
@@ -4972,15 +4974,38 @@ function useTome(itemId) {
   hideModal('modal-item');
 
   // ── 1. Explicit techUnlock (hard-coded technique grant) ───────────
-  if(itm.techUnlock && qiStage > 0) {
-    grantTechnique({
-      name: itm.techUnlock.name || name.replace(/\s*(tome|primer|manual|annotated|scroll|book)\s*/i,'').trim(),
-      category: itm.techUnlock.category || 'elemental',
-      type: itm.techUnlock.type || 'utility',
-      rarity: itm.rarity, desc: itm.desc,
-      source: `Tome: ${name}`,
-    });
-    sendToAI(`I read ${name} and absorb what it contains. [TOME LEARNING — SUCCESSFUL. ${literacyContext} The character reads this and fully internalizes the technique. Describe the reading process and what they learn — specific, not vague. The tome remains in their possession. Time: several hours.]`);
+  if(itm.techUnlock) {
+    const isMAManual = itm.techUnlock.type === 'physical' || itm.maUnlock;
+    const typeLabel  = isMAManual ? 'martial arts manual' : 'technique tome';
+
+    // Martial arts (physical) manuals don't require Qi cultivation
+    const needsQi    = !isMAManual && isCultivationTome;
+    if(needsQi && qiStage === 0) {
+      // Already handled above by the mortal gate — but just in case techUnlock gets here:
+      itm.studied = true;
+      itm.studyNote = 'Requires Qi cultivation. Open your meridians first.';
+      updateInventoryTab();
+      appendNarrative(`You read through ${name}. The techniques described are Qi-based. Without an open meridian, you understand the theory but cannot execute any of it. The manual stays with you.`);
+      return;
+    }
+
+    if(isMAManual) {
+      grantMartialArt({
+        name: itm.techUnlock.name || name.replace(/\s*(manual|tome|primer|scroll|book|martial.*art)\s*/i,'').trim(),
+        type: 'physical',
+        rarity: itm.rarity, desc: itm.desc,
+        source: `Manual: ${name}`,
+      });
+    } else {
+      grantTechnique({
+        name: itm.techUnlock.name || name.replace(/\s*(tome|primer|manual|annotated|scroll|book)\s*/i,'').trim(),
+        category: itm.techUnlock.category || 'elemental',
+        type: itm.techUnlock.type || 'utility',
+        rarity: itm.rarity, desc: itm.desc,
+        source: `Tome: ${name}`,
+      });
+    }
+    sendToAI(`I study "${name}" — a ${typeLabel}. [${typeLabel.toUpperCase()} LEARNING — SUCCESSFUL. ${literacyContext} The character works through this ${typeLabel} and internalizes what it contains. Describe the reading and training process — specific movements, concepts, the feel of understanding settling in. The ${typeLabel} remains in their possession. Time: several hours to days.]`);
     return;
   }
 
@@ -5024,12 +5049,19 @@ function useTome(itemId) {
 
   // ── 3. Build the AI prompt ─────────────────────────────────────────
   let aiMsg;
-  if(isCultivationTome) {
+  if(isMartialManual) {
+    // Martial arts manuals teach physical technique — no Qi required
+    aiMsg = `I study "${name}" — a martial arts manual. [MARTIAL ARTS MANUAL:
+${literacyContext}
+This manual describes a physical martial art or fighting style — no Qi cultivation required, only physical capability and practice. The character can attempt to learn from it. If the content is within their physical capability and stage of training: grant a martial art via "newMartialArts". If it is beyond them physically (too advanced, requires prerequisites they lack): describe what they can absorb now and what remains out of reach. The MANUAL STAYS either way.
+${studiedBefore ? 'They have studied this before.' : ''}
+Time: hours to weeks depending on complexity.]`;
+  } else if(isCultivationTome) {
     const stageEnough = qiStage >= 1;
     aiMsg = `I study "${name}" carefully. [TECHNIQUE TOME — ${stageEnough ? 'CULTIVATION CAPABLE' : 'MORTAL — NO QI'}:
 ${literacyContext}
 ${stageEnough
-  ? `The character has Qi cultivation (Stage ${qiStage}). Whether they can LEARN this specific technique depends on: stage requirements, Qi path compatibility, and prerequisite understanding. If learnable: grant it via "newTechniques". If NOT learnable yet: describe what they understand and what remains beyond them — consulting a master, or more training, is a valid outcome. The TOME STAYS either way — do not reference the tome being consumed.`
+  ? `The character has Qi cultivation (Stage ${qiStage}). Whether they can LEARN this specific technique depends on: stage requirements, Qi path compatibility, and prerequisite understanding. If learnable: grant it via "newTechniques". If NOT learnable yet: describe what they understand and what remains beyond them — consulting a master, or more training, is a valid outcome. The TOME STAYS either way.`
   : `This character has NO Qi cultivation. They cannot learn any Qi technique. Narrate their understanding of the theory and the gap between theory and execution. The tome stays with them.`}
 ${studiedBefore ? 'They have read this before — this is a re-study session with prior familiarity.' : ''}
 Time: several hours to days of study.]`;
@@ -5970,7 +6002,8 @@ function buildQuickActions(r) {
     !isHostile
       ? { label: 'Ask a favor',  type: 'favor',    cls: '' }
       : null,
-    { label: 'Give a gift',      type: 'gift',     cls: 'positive' },
+    { label: 'Give item',         type: 'give_item',cls: 'positive' },
+    { label: 'Give silver',      type: 'give_silver', cls: 'positive' },
     !isHostile
       ? { label: 'Ask for silver', type: 'silver', cls: '' }
       : null,
@@ -6018,7 +6051,8 @@ function sendQuickAction(npcId, actionType) {
                  : `I ask ${name} if they'd be willing to teach me something — anything they know that I might benefit from. I'm approaching it respectfully, without expectation.`,
     spar:      `I ask ${name} to spar with me — practice, not a real fight. I want to test myself against someone capable and learn from it.`,
     favor:     `I ask ${name} for a favor. I'm honest about what I'm asking and why.`,
-    gift:      `I give ${name} something — whether it's an item, silver, or something small. A gesture, not a bribe.`,
+    give_silver: null, // handled separately below
+    give_item:   null, // handled separately below
     silver:    `I ask ${name} if they could help me out with silver. I don't make it more than it is — I need it, and I'm asking directly.`,
     confide:   `I tell ${name} something real. Something I haven't told anyone else or almost anyone else. I trust them enough to try.`,
     apologize: `I try to repair things with ${name}. I don't minimize what happened — I'm actually sorry and I say so plainly.`,
@@ -6035,6 +6069,43 @@ function sendQuickAction(npcId, actionType) {
       return `I ask ${name} who they know around here — whether they might be able to point me toward someone specific, or just tell me what circles they move in.\n\n[NPC NETWORK CONTEXT: ${name} moves in these circles: ${circles}. Named contacts they have: ${named}.${strained ? ` Strained: ${strained}.` : ''}${estranged ? ` Estranged from: ${estranged}.` : ''} The NPC should respond honestly based ONLY on their actual connections. If the player asks for a specific type of person that ${name} genuinely doesn't know, they say so. If they reveal a new named contact from their circles, add them via npcNetworkUpdate in the response.]`;
     })(),
   };
+
+  // ── Give silver ───────────────────────────────────────────────────
+  if(actionType === 'give_silver') {
+    const c = GS.char;
+    const amtStr = prompt(`Give silver to ${name}?\nYou have: ${formatCoins(c.silver)}\n\nEnter amount in silver (e.g. 5 = 5 silver, 0.25 = 5 copper):`);
+    if(!amtStr) return;
+    const amt = parseFloat(amtStr);
+    if(isNaN(amt) || amt <= 0) { toast('Invalid amount.', 'error', 2000); return; }
+    if(amt > c.silver) { toast(`You only have ${formatCoins(c.silver)}.`, 'error', 2500); return; }
+    addSilver(-amt);
+    const display = formatCoins(amt);
+    sendToAI(`I give ${name} ${display} in silver. A direct gesture — I hand the money over without making a speech about it.\n\n[GIFT OF SILVER: The character has transferred ${display} (${amt} silver equivalent) to ${name}. This was a deliberate choice. Narrate how ${name} receives it — their reaction, what it means given their situation and your relationship. Update bond/trust via updateRelationships if appropriate. The silver has already left the character's possession.]`);
+    return;
+  }
+
+  // ── Give item ─────────────────────────────────────────────────────
+  if(actionType === 'give_item') {
+    const c = GS.char;
+    const giveable = c.inventory.filter(i => {
+      // Can't give equipped items
+      return !Object.values(c.equipment).some(e => e?.id === i.id);
+    });
+    if(!giveable.length) { toast('Nothing to give — your inventory is empty or everything is equipped.', 'error', 3000); return; }
+    const list = giveable.map((i, idx) => `${idx + 1}. ${i.name} (${i.rarity || 'common'})${i.isTome || i.type==='tome' ? ' [Tome]' : ''}${i.type === 'consumable' ? ' [Consumable]' : ''}`).join('\n');
+    const choice = prompt(`Give an item to ${name}:\n\n${list}\n\nEnter number:`);
+    if(!choice) return;
+    const idx = parseInt(choice) - 1;
+    if(isNaN(idx) || idx < 0 || idx >= giveable.length) { toast('Invalid selection.', 'error', 2000); return; }
+    const item = giveable[idx];
+    // Remove from inventory
+    c.inventory = c.inventory.filter(i => i.id !== item.id);
+    updateInventoryTab();
+    const rarityNote = item.rarity && item.rarity !== 'common' ? ` (${item.rarity})` : '';
+    const typeNote   = item.isTome || item.type === 'tome' ? ' — a tome' : item.type === 'consumable' ? ' — a consumable' : '';
+    sendToAI(`I give ${name} "${item.name}"${rarityNote}${typeNote}. I hand it over directly.\n\n[GIFT OF ITEM: The character has given "${item.name}"${rarityNote} to ${name}. Item description: ${item.desc || 'no description'}. This item has left the character's possession permanently. Narrate how ${name} receives it — their reaction, what the gift means, whether it changes anything between you. Consider: does this NPC know what they've received? Is it something they can use? Update bond/trust via updateRelationships if appropriate. Do NOT return this item to the player — it belongs to ${name} now.]`);
+    return;
+  }
 
   const msg = actions[actionType];
   if(!msg) return;
@@ -7106,6 +7177,7 @@ ABSOLUTE RULES — NEVER BREAK THESE:
 4. NPCs have lives and histories before the player. Hidden pasts, old allegiances, old enemies. They do not reveal these unless triggered by events.
 5. Time is real. If a scheduled event was set for Month 3 and it's now Month 5, that event already happened or was missed. Do not retroactively create it.
 6. Permanent injuries/scars only come from significant, violent or extreme events — never casual mishaps.
+7. CURRENCY — THREE NAMES ONLY: copper, silver, gold. 20 copper = 1 silver. 10 silver = 1 gold. Never use jiao, tael, wen, qian, coin (as currency), piece, guan, yuan, or any other word for money. People pay in copper, silver, or gold. Nothing else exists.
 7. SKILLS — REPORT EVERYTHING. This is the most important mechanical rule after writing quality. The "skills" array is the ONLY way skills register. Anything the character does that involves knowledge, practice, or ability belongs in this array.
    DO NOT limit yourself to a list. Invent skill names for anything the character demonstrates:
    • Physical: combat_training, weaponry, archery, swimming, climbing, acrobatics, horse_riding
@@ -9391,6 +9463,7 @@ ${w.zeret.active ? 'ZERET: active in '+(LOCATIONS[w.zeret.location]?.name||w.zer
 8. **Reputation is specific.** When something notable happens, the title that forms should be exact to the deed. "The Man Who Threw the Magistrate off the Canal Bridge" not "known criminal."
 9. **100 renown changes the room.** Not just a stat. People stop mid-sentence. Conversations shift. The character walks differently in a place where they're a legend.
 10. **Crime has consequences.** Real ones. Law enforcement, sect retaliation, karma weight, rumor spread, NPCs who now won't trust them.
+11. **CURRENCY — ONLY THREE NAMES EXIST.** The only currencies in this world are: **copper**, **silver**, and **gold**. 20 copper = 1 silver. 10 silver = 1 gold. Never use: jiao, tael, wen, qian, bronze, coin (as a currency name), piece, guan, yuan, cash, or any other currency name. If a character pays for something, they pay in copper, silver, or gold. If something costs money, it costs copper, silver, or gold. No other words for money exist in this world.
 
 ## TIME — MANDATORY EVERY TURN
 Every action takes time. You MUST return a non-zero time value in every response.
