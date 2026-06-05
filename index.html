@@ -1782,6 +1782,15 @@ body.generating [onclick*="shopSellItem"], body.generating [onclick*="closeMapGo
           </div>
         </div>
 
+        <div class="char-section" id="crew-section">
+          <div class="collapsible-header" data-target="w-crew">
+            <span id="crew-section-label">Crew / Organization</span><span class="collapse-arrow">▼</span>
+          </div>
+          <div id="w-crew" class="collapsible-body">
+            <div id="w-crew-content"><div class="empty-state" style="padding:12px 0;font-size:12px;color:var(--dim)">No crew or organization. Form one through play — the AI will register it automatically when you establish something.</div></div>
+          </div>
+        </div>
+
         <div class="char-section hidden" id="zeret-section">
           <div class="sect-label" style="color:var(--pink)">Maligned Presence</div>
           <div id="zeret-block" class="zeret-presence"></div>
@@ -4902,6 +4911,55 @@ function checkTomeLiteracy(item) {
   };
 }
 
+// Reading always improves literacy. The harder the text, the more XP gained (up to your level).
+// Subject-matter skill gains are handled separately in the SKILL_TOME_MAP block.
+function improveReadingSkill(difficultyKey) {
+  const c = GS.char;
+  const diff      = READING_DIFFICULTY[difficultyKey] || READING_DIFFICULTY.standard;
+  const litLevel  = c.skills?.literacy?.level || 0;
+  const required  = diff.literacyRequired;
+
+  // XP gain: reading at/above your current ceiling gives more XP than reading below it
+  const atCeiling = required >= litLevel;
+  const xpGain    = atCeiling ? 20 : 8;
+
+  if(!c.skills.literacy) {
+    // First time touching literacy — create it
+    c.skills.literacy = { label:'Literacy', category:'scholarly', level:1, xp:xpGain,
+      firstUsed:`Year ${GS.world.year}`, desc:'Developed through reading.' };
+  } else {
+    const lit = c.skills.literacy;
+    lit.xp = (lit.xp || 0) + xpGain;
+    const xpNeeded = (lit.level || 1) * 25 + 25; // more XP needed at higher levels
+    if(lit.xp >= xpNeeded) {
+      lit.xp -= xpNeeded;
+      lit.level = Math.min((lit.level || 1) + 1, 10);
+      toast(`Literacy improved to Level ${lit.level}!`, 'gold', 4000);
+    }
+  }
+  updateSkillsTab();
+}
+
+// Improve a subject skill from reading (separate from one-time tome grants)
+function improveSubjectSkillFromReading(skillKey, label, cat) {
+  const c = GS.char;
+  if(!c.skills[skillKey]) {
+    c.skills[skillKey] = { label, category:cat, level:1, xp:15,
+      firstUsed:`Year ${GS.world.year}`, desc:'Developed through reading.' };
+    toast(`${label} gained from reading`, 'gold', 3000);
+  } else {
+    const s = c.skills[skillKey];
+    s.xp = (s.xp || 0) + 15;
+    const xpNeeded = (s.level || 1) * 20 + 20;
+    if(s.xp >= xpNeeded && s.level < 10) {
+      s.xp -= xpNeeded;
+      s.level = Math.min(s.level + 1, 10);
+      toast(`${label} improved to Level ${s.level} from reading`, 'gold', 4000);
+    }
+  }
+  updateSkillsTab();
+}
+
 function useTome(itemId) {
   const c   = GS.char;
   const itm = c.inventory.find(i => i.id === itemId);
@@ -5011,38 +5069,46 @@ function useTome(itemId) {
 
   // ── 2. Skill detection from name/description ──────────────────────
   const SKILL_TOME_MAP = [
-    { re: /\b(alchemy|pill.*mak|herb.*refin|elixir)/i,         skill:'alchemy',         cat:'craftsman',  label:'Alchemy' },
-    { re: /\b(smith|blacksmith|metal.*work|forge.*craft)/i,    skill:'smithing',         cat:'craftsman',  label:'Smithing' },
-    { re: /\b(medicine|physician|anatomy|surgery|healing)/i,   skill:'medicine',         cat:'medical',    label:'Medicine' },
-    { re: /\b(law|legal|judicial|magistrate|court)/i,          skill:'law',              cat:'scholarly',  label:'Law' },
-    { re: /\b(literate|literacy|read.*write|calligraph)/i,     skill:'literacy',         cat:'scholarly',  label:'Literacy' },
-    { re: /\b(commerce|trade|merchant|accounting|economics)/i, skill:'commerce',         cat:'social',     label:'Commerce' },
-    { re: /\b(cook|culinary|cuisine|recipe)/i,                 skill:'cooking',          cat:'craftsman',  label:'Cooking' },
-    { re: /\b(track|survival|wilderness|forest.*nav)/i,        skill:'tracking',         cat:'survival',   label:'Tracking' },
-    { re: /\b(formation|array.*theory|spirit.*formation)/i,   skill:'formation_theory', cat:'craftsman',  label:'Formation Theory' },
-    { re: /\b(history|historian|ancient.*record)/i,            skill:'history',          cat:'scholarly',  label:'History' },
-    { re: /\b(philosophy|ethics|theology|scripture)/i,         skill:'philosophy',       cat:'scholarly',  label:'Philosophy' },
-    { re: /\b(stealth|concealment|shadow.*move)/i,             skill:'stealth',          cat:'misc',       label:'Stealth' },
-    { re: /\b(apprais|valuation|authentication|gem.*eval)/i,  skill:'appraisal',        cat:'social',     label:'Appraisal' },
-    { re: /\b(deception|persuasion|social.*manipul)/i,         skill:'deception',        cat:'social',     label:'Deception' },
-    { re: /\b(meditation|breathwork|qi.*theory|cultivation)/i, skill:'meditation',       cat:'cultivation',label:'Meditation' },
-    { re: /\b(poison|toxicology|venom)/i,                      skill:'poison_knowledge', cat:'medical',    label:'Poison Knowledge' },
-    { re: /\b(weapon.*craft|sword.*make|blade.*smith)/i,       skill:'weapon_crafting',  cat:'craftsman',  label:'Weapon Crafting' },
-    { re: /\b(map|cartograph|navigation|geography)/i,          skill:'cartography',      cat:'scholarly',  label:'Cartography' },
+    { re: /\b(alchemy|pill.*mak|herb.*refin|elixir)/i,          skill:'alchemy',          cat:'craftsman',   label:'Alchemy' },
+    { re: /\b(smith|blacksmith|metal.*work|forge.*craft)/i,     skill:'smithing',          cat:'craftsman',   label:'Smithing' },
+    { re: /\b(medicine|physician|anatomy|surgery|healing)/i,    skill:'medicine',          cat:'medical',     label:'Medicine' },
+    { re: /\b(law|legal|judicial|magistrate|court)/i,           skill:'law',               cat:'scholarly',   label:'Law' },
+    { re: /\b(literate|literacy|read.*write|calligraph)/i,      skill:'literacy',          cat:'scholarly',   label:'Literacy' },
+    { re: /\b(commerce|trade|merchant|accounting|economics)/i,  skill:'commerce',          cat:'social',      label:'Commerce' },
+    { re: /\b(math|arithmetic|calcul|geometry|algebra|numbers)/i, skill:'mathematics',     cat:'scholarly',   label:'Mathematics' },
+    { re: /\b(cook|culinary|cuisine|recipe)/i,                  skill:'cooking',           cat:'craftsman',   label:'Cooking' },
+    { re: /\b(track|survival|wilderness|forest.*nav)/i,         skill:'tracking',          cat:'survival',    label:'Tracking' },
+    { re: /\b(formation|array.*theory|spirit.*formation)/i,    skill:'formation_theory',  cat:'craftsman',   label:'Formation Theory' },
+    { re: /\b(history|historian|ancient.*record)/i,             skill:'history',           cat:'scholarly',   label:'History' },
+    { re: /\b(philosophy|ethics|theology|scripture)/i,          skill:'philosophy',        cat:'scholarly',   label:'Philosophy' },
+    { re: /\b(stealth|concealment|shadow.*move)/i,              skill:'stealth',           cat:'misc',        label:'Stealth' },
+    { re: /\b(apprais|valuation|authentication|gem.*eval)/i,   skill:'appraisal',         cat:'social',      label:'Appraisal' },
+    { re: /\b(deception|persuasion|social.*manipul)/i,          skill:'deception',         cat:'social',      label:'Deception' },
+    { re: /\b(meditation|breathwork|qi.*theory|cultivation)/i,  skill:'meditation',        cat:'cultivation', label:'Meditation' },
+    { re: /\b(poison|toxicology|venom)/i,                       skill:'poison_knowledge',  cat:'medical',     label:'Poison Knowledge' },
+    { re: /\b(weapon.*craft|sword.*make|blade.*smith)/i,        skill:'weapon_crafting',   cat:'craftsman',   label:'Weapon Crafting' },
+    { re: /\b(map|cartograph|navigation|geography)/i,           skill:'cartography',       cat:'scholarly',   label:'Cartography' },
+    { re: /\b(astronomy|stars?|celestial|heavens?|constellat)/i, skill:'astronomy',        cat:'scholarly',   label:'Astronomy' },
+    { re: /\b(language|dialect|tongue|lingui)/i,                skill:'linguistics',       cat:'scholarly',   label:'Linguistics' },
+    { re: /\b(music|instrument|song|melody|composition)/i,      skill:'music',             cat:'artistic',    label:'Music' },
+    { re: /\b(painting|portrait|landscape.*art|brushwork)/i,    skill:'painting',          cat:'artistic',    label:'Painting' },
+    { re: /\b(beast.*tame|taming|animal.*master|creature.*bond)/i, skill:'beast_taming',  cat:'survival',    label:'Beast Taming' },
+    { re: /\b(leadership|command|strategy|tactics|military)/i,  skill:'tactics',           cat:'combat',      label:'Tactics' },
+    { re: /\b(architecture|construct|build.*design|engineer)/i, skill:'architecture',      cat:'craftsman',   label:'Architecture' },
   ];
 
+  // ── Reading always improves literacy ──────────────────────────────
+  // And skills improve with subject-matter reading (handled below too)
+  improveReadingSkill(itm.readingDifficulty || assignTomeDifficulty(itm));
+
+  // Subject-matter skills improve every read (not one-time grants)
   let grantedSkill = null;
   for(const { re, skill, cat, label } of SKILL_TOME_MAP) {
     if(re.test(combined)) {
+      // improveSubjectSkillFromReading handles both first-time and repeat reads
+      improveSubjectSkillFromReading(skill, label, cat);
       const existing = c.skills[skill];
-      if(!existing) {
-        c.skills[skill] = { label, category:cat, level:1, xp:0, firstUsed:`Year ${GS.world.year}`, desc:`Learned from ${name}.` };
-        grantedSkill = { skill, label };
-      } else if(existing.level < 10) {
-        existing.level = Math.min(existing.level + 1, 10);
-        existing.xp = 0;
-        grantedSkill = { skill, label, leveled:true };
-      }
+      grantedSkill = { skill, label, leveled: existing && existing.level > 1 };
       break;
     }
   }
@@ -5971,6 +6037,170 @@ function updateWorldTab() {
   if(ws) ws.innerHTML = w.discoveredSects.length
     ? w.discoveredSects.map(s=>`<div class="journal-entry"><strong>${s.name}</strong> · ${s.status||'Unknown standing'}</div>`).join('')
     : '<span class="text-muted italic text-xs">No sects or factions discovered.</span>';
+
+  // Crew
+  updateCrewDisplay();
+}
+
+// ================================================================
+// CREW SYSTEM
+// ================================================================
+const CREW_TYPES = {
+  criminal:   { label:'Criminal Organization', icon:'🗡',  color:'#cc4444', desc:'Operates outside the law. Income through crime. Heat from authorities.' },
+  merchant:   { label:'Merchant Company',       icon:'📦', color:'#c49a30', desc:'Trade and commerce. Contracts, goods, routes. Power through wealth.' },
+  pirate:     { label:'Pirate Crew',            icon:'⚓', color:'#448888', desc:'Controls waterways. Raids, smuggling, territorial dominance at sea.' },
+  mercenary:  { label:'Mercenary Band',         icon:'⚔',  color:'#888844', desc:'Sells violence professionally. Reputation is inventory.' },
+  gang:       { label:'Gang',                   icon:'🏚', color:'#885544', desc:'Controls territory. Extortion, protection, and street-level influence.' },
+  cult:       { label:'Cult / Sect',            icon:'🌀', color:'#aa44cc', desc:'Spiritual or ideological organization. Devotion as currency.' },
+  espionage:  { label:'Intelligence Network',   icon:'👁', color:'#445566', desc:'Information as the primary product. Everyone is an asset.' },
+  guild:      { label:'Craft Guild',            icon:'🔨', color:'#668844', desc:'Controls a trade or craft. Standards, training, and market access.' },
+  research:   { label:'Research Collective',    icon:'📜', color:'#4488aa', desc:'Knowledge-seeking. Ancient texts, cultivation secrets, forbidden theory.' },
+  clan:       { label:'Family Clan',            icon:'🏮', color:'#aa8844', desc:'Blood ties as foundation. Honor, legacy, and inter-generational power.' },
+  raiders:    { label:'Raider Force',           icon:'🔥', color:'#cc6633', desc:'Mobility and violence. Hit and withdraw. Fear is the product.' },
+  smugglers:  { label:'Smuggling Ring',         icon:'🎭', color:'#556677', desc:'Moving things that shouldn\'t be moved. Networks and discretion.' },
+};
+
+function createCrew(opts) {
+  const c = GS.char;
+  c.crew = {
+    id:          uid(),
+    name:        opts.name || 'Unnamed Organization',
+    type:        opts.type || 'criminal',
+    description: opts.description || '',
+    founded:     { year: GS.world.year, location: GS.world.location },
+    location:    opts.location || GS.world.location,
+    members:     opts.members || [],   // [{ npcId, name, role, joinedYear, loyalty, alive }]
+    silver:      opts.silver || 0,     // crew treasury (separate from player silver)
+    influence:   opts.influence || 0,  // 0-100 local influence
+    heat:        opts.heat || 0,       // law enforcement attention (criminal types)
+    reputation:  opts.reputation || { renown:0, infamy:0 },
+    operations:  opts.operations || [], // active/recent operations
+    upgrades:    opts.upgrades || [],   // special capabilities or assets
+    tier:        'nascent',             // nascent→small→established→powerful→feared/renowned
+    log:         [`Year ${GS.world.year}: ${opts.name || 'Organization'} founded.`],
+  };
+  updateCrewDisplay();
+  return c.crew;
+}
+
+function updateCrewDisplay() {
+  const el = document.getElementById('w-crew-content');
+  const lbl = document.getElementById('crew-section-label');
+  if(!el) return;
+  const c = GS.char;
+  if(!c.crew) {
+    el.innerHTML = `<div class="empty-state" style="padding:12px 0;font-size:12px;color:var(--dim)">No crew or organization. Form one through play.</div>`;
+    if(lbl) lbl.textContent = 'Crew / Organization';
+    return;
+  }
+  const crew = c.crew;
+  const typeInfo = CREW_TYPES[crew.type] || CREW_TYPES.criminal;
+  if(lbl) lbl.textContent = crew.name;
+
+  const tierColors = { nascent:'#666', small:'#888', established:'#aaa', powerful:'#c49a30', feared:'#cc4444', renowned:'#aa88ff' };
+  const tierColor = tierColors[crew.tier] || '#888';
+
+  const memberRows = (crew.members || []).filter(m => m.alive !== false).map(m => {
+    const loyStr = m.loyalty >= 80 ? '★★★' : m.loyalty >= 50 ? '★★☆' : '★☆☆';
+    return `<div style="display:flex;justify-content:space-between;font-size:11px;padding:3px 0;border-bottom:1px solid #1a1020">
+      <span style="color:var(--text)">${m.name}</span>
+      <span style="color:var(--dim)">${m.role || 'Member'} · ${loyStr}</span>
+    </div>`;
+  }).join('') || `<div style="font-size:11px;color:var(--dim)">No known members yet.</div>`;
+
+  const opsHtml = (crew.operations || []).slice(-3).map(op =>
+    `<div style="font-size:11px;color:var(--muted);padding:2px 0">▸ ${op}</div>`
+  ).join('') || `<div style="font-size:11px;color:var(--dim)">No recorded operations.</div>`;
+
+  el.innerHTML = `
+    <div style="margin-bottom:8px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <span style="font-size:18px">${typeInfo.icon}</span>
+      <div>
+        <div style="font-size:13px;font-weight:700;color:${typeInfo.color}">${crew.name}</div>
+        <div style="font-size:10px;color:var(--dim)">${typeInfo.label} · <span style="color:${tierColor};text-transform:capitalize">${crew.tier}</span> · Founded Year ${crew.founded?.year}</div>
+      </div>
+    </div>
+    ${crew.description ? `<div style="font-size:11px;color:var(--muted);margin-bottom:8px;line-height:1.6">${crew.description}</div>` : ''}
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:10px">
+      <div style="background:var(--s2);border-radius:5px;padding:6px;text-align:center">
+        <div style="font-size:9px;color:var(--dim);text-transform:uppercase;letter-spacing:.08em">Treasury</div>
+        <div style="font-size:13px;color:var(--gold);font-weight:700">${formatCoins(crew.silver)}</div>
+      </div>
+      <div style="background:var(--s2);border-radius:5px;padding:6px;text-align:center">
+        <div style="font-size:9px;color:var(--dim);text-transform:uppercase;letter-spacing:.08em">Influence</div>
+        <div style="font-size:13px;color:#88aacc;font-weight:700">${crew.influence}/100</div>
+      </div>
+      ${crew.heat > 0 ? `<div style="background:var(--s2);border-radius:5px;padding:6px;text-align:center">
+        <div style="font-size:9px;color:var(--dim);text-transform:uppercase;letter-spacing:.08em">Heat</div>
+        <div style="font-size:13px;color:#cc4444;font-weight:700">${crew.heat}/100</div>
+      </div>` : `<div style="background:var(--s2);border-radius:5px;padding:6px;text-align:center">
+        <div style="font-size:9px;color:var(--dim);text-transform:uppercase;letter-spacing:.08em">Members</div>
+        <div style="font-size:13px;color:var(--text);font-weight:700">${(crew.members||[]).filter(m=>m.alive!==false).length}</div>
+      </div>`}
+    </div>
+    <div style="font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px">Members</div>
+    <div style="margin-bottom:10px">${memberRows}</div>
+    <div style="font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px">Recent Operations</div>
+    ${opsHtml}
+    <button class="btn-secondary btn-sm" style="margin-top:8px;width:100%" onclick="sendToAI('I check in with my crew — ${crew.name}. What is the current situation, what needs attention, and what have they been doing while I was occupied.')">Check In With Crew</button>
+  `;
+}
+
+// Add a member to the crew
+function addCrewMember(npcId, name, role) {
+  const c = GS.char;
+  if(!c.crew) return;
+  if(c.crew.members.find(m => m.npcId === npcId || m.name === name)) return; // already member
+  c.crew.members.push({ npcId, name, role: role || 'Member', joinedYear: GS.world.year, loyalty: 60, alive: true });
+  c.crew.log.push(`Year ${GS.world.year}: ${name} joined as ${role || 'Member'}.`);
+  updateCrewDisplay();
+}
+
+// Remove/lose a crew member
+function removeCrewMember(npcId, reason) {
+  const c = GS.char;
+  if(!c.crew) return;
+  const m = c.crew.members.find(m => m.npcId === npcId);
+  if(m) {
+    m.alive = false;
+    m.leftYear = GS.world.year;
+    m.leftReason = reason || 'departed';
+    c.crew.log.push(`Year ${GS.world.year}: ${m.name} — ${reason || 'departed'}.`);
+  }
+  updateCrewDisplay();
+}
+
+// AI response handler for crew updates
+function applyCrewUpdate(update) {
+  const c = GS.char;
+  if(update.found && !c.crew) {
+    createCrew({
+      name: update.name || 'Unnamed Crew',
+      type: update.type || 'criminal',
+      description: update.description || '',
+      location: GS.world.location,
+    });
+  }
+  if(!c.crew) return;
+  const crew = c.crew;
+  if(update.name)        crew.name        = update.name;
+  if(update.description) crew.description = update.description;
+  if(update.tier)        crew.tier        = update.tier;
+  if(update.silverDelta) crew.silver      = Math.max(0, (crew.silver||0) + update.silverDelta);
+  if(update.influence != null) crew.influence = Math.max(0, Math.min(100, update.influence));
+  if(update.heat != null)      crew.heat      = Math.max(0, Math.min(100, update.heat));
+  if(update.operation)   crew.operations.push(update.operation);
+  if(update.upgrade)     crew.upgrades.push(update.upgrade);
+  if(update.log)         crew.log.push(`Year ${GS.world.year}: ${update.log}`);
+  // Member changes
+  (update.addMembers || []).forEach(m => addCrewMember(m.npcId || '', m.name, m.role));
+  (update.removeMembers || []).forEach(m => removeCrewMember(m.npcId || m.name, m.reason));
+  // Loyalty changes
+  (update.loyaltyChanges || []).forEach(lc => {
+    const m = crew.members.find(m => m.npcId === lc.npcId || m.name === lc.name);
+    if(m) m.loyalty = Math.max(0, Math.min(100, (m.loyalty||60) + (lc.delta||0)));
+  });
+  updateCrewDisplay();
 }
 
 // ================================================================
@@ -7230,9 +7460,12 @@ PART 2 — DATA (immediately after the narrative, on its own line):
   "bounty": 0,
   "death": false,
   "deathCause": null,
+  "crewUpdate": null
 }
 \`\`\`
 CRITICAL: The narrative is NEVER inside the JSON. The JSON block has NO "narrative" field — the prose above is the narrative. Only include JSON fields that actually changed. Omit unchanged/zero/empty fields entirely.
+
+CREW SYSTEM — crewUpdate: Use when the player founds, develops, or loses elements of a crew/organization (criminal gang, merchant company, pirate fleet, mercenary band, research collective, clan, smuggling ring, cult — anything). Format: { "found":true, "name":"...", "type":"criminal|merchant|pirate|mercenary|gang|cult|espionage|guild|research|clan|raiders|smugglers", "description":"...", "tier":"nascent|small|established|powerful|feared|renowned", "silverDelta":0, "influence":0, "heat":0, "operation":"what they did", "upgrade":"what they gained", "addMembers":[{"name":"...","role":"..."}], "removeMembers":[{"name":"...","reason":"..."}] }
 
 TOME RULE: Tomes are PERMANENT — they NEVER disappear from inventory. Reading a tome does not consume it. A mortal with no Qi cultivation cannot learn any Qi technique from a tome regardless of what it says. If a character cannot yet learn a technique (wrong stage, wrong path, needs a master), narrate what they understand and what remains out of reach — do not grant the technique.`;
 }
@@ -7665,7 +7898,7 @@ function migrateSave(data) {
     traits:[], skills:{}, techniques:[], martialArts:[], inventory:[],
     equipment:{ head:null,body:null,hands:null,feet:null,weapon:null,offhand:null,acc1:null,acc2:null },
     reputation:{}, relationships:[], education:[], missions:[],
-    mentors:[], offspring:[], assets:[], goals:[],
+    mentors:[], offspring:[], assets:[], goals:[], crew:null,
     karma:{ righteous:0, blood:0, demonic:0, chaotic:0 },
     qi:{ stageIndex:0, current:0, max:100, breakthroughAt:100, breakthroughReady:false, path:null, expression:null },
     silver:0, hp:100, maxHp:100, bounty:0,
@@ -9551,10 +9784,12 @@ The JSON carries ONLY state changes. There is NO "narrative" field in the JSON �
   "raceChange": null,
   "death": false,
   "deathCause": null,
+  "crewUpdate": null
 }
 \`\`\`
 Omit any field that doesn't change. Zero values and empty arrays are noise — leave them out. NEVER put the narrative inside the JSON.
 
+CREW — crewUpdate: { "found":true, "name":"...", "type":"criminal|merchant|pirate|mercenary|gang|cult|espionage|guild|research|clan|raiders|smugglers", "description":"...", "tier":"nascent|small|established|powerful|feared|renowned", "silverDelta":0, "influence":0, "heat":0, "operation":"...", "upgrade":"...", "addMembers":[{"name":"...","role":"..."}], "removeMembers":[{"name":"...","reason":"..."}] }
 TOME RULE: Tomes are PERMANENT items — they never leave inventory from being read. A mortal (no Qi) cannot learn cultivation techniques from tomes. If a character is not ready for a technique (wrong stage, wrong path, needs a master first), say so in the narrative and do not grant it. The tome stays.`;
 }
 
@@ -9700,6 +9935,9 @@ function applyAIResponse(res) {
 
   // Race change
   if(res.raceChange) setRace(res.raceChange);
+
+  // Crew system update
+  if(res.crewUpdate) applyCrewUpdate(res.crewUpdate);
 
   // Note: consumeItem is intentionally NOT handled here — tomes are permanent
   // They stay in inventory forever. Reading them does not consume them.
@@ -10376,8 +10614,12 @@ function extractSkillsFromNarrative(text) {
   if(/\b(can write|writes?\s+\w|knows?\s+(her|his|their|the)\s+letters?|learned\s+to\s+read|read\s+and\s+write|can\s+read|reads?\s+\w|knows?\s+letters?)\b/i.test(text))
     giveSkill('literacy', 'scholarly', 'Literacy');
 
+  // ── Mathematics ───────────────────────────────────────────────
+  if(/\b(numbers?|arithmetic|math(ematics)?|calcul(at|us)|count(ing)?|tallied?|algebra|geometry|figures?|equations?|teaches?\s+.{0,20}numbers?|numbers?\s+.{0,20}teach)\b/i.test(text))
+    giveSkill('mathematics', 'scholarly', 'Mathematics');
+
   // ── Commerce / counting ───────────────────────────────────────
-  if(/\b(count(ing)?\s+coin|count(ing)?\s+silver|arithmetic|numbers\s+came|tallied?|ledger|accounts?)\b/i.test(text))
+  if(/\b(count(ing)?\s+coin|count(ing)?\s+silver|ledger|accounts?|bookkeeping|commerce)\b/i.test(text))
     giveSkill('commerce', 'social', 'Commerce');
 
   // ── Cooking ───────────────────────────────────────────────────
