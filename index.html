@@ -143,18 +143,8 @@ a { color: var(--gold); text-decoration: none; }
   cursor: pointer;
   z-index: 200;
   overflow: hidden;
-  /* Auto-dismiss after 5s via CSS — no JS required */
-  animation: cssAutoDismiss 0.6s ease 5s forwards;
+  transition: opacity 0.5s ease;
 }
-/* When clicked, JS adds this class to instant-dismiss */
-#screen-startup.dismissing {
-  animation: cssAutoDismiss 0.5s ease 0s forwards !important;
-}
-@keyframes cssAutoDismiss {
-  0%   { opacity: 1; pointer-events: none; }
-  100% { opacity: 0; pointer-events: none; visibility: hidden; }
-}
-/* After animation, hide it for real */
 #screen-startup.dismissed {
   display: none !important;
 }
@@ -12022,20 +12012,19 @@ function saveAPIKey() {
 }
 
 function dismissStartup() {
-  var startup = document.getElementById('screen-startup');
-  if(!startup) return;
-  if(startup.classList.contains('dismissing') || startup.classList.contains('dismissed')) return;
-  startup.classList.add('dismissing');
-  setTimeout(function() {
-    startup.classList.add('dismissed');
-  }, 550);
+  var s = document.getElementById('screen-startup');
+  if(!s || s.classList.contains('dismissed')) return;
+  s.style.opacity = '0';
+  s.style.pointerEvents = 'none';
+  setTimeout(function() { s.classList.add('dismissed'); }, 500);
 }
 
 function initStartupScreen() {
   var startup = document.getElementById('screen-startup');
   if(!startup) return;
   startup.addEventListener('click', dismissStartup);
-  document.addEventListener('keydown', function() { dismissStartup(); });
+  document.addEventListener('keydown', dismissStartup);
+  setTimeout(dismissStartup, 6000);
 }
 
 function initMainMenu() {
