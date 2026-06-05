@@ -140,8 +140,23 @@ a { color: var(--gold); text-decoration: none; }
 #screen-startup {
   background: #000;
   align-items: center; justify-content: center;
-  cursor: pointer; z-index: 200;
+  cursor: pointer;
+  z-index: 200;
   overflow: hidden;
+  /* Auto-dismiss after 5s via CSS — no JS required */
+  animation: cssAutoDismiss 0.6s ease 5s forwards;
+}
+/* When clicked, JS adds this class to instant-dismiss */
+#screen-startup.dismissing {
+  animation: cssAutoDismiss 0.5s ease 0s forwards !important;
+}
+@keyframes cssAutoDismiss {
+  0%   { opacity: 1; pointer-events: none; }
+  100% { opacity: 0; pointer-events: none; visibility: hidden; }
+}
+/* After animation, hide it for real */
+#screen-startup.dismissed {
+  display: none !important;
 }
 /* Animated ink-wash background */
 #screen-startup::before {
@@ -243,6 +258,7 @@ a { color: var(--gold); text-decoration: none; }
   background: var(--bg);
   align-items: stretch; justify-content: stretch;
   overflow: hidden;
+  z-index: 1; /* always below startup z-index:200 */
 }
 /* Split layout: atmospheric left pane + menu right */
 .menu-layout {
@@ -1663,7 +1679,7 @@ body.generating [onclick*="shopSellItem"], body.generating [onclick*="closeMapGo
 </div>
 
 <!-- ── MAIN MENU ── -->
-<div id="screen-menu" class="screen hidden">
+<div id="screen-menu" class="screen">
   <div class="menu-layout">
 
     <!-- Left lore pane -->
@@ -12006,34 +12022,20 @@ function saveAPIKey() {
 }
 
 function dismissStartup() {
-  const startup = document.getElementById('screen-startup');
-  const menu    = document.getElementById('screen-menu');
-  if(!startup || startup.classList.contains('hidden')) return;
-  // Immediately non-interactive, then fade
-  startup.style.pointerEvents = 'none';
-  startup.style.transition = 'opacity .6s ease, filter .6s ease';
-  startup.style.opacity = '0';
-  startup.style.filter  = 'blur(8px)';
-  setTimeout(() => {
-    startup.classList.add('hidden');
-    startup.style.opacity = '';
-    startup.style.filter  = '';
-    startup.style.transition = '';
-    if(menu) menu.classList.remove('hidden');
-  }, 620);
+  var startup = document.getElementById('screen-startup');
+  if(!startup) return;
+  if(startup.classList.contains('dismissing') || startup.classList.contains('dismissed')) return;
+  startup.classList.add('dismissing');
+  setTimeout(function() {
+    startup.classList.add('dismissed');
+  }, 550);
 }
 
 function initStartupScreen() {
-  const startup = document.getElementById('screen-startup');
+  var startup = document.getElementById('screen-startup');
   if(!startup) return;
   startup.addEventListener('click', dismissStartup);
-  document.addEventListener('keydown', function onKey(e) {
-    if(startup.classList.contains('hidden')) { document.removeEventListener('keydown', onKey); return; }
-    document.removeEventListener('keydown', onKey);
-    dismissStartup();
-  });
-  // Auto-advance after 6 seconds
-  setTimeout(dismissStartup, 6000);
+  document.addEventListener('keydown', function() { dismissStartup(); });
 }
 
 function initMainMenu() {
@@ -12114,10 +12116,11 @@ document.addEventListener('DOMContentLoaded', () => {
   if(savedKey) GS.settings.apiKey = savedKey;
   initMainMenu();
   initStartupScreen();
-  // Show startup screen first; it fades to main menu automatically
+  // screen-menu is always visible (z-index 1, under startup z-index 200)
+  // Just make sure creation and game screens are hidden at start
   document.getElementById('screen-creation')?.classList.add('hidden');
-  document.getElementById('screen-menu')?.classList.add('hidden');
-  document.getElementById('screen-startup')?.classList.remove('hidden');
+  document.getElementById('screen-game')?.classList.add('hidden');
+  // startup auto-dismisses via CSS animation after 5s; click speeds it up
 });
 
 // ================================================================
