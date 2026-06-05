@@ -135,116 +135,273 @@ a { color: var(--gold); text-decoration: none; }
 .icon-btn:hover { color: var(--text); background: var(--s3); }
 
 /* ============================================================
-   MAIN MENU
+   STARTUP SCREEN — cinematic splash
    ============================================================ */
-/* ── STARTUP SCREEN ── */
 #screen-startup {
   background: #000;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  z-index: 200;
+  align-items: center; justify-content: center;
+  cursor: pointer; z-index: 200;
+  overflow: hidden;
+}
+/* Animated ink-wash background */
+#screen-startup::before {
+  content: '';
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(ellipse 80% 50% at 50% 80%, rgba(196,154,48,.07) 0%, transparent 60%),
+    radial-gradient(ellipse 60% 40% at 20% 20%, rgba(100,60,180,.05) 0%, transparent 50%),
+    radial-gradient(ellipse 50% 60% at 80% 10%, rgba(60,100,160,.04) 0%, transparent 50%);
+  animation: inkWash 8s ease-in-out infinite alternate;
+  pointer-events: none;
+}
+@keyframes inkWash {
+  0%   { opacity:.5; transform: scale(1); }
+  100% { opacity:1;  transform: scale(1.04); }
+}
+/* Vertical lines — like brush strokes */
+#screen-startup::after {
+  content: '';
+  position: absolute; inset: 0;
+  background: repeating-linear-gradient(
+    90deg,
+    transparent 0, transparent 120px,
+    rgba(196,154,48,.015) 120px, rgba(196,154,48,.015) 121px
+  );
+  pointer-events: none;
 }
 .startup-inner {
+  position: relative; z-index: 1;
   text-align: center;
-  max-width: 600px;
-  padding: 40px 24px;
-  animation: startup-fade-in 2s ease forwards;
+  max-width: 520px;
+  padding: 40px 28px;
+  animation: startupReveal 2.4s cubic-bezier(.16,1,.3,1) forwards;
 }
-@keyframes startup-fade-in {
-  from { opacity:0; transform:translateY(12px); }
-  to   { opacity:1; transform:none; }
+@keyframes startupReveal {
+  0%   { opacity:0; transform: translateY(24px); filter: blur(8px); }
+  100% { opacity:1; transform: none; filter: none; }
+}
+.startup-eyebrow {
+  font-size: 10px; letter-spacing: .35em; text-transform: uppercase;
+  color: rgba(196,154,48,.5); margin-bottom: 20px;
 }
 .startup-title {
-  font-size: 3rem; letter-spacing:.15em;
-  color: var(--gold); margin-bottom: 6px;
-  text-shadow: 0 0 60px rgba(196,154,48,.4);
+  font-size: clamp(2.2rem, 8vw, 3.8rem);
+  letter-spacing: .12em;
+  color: var(--gold);
+  font-weight: 700;
+  line-height: 1;
+  margin-bottom: 8px;
+  text-shadow:
+    0 0 80px rgba(196,154,48,.5),
+    0 0 160px rgba(196,154,48,.2);
 }
-.startup-sub {
-  font-size: 12px; color: var(--dim);
-  letter-spacing: .22em; text-transform: uppercase;
-  margin-bottom: 48px;
+.startup-title-kanji {
+  display: block; font-size: clamp(.9rem, 3vw, 1.2rem);
+  letter-spacing: .5em; color: rgba(196,154,48,.35);
+  margin-bottom: 32px; font-weight: 300;
+}
+.startup-divider {
+  width: 60px; height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(196,154,48,.5), transparent);
+  margin: 0 auto 32px;
 }
 .startup-quote {
-  font-size: 14px; color: var(--muted);
-  font-style: italic; line-height: 1.9;
-  margin-bottom: 56px;
-  max-width: 440px; margin-left: auto; margin-right: auto;
+  font-size: clamp(12px, 3vw, 14px);
+  color: rgba(180,170,160,.6);
+  font-style: italic; line-height: 2.1;
+  margin-bottom: 48px;
+  max-width: 380px; margin-left: auto; margin-right: auto;
 }
 .startup-quote span { display: block; }
 .startup-hint {
-  font-size: 11px; color: var(--dim);
-  letter-spacing: .16em; text-transform: uppercase;
-  animation: startup-pulse 2.5s ease-in-out infinite;
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  font-size: 10px; color: rgba(180,170,160,.3);
+  letter-spacing: .25em; text-transform: uppercase;
+  animation: hintPulse 3s ease-in-out infinite;
 }
-@keyframes startup-pulse {
-  0%,100% { opacity:.3; }
-  50%      { opacity:.8; }
+.startup-hint::before, .startup-hint::after {
+  content: ''; display: block;
+  width: 24px; height: 1px;
+  background: rgba(196,154,48,.25);
+}
+@keyframes hintPulse {
+  0%,100% { opacity:.4; }
+  50%      { opacity:1; }
 }
 .startup-fade-out {
-  animation: startup-fade-out .8s ease forwards;
+  animation: startupOut .9s cubic-bezier(.4,0,1,1) forwards;
 }
-@keyframes startup-fade-out {
-  to { opacity:0; }
+@keyframes startupOut {
+  0%   { opacity:1; filter: none; }
+  100% { opacity:0; filter: blur(12px); }
 }
 
+/* ============================================================
+   MAIN MENU — immersive, atmospheric
+   ============================================================ */
 #screen-menu {
   background: var(--bg);
-  align-items: center;
-  justify-content: center;
-  flex-direction: column;
-  gap: 0;
+  align-items: stretch; justify-content: stretch;
+  overflow: hidden;
 }
-.menu-bg {
+/* Split layout: atmospheric left pane + menu right */
+.menu-layout {
+  display: flex; flex: 1; position: relative;
+}
+/* Left — lore pane */
+.menu-lore-pane {
+  flex: 1; position: relative;
+  display: flex; flex-direction: column;
+  justify-content: flex-end;
+  padding: 48px 40px;
+  background: linear-gradient(
+    135deg,
+    rgba(10,8,20,1) 0%,
+    rgba(16,10,28,1) 60%,
+    rgba(20,14,8,1) 100%
+  );
+  overflow: hidden;
+  min-width: 0;
+}
+.menu-lore-pane::before {
+  content: '';
   position: absolute; inset: 0;
-  background: radial-gradient(ellipse at 50% 60%, rgba(196,154,48,.04) 0%, transparent 70%);
+  background:
+    radial-gradient(ellipse 70% 60% at 30% 40%, rgba(196,154,48,.04) 0%, transparent 70%),
+    radial-gradient(ellipse 50% 80% at 80% 80%, rgba(60,40,100,.08) 0%, transparent 60%);
+  animation: lorePaneAura 6s ease-in-out infinite alternate;
+}
+@keyframes lorePaneAura {
+  0%   { opacity:.6; }
+  100% { opacity:1; }
+}
+/* Faint grid */
+.menu-lore-pane::after {
+  content: '';
+  position: absolute; inset: 0;
+  background-image:
+    linear-gradient(rgba(196,154,48,.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(196,154,48,.025) 1px, transparent 1px);
+  background-size: 40px 40px;
   pointer-events: none;
 }
-.menu-wrap {
-  position: relative; z-index: 1;
+.menu-lore-content { position: relative; z-index: 1; }
+.menu-lore-eyebrow {
+  font-size: 9px; letter-spacing: .4em; text-transform: uppercase;
+  color: rgba(196,154,48,.4); margin-bottom: 16px;
+}
+.menu-lore-title {
+  font-size: clamp(1.8rem, 4vw, 3rem);
+  font-weight: 700; letter-spacing: .08em;
+  color: var(--gold);
+  line-height: 1.1; margin-bottom: 6px;
+  text-shadow: 0 0 60px rgba(196,154,48,.3);
+}
+.menu-lore-sub {
+  font-size: 11px; color: rgba(196,154,48,.35);
+  letter-spacing: .3em; text-transform: uppercase;
+  margin-bottom: 28px;
+}
+.menu-lore-quote {
+  font-size: 13px; color: rgba(180,170,160,.45);
+  font-style: italic; line-height: 1.9;
+  max-width: 340px; border-left: 1px solid rgba(196,154,48,.2);
+  padding-left: 16px;
+}
+.menu-lore-quote span { display: block; }
+.menu-world-facts {
+  margin-top: 28px;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.menu-fact {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 11px; color: rgba(180,170,160,.35);
+}
+.menu-fact-dot {
+  width: 4px; height: 4px; border-radius: 50%;
+  background: rgba(196,154,48,.4); flex-shrink: 0;
+}
+/* Right — menu pane */
+.menu-right-pane {
+  width: min(320px, 42vw);
+  flex-shrink: 0;
   display: flex; flex-direction: column;
-  align-items: center; gap: 0;
-  padding: 40px 20px;
+  justify-content: center;
+  padding: 48px 36px;
+  background: rgba(6,4,14,.95);
+  border-left: 1px solid rgba(196,154,48,.08);
+  position: relative;
 }
-.menu-logo-wrap {
-  display: flex; flex-direction: column; align-items: center;
-  margin-bottom: 40px;
+.menu-right-pane::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: radial-gradient(ellipse 100% 60% at 50% 20%, rgba(196,154,48,.03) 0%, transparent 70%);
+  pointer-events: none;
 }
-.menu-logo-img {
-  width: min(340px, 80vw); height: auto;
-  border-radius: 24px;
-  filter: drop-shadow(0 0 30px rgba(196,154,48,.25)) drop-shadow(0 4px 20px rgba(0,0,0,.8));
-  animation: logoFloat 4s ease-in-out infinite;
+.menu-right-inner { position: relative; z-index: 1; }
+.menu-right-title {
+  font-size: 10px; letter-spacing: .3em; text-transform: uppercase;
+  color: rgba(196,154,48,.4); margin-bottom: 32px;
 }
-@keyframes logoFloat {
-  0%,100% { transform: translateY(0); filter: drop-shadow(0 0 30px rgba(196,154,48,.25)) drop-shadow(0 4px 20px rgba(0,0,0,.8)); }
-  50%      { transform: translateY(-6px); filter: drop-shadow(0 0 45px rgba(196,154,48,.4)) drop-shadow(0 10px 30px rgba(0,0,0,.7)); }
-}
-.menu-title {
-  font-size: 2.8rem; color: var(--gold);
-  letter-spacing: .12em; margin-bottom: 4px;
-  text-shadow: 0 0 40px rgba(196,154,48,.3);
-}
-.menu-subtitle {
-  font-size: 12px; color: var(--dim);
-  letter-spacing: .18em; text-transform: uppercase;
-  margin-bottom: 54px;
-}
-.menu-options { display: flex; flex-direction: column; gap: 2px; width: 280px; }
+.menu-options { display: flex; flex-direction: column; gap: 4px; }
 .menu-btn {
-  background: none; border: none;
-  color: var(--muted); font-size: 15px;
-  font-family: inherit; padding: 13px 20px;
+  background: transparent;
+  border: none; border-radius: 4px;
+  color: rgba(180,170,160,.55);
+  font-size: 14px; font-family: inherit;
+  padding: 12px 14px;
   text-align: left; cursor: pointer;
-  border-radius: 5px; transition: all .15s;
+  transition: all .18s;
   position: relative; letter-spacing: .04em;
+  display: flex; align-items: center; gap: 12px;
 }
-.menu-btn:hover { color: var(--gold); background: rgba(196,154,48,.06); padding-left: 28px; }
-.menu-btn:hover::before { content: '—'; position: absolute; left: 12px; color: var(--gold); font-size: 12px; top: 50%; transform: translateY(-50%); }
-.menu-btn.primary { color: var(--text); font-weight: 600; }
-.menu-btn.primary:hover { color: var(--gold); }
-.menu-divider { height: 1px; background: var(--border); margin: 8px 0; }
-.menu-version { margin-top: 40px; font-size: 10px; color: var(--dim); letter-spacing:.1em; }
+.menu-btn-icon {
+  font-size: 14px; opacity: .5; flex-shrink: 0;
+  transition: opacity .18s;
+}
+.menu-btn:hover {
+  color: rgba(196,154,48,.95);
+  background: rgba(196,154,48,.05);
+}
+.menu-btn:hover .menu-btn-icon { opacity: 1; }
+.menu-btn.primary {
+  color: rgba(255,240,200,.8);
+  background: rgba(196,154,48,.08);
+  border: 1px solid rgba(196,154,48,.15);
+  font-weight: 600;
+}
+.menu-btn.primary:hover {
+  color: var(--gold);
+  background: rgba(196,154,48,.12);
+  border-color: rgba(196,154,48,.3);
+}
+.menu-btn.primary .menu-btn-icon { opacity: .8; }
+.menu-divider {
+  height: 1px;
+  background: rgba(196,154,48,.08);
+  margin: 10px 0;
+}
+.menu-version {
+  margin-top: 36px;
+  font-size: 9px; color: rgba(180,170,160,.2);
+  letter-spacing: .12em; text-transform: uppercase;
+}
+
+/* Mobile: stack vertically */
+@media (max-width: 600px) {
+  .menu-layout { flex-direction: column; }
+  .menu-lore-pane {
+    flex: none; padding: 32px 24px 24px;
+    min-height: 40vh;
+  }
+  .menu-right-pane {
+    width: 100%; flex: 1;
+    border-left: none;
+    border-top: 1px solid rgba(196,154,48,.08);
+    padding: 24px 20px;
+    justify-content: flex-start;
+  }
+}
 
 /* Hall of Dead / Achievements panels */
 .panel-overlay {
@@ -1377,37 +1534,72 @@ body.generating [onclick*="shopSellItem"], body.generating [onclick*="closeMapGo
 <!-- ── STARTUP SCREEN ── -->
 <div id="screen-startup" class="screen">
   <div class="startup-inner">
-    <div class="startup-title">MURIM CHRONICLES</div>
-    <div class="startup-sub">Year One of the Qi Era</div>
+    <div class="startup-eyebrow">A cultivation life in a world that doesn't care</div>
+    <div class="startup-title">
+      MURIM<br>CHRONICLES
+      <span class="startup-title-kanji">武林编年史</span>
+    </div>
+    <div class="startup-divider"></div>
     <div class="startup-quote">
       <span>Before Year One, people still died.</span>
       <span>The day Qi was discovered, nothing changed.</span>
       <span>The world simply became larger,</span>
       <span>and more dangerous.</span>
     </div>
-    <div class="startup-hint">click to begin</div>
+    <div class="startup-hint">tap anywhere to continue</div>
   </div>
 </div>
 
 <!-- ── MAIN MENU ── -->
 <div id="screen-menu" class="screen hidden">
-  <div class="menu-bg"></div>
-  <div class="menu-wrap">
-    <div class="menu-logo-wrap">
-      <img src="icon.png" alt="Murim Chronicles" class="menu-logo-img"
-        onerror="this.style.display='none';document.getElementById('menu-title-text').style.display='block'">
-      <div id="menu-title-text" class="menu-title" style="display:none">Murim Chronicles</div>
+  <div class="menu-layout">
+
+    <!-- Left lore pane -->
+    <div class="menu-lore-pane">
+      <div class="menu-lore-content">
+        <div class="menu-lore-eyebrow">A cultivation chronicle</div>
+        <div class="menu-lore-title">Murim<br>Chronicles</div>
+        <div class="menu-lore-sub">Year One of the Qi Era</div>
+        <div class="menu-lore-quote">
+          <span>Ichiro Katsumi and Reo Yamamoto</span>
+          <span>discovered Qi in Year 1.</span>
+          <span>Everything since has been consequence.</span>
+        </div>
+        <div class="menu-world-facts">
+          <div class="menu-fact"><div class="menu-fact-dot"></div><span>Three kingdoms. One discovered Qi and built a city on it.</span></div>
+          <div class="menu-fact"><div class="menu-fact-dot"></div><span>The founders are dead. What they left is already rotting.</span></div>
+          <div class="menu-fact"><div class="menu-fact-dot"></div><span>You are not the chosen one. You are a person who exists in the world.</span></div>
+        </div>
+      </div>
     </div>
-    <div class="menu-options">
-      <button class="menu-btn primary" id="menu-newgame">New Game</button>
-      <button class="menu-btn" id="menu-continue">Continue</button>
-      <div class="menu-divider"></div>
-      <button class="menu-btn" id="menu-dead">Hall of the Dead</button>
-      <button class="menu-btn" id="menu-achievements">Achievements</button>
-      <div class="menu-divider"></div>
-      <button class="menu-btn" id="menu-apikey">API Key</button>
+
+    <!-- Right menu pane -->
+    <div class="menu-right-pane">
+      <div class="menu-right-inner">
+        <div class="menu-right-title">Main Menu</div>
+        <div class="menu-options">
+          <button class="menu-btn primary" id="menu-newgame">
+            <span class="menu-btn-icon">⊕</span> New Life
+          </button>
+          <button class="menu-btn" id="menu-continue">
+            <span class="menu-btn-icon">◎</span> Continue
+          </button>
+          <div class="menu-divider"></div>
+          <button class="menu-btn" id="menu-dead">
+            <span class="menu-btn-icon">🪦</span> Hall of the Dead
+          </button>
+          <button class="menu-btn" id="menu-achievements">
+            <span class="menu-btn-icon">◆</span> Achievements
+          </button>
+          <div class="menu-divider"></div>
+          <button class="menu-btn" id="menu-apikey">
+            <span class="menu-btn-icon">⚙</span> API Key
+          </button>
+        </div>
+        <div class="menu-version">Powered by Claude · murim-chronicles</div>
+      </div>
     </div>
-    <div class="menu-version">Year 1 of the Qi Era</div>
+
   </div>
 </div>
 
