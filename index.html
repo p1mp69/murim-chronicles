@@ -616,7 +616,62 @@ a { color: var(--gold); text-decoration: none; }
   font-size: 10px; text-transform: uppercase; letter-spacing:.12em;
   color: rgba(196,154,48,.5); margin-bottom: 6px;
 }
-#inp-city { width: 100%; }
+/* Location picker button replaces the dropdown */
+#inp-city { display: none; } /* hidden — value tracked by JS */
+.loc-picker-btn {
+  width: 100%; padding: 10px 14px;
+  background: rgba(20,16,32,.8); border: 1px solid rgba(196,154,48,.15);
+  border-radius: 6px; color: var(--text); font-family: inherit;
+  font-size: 13px; text-align: left; cursor: pointer;
+  display: flex; align-items: center; justify-content: space-between;
+  transition: border-color .15s;
+}
+.loc-picker-btn:hover { border-color: rgba(196,154,48,.4); }
+.loc-picker-btn .loc-chosen-name { color: var(--gold); font-weight: 600; }
+.loc-picker-btn .loc-chosen-type { font-size: 11px; color: var(--dim); margin-left: 6px; }
+/* Location picker modal */
+#modal-loc-picker {
+  position: fixed; inset: 0; z-index: 500;
+  background: rgba(4,4,12,.92); backdrop-filter: blur(6px);
+  display: flex; align-items: center; justify-content: center;
+  padding: 16px;
+}
+#modal-loc-picker.hidden { display: none !important; }
+.loc-picker-panel {
+  background: rgba(10,8,20,.98); border: 1px solid rgba(196,154,48,.15);
+  border-radius: 12px; width: 100%; max-width: 680px;
+  max-height: 82vh; display: flex; flex-direction: column;
+  overflow: hidden;
+}
+.loc-picker-header {
+  padding: 16px 20px 12px; border-bottom: 1px solid rgba(196,154,48,.1);
+  display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
+}
+.loc-picker-title { font-size: 12px; letter-spacing: .18em; text-transform: uppercase; color: rgba(196,154,48,.6); }
+.loc-picker-close { background: none; border: none; color: var(--dim); font-size: 18px; cursor: pointer; padding: 2px 8px; }
+.loc-picker-close:hover { color: var(--text); }
+.loc-picker-body { overflow-y: auto; padding: 16px 20px; flex: 1; min-height: 0; }
+.loc-kingdom-section { margin-bottom: 20px; }
+.loc-kingdom-label {
+  font-size: 9px; text-transform: uppercase; letter-spacing: .2em;
+  color: rgba(196,154,48,.5); margin-bottom: 8px; padding-bottom: 4px;
+  border-bottom: 1px solid rgba(196,154,48,.08);
+}
+.loc-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+@media (max-width: 500px) { .loc-grid { grid-template-columns: 1fr; } }
+.loc-card {
+  padding: 10px 12px; border-radius: 7px; cursor: pointer;
+  border: 1px solid rgba(196,154,48,.1);
+  background: rgba(16,12,28,.8);
+  transition: all .15s; position: relative; overflow: hidden;
+}
+.loc-card:hover { border-color: rgba(196,154,48,.35); background: rgba(20,16,36,.9); }
+.loc-card.selected { border-color: rgba(196,154,48,.6); background: rgba(196,154,48,.08); }
+.loc-card.selected::before { content:''; position:absolute; left:0; top:0; bottom:0; width:3px; background:var(--gold); }
+.loc-card.unavailable { opacity:.35; cursor:not-allowed; }
+.loc-card-name { font-size: 13px; font-weight: 600; color: rgba(220,210,190,.9); margin-bottom: 2px; }
+.loc-card-type { font-size: 9px; text-transform: uppercase; letter-spacing: .1em; color: rgba(196,154,48,.45); margin-bottom: 5px; }
+.loc-card-desc { font-size: 11px; color: rgba(180,170,160,.4); line-height: 1.55; }
 .gender-row { display: flex; gap: 6px; }
 .gender-btn, .age-btn {
   flex: 1; padding: 9px 6px; border: 1px solid rgba(196,154,48,.12);
@@ -1853,7 +1908,14 @@ body.generating [onclick*="shopSellItem"], body.generating [onclick*="closeMapGo
           <div class="step-sub">where your story begins</div>
         </div>
         <div class="step-body">
-          <select id="inp-city"></select>
+          <select id="inp-city" style="display:none"></select>
+          <button type="button" class="loc-picker-btn" id="btn-open-loc-picker" onclick="openLocPicker()">
+            <span>
+              <span class="loc-chosen-name" id="loc-chosen-name">Tazar</span>
+              <span class="loc-chosen-type" id="loc-chosen-type">Capital</span>
+            </span>
+            <span style="color:rgba(196,154,48,.4);font-size:12px">▼ Choose</span>
+          </button>
           <div id="city-note" style="font-size:11px;color:rgba(180,170,160,.35);margin-top:8px;font-style:italic;line-height:1.7"></div>
         </div>
       </div>
@@ -1903,6 +1965,19 @@ body.generating [onclick*="shopSellItem"], body.generating [onclick*="closeMapGo
       <button id="btn-begin" class="btn-primary btn-lg">Enter the World →</button>
     </div>
 
+  </div>
+</div>
+
+<!-- Location Picker Modal -->
+<div id="modal-loc-picker" class="hidden">
+  <div class="loc-picker-panel">
+    <div class="loc-picker-header">
+      <span class="loc-picker-title">Choose Birth City</span>
+      <button class="loc-picker-close" onclick="closeLocPicker()">✕</button>
+    </div>
+    <div class="loc-picker-body" id="loc-picker-body">
+      <!-- populated by buildLocPickerContent() -->
+    </div>
   </div>
 </div>
 
@@ -3121,8 +3196,12 @@ Object.assign(LOCATIONS, {
 
 const KINGDOMS = {
   azure_empire:    { name:'Azure Empire',       locations:['tazar','jade_province','beggars_rest','wheat_capital','iron_hollow','ooina','bastion_azure','concordia'] },
+  // Note: Yumiko Ohaka is ohaka_free_city, NOT azure_empire
   luo_tin:         { name:'Luo-Tin Dynasty',    locations:['luo_tin_capital','luo_tin_farm','great_defensive_giant','shen_port','silver_district'] },
   buo:             { name:'Buo Kingdom',         locations:['buo_capital','red_sand_city','mistveil','stone_root','wild_bloom'] },
+  ohaka_free_city: { name:'Yumiko Ohaka (Free City)', locations:['yumiko_ohaka'],
+    founded: 30,
+    desc: 'An independent free city governed by the Yumijiyū community. Affiliated with no kingdom. Its independence has been recognized by every major power — attacking it would be politically catastrophic. Its neutrality makes it the only place in the world where representatives of every kingdom can meet without the meeting being considered an act of war.' },
   nao_confederacy: { name:'The Nao Confederacy', locations:['ironhaven','naos_reach','embercross','silverwake','hollow_crown','verdant_gate'],
     founded: 425,
     desc: 'Born from the Nao Rebellion (405–425) against the Azure Empire. Led by Miyu Nao — "The Revered." Beggar\'s Rest was its birthplace and symbolic capital. Seven cities broke away or were founded in the aftermath. The Confederacy is defined by its rebel heritage and its deep suspicion of the empire that once owned it.' },
@@ -24677,6 +24756,110 @@ updateCharacterTab = function() {
 // ================================================================
 
 // Populate city dropdown based on birth year (Ooina excluded, unfounded locations excluded)
+// ── Location picker modal ────────────────────────────────────────
+
+function openLocPicker() {
+  const yr = parseInt(document.getElementById('inp-year')?.value) || 1;
+  buildLocPickerContent(yr);
+  document.getElementById('modal-loc-picker')?.classList.remove('hidden');
+}
+
+function closeLocPicker() {
+  document.getElementById('modal-loc-picker')?.classList.add('hidden');
+}
+
+function selectLocFromPicker(locKey) {
+  const loc = LOCATIONS[locKey];
+  if(!loc) return;
+
+  // Update the hidden select
+  const sel = document.getElementById('inp-city');
+  if(sel) sel.value = locKey;
+
+  // Update the button display
+  const nameEl = document.getElementById('loc-chosen-name');
+  const typeEl = document.getElementById('loc-chosen-type');
+  if(nameEl) nameEl.textContent = loc.name;
+  if(typeEl) typeEl.textContent = loc.type?.replace(/_/g,' ') || '';
+
+  // Update origin cards and city note (same as what the old change handler did)
+  const note = document.getElementById('city-note');
+  if(note) note.textContent = loc.desc ? loc.desc.slice(0, 140) + '...' : '';
+  if(typeof buildOriginCards === 'function') {
+    let selectedOrigin = null;
+    buildOriginCards(locKey, id => { selectedOrigin = id; });
+  }
+
+  // Update all picker cards
+  document.querySelectorAll('.loc-card').forEach(c => {
+    c.classList.toggle('selected', c.dataset.locKey === locKey);
+  });
+
+  closeLocPicker();
+}
+
+function buildLocPickerContent(birthYear) {
+  const body = document.getElementById('loc-picker-body');
+  if(!body) return;
+
+  const yr       = parseInt(birthYear) || 1;
+  const spawnable = getSpawnableLocations(yr);
+  const currentVal = document.getElementById('inp-city')?.value || 'tazar';
+
+  // Group by kingdom
+  const byKingdom = {};
+  spawnable.forEach(([k, loc]) => {
+    const kData = KINGDOMS[loc.kingdom];
+    const kName = kData?.name || loc.kingdom || 'Other';
+    if(!byKingdom[kName]) byKingdom[kName] = { key: loc.kingdom, locs: [] };
+    byKingdom[kName].locs.push([k, loc]);
+  });
+
+  // Kingdom display order
+  const orderMap = {
+    'Azure Empire': 0, 'Luo-Tin Dynasty': 1, 'Buo Kingdom': 2,
+    'The Nao Confederacy': 3, 'Yumiko Ohaka (Free City)': 4,
+  };
+  const orderedKingdoms = Object.entries(byKingdom)
+    .sort(([a],[b]) => (orderMap[a]??99) - (orderMap[b]??99));
+
+  const TYPE_ICONS = {
+    capital:'🏛', merchant_city:'💰', slum:'🏚', farming_city:'🌾',
+    industrial_city:'⚒', forest:'🌲', fortress:'🏰', port_city:'⚓',
+    military_city:'⚔', memorial_city:'🕯', religious_city:'⛩',
+    craft_district:'🔨', farming_city:'🌾',
+  };
+
+  body.innerHTML = orderedKingdoms.map(([kName, kData]) => {
+    const locCards = kData.locs.map(([k, loc]) => {
+      const icon = TYPE_ICONS[loc.type] || '📍';
+      const typeLabel = (loc.type||'').replace(/_/g,' ');
+      const isSelected = k === currentVal ? ' selected' : '';
+      const shortDesc = (loc.desc||'').slice(0,100).replace(/'/g,"&#39;");
+      return `<div class="loc-card${isSelected}" data-loc-key="${k}" onclick="selectLocFromPicker('${k}')">
+        <div class="loc-card-name">${icon} ${loc.name}</div>
+        <div class="loc-card-type">${typeLabel}</div>
+        <div class="loc-card-desc">${shortDesc}${loc.desc?.length > 100 ? '…' : ''}</div>
+      </div>`;
+    }).join('');
+
+    // Kingdom color hints
+    const kColors = {
+      'Azure Empire':'rgba(196,154,48,.5)',
+      'Luo-Tin Dynasty':'rgba(100,140,200,.5)',
+      'Buo Kingdom':'rgba(200,80,60,.5)',
+      'The Nao Confederacy':'rgba(100,180,100,.5)',
+      'Yumiko Ohaka (Free City)':'rgba(180,220,255,.5)',
+    };
+    const kColor = kColors[kName] || 'rgba(180,170,160,.3)';
+
+    return `<div class="loc-kingdom-section">
+      <div class="loc-kingdom-label" style="color:${kColor}">${kName}</div>
+      <div class="loc-grid">${locCards}</div>
+    </div>`;
+  }).join('');
+}
+
 function rebuildCityDropdown(birthYear) {
   const sel  = document.getElementById('inp-city');
   const note = document.getElementById('city-note');
@@ -24724,6 +24907,13 @@ function rebuildCityDropdown(birthYear) {
 
   // Ensure something is selected
   if(sel.options.length > 0 && !sel.value) sel.selectedIndex = 0;
+
+  // Sync the picker button display
+  const chosenLoc = LOCATIONS[sel.value];
+  const nameEl = document.getElementById('loc-chosen-name');
+  const typeEl = document.getElementById('loc-chosen-type');
+  if(nameEl && chosenLoc) nameEl.textContent = chosenLoc.name;
+  if(typeEl && chosenLoc) typeEl.textContent = chosenLoc.type?.replace(/_/g,' ') || '';
 
   // Update note
   if(note) {
@@ -24976,11 +25166,19 @@ Object.assign(POLITICAL_TEMPLATES, {
 const _withNewLocations = initCreation;
 initCreation = function() {
   _withNewLocations();
-  // Override year slider to also rebuild city dropdown
+  // Override year slider to also rebuild city dropdown + picker
   const yearSlider = document.getElementById('inp-year');
   if(yearSlider) {
-    yearSlider.addEventListener('input', () => rebuildCityDropdown(parseInt(yearSlider.value)));
-    yearSlider.addEventListener('change', () => rebuildCityDropdown(parseInt(yearSlider.value)));
+    const onYearChange = () => {
+      const yr = parseInt(yearSlider.value) || 1;
+      rebuildCityDropdown(yr);
+      // If picker modal is open, rebuild its content too
+      if(!document.getElementById('modal-loc-picker')?.classList.contains('hidden')) {
+        buildLocPickerContent(yr);
+      }
+    };
+    yearSlider.addEventListener('input', onYearChange);
+    yearSlider.addEventListener('change', onYearChange);
     // Initial build
     rebuildCityDropdown(parseInt(yearSlider.value) || 1);
   }
@@ -25498,7 +25696,7 @@ if(LORE_NPCS.normac_sloth) {
 // ================================================================
 Object.assign(LOCATIONS, {
   yumiko_ohaka: {
-    name:'Yumiko Ohaka', kingdom:'azure_empire', type:'religious_city', spawnable:true, founded:30,
+    name:'Yumiko Ohaka', kingdom:'ohaka_free_city', type:'religious_city', spawnable:true, founded:30,
     desc:'The final resting place of Yumiko and the gathering heart of Yumijiyū. Not a temple — a living city divided into four sectors: the farmland and animal grounds, the urban district, the religious sector (open to all faiths), and the entertainment district. It smells of lantern oil and food stalls from half a mile out.',
     history:[
       { era:'Year 30–100', label:'The First Ohaka', desc:'Yumiko dies and those who followed her stay. The farmland is rich. The atmosphere is difficult to describe to someone who has not experienced it. Early visitors report feeling, unexpectedly, like they are in the right place.' },
@@ -25507,7 +25705,7 @@ Object.assign(LOCATIONS, {
     ],
   },
 });
-KINGDOMS.azure_empire.locations.push('yumiko_ohaka');
+// yumiko_ohaka belongs to ohaka_free_city kingdom, not azure_empire
 
 // Yumiko — LORE_NPC
 Object.assign(LORE_NPCS, {
