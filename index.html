@@ -1650,7 +1650,7 @@ body.generating [onclick*="shopSellItem"], body.generating [onclick*="closeMapGo
      MAIN MENU
      ============================================================ -->
 <!-- ── STARTUP SCREEN ── -->
-<div id="screen-startup" class="screen" onclick="this.style.display='none';document.getElementById('screen-menu').classList.remove('hidden')" style="cursor:pointer">
+<div id="screen-startup" class="screen" onclick="this.style.display='none';var m=document.getElementById('screen-menu');if(m){m.style.display='flex';m.classList.remove('hidden');}" style="cursor:pointer;user-select:none">
   <div class="startup-inner">
     <div class="startup-eyebrow">A cultivation life in a world that doesn't care</div>
     <div class="startup-title">
@@ -12627,97 +12627,184 @@ buildSystemPrompt = function() {
 // ── ERA CARD: Rich year context on character creation ────────────
 // ================================================================
 function buildEraCard(yr) {
-  // ── Determine who is alive ──
   const reoAlive    = yr < 150;
   const ichiroAlive = yr < 130;
   const langAlive   = yr >= 110 && yr < 154;
 
-  // ── Era name and tagline ──
-  let eraName, tagline;
-  if(yr === 1) { eraName = 'The Year of Discovery'; tagline = 'Everything begins here.'; }
-  else if(yr <= 10)  { eraName = 'The Dawn Age'; tagline = 'Qi is barely understood. Its masters number in dozens.'; }
-  else if(yr <= 50)  { eraName = 'The Age of Pioneers'; tagline = 'Cultivation spreads outward from two minds.'; }
-  else if(yr <= 100) { eraName = 'The Settling Era'; tagline = 'Schools form. The world learns what Qi means.'; }
-  else if(yr <= 129) { eraName = 'The Founders\' Era'; tagline = 'Both Ichiro and Reo still walk the earth.'; }
-  else if(yr <= 133) { eraName = 'After Ichiro'; tagline = 'One founder gone. The world adjusts.'; }
-  else if(yr <= 143) { eraName = 'The Warlord\'s Rise'; tagline = 'Láng builds what will become a war.'; }
-  else if(yr <= 149) { eraName = 'The Buo-Luo-Tin War'; tagline = 'The first great conflict of the cultivation era.'; }
-  else if(yr === 150){ eraName = 'The Year Both Were Gone'; tagline = 'Reo Yamamoto dies — Ichiro\'s curse made sure of it. The age ends.'; }
-  else if(yr <= 153) { eraName = 'The Post-Founder Rot'; tagline = 'Tazar hollows. The war outlasts its cause.'; }
-  else if(yr <= 160) { eraName = 'After Láng'; tagline = 'The warlord died of wrong Qi pills. The world rebuilds.'; }
-  else if(yr <= 250) { eraName = 'The Intermediate Era'; tagline = 'Sects consolidate. Power reorganizes.'; }
-  else if(yr <= 500) { eraName = 'The Long Middle'; tagline = 'The founders are legend. Their tombs grow dangerous.'; }
-  else if(yr <= 800) { eraName = 'The Deep Era'; tagline = 'Centuries of cultivation. Something older stirs.'; }
-  else               { eraName = 'The Late Age'; tagline = 'The world has forgotten more than it remembers.'; }
+  // ── Era name and tagline ──────────────────────────────────────────
+  let eraName, tagline, eraColor = '#c49a30';
+  if(yr === 1)        { eraName = 'The Year of Discovery'; tagline = 'Qi enters the world. Nothing is the same after this, though most people don\'t know it yet.'; }
+  else if(yr <= 5)    { eraName = 'The First Years'; tagline = 'Two men and a discovery. The implications are not yet clear to anyone, including them.'; }
+  else if(yr <= 15)   { eraName = 'The Dawn Age'; tagline = 'Word spreads. The first seekers come to learn. Most are turned away.'; }
+  else if(yr <= 30)   { eraName = 'The Early Spread'; tagline = 'Cultivation exists in pockets — a handful of teachers, a hundred students, a thousand rumors.'; }
+  else if(yr <= 50)   { eraName = 'The Pioneer Era'; tagline = 'Tazar is being built. The first schools form. The world is beginning to understand what Qi means for power.'; }
+  else if(yr <= 75)   { eraName = 'The Consolidation'; tagline = 'Cultivation settles into institutions. Sects begin. The founders are still present but no longer alone.'; }
+  else if(yr <= 100)  { eraName = 'The Settling Era'; tagline = 'Three generations of cultivation exist. Schools have history. The founders are living legends.'; }
+  else if(yr <= 115)  { eraName = 'The Mature Founders\' Era'; tagline = 'The world Qi built is functioning. For now.'; }
+  else if(yr <= 129)  { eraName = 'The Final Founders\' Era'; tagline = 'Ichiro has already decided. Reo does not know yet.'; eraColor = '#aa8830'; }
+  else if(yr === 130) { eraName = 'The Year Ichiro Chose'; tagline = 'The first founder dies by his own design. The Katsumi Seal is set.'; eraColor = '#8a6820'; }
+  else if(yr <= 133)  { eraName = 'After Ichiro'; tagline = 'One founder gone. The world adjusts. Reo does not.'; eraColor = '#7a5810'; }
+  else if(yr <= 138)  { eraName = 'The Warlord\'s Rise'; tagline = 'Láng is building. Nobody who should be watching is watching.'; eraColor = '#8a4420'; }
+  else if(yr <= 143)  { eraName = 'The Prewar Years'; tagline = 'Raids. Contracts. The language of war before war is declared.'; eraColor = '#8a3320'; }
+  else if(yr <= 149)  { eraName = 'The Buo-Luo-Tin War'; tagline = 'The first great war of the Qi era. Everyone is affected whether or not they fight.'; eraColor = '#aa2200'; }
+  else if(yr === 150) { eraName = 'The Year Both Were Gone'; tagline = 'Reo Yamamoto dies. Ichiro\'s curse completes. The age ends mid-war.'; eraColor = '#660000'; }
+  else if(yr <= 154)  { eraName = 'The End of the Founders\' World'; tagline = 'War without its architect. Tazar without its builder. Everything is in motion.'; eraColor = '#662200'; }
+  else if(yr === 154) { eraName = 'The Year Láng Died'; tagline = 'Wrong Qi pills. The war shifts. The warlord who changed everything is gone.'; eraColor = '#553322'; }
+  else if(yr <= 165)  { eraName = 'The Post-War Reconstruction'; tagline = 'Three kingdoms counting the cost. Tazar already rotting from inside.'; }
+  else if(yr <= 200)  { eraName = 'The Early Intermediate'; tagline = 'The founders are memory. Power is being redistributed.'; }
+  else if(yr <= 250)  { eraName = 'The Sect Age Begins'; tagline = 'Sects now control what armies used to. Political power flows through cultivation.'; }
+  else if(yr <= 350)  { eraName = 'The Long Middle'; tagline = 'Generations of accumulated cultivation. The tombs grow more dangerous every decade.'; }
+  else if(yr <= 500)  { eraName = 'The Deep Middle'; tagline = 'The founders are mythology. Their artifacts are the rarest things in the world.'; }
+  else if(yr <= 700)  { eraName = 'The Old Era'; tagline = 'Ancient sects with roots no one can fully trace. Knowledge both vast and fragmented.'; }
+  else if(yr <= 1000) { eraName = 'The Deep Era'; tagline = 'Centuries of cultivation. Things from before Qi still exist in the margins.'; }
+  else                { eraName = 'The Late Age'; tagline = 'The world has forgotten more than it remembers. History is archaeology now.'; }
 
-  // ── Living major figures ──
+  // ── Major figures ────────────────────────────────────────────────
   const figureLines = [];
-  if(ichiroAlive) figureLines.push(`<span class="era-alive">Ichiro Katsumi</span> — Father of Water, Earth, Spear & Space cultivation. Alive. Could be immortal. Has chosen otherwise — and has already decided what will happen to Reo when he goes.`);
-  else            figureLines.push(`<span class="era-dead">Ichiro Katsumi</span> — Died Year 130 by choice. Left a death-curse on Reo to ensure he would follow. His tomb grows beneath the great cedar.`);
-  if(reoAlive)    figureLines.push(`<span class="era-alive">Reo Yamamoto</span> — Father of Speed, Lightning, Light & Time cultivation. Alive.${yr >= 145 ? ' His body is failing in ways Qi cannot fix. Ichiro\'s curse is already working.' : ''}`);
-  else            figureLines.push(`<span class="era-dead">Reo Yamamoto</span> — Died Year 150. Killed by Ichiro's curse, not by age. His tomb holds G'S\\shock.`);
-  if(langAlive)   figureLines.push(`<span class="era-alive">Láng</span> — The Warlord. No Qi whatsoever. Building something dangerous${yr >= 134 ? ' — his raiders are already active' : ''}.`);
-  else if(yr >= 154) figureLines.push(`<span class="era-dead">Láng</span> — Died Year 154. Wrong Qi pills. Tried to become more than human.`);
-
-  // ── Political situation ──
-  let politics = '';
-  if(yr <= 10)      politics = 'No kingdoms have yet been reshaped by Qi. Political power is traditional — armies, trade, bloodlines.';
-  else if(yr <= 50) politics = 'Azure Empire stable. Reo Yamamoto\'s influence keeps Tazar functioning as designed. Luo-Tin and Buo Kingdom at uneasy peace.';
-  else if(yr <= 100)politics = 'Azure Empire steady. The three kingdoms maintain their boundaries. Cultivation is changing what "power" means but the maps haven\'t changed yet.';
-  else if(yr <= 129)politics = 'Azure Empire at relative peace. Tazar is still functioning. Reo built it to function — not out of virtue, but because a functional city is more useful than a broken one, and Reo understood this. The Luo-Tin Dynasty eyes Buo Kingdom territory.';
-  else if(yr <= 133)politics = 'Azure Empire losing coherence slowly. Ichiro\'s death left power vacuums in his elemental schools. Luo-Tin Dynasty growing aggressive.';
-  else if(yr <= 138)politics = `<span class="era-war">Warning:</span> Láng has begun building a mercenary force in Year 134. He will be hired by Luo-Tin by Year 139. The Buo-Luo-Tin War is approaching.`;
-  else if(yr <= 143)politics = `<span class="era-war">Prewar:</span> Láng's forces are raiding Buo Kingdom border towns under Luo-Tin contract (since Year 139). War has not officially begun but people are dying.`;
-  else if(yr <= 149)politics = `<span class="era-war">Active War:</span> The Buo-Luo-Tin War began in Year 144. Láng commands the Luo-Tin offensive. Trade routes disrupted. Refugees moving. Azure Empire officially neutral but increasingly corrupt.`;
-  else if(yr === 150)politics = `<span class="era-war">War ongoing.</span> Reo Yamamoto just died. Tazar enters immediate decline. The Azure Empire loses its stabilizing force. Both wars — political and moral — intensify.`;
-  else if(yr <= 153)politics = `Post-founder Azure Empire in visible decline. Tazar's corruption is now open. The Buo-Luo-Tin War continues, Láng now a Duke and imperial advisor to Buo by Year 150.`;
-  else if(yr <= 160)politics = `Láng died in Year 154. The war lost its most dangerous commander. Buo Kingdom beginning to reassert itself. Azure Empire deeply corrupt — Tazar is a shell of what Reo built.`;
-  else if(yr <= 300)politics = 'The post-war world has reorganized. New power structures. The three kingdoms persist but changed. Qi-wielding sects now have real political weight.';
-  else if(yr <= 500)politics = 'Multiple generations have passed. Kingdoms have changed hands in smaller ways. Sects are significant political actors. The founders are mythology, not memory.';
-  else              politics = 'Centuries of drift. Political arrangements have shifted in ways that would be unrecognizable to anyone from Year 1. Sects, clans, and cultivation bloodlines ARE the political landscape now.';
-
-  // ── Cultivation world ──
-  let cultWorld = '';
-  if(yr <= 10)       cultWorld = 'Qi is brand new. Almost no one cultivates. The techniques that exist were invented by Ichiro and Reo themselves. Everything is being discovered in real time.';
-  else if(yr <= 50)  cultWorld = 'Cultivation exists but is rare. The highest stage anyone has reached is limited. Techniques are being written, schools forming, but knowledge is scarce and jealously guarded.';
-  else if(yr <= 100) cultWorld = 'Cultivation is established but not common. The first legitimate sects have formed. Body Tempering and Qi Condensation are understood. Foundation Building is new territory for most.';
-  else if(yr <= 129) cultWorld = 'A functional cultivation world exists. Multiple sects operate. Core Formation cultivators exist. The founders are at the peak and everything else orbits them.';
-  else if(yr <= 150) cultWorld = 'The cultivation world is maturing. Foundation Building and Core Formation are achievable by dedicated cultivators. The founders\' deaths will leave a power vacuum at the very top.';
-  else if(yr <= 250) cultWorld = 'Post-founder cultivation world. The highest living cultivators are strong but not what the founders were. Sects compete for dominance. Ancient tombs are being discovered.';
-  else if(yr <= 500) cultWorld = 'Cultivation has diversified significantly. Bloodlines, unique techniques, hidden schools. The founders\' tombs are extremely dangerous — Reo\'s and Ichiro\'s relics are mythologized.';
-  else               cultWorld = 'A deep cultivation world. Ancient techniques exist that even the founders didn\'t know about. The power ceiling has been pushed by generations of accumulated knowledge and innovation.';
-
-  // ── What it means for this character ──
-  let birthMeaning = '';
-  if(yr <= 10)       birthMeaning = 'You are born in the opening moments of cultivation history. The world doesn\'t know yet what Qi will become. There are no sects to join, no established techniques to learn. Every path is unmapped.';
-  else if(yr <= 50)  birthMeaning = 'You are born when cultivation is still rare enough that knowing about it puts you ahead of almost everyone. The people who shaped the basics are still alive and findable.';
-  else if(yr <= 129) birthMeaning = 'You are born in the founders\' era. Ichiro and Reo are alive. It\'s possible — difficult but possible — to actually encounter them. The cultivation world is young and full of opportunity for those willing to reach.';
-  else if(yr <= 160) birthMeaning = 'You are born during or just after the war. Disruption, refugees, power vacuums, collapsing institutions. This era shapes the desperate and the opportunistic equally.';
-  else if(yr <= 500) birthMeaning = 'You are born generations after the founders. Their legacy is legend but accessible — the tombs exist, the techniques spread. You stand on the shoulders of everything they built, for better and worse.';
-  else               birthMeaning = 'You are born in a deep era. The cultivation world is old, layered, and complex. Ancient things exist that nobody fully understands. The history behind you is longer than you can read in a lifetime.';
-
-  // ── Special notes for specific years ──
-  const specials = [];
-  if(yr >= 166 && [166,188,199,255,574,678,666,738,800].includes(yr)) {
-    specials.push(`<span class="era-danger">★ This is a Spawn Year.</span> Zeret of Lust may return to the world in Year ${yr}. Those with the Seed of Lust trait will know.`);
+  if(ichiroAlive) {
+    const ichiroNote = yr <= 100
+      ? 'Still actively teaching and shaping cultivation theory.'
+      : yr <= 120
+      ? 'Withdrawn from public life. Those who study him say he is preparing something.'
+      : 'Has made his decision. Already working on the Katsumi Seal. Reo doesn\'t know.';
+    figureLines.push(`<span class="era-alive">Ichiro Katsumi</span> — Father of Water, Earth, Spear & Space. ${ichiroNote}`);
+  } else {
+    figureLines.push(`<span class="era-dead">Ichiro Katsumi</span> — Died Year 130 by choice. Left a death-curse on Reo threaded through their shared bond. His tomb spans thousands of miles under the great cedar in Ooina.`);
   }
-  if(yr === 130) specials.push('<span class="era-dead">Ichiro Katsumi dies this year.</span> If born early in the year, he may still be alive when you enter the world.');
-  if(yr === 150) specials.push('<span class="era-dead">Reo Yamamoto dies this year.</span> The era ends. Tazar will never be what it was.');
-  if(yr === 154) specials.push('<span class="era-war">Láng dies this year.</span> Wrong Qi pills. The war shifts around his absence.');
-  if(yr >= 134 && yr <= 154) specials.push('<span class="era-war">Láng is alive and active during your childhood.</span> The war shapes everything about your early world.');
+  if(reoAlive) {
+    const reoNote = yr <= 100
+      ? 'Running Tazar. Personally managing the city\'s integrity. Still entirely in control.'
+      : yr <= 130
+      ? 'Aging but still formidable. Tazar is his life\'s work and he knows it.'
+      : yr <= 144
+      ? 'Has noticed Ichiro\'s absence in ways he won\'t describe. Working longer hours.'
+      : yr <= 149
+      ? 'His body is failing in ways cultivation cannot address. The Katsumi Seal is working. He may or may not understand why.'
+      : 'Final year. The curse completes this year. Tazar\'s corruption accelerates within weeks of his death.';
+    figureLines.push(`<span class="era-alive">Reo Yamamoto</span> — Father of Speed, Lightning, Light & Time. ${reoNote}`);
+  } else {
+    figureLines.push(`<span class="era-dead">Reo Yamamoto</span> — Died Year 150. Not of age — Ichiro\'s death-curse made his body fail from the foundation. His tomb is heavily trapped. Holds G\'S\\shock, a red watch that stops time.`);
+  }
+  if(langAlive) {
+    const langNote = yr <= 120
+      ? 'A young man with exceptional physical ability and no Qi. He has noticed the gap and is deciding what to do about it.'
+      : yr <= 133
+      ? 'Building a private force. The warlord\'s philosophy is forming: if cultivation is the ceiling, he will be the ceiling for everything else.'
+      : yr <= 143
+      ? 'Operating under Luo-Tin contract. His raiders are the most feared non-cultivator force in living memory.'
+      : yr <= 149
+      ? 'Commands the Luo-Tin offensive. Duke of Buo by Year 150. The second physically strongest human alive — behind Hammurabi historically, ahead of every living person.'
+      : 'Duke and imperial advisor. Dying from bad Qi pills this year. Trying to become more than what he is.';
+    figureLines.push(`<span class="era-alive">Láng</span> — The Warlord. No Qi — not one meridian open. ${langNote}`);
+  } else if(yr >= 154) {
+    figureLines.push(`<span class="era-dead">Láng</span> — Died Year 154. Overdose on Qi pills, trying to become more than human. Left behind a war, an army, and the proof that cultivation was not the only ceiling.`);
+  }
+  // Maligned Lords hints
+  const zSpawnYears = [166,188,199,255,574,678,666,738,800];
+  const xSpawnYears = [200,288,350,450,600,725,820];
+  if(zSpawnYears.some(y => Math.abs(y-yr) <= 3)) figureLines.push(`<span style="color:#cc44ff">Zeret of Lust</span> — A Maligned Lord is near a spawn year. Those sensitive to Qi will feel something shift.`);
+  if(xSpawnYears.some(y => Math.abs(y-yr) <= 3)) figureLines.push(`<span style="color:#ccaa00">Xelaad of Pride</span> — Near a spawn year. Courts and noble houses grow unstable in ways no one can explain.`);
 
-  return `<div class="era-card">
-    <div class="era-header">
-      <span class="era-name">${eraName}</span>
-      <span class="era-tagline">${tagline}</span>
+  // ── Political situation ───────────────────────────────────────────
+  let politics = '';
+  if(yr <= 5)        politics = 'Three kingdoms exist as they have for generations. No political power has Qi yet. The discovery is not even widely known. A few soldiers near Tazar have seen something they cannot explain.';
+  else if(yr <= 15)  politics = 'The Azure Empire is first to recognize what Qi means. Reo is already thinking about architecture, not cultivation. Tazar is being planned. The other kingdoms are watching but not yet moving.';
+  else if(yr <= 30)  politics = 'Tazar is under construction. The Azure Empire\'s political center of gravity is shifting toward it. Luo-Tin and Buo kingdoms are at uneasy peace — cultivation hasn\'t changed their borders yet, but it will.';
+  else if(yr <= 50)  politics = 'Tazar is functioning. The Azure Empire has a competitive advantage that is growing. Luo-Tin and Buo kingdom courts are quietly acquiring cultivators. Power is being redefined in ways the old aristocracy doesn\'t fully understand yet.';
+  else if(yr <= 75)  politics = 'Three stable kingdoms with visible Qi-influenced power. The first sect-political alliances form. Tazar is the economic and cultivation center of the known world. Reo\'s rules make it work — his personality makes it function.';
+  else if(yr <= 100) politics = 'Political stability built on Qi-capable power. Each kingdom has cultivator advisors, cultivation academies, and sect relationships. The balance is maintained — not by goodwill but by mutual deterrence and Reo\'s continued presence.';
+  else if(yr <= 115) politics = 'The Azure Empire\'s edge is narrowing. Luo-Tin has produced serious cultivators. Buo Kingdom\'s fighters are integrating Qi. The three-kingdom balance holds, but it\'s becoming a competition.';
+  else if(yr <= 129) politics = 'Azure Empire still dominant but no longer unchallenged. Reo is managing Tazar\'s increasing complexity. The canal district has started becoming its own thing. The cultivation gap between the three kingdoms is the smallest it\'s ever been.';
+  else if(yr <= 133) politics = 'Azure Empire losing coherence slowly. Ichiro\'s death created power vacuums in his elemental schools — water, earth, spear, space techniques are now being fought over by dozens of claimants. Luo-Tin Dynasty grows aggressive sensing weakness.';
+  else if(yr <= 138) politics = `<span class="era-war">⚠ Warning:</span> Láng has been building a private mercenary force since Year 134. He will be contracted by Luo-Tin in Year 139 to begin operations against Buo border towns. The Buo-Luo-Tin War is two years away. Trade routes are already becoming dangerous in contested regions.`;
+  else if(yr <= 143) politics = `<span class="era-war">⚠ Prewar:</span> Láng's raiders are operating under Luo-Tin contract since Year 139. They are not officially at war — officially these are "border incidents." Unofficially, Buo towns are burning. Azure Empire is officially neutral and privately very interested in the outcome.`;
+  else if(yr <= 149) politics = `<span class="era-war">⚔ Active War — Year ${yr} of conflict:</span> The Buo-Luo-Tin War began officially in Year 144. Láng commands the Luo-Tin offensive — the second-strongest living human leading the largest non-Qi military force ever assembled. Trade routes are disrupted. Refugees are moving. The Azure Empire is "neutral" while quietly profiting from both sides.`;
+  else if(yr === 150) politics = `<span class="era-war">⚔ War + Power Vacuum:</span> The war continues but Reo Yamamoto just died. Within weeks of his death, Tazar's first administrator takes a bribe. The Azure Empire loses its only stabilizing force. Láng has been named Duke and imperial advisor to Buo. The chaos is compounding.`;
+  else if(yr <= 154) politics = `<span class="era-war">Post-Founder Collapse:</span> Azure Empire visibly rotting. Tazar's corruption is no longer hidden. The Buo-Luo-Tin War continues without its architect — Láng is a Duke now but his army is still fighting. The three kingdoms are reorganizing around new power centers.`;
+  else if(yr <= 165) politics = 'The war is over. Láng died in Year 154; the conflict lost its driving force within the year. Three kingdoms counting the cost — Buo most damaged, Azure Empire hollowed, Luo-Tin exhausted. The first post-founder generation of leadership is learning what power means without anyone who remembers the founders in charge.';
+  else if(yr <= 200) politics = 'Two generations removed from the founders. The kingdoms persist but are defined now by sect relationships as much as by territory. Political marriages between noble families and sect elders. Cultivation has become the primary currency of political power.';
+  else if(yr <= 300) politics = 'The three kingdoms exist on maps and in formal documents. In practice, they are federations of sect and clan power. The largest sects have more real authority than most official government bodies. A cultivator with sect backing operates above most laws.';
+  else if(yr <= 500) politics = 'Political landscape defined by sect dominance. Ancient rivalries between cultivation lineages have replaced national conflicts. The founders are invoked like gods in political speeches. Nobody alive has met anyone who met them.';
+  else if(yr <= 800) politics = 'Deep political history — layers of sect wars, treaty lineages, absorbed kingdoms, and lost power. The three kingdoms still nominally exist. In practice, whoever controls the cultivation resources controls the territory.';
+  else               politics = 'Political arrangements would be unrecognizable to anyone from Year 1. Cultivation bloodlines, sect empires, and clan confederacies have replaced the original three-kingdom structure multiple times over. History is mythology at this point.';
+
+  // ── Cultivation world ─────────────────────────────────────────────
+  let cultWorld = '';
+  if(yr <= 5)        cultWorld = 'Qi exists. Two people can use it. Nobody else fully understands how. The techniques that exist were invented in the last few years by Ichiro and Reo through direct experimentation. Body Tempering is the only stage anyone can reliably teach.';
+  else if(yr <= 15)  cultWorld = 'Cultivation is spreading from two teachers. The first students are hitting Body Tempering stages. Qi Condensation is theorized but few have achieved it. Techniques are handwritten scrolls that change hands nervously. Every cultivation advance is news.';
+  else if(yr <= 30)  cultWorld = 'Body Tempering is understood and teachable. Qi Condensation exists — the first non-founder practitioners are reaching it. Foundation Building has been achieved by Ichiro and Reo; for everyone else, it\'s a goal. The first schools are forming around specific technique lineages.';
+  else if(yr <= 50)  cultWorld = 'Three cultivation stages are established. The first legitimate sects form around specific founders\' technique lineages. Knowledge is rare enough that a single good cultivation manual is worth more than most houses. Competition for technique scrolls is occasionally violent.';
+  else if(yr <= 75)  cultWorld = 'Cultivation has an economy. Techniques are bought, sold, stolen, and hidden. Core Formation exists but is genuinely rare. The founders operate so far above everyone else that measuring the gap is difficult. The first cultivation bloodlines emerge — families with unusual affinity.';
+  else if(yr <= 100) cultWorld = 'A mature early cultivation world. Multiple established sects. Core Formation cultivators number in the dozens across the three kingdoms. The cultivation ceiling for non-founders is Core Formation — Nascent Soul is theorized. Technique schools have histories and rivalries.';
+  else if(yr <= 129) cultWorld = 'The cultivation world has depth. Multiple stages accessible. Sects have three-generation histories. Nascent Soul cultivation exists but remains rare and dangerous. The founders remain at the absolute peak — nothing living comes close. The first cultivation-specific laws are on the books.';
+  else if(yr <= 150) cultWorld = 'The cultivation world is entering its first major transition — without the founders anchoring the top, the power ceiling is suddenly contested. Nascent Soul cultivators are the new aristocracy. Foundation Building is the threshold that separates the serious from the casual.';
+  else if(yr <= 200) cultWorld = 'Post-founder cultivation. The power vacuum at the top has been filled — partially — by a generation of Nascent Soul cultivators who trained in the founders\' schools. Ancient Qi techniques from that era are now extremely valuable. Both tombs are being probed regularly.';
+  else if(yr <= 350) cultWorld = 'Cultivation has diversified significantly. Bloodline techniques, hidden lineages, sect-specific methods that don\'t appear in any public record. The founders\' technique schools have split, merged, and mutated across generations. The tombs are dangerous enough that most entries fail.';
+  else if(yr <= 500) cultWorld = 'A deep and complex cultivation world. Techniques exist that the founders never created — built on their foundations but developed into entirely new territory. The upper stages of cultivation are still being discovered. Mythic artifacts from the founders\' era are the most sought things in the world.';
+  else if(yr <= 800) cultWorld = 'Cultivation traditions span hundreds of years. The oldest sects have lineages so long they\'re documented in scrolls nobody can fully read anymore. Ancient techniques surface occasionally — some predate the founders\' era and remain only partially understood.';
+  else               cultWorld = 'A thousand years of cultivation. The power ceiling has been pushed by generation after generation. Things from before Qi still exist in the margins of the world — older than cultivation, older than the kingdoms, patient in ways that no cultivator is.';
+
+  // ── Daily life / economy ──────────────────────────────────────────
+  let dailyLife = '';
+  if(yr <= 30)       dailyLife = 'Life is hard for most people. Qi has not yet changed the material conditions of ordinary living — farming, trade, labor, debt. Cultivators are rare enough to be objects of awe or fear, not the background of daily life.';
+  else if(yr <= 75)  dailyLife = 'Tazar is the economic center — canal trade, regulated commerce, organized labor. Outside Tazar, life looks much as it did before Qi. Cultivation wealth is beginning to concentrate. The first cultivation-adjacent industries emerge: ingredient traders, technique scribes, equipment smiths.';
+  else if(yr <= 129) dailyLife = 'Three established economies. Cultivation has created a new class of wealthy — sect patrons, technique merchants, ingredient traders. For most people, life is labor, tax, and local politics. Cultivators are common enough to not be miraculous but still rare enough to command respect and fear.';
+  else if(yr <= 160) dailyLife = 'War economics. Supply disruption, refugee movement, price instability. The canal trade out of Tazar is compromised. Wheat Capital is being pressured for military quotas. The people who suffer first in a cultivation-world war are the ones who can\'t cultivate — and that\'s most people.';
+  else if(yr <= 300) dailyLife = 'Post-war recovery is slow for ordinary people and fast for anyone with cultivation. Sect patronage systems have replaced some of the functions of government. Ordinary labor still exists — agriculture, trade, craft — but the cultivation economy now runs parallel and often above it.';
+  else if(yr <= 600) dailyLife = 'Cultivation is normal. Not universal — most people still don\'t cultivate — but it\'s as normal as any other skilled profession. The cultivation economy is deeply embedded in material life: cultivation-enhanced crops, Qi-infused goods, sect employment. The gap between cultivators and ordinary people is large but structured, not sudden.';
+  else               dailyLife = 'The world has had cultivation for so long that the landscape itself has changed. Certain locations carry historical Qi saturation. Some plants, animals, and geographic features are cultivation-affected in ways that have become permanent. Ordinary life exists within a world that cultivation has physically altered.';
+
+  // ── What it means to be born here ────────────────────────────────
+  let birthMeaning = '';
+  if(yr <= 5)        birthMeaning = 'You are born at the absolute beginning. The people who discovered Qi are alive and young. Everything is unknown. Every cultivation advance is a first. There are no traditions, no schools, no paths — only the two men who started it and what they are willing to teach.';
+  else if(yr <= 15)  birthMeaning = 'You are born in the first generation after discovery. Cultivation exists but is still new enough that finding a teacher requires knowing the right people. The founders are accessible. The techniques that exist are few. Your generation will define what cultivation becomes.';
+  else if(yr <= 30)  birthMeaning = 'You are born when the cultivation world is still small enough to map. The founders are in their prime. The first schools exist but have no deep tradition yet. Getting in early means writing your own rules — there aren\'t many existing ones.';
+  else if(yr <= 75)  birthMeaning = 'You are born in the Pioneer Era. Tazar is young. The cultivation world is forming around you. The founders are still active. Schools have a generation of history at most. This is an era of opportunity for anyone willing to move fast and take risks.';
+  else if(yr <= 100) birthMeaning = 'You are born when cultivation has settled enough to have a structure — sects, techniques, stages. The founders are alive. Meeting them is possible if you distinguish yourself. The cultivation ceiling for this era is genuinely open; the techniques don\'t have their limits mapped yet.';
+  else if(yr <= 129) birthMeaning = 'You are born in the founders\' final era. Ichiro has made his decision — you might sense something has shifted in the cultivation world if you pay attention. Reo is running Tazar. The world is stable but the stability has an end date that not everyone can see.';
+  else if(yr <= 133) birthMeaning = 'You are born just after Ichiro died. The first cracks in the world he and Reo built are appearing. The cultivation schools he founded are fighting over succession. Reo is still present but different. This is an era of transition — the foundations are still there but someone is standing on them harder than they were designed for.';
+  else if(yr <= 143) birthMeaning = 'You are born into the prewar years. Láng\'s force is growing. The cultivator elite is focused on sect competition and missing what\'s building in the non-cultivation world. Your generation will come of age in a war, or just ahead of one.';
+  else if(yr <= 160) birthMeaning = 'You are born during the Buo-Luo-Tin War, or in its immediate aftermath. This war is the formative event of your early life even if you never fight in it. Refugees, disruption, orphaned cities, power vacuums — this era produces both opportunists and people permanently shaped by loss.';
+  else if(yr <= 250) birthMeaning = 'You are born in the post-founder world. The founders are gone. Their legacy is real but second-hand. The cultivation world is the richest and most competitive it\'s ever been because the founders\'death left power no one has fully claimed. Everything is contested.';
+  else if(yr <= 500) birthMeaning = 'You are born generations after the founders. They are mythology — their names are invoked, their tombs are legend, their techniques are the most prized things in the cultivation world. You inherit a complex, layered world that took centuries to become what it is.';
+  else if(yr <= 800) birthMeaning = 'You are born in deep history. The cultivation world is old. Ancient things exist that predate any living memory. The tombs are extremely dangerous. The sects that are still standing have survived things that destroyed everyone else, and that history shows in how they operate.';
+  else               birthMeaning = 'You are born a thousand years into the cultivation era. The world you enter is so far from what Ichiro and Reo found that they would not recognize it. Ancient techniques, forgotten kingdoms, things that have been patient for centuries — all of this is your inheritance and your problem.';
+
+  // ── Special year notes ────────────────────────────────────────────
+  const specials = [];
+  const ZERET_YEARS = [166,188,199,255,574,678,666,738,800];
+  const XELAAD_YEARS = [200,288,350,450,600,725,820];
+  const IASIBA_YEARS = [244,333,405,510,650,755,900];
+  const DRANOEL_YEARS = [270,360,440,560,680,790,920];
+  const NORMAC_YEARS = [310,420,500,620,720,850,950];
+  if(ZERET_YEARS.includes(yr))  specials.push(`<span style="color:#dd44ff">✦ Zeret Spawn Year</span> — Zeret of Lust re-enters the world this year. His presence is subtle at first. Those with the Seed of Lust feel it immediately.`);
+  if(XELAAD_YEARS.includes(yr)) specials.push(`<span style="color:#ccaa00">✦ Xelaad Spawn Year</span> — Xelaad of Pride surfaces this year. Noble courts and ranking hierarchies will destabilize in ways nobody can explain.`);
+  if(IASIBA_YEARS.includes(yr)) specials.push(`<span style="color:#4488cc">✦ Iasiba Spawn Year</span> — Iasiba of Envy is active this year. Things people didn't know they wanted will start disappearing.`);
+  if(DRANOEL_YEARS.includes(yr))specials.push(`<span style="color:#cc8800">✦ Dranoel Spawn Year</span> — Dranoel of Greed walks the world this year. Wealth concentrates unnaturally. Resources vanish from areas he passes through.`);
+  if(NORMAC_YEARS.includes(yr)) specials.push(`<span style="color:#aa66dd">✦ Normac Spawn Year</span> — Normac of Sloth is present this year. His physical presence generates crushing pressure. Soldiers have historically routed rather than engage.`);
+  if(yr === 130) specials.push(`<span class="era-dead">⚠ Ichiro dies this year.</span> If you are born early in Year 130, he may still be alive when your story begins. His death changes the cultivation world permanently.`);
+  if(yr === 150) specials.push(`<span class="era-dead">⚠ Reo dies this year.</span> Ichiro's death-curse completes. Tazar begins its collapse within weeks. The era of the founders officially ends.`);
+  if(yr === 154) specials.push(`<span class="era-war">⚠ Láng dies this year.</span> Overdose on Qi pills. The war loses its driving force. Everything reorganizes around his absence.`);
+  if(yr >= 134 && yr <= 149)  specials.push(`<span class="era-war">You grow up in wartime.</span> The Buo-Luo-Tin War shapes everything about your early world — prices, borders, who lives where, who doesn't come back.`);
+  if(yr >= 375 && yr <= 395)  specials.push(`<span style="color:#c4883a">✦ Yaqism Era</span> — D'la (formerly Enmul) is active in the Red Sand City region this decade. Three followers. Hammurabi's forces are searching for him. The religion that will outlast all of them is being born.`);
+  if(yr === 389) specials.push(`<span style="color:#c4883a">⚠ D'la transforms this year.</span> He becomes a great flame that consumes the northern Luo Empire. Red Sand City is absorbed into the Luo Kingdom. Yaqism begins its spread.`);
+
+  // ── Layout ────────────────────────────────────────────────────────
+  return `<div class="era-card" style="border-left:3px solid ${eraColor}22">
+    <div class="era-header" style="border-bottom-color:${eraColor}22">
+      <div>
+        <div class="era-name" style="color:${eraColor}">${eraName}</div>
+        <div class="era-tagline">${tagline}</div>
+      </div>
+      <div style="font-size:22px;font-weight:700;color:${eraColor};opacity:.4;letter-spacing:-.02em;flex-shrink:0">${yr}</div>
     </div>
     <div class="era-sections">
       <div class="era-section">
         <div class="era-section-label">Major Figures</div>
-        <div class="era-section-body">${figureLines.join('<br>')}</div>
+        <div class="era-section-body">${figureLines.join('<br><br>')}</div>
       </div>
       <div class="era-section">
-        <div class="era-section-label">Political Climate</div>
+        <div class="era-section-label">Politics &amp; Power</div>
         <div class="era-section-body">${politics}</div>
       </div>
       <div class="era-section">
@@ -12725,10 +12812,14 @@ function buildEraCard(yr) {
         <div class="era-section-body">${cultWorld}</div>
       </div>
       <div class="era-section">
-        <div class="era-section-label">What It Means to Be Born Now</div>
+        <div class="era-section-label">Daily Life</div>
+        <div class="era-section-body">${dailyLife}</div>
+      </div>
+      <div class="era-section">
+        <div class="era-section-label">Born in Year ${yr} —</div>
         <div class="era-section-body">${birthMeaning}</div>
       </div>
-      ${specials.length ? `<div class="era-section"><div class="era-section-label">Notable</div><div class="era-section-body">${specials.join('<br>')}</div></div>` : ''}
+      ${specials.length ? `<div class="era-section" style="background:rgba(196,154,48,.04);border-radius:4px;padding:8px 10px;margin-top:4px"><div class="era-section-label" style="color:#cc9922">This Year Specifically</div><div class="era-section-body">${specials.join('<br><br>')}</div></div>` : ''}
     </div>
   </div>`;
 }
