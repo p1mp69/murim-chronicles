@@ -2854,8 +2854,14 @@ const LOCATIONS = {
         desc:'It has a name now — Beggar\'s Rest, which was meant as mockery and became a source of identity. It has informal governance. It has people who know everyone\'s business and use this information for purposes that are sometimes predatory and sometimes protective. It has its own economy. It has its own moral code, which is not identical to Tazar\'s and operates on a more honest basis.' },
       { era:'Year 230–320', label:'The Underground Age',
         desc:'Information brokers. Underground sects that could not operate in Tazar proper. People who know things the empire would prefer they didn\'t know. Beggar\'s Rest is the place things happen that need somewhere to happen. If you need something that cannot be obtained through legitimate channels, someone here knows who has it.' },
-      { era:'Year 320+',    label:'The Permanent City',
-        desc:'Three generations have been born here. It is not temporary anymore. It will never be temporary again. The people who live here have stopped waiting for the official city to include them. They have built their own version and it works better than what was offered.' },
+      { era:'Year 320–400', label:'The Permanent City',
+        desc:"Three generations have been born here. It is not temporary anymore. It will never be temporary again. The people who live here have stopped waiting for the official city to include them. They have built their own version and it works better than what was offered. A man named Miyu Nao is born here in Year 358. This will matter." },
+      { era:'Year 400–405', label:'The Revered Begins',
+        desc:"Miyu Nao, born in Beggar's Rest, has spent years organizing what the administration dismisses as \"local grievance groups.\" The name The Revered emerges from the people he organizes — not given by him, earned through something harder to explain. By Year 404, three western provinces are communicating in ways that worry certain people who are not sharing their worries officially." },
+      { era:'Year 405–425', label:'The Nao Rebellion',
+        desc:"The rebellion begins with the burning of an imperial tax collection house in Year 405. Twenty years of war follow. Beggar's Rest is the symbolic heart of it — the birthplace of The Revered, the city that started it, the place the empire tried hardest to take back and failed hardest to do so. During the worst years, the population drops. During the best years, it swells with people who believe in what Miyu Nao represents." },
+      { era:'Year 425+', label:'Capital of the Nao Confederacy',
+        desc:"The rebellion ends in Year 425 with the peace treaty. Beggar's Rest does not rejoin the empire. It becomes the symbolic and administrative capital of the newly formed Nao Confederacy. Massive statues of The Revered are raised in the plazas. The Hall of Reverence is built in his honor — he does not live to see it completed. Veterans and descendants of rebels are treated like nobility. The city that the empire called a slum becomes the seat of a nation." },
     ],
   },
   wheat_capital: {
@@ -3045,10 +3051,81 @@ const LOCATIONS = {
   },
 };
 
+// ── Nao Confederacy Cities (founded Year 425 after the rebellion) ──
+Object.assign(LOCATIONS, {
+  ironhaven: {
+    name:'Ironhaven', kingdom:'nao_confederacy', type:'industrial_city', spawnable:true, founded:380,
+    desc:'The forge-heart of the Nao Confederacy. It survived seven imperial sieges during the rebellion and came out harder for it. Every weapon the Confederacy carries was probably made here.',
+    history:[
+      { era:'Year 380–405', label:'Imperial Industrial Outpost', desc:'A mining and smelting settlement on the western frontier. Considered expendable by the empire — useful for extraction, unimportant for anything else. This attitude is a mistake.' },
+      { era:'Year 405–425', label:'Siege City', desc:'Ironhaven survives seven separate imperial siege attempts during the rebellion. The forges never stop. Weapons flow to rebel forces while the city itself takes hit after hit. The veterans who survived all seven sieges become a breed apart — they have a specific look that people from Ironhaven can recognize in each other across a crowded room.' },
+      { era:'Year 425+', label:'Industrial Heart of the Confederacy', desc:'Peace comes and Ironhaven becomes the armory of the new nation. Endless forges. Blacksmith guilds with their own internal politics and traditions. The city smells of metal and coal and something else — the specific burnt quality of a place that was shelled repeatedly and rebuilt itself each time.' },
+    ],
+  },
+  naos_reach: {
+    name:"Nao's Reach", kingdom:'nao_confederacy', type:'military_city', spawnable:true, founded:425,
+    desc:'Founded by former rebel officers after the war. Officially named after a river. Unofficially named after Miyu Nao. Citizens get extremely defensive if outsiders mention this.',
+    history:[
+      { era:'Year 425–450', label:'The Officers\' City', desc:"The generals and commanders who fought under The Revered settle here after the war ends. They build military colleges. They document what they learned. They train the next generation in the tactics that beat the empire. The city is dense with history that its founders are still living through." },
+      { era:'Year 450+', label:'Military Capital', desc:"Three generations of noble houses descended from rebel generals. The military colleges are the finest in the Confederacy. Strategic planning for the entire nation happens in buildings that look unassuming from the outside and are anything but." },
+    ],
+  },
+  embercross: {
+    name:'Embercross', kingdom:'nao_confederacy', type:'memorial_city', spawnable:true, founded:427,
+    desc:'Built atop one of the bloodiest battlefields of the rebellion. Thousands died here in a single week. Many believe the ground is still haunted. Warrior monasteries and memorial gardens define its identity.',
+    history:[
+      { era:'Year 405', label:'The Week That Named It', desc:'A single week of combat that produced more casualties than entire months of the rebellion. The ground itself was soaked. The name Embercross comes from the pattern of burning siege equipment seen from above — a cross of ember visible for miles.' },
+      { era:'Year 427+', label:'Built on Sacred Ground', desc:'The city rises slowly and deliberately. Massive memorial gardens where nothing is grown that was not also planted for those who died here. Warrior monasteries that practice cultivation traditions tied to grief and endurance. Pilgrimages from across the Confederacy are common. The haunting is not metaphorical — sensitives report things, and the reports are consistent.' },
+    ],
+  },
+  silverwake: {
+    name:'Silverwake', kingdom:'nao_confederacy', type:'port_city', spawnable:true, founded:390,
+    desc:'The wealthiest city in the Nao Confederacy. Controls major river routes connecting the Confederacy to foreign kingdoms. Merchant princes, banking houses, luxury goods, and political corruption in quantities that are almost artistic.',
+    history:[
+      { era:'Year 390–405', label:'River Trade Hub', desc:'Exists before the rebellion as a significant trade point. Its position on the river makes it valuable enough that both sides want it and neither wants to destroy it. A city that survives wars by being too profitable to ruin.' },
+      { era:'Year 405–425', label:'The Banker\'s War', desc:'Silverwake funds parts of the rebellion through deliberately complicated financial arrangements that the empire could not untangle fast enough to stop. The merchant princes make money from both sides. This is considered a point of pride and not mentioned in public.' },
+      { era:'Year 425+', label:'Commercial Crown', desc:'The wealthiest city in the Confederacy by a significant margin. Banking houses that have relationships with every kingdom. Political corruption so established it has etiquette. The river trade makes everyone here rich enough that they spend considerable energy pretending otherwise.' },
+    ],
+  },
+  hollow_crown: {
+    name:'Hollow Crown', kingdom:'nao_confederacy', type:'fortress', spawnable:true, founded:426,
+    desc:'A fortress-city built into ancient mountains. Constructed specifically to repel any future Azure Empire invasion. Nearly impenetrable. Elite mountain troops. Secret tunnels. A culture so harsh it makes the rest of the Confederacy look soft.',
+    history:[
+      { era:'Year 426+', label:'The Impossible Fortress', desc:'Built into the mountain with the explicit purpose of making any imperial reconquest prohibitively expensive. The secret tunnel system took forty years to complete. The elite mountain troops train in conditions that wash out most applicants immediately. Nobody from Hollow Crown complains about anything — not because things are good, but because complaints are considered a form of weakness.' },
+    ],
+  },
+  verdant_gate: {
+    name:'Verdant Gate', kingdom:'nao_confederacy', type:'farming_city', spawnable:true, founded:428,
+    desc:'The agricultural heartland of the Confederacy. Without it, the Confederacy starves. Vast grain fields, horse breeding, agricultural innovation. The quietest and possibly most important city in the nation.',
+    history:[
+      { era:'Year 428+', label:'The Breadbasket', desc:'Settled by former farmworkers who fought in the rebellion and wanted land they could actually own. The agricultural innovations that developed here in the first generation of independence produced yields that shocked the empire\'s agricultural ministers. Without Verdant Gate, the Confederacy is a collection of cities with nothing to eat. This is understood by everyone and almost never discussed.' },
+    ],
+  },
+
+  // ── Azure Empire post-rebellion additions ─────────────────────────
+  bastion_azure: {
+    name:'Bastion Azure', kingdom:'azure_empire', type:'fortress', spawnable:true, founded:428,
+    desc:"The Azure Empire's answer to losing the western provinces. A fortress-city built for war first and civilians second. Walls visible for miles. Citizens joke that every child born there learns to march before they walk.",
+    history:[
+      { era:'Year 428+', label:"The Emperor's Paranoia", desc:"Onni XXI orders construction immediately after the peace treaty. Bastion Azure faces the new Confederacy border directly. Its design is purely military — the civilian infrastructure was added as an afterthought. Veterans of the rebellion war are offered land grants here. The city is called The Emperor's Paranoia by people who live in it, which tells you something about how it feels from the inside. The border intelligence network based here is the most sophisticated the empire has ever built." },
+    ],
+  },
+  concordia: {
+    name:'Concordia', kingdom:'azure_empire', type:'capital', spawnable:true, founded:430,
+    desc:'Founded by Onni XXI as a symbol of imperial reunification after the civil war. Scholars, diplomats, judges, historians, and priests. Called the City of Healing by some and the City of Liars by those who note that every faction rewrites the rebellion differently.',
+    history:[
+      { era:'Year 430+', label:'The City of Contested Memory', desc:"The largest university in the empire is here. Government archives. Peace tribunals where cases from the war are still being heard generations later. Noble negotiations that last months. The historical preservation efforts are genuinely impressive and also somewhat absurd — ten different official accounts of the rebellion exist in the archives, each contradicting the others in specific ways that reveal which faction wrote them. Historians from other kingdoms come here specifically to study how an empire remembers a war it lost part of." },
+    ],
+  },
+});
+
 const KINGDOMS = {
-  azure_empire: { name:'Azure Empire',    locations:['tazar','jade_province','beggars_rest','wheat_capital','iron_hollow','ooina'] },
-  luo_tin:      { name:'Luo-Tin Dynasty', locations:['luo_tin_capital','luo_tin_farm','great_defensive_giant','shen_port','silver_district'] },
-  buo:          { name:'Buo Kingdom',     locations:['buo_capital','red_sand_city','mistveil','stone_root','wild_bloom'] },
+  azure_empire:    { name:'Azure Empire',       locations:['tazar','jade_province','beggars_rest','wheat_capital','iron_hollow','ooina','bastion_azure','concordia'] },
+  luo_tin:         { name:'Luo-Tin Dynasty',    locations:['luo_tin_capital','luo_tin_farm','great_defensive_giant','shen_port','silver_district'] },
+  buo:             { name:'Buo Kingdom',         locations:['buo_capital','red_sand_city','mistveil','stone_root','wild_bloom'] },
+  nao_confederacy: { name:'The Nao Confederacy', locations:['ironhaven','naos_reach','embercross','silverwake','hollow_crown','verdant_gate'],
+    founded: 425,
+    desc: 'Born from the Nao Rebellion (405–425) against the Azure Empire. Led by Miyu Nao — "The Revered." Beggar\'s Rest was its birthplace and symbolic capital. Seven cities broke away or were founded in the aftermath. The Confederacy is defined by its rebel heritage and its deep suspicion of the empire that once owned it.' },
 };
 
 // Locations available for character spawn.
@@ -12654,7 +12731,15 @@ function buildEraCard(yr) {
   else if(yr <= 200)  { eraName = 'The Early Intermediate'; tagline = 'The founders are memory. Power is being redistributed.'; }
   else if(yr <= 250)  { eraName = 'The Sect Age Begins'; tagline = 'Sects now control what armies used to. Political power flows through cultivation.'; }
   else if(yr <= 350)  { eraName = 'The Long Middle'; tagline = 'Generations of accumulated cultivation. The tombs grow more dangerous every decade.'; }
-  else if(yr <= 500)  { eraName = 'The Deep Middle'; tagline = 'The founders are mythology. Their artifacts are the rarest things in the world.'; }
+  else if(yr <= 404)  { eraName = 'The Prerebellion Years'; tagline = 'The Azure Empire frays at its western edges. Miyu Nao is organizing.'; eraColor='#8a6820'; }
+  else if(yr <= 425)  { eraName = 'The Nao Rebellion'; tagline = 'Twenty years of civil war in the Azure Empire. The Revered against the twenty-first emperor.'; eraColor='#aa3300'; }
+  else if(yr === 425) { eraName = 'The Year of the Peace'; tagline = 'The Nao Confederacy is born. Beggar\'s Rest becomes a capital. The empire is smaller.'; eraColor='#886620'; }
+  else if(yr <= 450)  { eraName = 'Post-Rebellion Reconstruction'; tagline = 'Two nations defining a new border. Concordia and Bastion Azure rise.'; }
+  else if(yr <= 500)  { eraName = 'The Confederacy Era'; tagline = 'The Nao Confederacy stabilizes. Seven cities, one founding myth, deep suspicion of the empire.'; }
+  else if(yr <= 530)  { eraName = 'The Deep Intermediate'; tagline = 'Four nations, accumulated history, the founders are legend.'; }
+  else if(yr <= 534)  { eraName = 'The Year Before the Expedition'; tagline = 'Rokurō Kentarō has found Normac\'s cave. He is currently persuading an emperor.'; eraColor='#884422'; }
+  else if(yr <= 536)  { eraName = 'The Normac Campaign'; tagline = 'Five thousand men. One Maligned Lord. The quickest war in history.'; eraColor='#aa2200'; }
+  else if(yr <= 600)  { eraName = 'After the Campaign'; tagline = 'Luo-Tin does not discuss it. The official record says mapping survey. Everyone knows.'; }
   else if(yr <= 700)  { eraName = 'The Old Era'; tagline = 'Ancient sects with roots no one can fully trace. Knowledge both vast and fragmented.'; }
   else if(yr <= 1000) { eraName = 'The Deep Era'; tagline = 'Centuries of cultivation. Things from before Qi still exist in the margins.'; }
   else                { eraName = 'The Late Age'; tagline = 'The world has forgotten more than it remembers. History is archaeology now.'; }
@@ -12724,8 +12809,15 @@ function buildEraCard(yr) {
   else if(yr <= 165) politics = 'The war is over. Láng died in Year 154; the conflict lost its driving force within the year. Three kingdoms counting the cost — Buo most damaged, Azure Empire hollowed, Luo-Tin exhausted. The first post-founder generation of leadership is learning what power means without anyone who remembers the founders in charge.';
   else if(yr <= 200) politics = 'Two generations removed from the founders. The kingdoms persist but are defined now by sect relationships as much as by territory. Political marriages between noble families and sect elders. Cultivation has become the primary currency of political power.';
   else if(yr <= 300) politics = 'The three kingdoms exist on maps and in formal documents. In practice, they are federations of sect and clan power. The largest sects have more real authority than most official government bodies. A cultivator with sect backing operates above most laws.';
-  else if(yr <= 500) politics = 'Political landscape defined by sect dominance. Ancient rivalries between cultivation lineages have replaced national conflicts. The founders are invoked like gods in political speeches. Nobody alive has met anyone who met them.';
-  else if(yr <= 800) politics = 'Deep political history — layers of sect wars, treaty lineages, absorbed kingdoms, and lost power. The three kingdoms still nominally exist. In practice, whoever controls the cultivation resources controls the territory.';
+  else if(yr <= 400) politics = 'Three kingdoms with heavy sect influence. The Azure Empire is managing its western provinces with increasing difficulty. A man named Miyu Nao is active in the border regions — his name is in imperial intelligence reports as an organizer of regional grievance groups. The court is aware and not yet alarmed. It should be more alarmed.';
+  else if(yr <= 404) politics = `<span class="era-war">⚠ Prerebellion:</span> Azure Empire western provinces in significant unrest. Miyu Nao — called The Revered — is organizing systematically. Imperial tax collection is proceeding with increased enforcement. The rebellion begins Year 405.`;
+  else if(yr <= 425) politics = `<span class="era-war">⚔ The Nao Rebellion (Year 405–425):</span> Civil war in the Azure Empire. Miyu Nao leads an organized political and military movement. Emperor Onni XXI's responses are consistently approximately correct and two years too slow. The western provinces including Beggar's Rest are in open rebellion. Luo-Tin and Buo watch carefully.`;
+  else if(yr <= 450) politics = 'Four political entities now. Azure Empire (smaller, internally reforming — building both Bastion Azure and Concordia), Luo-Tin Dynasty, Buo Kingdom, and the Nao Confederacy — seven cities, born from twenty years of war, constitutionally suspicious of the Azure Empire.';
+  else if(yr <= 530) politics = 'Four-power world. The Nao Confederacy has stabilized into a legitimate nation with its own institutional culture. The Azure Empire\'s relationship with it is formally peaceful and functionally cold. Sect influence is now the primary political currency in all four.';
+  else if(yr <= 534) politics = `Luo-Tin Dynasty under Honoka Aina II. An explorer named Rokurō Kentarō has presented documentation of Normac's cave and is petitioning for military resources. The emperor is considering it.`;
+  else if(yr <= 536) politics = `<span class="era-war">⚠ The Normac Campaign (Year 535):</span> ${yr <= 535 ? 'Emperor Honoka Aina II of Luo-Tin authorized five thousand soldiers to engage Normac — cultivators, sect leaders, the finest fighters available. They have not yet reached the cave.' : 'Five thousand Luo-Tin soldiers, including cultivators capable of defeating fifty ordinary men each, were destroyed by Normac in the fifth month of Year 535. The Luo-Tin official record describes it as a mapping survey. Rokurō Kentarō is in hiding. The emperor is furious.'}`;
+  else if(yr <= 600) politics = 'Four-power world, post-Normac campaign. Luo-Tin does not officially discuss Year 535. The cave is on maps. The notation near it varies by map but the meaning is consistent. Nobody goes near it.';
+  else if(yr <= 800) politics = 'Deep political history — layers of sect wars, treaty lineages, absorbed kingdoms, and lost power. The original three kingdoms still nominally exist alongside the Confederacy. In practice, whoever controls the cultivation resources controls the territory.';
   else               politics = 'Political arrangements would be unrecognizable to anyone from Year 1. Cultivation bloodlines, sect empires, and clan confederacies have replaced the original three-kingdom structure multiple times over. History is mythology at this point.';
 
   // ── Cultivation world ─────────────────────────────────────────────
@@ -12788,6 +12880,12 @@ function buildEraCard(yr) {
   if(yr >= 134 && yr <= 149)  specials.push(`<span class="era-war">You grow up in wartime.</span> The Buo-Luo-Tin War shapes everything about your early world — prices, borders, who lives where, who doesn't come back.`);
   if(yr >= 375 && yr <= 395)  specials.push(`<span style="color:#c4883a">✦ Yaqism Era</span> — D'la (formerly Enmul) is active in the Red Sand City region this decade. Three followers. Hammurabi's forces are searching for him. The religion that will outlast all of them is being born.`);
   if(yr === 389) specials.push(`<span style="color:#c4883a">⚠ D'la transforms this year.</span> He becomes a great flame that consumes the northern Luo Empire. Red Sand City is absorbed into the Luo Kingdom. Yaqism begins its spread.`);
+  if(yr >= 400 && yr <= 405)  specials.push(`<span class="era-war">⚠ The Nao Rebellion begins in Year 405.</span> Miyu Nao — The Revered — is organizing in the western Azure provinces. If born before 405, the rebellion defines your young adulthood.`);
+  if(yr > 405 && yr <= 422)   specials.push(`<span class="era-war">⚔ You are born during the Nao Rebellion (405–425).</span> War is the background noise of your childhood. The empire and the rebels are contesting the western provinces. Miyu Nao is alive.`);
+  if(yr > 422 && yr <= 425)   specials.push(`<span class="era-war">⚔ The Nao Rebellion ends this year (425).</span> Miyu Nao died in Year 422 without seeing it conclude. The Nao Confederacy is established by the peace treaty. Beggar's Rest becomes a capital.`);
+  if(yr >= 533 && yr <= 534)  specials.push(`<span style="color:#aa66dd">⚠ Rokurō Kentarō is petitioning Honoka Aina II for an army.</span> He found Normac's cave and believes five thousand soldiers can address it. He is wrong about this.`);
+  if(yr === 535) specials.push(`<span style="color:#aa66dd">⚠ The Normac Campaign happens this year.</span> Five thousand Luo-Tin soldiers — cultivators, sect leaders, fighters who can beat fifty ordinary men each — are sent to engage Normac. They are destroyed in the fifth month. Rokurō Kentarō, who was at the rear, survives and goes into hiding.`);
+  if(yr > 535 && yr <= 540)   specials.push(`<span style="color:#aa66dd">✦ The aftermath of the Normac Campaign.</span> Luo-Tin officially calls it a mapping survey. Rokurō Kentarō is in hiding. The cave is on maps with a very specific notation.`);
 
   // ── Layout ────────────────────────────────────────────────────────
   return `<div class="era-card" style="border-left:3px solid ${eraColor}22">
@@ -24812,6 +24910,110 @@ Object.assign(LORE_NPCS, {
   if(LORE_NPCS[id]) LORE_NPCS[id].isLore = true;
 });
 
+// ================================================================
+// NAO REBELLION + NORMAC CAMPAIGN — Lore NPCs and Timelines
+// ================================================================
+Object.assign(LORE_NPCS, {
+
+  miyu_nao: {
+    id:'miyu_nao', name:'Miyu Nao',
+    title:'The Revered — Father of the Nao Confederacy',
+    gender:'male', alive:false, birthYear:358, deathYear:422,
+    birthNote:"Born in Beggar's Rest, Year 358. The fourth child of a washwoman and a bridge carpenter. Nobody who knew him as a child would describe him as extraordinary. He would not have described himself that way either.",
+    glowColor:'rgba(120,200,120,0.15)', specialGlow:'lore',
+    stats:{ strength:65, agility:70, endurance:78, intelligence:94, perception:96, willpower:100, charisma:98, luck:72 },
+    qiStageIndex:4, qiPath:'righteous',
+    personality:"Miyu Nao did not call himself The Revered. That name came from the people who organized around him, and he spent years trying to get them to stop using it and failed. He was not a military genius — he understood people in a way that made them willing to do things they would not otherwise do. He was precise about grievance: he did not inflame people, he organized them. He told the truth about conditions that everyone already knew were true and had been pretending were acceptable. The rebellion was not his idea. The empire made the rebellion inevitable; he was just the person who understood how to begin it and when.",
+    isLore:true,
+    lifeTimeline:[
+      { year:358, event:"Born in Beggar's Rest to ordinary working people. The bridge is his neighborhood. He knows it completely before he is ten." },
+      { year:372, event:"At fourteen, witnesses an imperial tax collection that ends in violence. Three people from his street are hurt. The official report describes it differently than what he saw. He keeps both versions." },
+      { year:385, event:"In his late twenties, he begins meeting with people in the western provinces who have specific and documented grievances against the imperial administration. He does not call these meetings anything. They are just people talking." },
+      { year:398, event:"The name The Revered appears for the first time in imperial intelligence reports, used to describe an unidentified organizer in the western border provinces. Onni XXI's advisors classify it as minor regional unrest." },
+      { year:405, event:"The tax collection house in Beggar's Rest burns in the third month of Year 405. The rebellion begins. Miyu Nao does not strike the match himself — he is very clear about this in his own writing. He had organized the people who did." },
+      { year:410, event:"Five years into the rebellion. Imperial forces have failed to retake Beggar's Rest three times. The western provinces are mostly in rebel hands. Miyu Nao is writing constantly — his documents from this period describe a nation he is trying to build, not just a war he is trying to win." },
+      { year:418, event:"Wounded seriously in the siege of what will become Embercross. Recovers. The week of fighting that defines Embercross happens during his recovery — he is not present for it, which he never stops feeling responsible for." },
+      { year:422, event:"Dies in Year 422, three years before the peace treaty. The rebellion continues without him. The leaders who finish the war carry his documents and argue about what he would have wanted. The Nao Confederacy is named for him. He does not see it established." },
+    ],
+  },
+
+  onni_xxi: {
+    id:'onni_xxi', name:'Onni XXI',
+    title:'Emperor of the Azure Empire — Reign 391–447',
+    gender:'male', alive:false, birthYear:372, deathYear:447,
+    birthNote:'Born into the imperial line, Year 372. The twenty-first emperor of the Azure dynasty. His reign will be defined by a rebellion he did not start and a peace he did not want.',
+    glowColor:'rgba(80,100,180,0.12)', specialGlow:'lore',
+    stats:{ strength:55, agility:50, endurance:58, intelligence:78, perception:72, willpower:80, charisma:75, luck:48 },
+    qiStageIndex:3, qiPath:'righteous',
+    personality:"Onni XXI was not incompetent and not corrupt — he was ordinary in a position that required extraordinary. He inherited an empire already in slow decline from the founder era and managed it capably during the years before the rebellion. When the rebellion came, he underestimated it consistently and in specific, documented ways. His responses were always approximately correct and approximately two years too late. He authorized Bastion Azure and Concordia after the peace — the paranoia project and the reconciliation project — which tells you something about what he thought he had done wrong. He died in Year 447, twenty-two years after the peace. The historians who study his reign disagree on almost everything except that he tried.",
+    isLore:true,
+    lifeTimeline:[
+      { year:372, event:'Born into the imperial succession. Educated for rule. Not remarkable in any direction as a child or young man.' },
+      { year:391, event:'Becomes emperor at nineteen. Competent early reign. The provinces are stable. The decline the empire entered after the founders era is slow enough to manage.' },
+      { year:398, event:'His advisors present him with intelligence about western province unrest. He authorizes increased tax collection and additional administrative oversight. This is the decision historians argue about most.' },
+      { year:405, event:'The rebellion begins. He does not believe it will last more than a year. This assessment shapes his first three military responses, all of which are insufficient.' },
+      { year:415, event:'Ten years in. He has replaced his military commanders twice. The western provinces are gone in any practical sense. He begins authorizing harsher measures that produce more recruits for the rebellion than they suppress.' },
+      { year:425, event:'Signs the peace treaty that formally recognizes the Nao Confederacy. The Confederacy keeps the territory. The empire keeps face as best it can. Onni XXI is in his fifties and looks older. He immediately authorizes Bastion Azure.' },
+      { year:430, event:'Founds Concordia. The historians he funds to write the official history of the rebellion produce a document so diplomatically managed that it satisfies nobody and is accurate about almost nothing.' },
+      { year:447, event:'Dies. His successors inherit a smaller empire with a better-defended border and a neighbor that will never fully trust them.' },
+    ],
+  },
+
+  rokuro_kentaro: {
+    id:'rokuro_kentaro', name:'Rokurō Kentarō',
+    title:'Explorer — The Man Who Found Normac',
+    gender:'male', alive:false, birthYear:498, deathYear:null,
+    birthNote:"Born Year 498, Luo-Tin Dynasty. An explorer and cartographer of some reputation. Known before the Normac expedition for mapping several unmapped cave systems in the northern territories. Not known for catastrophic judgment.",
+    glowColor:'rgba(180,100,100,0.12)', specialGlow:'lore',
+    stats:{ strength:60, agility:75, endurance:70, intelligence:82, perception:90, willpower:65, charisma:72, luck:30 },
+    qiStageIndex:2, qiPath:'righteous',
+    personality:"Rokurō Kentarō found Normac's cave in Year 533 and did not die, which is the most remarkable thing about him. He found a sleeping Maligned Lord, studied it for three days, documented what he saw with professional precision, and came back. The second most remarkable thing is that he then convinced Emperor Honoka Aina II to give him an army. The third most remarkable thing is that he was genuinely surprised when the army was destroyed. He had seen Normac — sleeping — and thought the numbers were sufficient. The journals he wrote in hiding after the campaign are the most detailed firsthand account of Normac's appearance and partial behavioral patterns that exists.",
+    isLore:true,
+    lifeTimeline:[
+      { year:498, event:'Born in the Luo-Tin Dynasty, to a family of surveyors. Grows up reading maps and wanting to correct them.' },
+      { year:520, event:'First major expedition — maps an unmapped cave network in the northern ranges. Returns safely with documentation that revises three existing maps. Reputation established.' },
+      { year:530, event:'Begins the northern expedition that will define his life. Looking for a specific geographic feature referenced in an old text. Finds something else.' },
+      { year:533, event:"Discovers Normac's cave. Observes the sleeping Maligned Lord of Sloth for three days from a safe distance. Documents everything. Leaves without disturbing him. Returns to Luo-Tin Capital with the most significant discovery in living memory." },
+      { year:534, event:"Spends fourteen months persuading Emperor Honoka Aina II that the discovery warrants military action. The court is skeptical. He produces his documentation. The emperor authorizes five thousand men — cultivators, sect leaders, fighters who can handle fifty ordinary soldiers each." },
+      { year:535, event:"Month five. The campaign reaches Normac's location. The army is destroyed. The word 'swatted' appears in Rokurō Kentarō's own account of it, which he writes while hiding from imperial searchers. He survives because he was at the back of the formation and running before anyone else understood what was happening." },
+      { year:535, event:'Goes into hiding. The Emperor is furious. Rokurō Kentarō writes extensively in hiding — his journals from this period are technically brilliant documents about what he observed at the cave, the campaign, and the exact nature of the mistake he made. He concludes he was not wrong about the discovery. He was wrong about what the right response was.' },
+    ],
+  },
+
+  honoka_aina_ii: {
+    id:'honoka_aina_ii', name:'Honoka Aina II',
+    title:'Emperor of the Luo-Tin Dynasty — Reign 518–561',
+    gender:'female', alive:false, birthYear:496, deathYear:561,
+    birthNote:'Born Year 496, Luo-Tin Imperial line. The second emperor to bear the name Honoka Aina. Known before the Normac campaign for administrative competence and a particular interest in military expansion.',
+    glowColor:'rgba(100,100,180,0.12)', specialGlow:'lore',
+    stats:{ strength:52, agility:55, endurance:60, intelligence:88, perception:80, willpower:85, charisma:82, luck:55 },
+    qiStageIndex:4, qiPath:'righteous',
+    personality:"Honoka Aina II made one catastrophic decision and a long successful reign around it. She authorized the Normac campaign after sustained persuasion from Rokurō Kentarō, which her court historians later describe as an uncharacteristic lapse of judgment. Her defenders argue she was working from insufficient information — nobody had ever seen Normac active. Her critics argue that 'a sleeping thing that made three surveyors go mad just from proximity' should have been information enough. She survived the political fallout, partly by directing her anger at Kentarō (in hiding) and partly by making no further references to the campaign in any official document. The Normac expedition is not mentioned in her official biography.",
+    isLore:true,
+    lifeTimeline:[
+      { year:496, event:'Born into the Luo-Tin imperial succession.' },
+      { year:518, event:'Takes the throne. Early reign characterized by administrative reform and careful military expansion. Respected.' },
+      { year:534, event:'Rokurō Kentarō presents his discovery documentation. Her court is skeptical. She studies the documents personally. Authorizes five thousand men after fourteen months of persuasion.' },
+      { year:535, event:'The campaign fails completely. Five thousand soldiers — including cultivators who had never lost a significant engagement — are destroyed by Normac in what witnesses describe as seconds. She receives the report in the throne room and dismisses the court. What happens in the next hour is not recorded.' },
+      { year:535, event:'Issues warrants for Rokurō Kentarō. He goes into hiding. She never publicly discusses the campaign again. The official record is adjusted to describe the expedition as a mapping survey that encountered adverse terrain.' },
+      { year:561, event:'Dies. Her reign is remembered as largely successful. The Normac campaign does not appear in her official biography, which is diplomatically careful in a way that historians find very interesting.' },
+    ],
+  },
+
+});
+
+// Update Normac's timeline to include the 535 campaign
+if(LORE_NPCS.normac_sloth) {
+  LORE_NPCS.normac_sloth.lifeTimeline = LORE_NPCS.normac_sloth.lifeTimeline || [];
+  if(!LORE_NPCS.normac_sloth.lifeTimeline.find(e => e.year === 533)) {
+    LORE_NPCS.normac_sloth.lifeTimeline.push(
+      { year:533, event:"An explorer named Rokurō Kentarō finds the cave. Observes for three days. Leaves. Normac is aware of the observation but does not consider it worth addressing." },
+      { year:535, event:"Five thousand Luo-Tin soldiers — cultivators, sect leaders, fighters each capable of defeating fifty ordinary men — arrive in the fifth month. Normac removes them. The accounts of what exactly happens vary because the survivors who could describe it are few and their descriptions are inconsistent. The most consistent detail: it was fast. The second most consistent detail: it was not violent in any way that felt like effort. Rokurō Kentarō, who was at the rear, survives. The Emperor of Luo-Tin calls it a mapping survey in the official record." }
+    );
+    LORE_NPCS.normac_sloth.lifeTimeline.sort((a,b) => a.year - b.year);
+  }
+}
+
 // Initialize Yaqism in world history when game starts
 const _withYaqismInit = startGame;
 startGame = function(isLoad=false) {
@@ -31796,7 +31998,11 @@ buildSystemPrompt = function() {
 ${famous.map(f => `• ${f.name}: ${f.status}
   Ambient awareness: ${f.ambient}`).join('\n\n')}
 
-AMBIENT RULE: These figures are REAL to NPCs. Characters don't need to meet them to know about them. A merchant in Tazar might mention Reo's latest decision. A farmer might have opinions about Láng. A cultivator might compare their master's techniques to Ichiro's school. Surface this naturally — not in every scene, but when it fits. These are the famous of this era.`;
+AMBIENT RULE: These figures are REAL to NPCs. Characters don't need to meet them to know about them. A merchant in Tazar might mention Reo's latest decision. A farmer might have opinions about Láng. A cultivator might compare their master's techniques to Ichiro's school. Surface this naturally — not in every scene, but when it fits. These are the famous of this era.
+
+HISTORICAL WARS — NPCs know about these and they shape the world:
+• THE NAO REBELLION (Years 405–425): Twenty-year civil war in the Azure Empire. Miyu Nao ("The Revered") led western provinces including Beggar's Rest in rebellion against Emperor Onni XXI. The rebellion ended with the Nao Confederacy being recognized as an independent nation. Beggar's Rest became its symbolic capital. Seven cities form the Confederacy: Ironhaven (forges, survived 7 imperial sieges), Nao's Reach (military colleges, former officers), Embercross (built on the war's bloodiest battlefield, considered haunted), Silverwake (trade wealth), Hollow Crown (mountain fortress), Verdant Gate (agriculture), and Beggar's Rest (monuments, Hall of Reverence). The Azure Empire compensated by founding Bastion Azure (border fortress) and Concordia (reconciliation city). Miyu Nao died in Year 422, three years before peace. The Confederacy is named for him.
+• THE NORMAC CAMPAIGN (Year 535): Explorer Rokurō Kentarō found Normac's cave in Year 533. He convinced Emperor Honoka Aina II of Luo-Tin to authorize 5,000 soldiers — cultivators, sect leaders, fighters capable of defeating 50 ordinary men each. In the fifth month of Year 535, the forces were destroyed. Completely. The quickest military defeat in recorded history. Rokurō Kentarō survived (he was at the rear) and went into hiding from the Emperor's anger. Luo-Tin officially records it as a "mapping survey that encountered adverse terrain." Everyone knows the truth. The cave is marked on maps. Nobody goes near it.`;
 
     prompt = prompt.replace('## ABSOLUTE RULES', section + '\n\n## ABSOLUTE RULES');
   } catch(e) {}
