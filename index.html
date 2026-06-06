@@ -16461,6 +16461,7 @@ function buildNPCContextForAI() {
       if(npc.title)                  lines.push(`    Title: ${npc.title}`);
       if(npc.appearance)             lines.push(`    Appearance: ${npc.appearance}`);
       if(typeof npc.personality === 'string') lines.push(`    Who they are: ${npc.personality}`);
+      if(npc.voice)                  lines.push(`    VOICE & MANNERISMS (speak and move them exactly like this): ${npc.voice}`);
       if(npc.barLelyaSigns)          lines.push(`    ⚠ Bar lēlyā signs: ${npc.barLelyaSigns}`);
       if(npc.encounterNote)          lines.push(`    Encounter guidance: ${npc.encounterNote}`);
     }
@@ -37357,6 +37358,132 @@ Gaining a real named contact (someone specific) is harder and rarer than simply 
   } catch(e) {}
   return prompt;
 };
+
+// ================================================================
+// ── LORE VOICES & MANNERISMS — every named figure speaks uniquely ──
+// One block so no two characters sound the same. Also fills in any
+// lifeTimeline that was never assigned.
+// ================================================================
+(function assignLoreVoices() {
+  const V = {
+    // ── THE FOUNDERS ──
+    reo_yamamoto: 'Speaks in short, finished sentences — never trails off, never qualifies. Asks one precise question instead of making three statements. Long pauses before answering; he is calculating, not hesitating. Never raises his voice; the quieter he gets, the more dangerous. Uses "useful" and "functional" as his highest praise. Does not reassure. Watches your hands, not your face.',
+    ichiro_katsumi: 'Blunt to the point of cruelty, but never wasteful with words. States hard truths flatly and waits. Speaks about his own past evil without flinching or excusing it — "I did that. I would do it again if I were who I was." Goes very still before he speaks. Does not perform warmth. When he is kind it is deliberate, like a decision made against his own grain, and he lets you see the effort.',
+    yuluh: 'Ancient, amused, unhurried — speaks in riddles it means completely literally. Answers questions with questions that are somehow also answers. Refers to empires and lifetimes as brief things. Never lies outright but arranges true things to mislead, then seems delighted when you notice. Voice seems to come from several directions at once, or from inside your own chest. Calls almost everyone "little flame" or "little while." Never hurried, never afraid, faintly entertained by mortal urgency.',
+    lang_warlord: 'Plain, direct, soldier\'s cadence — no metaphor, no philosophy he did not earn with his hands. Talks about strength as simple fact, not boast. Short declarative sentences. Respects competence and says so bluntly; dismisses weakness without cruelty, just accuracy. Occasionally lands a observation sharper than his blunt manner suggests — he is not stupid, he chose force on purpose.',
+
+    // ── MALIGNED LORDS ──
+    zeret_lust: 'Loud, charming, magnetic — talks fast and warm, makes you feel like the only person in the room. Constant small laughter. Familiar immediately, as if you are old friends, which is itself the trap. Compliments that land like heat. Switches to a low, certain register the instant he wants something and you feel the floor tilt. Never threatens; he doesn\'t need to. The glasses stay on. When they come off, he stops talking — he doesn\'t have to.',
+    xelaad_pride: 'Scornful, precise, ranking everyone aloud whether asked or not. Speaks down to kings. Every sentence carries an implied "obviously." Corrects people mid-sentence. His insults are accurate, which is what makes them land. Never shouts — contempt is delivered at conversational volume, which is worse. Refers to others\' achievements in the past tense even while they are happening.',
+    iasiba_envy: 'Quiet, controlled, his hands always too still. Speaks with the careful courtesy of someone holding something back. Asks about what you have — your talents, your loves, your possessions — with an interest that feels flattering until it feels like inventory. Never raises his voice. The longer he talks the colder the room feels. When he finally states what he wants, it is in the same flat polite tone as everything else.',
+    dranoel_greed: 'Transactional in every sentence — frames conversation as exchange, weighs your words like coin. Precise, clear-headed, never frenzied. "What is that worth to you?" is his native phrase. Acknowledges his own hunger plainly, as accurate self-description, not confession. Patient the way a ledger is patient. Speaks of consuming kingdoms the way others discuss meals.',
+    normac_sloth: 'Speaks rarely and in complete sentences that contain no extra words. Long stillness, then a few exact words, then stillness again. No emotion in the delivery — not coldness, just absence of need. When he does speak it carries weight precisely because he spends words so seldom. Physically still to an unnerving degree until the instant he is not.',
+    aym: 'Unknown to almost everyone — the only person Zeret ever wanted rather than consumed. Speaks simply and without performance, which is exactly why it disarms him. Direct where he is elaborate. Calm where he is charged. She does not try to affect anyone, and that is the one thing he cannot navigate.',
+
+    // ── YAQISM ──
+    dla: 'Gentle, patient, undeterred — never argues, only demonstrates. Speaks to a murderer the same way he speaks to a child. Asks questions that make people answer themselves. "D\'yaqed provides" is his refrain, said softly, like a fact about weather. Never hurried even when hunted. Describes the flame in living things plainly, as though pointing at something obviously there.',
+    urur: 'Was an ordinary stockman; now speaks with a memory that forgets nothing, citing exact words said years ago. Precise, humble about the gift, never about the content. Slightly overwhelmed by his own capacity. Writes more than he speaks. When he does speak it is to record, clarify, or correct a detail no one else remembered.',
+    inim_shara: 'Loud, direct, physical — the man who charges first. No subtlety and proud of it. Speaks in declarations. Laughs from the belly. Talks about the fast and the fish that came to him with the awe of someone who still cannot believe it happened to him. Goes first into everything, including conversations.',
+    irarum: 'Was a killer; became still. Speaks little, weighs each word against the life he used to live. Calm with the specific calm of a violent man who chose to stop. When he mentions his past it is flat, factual, without self-pity. Performs ṣlōtā b-lēlyā every night and references the dark hours as where he is most himself.',
+    hammurabi_luo: 'Speaks with the absolute certainty of a man who has never lost — until D\'la. Commanding, impatient, used to being obeyed mid-sentence. Frames everything as authority and threat. After watching D\'la become flame, a crack runs through the certainty he never acknowledges aloud. Demands rather than asks. Physically imposing and aware of it.',
+    zimri_lim: 'Anxious under a thin veneer of ducal composure. Speaks carefully, hedging, always calculating who is more dangerous to displease. Defers upward, postures downward. His confidence is performance and it slips when pressed. Talks himself into bad decisions out loud.',
+
+    // ── CREATION MYTH ──
+    dyaqed: 'When in the form of a man: warm, giving, paternal — speaks the way the sun feels. Generous without being asked twice. But betrayal turns the warmth instantly to a heat that scorches; his voice goes from lullaby to furnace. Speaks in pronouncements that become law. "D\'yaqed provides" was true before it was a prayer.',
+    yaggit_lim: 'Devout, gentle, grieving — the faithful man who failed to resist. Speaks softly, often near tears when he remembers his son. Returns again and again to what was lost and what he should have done. Defers to stronger wills, then hates himself for it. Earnest to the point of pain.',
+    aruwium_first: 'As Aruwium: persuasive, proud, certain of human worth — "I see our worth and you do not." As bar lēlyā: barely speaks, and when he does it is cold, final, enormous. "NONE shall reach for him. That is my will." No warmth survives the transformation. The voice loses its persuasion and gains only weight and cold.',
+
+    // ── TOMB TRIGGERS ──
+    rin_shizuka: 'Six years old. Asks questions adults find unsettling because they are too direct and too perceptive. Short sentences. States observations without softening them. Does not cry easily. Notices what people are hiding and sometimes says so, plainly, at the worst moment. Not precocious in a charming way — precocious in a way that makes adults uneasy.',
+    misao_rokuro: 'Driven, formal, weighed down by an inherited failure he refuses to pass on. Speaks with the intensity of someone who has staked everything on one outcome. Polite but unyielding. References his family\'s shame obliquely, never directly. After giving his arm and eye, speaks through pain without acknowledging it.',
+    goblin: 'Sharp, dry, the wit of a man mocked his whole life who chose intelligence over violence. Self-deprecating about his height before anyone else can be. Speaks in clever asides and precise observations. Never cruel despite every reason to be. Lands the smartest line in any room and lets others catch up. Genuinely kind under the armor of cleverness.',
+    mosi_rajabu: 'Formal, dignified, carrying the cadence of a far land across the sea. Speaks of "ancient things" he can sense the way others mention weather. Courteous even when scorned, which unsettles those who scorn him. Patient with a foreigner\'s carefulness, missing nothing. Refers to his ancestor O\'saa with quiet reverence.',
+    takehiko_takao: 'Quiet, plain, the speech of a man who has spent thirty years mostly alone with a forest. Few words, all of them practical. No ego, no pretense, no ambition in his voice. Talks about Ooina the way you\'d talk about a long marriage. Watches cultivators struggle and keeps his opinions to himself unless asked directly — then they are blunt and correct.',
+    yuuta_hajime: 'Controlled anger under careful words. Speaks precisely about humanity\'s collective cruelty, never about individuals he hates — he is too fair for that, which makes him more dangerous. Half-yokai, and you can hear both halves: human reason, something older underneath. Grows quietly intense when the subject is what humans do to what they fear.',
+
+    // ── FRACTURE / ASH COMPACT ──
+    masaki_juro: 'Brilliant and unsettlingly fast — finishes your thought before you do, then waits politely as if he hadn\'t. Charming on the surface, genuinely so. But the warmth never reaches the cold underneath. Speaks in elegant, economical sentences. Occasionally stops mid-thought to listen to nothing, then resumes. Deflects any mention of bar lēlyā into silence or a change of subject so smooth you forget you asked.',
+    nagisa_hanzou: 'Deliberate, immovable, every word pre-weighed against its cost. Speaks like a man who has already decided and is only informing you. Does not raise his voice or repeat himself. Frames hard choices as arithmetic — "the cost was acceptable." Patient, grave, and entirely willing to do the brutal thing if the brutal thing works.',
+    koichi_hanzou: 'Calm with the stillness of someone who has nothing left to prove. Speaks plainly about impossible things — surpassing the founders — without boast, as simple fact. Talks about the blade as a language, not a weapon. Generous with knowledge to those who genuinely seek it. There is wonder still in him when he recalls the Compact he witnessed as a child; that is the one subject that animates him.',
+    foula: 'A mountain that speaks. Voice is geological — slow, vast, felt in the ground before it is heard. Uses few words across long pauses. Indifferent to mortal urgency on a scale that is almost gentle. Speaks of the carved pact as something it simply carries, like weather or erosion. Does not threaten; it does not need the concept.',
+  };
+
+  const TL = {
+    aym: [
+      { year:500, event:'The first year Aym becomes possible in the world. Who she is before this is not recorded — she exists at the edge of the story, the one variable Zeret cannot account for.' },
+    ],
+    dyaqed: [
+      { year:-1900, event:'Was the first thing — the flame above the empty vacuum. Made the earth, the planets, then life across the world. Made the first three men from his own flame.' },
+      { year:-1884, event:'Granted humanity women, the power to populate, and to Aruwium a great piece of his own flame as grace and protection.' },
+      { year:-240, event:'Betrayed — his arm burned with his own gifted flame. Cursed the descendants of the betrayers and withdrew his warmth from the world. His flame still burns inside every living thing.' },
+    ],
+    yaggit_lim: [
+      { year:-1900, event:'Created from D\'yaqed\'s flame, first of the three men. Devout and grateful.' },
+      { year:-1884, event:'Asked D\'yaqed for "something more" — and was given Habannatum and the power to populate the earth.' },
+      { year:-240, event:'Argued against Aruwium\'s blasphemy but could not stand alone; his own wife sided with Aruwium. Followed the betrayal he did not believe in.' },
+      { year:-238, event:'Watched his son die of the first sickness the world had ever known — vomiting blood into the river. Spent the rest of his life trying to win back D\'yaqed\'s favor against Aruwium\'s will.' },
+    ],
+    aruwium_first: [
+      { year:-1900, event:'Created from D\'yaqed\'s flame, one of the three first men. Given the largest piece of D\'yaqed\'s own flame.' },
+      { year:-240, event:'Led the entire valley to betray D\'yaqed, burning his arm with the gifted flame. "We do not need you."' },
+      { year:-238, event:'Unable to face his reflection, sat by a lake five days and reached past his dulling flame to grasp something D\'yaqed could not touch — became bar lēlyā. Forbade all worship of D\'yaqed. The warmth left the valley.' },
+    ],
+    rin_shizuka: [
+      { year:843, event:'Born. Orphaned early. The circumstances are not recorded — she does not discuss them and no one asked.' },
+      { year:849, event:'Six years old, surviving in the lower district of Tazar. Reo\'s residual consciousness, deep in the tomb, would stir if she ever wandered to its entrance — something in her resonates with what he was.' },
+    ],
+    misao_rokuro: [
+      { year:820, event:'Born into the Rokurō line, generations after the explorer who failed against Normac. The family name has carried that failure ever since.' },
+      { year:845, event:'Has spent his adult life researching Reo\'s tomb — not to take from it, but to revive Reo and restore his family\'s name. He intends to give, not steal.' },
+    ],
+    goblin: [
+      { year:828, event:'Born with a growth deformity — noticeably short. Mocked from childhood. Never once responded with violence.' },
+      { year:850, event:'A man of history and trade. Spent twenty years studying Tazar\'s geography, calculating where Reo\'s tomb had to be.' },
+    ],
+    mosi_rajabu: [
+      { year:835, event:'Born far across the sea, descendant of O\'saa, a myth of his homeland. Gifted with the ability to sense ancient things.' },
+      { year:858, event:'Came to the Azure Empire seeking peace and was met with scorn. While waiting in Tazar\'s lower district, sensed something beneath the city he could not explain.' },
+    ],
+    takehiko_takao: [
+      { year:815, event:'Born in Ooina forest. Has lived there his entire life, tending rather than taking.' },
+      { year:840, event:'Thirty years of farming the same section of forest. He knows where Ichiro\'s tomb entrance is. He has always known. He has never needed to enter.' },
+    ],
+    yuuta_hajime: [
+      { year:825, event:'Born to a Yokai mother and a human father. Grew up in human settlements that did not accept what he was.' },
+      { year:848, event:'Left for Ooina and his mother\'s people. What he saw of humanity before he left shaped a conviction: humanity is the problem, not individual humans.' },
+    ],
+    masaki_juro: [
+      { year:970, event:'Born to the unremarkable Kuui Sect. Ordinary in every measurable way.' },
+      { year:1000, event:'Advanced with impossible speed — the price paid to bar lēlyā. Isolation sharpened him into a mind faster than almost anyone alive.' },
+      { year:1080, event:'Openly mocked the sitting Emperor of Azure and faced no consequence. Every sect understood the throne was now ornamental. The Fracture began.' },
+      { year:1095, event:'Died during the early Sect Wars he had inadvertently caused — with very little of a life around him, the slow collection of his bargain complete.' },
+    ],
+    nagisa_hanzou: [
+      { year:1130, event:'Born into the Hown Sect during the height of the Sect Wars.' },
+      { year:1180, event:'Summoned every sect leader to a mountain pass, called upon Foula to seal the exit, and did not let them leave until they carved the Ash Compact into the giant\'s body. The wars ended. Many died first.' },
+      { year:1205, event:'Died, having ended the longest war in cultivation history by trapping it in a room with a giant. His son would surpass everyone.' },
+    ],
+    koichi_hanzou: [
+      { year:1170, event:'Born to Nagisa Hanzou.' },
+      { year:1180, event:'As a child, stowed away on the caravan to the Ash Compact and hid through the entire ordeal. Saw more techniques and felt more Qi in those weeks than most do in a lifetime. His passion for the blade and Qi took root here.' },
+      { year:1230, event:'Grew into the strongest Qi user since the founders, surpassing their ceiling by miles. Coined the Sword Saint for his devastating sword techniques. Brought the Second Renaissance.' },
+      { year:1280, event:'Died of old age, undefeated, having proven the founders\' limit was never a law of the world.' },
+    ],
+    foula: [
+      { year:-3000, event:'Ancient beyond record — a mountain spirit-giant older than the kingdoms, older than most things that have names.' },
+      { year:1180, event:'Answered Nagisa Hanzou\'s call and sealed the mountain pass for the Ash Compact. Why it agreed, it has never said. It now carries the carved pact on its own body.' },
+    ],
+  };
+
+  Object.entries(V).forEach(([id, voice]) => {
+    if(LORE_NPCS[id]) LORE_NPCS[id].voice = voice;
+  });
+  Object.entries(TL).forEach(([id, tl]) => {
+    if(LORE_NPCS[id] && (!LORE_NPCS[id].lifeTimeline || !LORE_NPCS[id].lifeTimeline.length)) {
+      LORE_NPCS[id].lifeTimeline = tl;
+    }
+  });
+})();
 
 // ── BAR LĒLYĀ — final wrappers (must run after all other patches) ──
 // Track acknowledgment from the player's input and the AI's narrative,
