@@ -5619,26 +5619,33 @@ function getRepContextForNPC(npcHomeLocation) {
 // ================================================================
 // SKILL SYSTEM
 // ================================================================
-function addSkill(key, label, category, desc='') {
+function addSkill(key, label, category, desc='', xpAmount=1) {
   if(!key) return;
   // Normalise key
   const normKey = key.toLowerCase().replace(/\s+/g,'_').replace(/[^a-z0-9_]/g,'');
   if(!normKey) return;
 
+  // xpAmount lets a single response represent extended practice (months of
+  // training = big gain). Clamp to a sane range.
+  let xp = Math.max(1, Math.min(parseInt(xpAmount) || 1, 200));
+
   if(GS.char.skills[normKey]) {
-    // Level up: +1 XP per use. Threshold = level * 8 + 8 (faster than before)
-    // Level 1 → 2: 16 uses · Level 2 → 3: 24 uses · Level 5 → 6: 48 uses
     const s = GS.char.skills[normKey];
-    s.xp = (s.xp||0) + 1;
-    const needed = s.level * 8 + 8;
-    if(s.xp >= needed) {
-      s.level = Math.min((s.level||1) + 1, 15); // cap at 15
-      s.xp    = 0;
-      if(s.level > 1) toast(`${s.label||label}: Level ${s.level}`, 'gold', 2500);
+    s.xp = (s.xp||0) + xp;
+    // Threshold = level * 8 + 8. Loop so a big XP award can cross multiple levels.
+    let leveledTo = null;
+    while(s.level < 15) {
+      const needed = s.level * 8 + 8;
+      if(s.xp < needed) break;
+      s.xp   -= needed;
+      s.level = (s.level||1) + 1;
+      leveledTo = s.level;
     }
+    if(s.level >= 15) s.xp = 0;
+    if(leveledTo) toast(`${s.label||label}: Level ${leveledTo}`, 'gold', 2500);
   } else {
-    // New skill — also update label/category if not set
-    GS.char.skills[normKey] = {
+    // New skill — starts at level 1, then apply any XP beyond the first point
+    const s = {
       label:    label||key,
       category: category||'misc',
       level:    1,
@@ -5646,6 +5653,20 @@ function addSkill(key, label, category, desc='') {
       firstUsed:`Year ${GS.world.year}`,
       desc:     desc||'',
     };
+    GS.char.skills[normKey] = s;
+    // Apply remaining XP (xp-1 since creating it already counts as the first point)
+    if(xp > 1) {
+      s.xp = xp - 1;
+      let leveledTo = null;
+      while(s.level < 15) {
+        const needed = s.level * 8 + 8;
+        if(s.xp < needed) break;
+        s.xp -= needed;
+        s.level++;
+        leveledTo = s.level;
+      }
+      if(leveledTo) toast(`${s.label||label}: Level ${leveledTo}`, 'gold', 2500);
+    }
   }
   updateSkillsTab();
 }
@@ -8624,8 +8645,11 @@ ABSOLUTE RULES — NEVER BREAK THESE:
 
 TIME IS MANDATORY: every response must have a non-zero time value. Brief talk = days:1. Training = days:1-7. Travel = days:3-15. Cultivation = days:1-30. Never leave time at {0,0,0} unless the action genuinely took no time at all.
 STATED DURATIONS ARE ABSOLUTE: if the player says "for three weeks" or "weeks go by" or "a month passes," the time field MUST reflect that exactly. The player's stated duration is not a suggestion — it is what happened. "Weeks go by" → days:14 minimum.
+NARRATIVE TIME = ELAPSED TIME: if the prose you write depicts a span of time passing — a montage, "the first week you learn...", "by the end of the second month", "three months later" — the time field MUST equal that ENTIRE span. If your narrative covers three months of study, the time field is months:3, NOT days:1. The displayed date jumps to the end of what you described. A narrative that says months passed while the clock says Day 2 is a bug you must never produce.
 
 PHYSICAL ACTIVITY → STATS: when the player describes physical effort (running, lifting, carrying weight, sparring, climbing, endurance work), return statChanges proportional to the time spent. The word "training" is not required. Running with barrels for two weeks = strength +1, agility +1, endurance +2. Scale to duration and intensity. Never skip statChanges for described physical effort over multiple days.
+
+SKILL XP SCALES WITH TIME: every skill entry takes an "xp" number — how much that skill advanced THIS turn. A single brief use = xp:1. A full day of practice = xp:2-4. A week of focused study/practice = xp:8-15. A month of dedicated training = xp:25-40. Several months devoted to one skill = xp:50-100. If the character spends MONTHS learning literacy or law, send a LARGE xp value (e.g. {"key":"literacy","label":"Literacy","category":"scholarly","xp":40}). Do NOT send xp:1 for a montage that covered weeks or months — that is the single most common mistake. The skill must move meaningfully when real time was devoted to it.
 
 RESPONSE FORMAT — TWO PARTS, ALWAYS IN THIS ORDER:
 
@@ -8641,7 +8665,7 @@ PART 2 — DATA (immediately after the narrative, on its own line):
   "qiPath": null,
   "qiExpression": null,
   "newQiStageIndex": null,
-  "skills": [{ "key": "skill_key", "label": "Skill Name", "category": "combat", "desc": "..." }],
+  "skills": [{ "key": "skill_key", "label": "Skill Name", "category": "combat", "desc": "...", "xp": 1 }],
   "newTechniques": [{ "name": "", "category": "", "type": "", "rarity": "", "desc": "", "source": "" }],
   "newMartialArts": [{ "name": "", "type": "", "rarity": "", "desc": "", "source": "" }],
   "injuries": ["string only"],
@@ -8710,7 +8734,7 @@ async function callClaude(userMessage) {
       },
       body: JSON.stringify({
         model:'claude-opus-4-5',
-        max_tokens:2048,
+        max_tokens:8192,
         system: systemPrompt,
         messages:[
           ...history,
@@ -8838,29 +8862,37 @@ function parseAIResponse(text) {
   // ── Strategy 0: Preferred format — prose THEN ```json block ──────
   // The AI writes the narrative as plain text, then a ```json block
   // containing ONLY data fields (no "narrative" key).
-  // Regex: grab everything before first ```json as narrative, everything
-  // inside the block as data. No $ anchor so trailing commentary is OK.
-  const splitMatch = text.match(/([\s\S]*?)```json\s*([\s\S]*?)```/);
-  if(splitMatch) {
-    const narrativePart = splitMatch[1].trim();
-    const jsonPart      = splitMatch[2].trim();
+  // IMPORTANT: the ```json block may be UNCLOSED (response truncated by
+  // max_tokens). We split on the ```json marker itself, so everything
+  // before it is always the narrative regardless of whether the block
+  // is complete. This guarantees ```json never bleeds into displayed text.
+  const fenceIdx = text.search(/```json/);
+  if(fenceIdx !== -1) {
+    const narrativePart = text.slice(0, fenceIdx).trim();
+    // Everything after the ```json marker, minus an optional closing fence
+    let jsonPart = text.slice(fenceIdx + 7); // skip "```json"
+    const closeIdx = jsonPart.indexOf('```');
+    if(closeIdx !== -1) jsonPart = jsonPart.slice(0, closeIdx);
+    jsonPart = jsonPart.trim();
+
     let parsed = null;
     try { parsed = JSON.parse(jsonPart); } catch(e) {
-      // JSON block is malformed or truncated — try to repair
-      try {
-        // Close any open structures and retry
-        const repaired = jsonPart.replace(/,\s*$/, '') + '}';
-        parsed = JSON.parse(repaired);
-      } catch(e2) {}
+      // Block malformed or truncated — try progressive repair:
+      const repairs = [
+        jsonPart.replace(/,\s*$/, '') + '}',
+        jsonPart.replace(/,\s*"[^"]*"?\s*:?\s*[^}]*$/, '') + '}', // drop last partial field
+        jsonPart.replace(/,\s*$/, '') + '}}',
+      ];
+      for(const r of repairs) {
+        try { parsed = JSON.parse(r); break; } catch(e2) {}
+      }
     }
     if(parsed && typeof parsed === 'object') {
-      // Narrative lives outside the JSON block
-      if(!parsed.narrative && narrativePart) parsed.narrative = narrativePart;
-      // If AI accidentally included "narrative" in JSON too, the prose version wins
+      // Prose before the fence is always the narrative
       if(narrativePart) parsed.narrative = narrativePart;
       return parsed;
     }
-    // JSON completely unrecoverable — at least return the prose
+    // JSON unrecoverable — still return the clean prose (no fence)
     if(narrativePart) return { narrative: narrativePart };
   }
 
@@ -9006,7 +9038,7 @@ function applyAIResponse(res) {
   if(res.newQiStageIndex != null) setQiStage(res.newQiStageIndex);
   // Skills
   if(res.skills?.length) {
-    res.skills.forEach(s => addSkill(s.key||s.label?.toLowerCase().replace(/\s+/g,'_'), s.label||s.key, s.category||'misc', s.desc||''));
+    res.skills.forEach(s => addSkill(s.key||s.label?.toLowerCase().replace(/\s+/g,'_'), s.label||s.key, s.category||'misc', s.desc||'', s.xp||s.gain||1));
   }
   // Techniques
   if(res.newTechniques?.length) res.newTechniques.forEach(t => grantTechnique(t));
@@ -10978,6 +11010,9 @@ If the player says a duration, your time field MUST match it. No exceptions.
 - "for a few days" → days: 3-5
 The player's stated duration overrides everything. If they say weeks, the clock advances weeks. This is non-negotiable.
 
+### RULE 1.5 — NARRATIVE TIME = ELAPSED TIME
+If the prose you write depicts time passing (a montage, "the first week...", "by the end of the second month", "three months later"), the time field MUST equal that ENTIRE span. A three-month study montage → months:3. The date jumps to the end of what the narrative described. Never write months of story while leaving the clock on the same day.
+
 ### RULE 2 — INFER DURATION WHEN NOT STATED
 - Brief conversation or quick exchange → days: 0 or 1
 - Full conversation, meal, social encounter → days: 1
@@ -11019,6 +11054,15 @@ SCALE BY DURATION:
 
 IMPORTANT: If the player describes doing something physical over any multi-day period, return statChanges. The absence of the word "training" does not change this. "I run with barrels for two weeks" is identical to "I train endurance for two weeks."
 
+## SKILLS — XP SCALES WITH TIME (MANDATORY)
+Every skill entry carries an "xp" number = how much it advanced this turn.
+- Brief single use → xp:1
+- A full day of practice → xp:2-4
+- A week of focused study/practice → xp:8-15
+- A month of dedicated training → xp:25-40
+- Several months on one skill → xp:50-100
+If the character spends MONTHS learning a skill (literacy, law, alchemy, a craft), send a LARGE xp value, e.g. {"key":"literacy","label":"Literacy","category":"scholarly","xp":40}. Sending xp:1 for a months-long montage is THE most common mistake — the skill must move meaningfully when real time was devoted to it.
+
 ## RESPONSE FORMAT — TWO PARTS, ALWAYS IN THIS ORDER
 
 **PART 1 — NARRATIVE** (plain prose, NO code block, NO JSON):
@@ -11035,7 +11079,7 @@ The JSON carries ONLY state changes. There is NO "narrative" field in the JSON �
   "qiPath": null,
   "qiExpression": null,
   "newQiStageIndex": null,
-  "skills": [{ "key": "", "label": "", "category": "", "desc": "" }],
+  "skills": [{ "key": "", "label": "", "category": "", "desc": "", "xp": 1 }],
   "newTechniques": [{ "name": "", "category": "", "type": "", "rarity": "", "desc": "", "source": "" }],
   "newMartialArts": [{ "name": "", "type": "physical|qi", "rarity": "", "desc": "", "source": "" }],
   "injuries": ["string only — no objects"],
@@ -11116,7 +11160,7 @@ function applyAIResponse(res) {
   if(res.newQiStageIndex != null) setQiStage(res.newQiStageIndex);
 
   // Skills
-  if(res.skills?.length) res.skills.forEach(s => addSkill(s.key||s.label?.toLowerCase().replace(/\s+/g,'_'), s.label||s.key, s.category||'misc', s.desc||''));
+  if(res.skills?.length) res.skills.forEach(s => addSkill(s.key||s.label?.toLowerCase().replace(/\s+/g,'_'), s.label||s.key, s.category||'misc', s.desc||'', s.xp||s.gain||1));
 
   // Techniques + Martial Arts
   if(res.newTechniques?.length) res.newTechniques.forEach(t => grantTechnique(t));
@@ -24559,7 +24603,7 @@ updateCharacterTab = function() {
     });
 
     // Skills
-    safe('skills', () => { res.skills?.forEach(s => addSkill(s.key||s.label?.toLowerCase().replace(/\s+/g,'_'), s.label||s.key, s.category||'misc', s.desc||'')); });
+    safe('skills', () => { res.skills?.forEach(s => addSkill(s.key||s.label?.toLowerCase().replace(/\s+/g,'_'), s.label||s.key, s.category||'misc', s.desc||'', s.xp||s.gain||1)); });
 
     // Techniques & martial arts
     safe('techniques', () => { res.newTechniques?.forEach(t => grantTechnique(t)); });
@@ -34673,9 +34717,13 @@ function sanitizeNarrativeText(raw) {
 
   let text = raw;
 
-  // Strip ```json ... ``` blocks entirely
+  // Strip ```json ... ``` blocks entirely (closed blocks first)
   text = text.replace(/```json[\s\S]*?```/g, '').trim();
   text = text.replace(/```[\s\S]*?```/g, '').trim();
+  // Strip an UNCLOSED trailing fence (truncated response): everything from
+  // the last ```json (or ```) to the end of the string
+  text = text.replace(/```json[\s\S]*$/g, '').trim();
+  text = text.replace(/```[\s\S]*$/g, '').trim();
 
   // Strip lines that are clearly JSON field lines
   const lines = text.split('\n');
