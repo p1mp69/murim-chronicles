@@ -578,6 +578,75 @@ a { color: var(--gold); text-decoration: none; }
   white-space: nowrap; line-height: 1;
 }
 .year-note { font-size: 12px; color: var(--muted); margin-top: 6px; line-height: 1.5; }
+
+/* ── Detailed year selector ──────────────────────────────────── */
+.year-fine-row {
+  display: flex; align-items: center; gap: 6px;
+  margin-top: 8px; flex-wrap: wrap;
+}
+.year-fine-btn {
+  background: rgba(196,154,48,.08); border: 1px solid rgba(196,154,48,.18);
+  color: rgba(196,154,48,.75); border-radius: 5px;
+  font-size: 11px; padding: 4px 9px; cursor: pointer;
+  font-family: inherit; transition: all .12s; white-space: nowrap;
+}
+.year-fine-btn:hover { background: rgba(196,154,48,.18); color: var(--gold); }
+.year-fine-spacer { flex: 1; }
+.year-eon-label {
+  font-size: 10px; color: rgba(180,170,160,.45);
+  letter-spacing: .08em; text-transform: uppercase;
+}
+
+/* Timeline track with event markers */
+.year-timeline {
+  position: relative; height: 34px; margin: 14px 2px 6px;
+}
+.year-timeline-track {
+  position: absolute; top: 16px; left: 0; right: 0; height: 2px;
+  background: rgba(196,154,48,.12); border-radius: 2px;
+}
+.year-timeline-fill {
+  position: absolute; top: 16px; left: 0; height: 2px;
+  background: rgba(196,154,48,.5); border-radius: 2px;
+  transition: width .15s;
+}
+.year-marker {
+  position: absolute; top: 11px;
+  width: 8px; height: 8px; border-radius: 50%;
+  transform: translateX(-50%); cursor: pointer;
+  border: 1.5px solid rgba(8,7,18,1);
+  transition: transform .12s;
+  z-index: 2;
+}
+.year-marker:hover { transform: translateX(-50%) scale(1.5); z-index: 5; }
+.year-marker.war      { background: #cc4422; }
+.year-marker.death    { background: #884466; }
+.year-marker.religion { background: #44aacc; }
+.year-marker.maligned { background: #aa44cc; }
+.year-marker.founding { background: #c49a30; }
+.year-marker-cursor {
+  position: absolute; top: 8px;
+  width: 2px; height: 18px;
+  background: var(--gold); transform: translateX(-50%);
+  z-index: 4; box-shadow: 0 0 6px rgba(196,154,48,.6);
+  transition: left .1s;
+}
+.year-marker-tip {
+  position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%);
+  background: rgba(12,10,22,.98); border: 1px solid rgba(196,154,48,.3);
+  border-radius: 5px; padding: 5px 9px; font-size: 10px;
+  color: rgba(220,210,190,.9); white-space: nowrap;
+  pointer-events: none; opacity: 0; transition: opacity .12s;
+  z-index: 10; max-width: 200px; white-space: normal; width: max-content; max-width: 180px;
+  line-height: 1.4; text-align: center;
+}
+.year-marker:hover .year-marker-tip { opacity: 1; }
+.year-timeline-legend {
+  display: flex; flex-wrap: wrap; gap: 10px;
+  margin-top: 4px; font-size: 9px; color: rgba(180,170,160,.4);
+}
+.year-legend-item { display: flex; align-items: center; gap: 4px; }
+.year-legend-dot { width: 6px; height: 6px; border-radius: 50%; }
 /* Era card on year selection */
 .era-card {
   margin-top: 10px; background: var(--s2);
@@ -1956,6 +2025,25 @@ body.generating [onclick*="shopSellItem"], body.generating [onclick*="closeMapGo
             <input type="range" id="inp-year" min="1" max="2000" value="1">
             <span class="year-val" id="disp-year">Year 1</span>
           </div>
+          <!-- Event timeline -->
+          <div class="year-timeline" id="year-timeline"></div>
+          <div class="year-timeline-legend">
+            <span class="year-legend-item"><span class="year-legend-dot" style="background:#c49a30"></span>Founding</span>
+            <span class="year-legend-item"><span class="year-legend-dot" style="background:#cc4422"></span>War</span>
+            <span class="year-legend-item"><span class="year-legend-dot" style="background:#884466"></span>Death</span>
+            <span class="year-legend-item"><span class="year-legend-dot" style="background:#44aacc"></span>Religion</span>
+            <span class="year-legend-item"><span class="year-legend-dot" style="background:#aa44cc"></span>Maligned Lord</span>
+          </div>
+          <!-- Fine controls + era jumps -->
+          <div class="year-fine-row">
+            <button type="button" class="year-fine-btn" onclick="nudgeYear(-10)">−10</button>
+            <button type="button" class="year-fine-btn" onclick="nudgeYear(-1)">−1</button>
+            <button type="button" class="year-fine-btn" onclick="nudgeYear(1)">+1</button>
+            <button type="button" class="year-fine-btn" onclick="nudgeYear(10)">+10</button>
+            <span class="year-fine-spacer"></span>
+            <span class="year-eon-label" id="year-eon-label"></span>
+          </div>
+          <div class="year-fine-row" id="year-jump-chips"></div>
           <div id="year-context"></div>
         </div>
       </div>
@@ -9638,11 +9726,18 @@ function initCreation() {
   function updateYearDisplay() {
     const yr = parseInt(yearSlider.value);
     yearDisplay.textContent = `Year ${yr}`;
+    yearSlider.style.setProperty('--pct', ((yr-1)/(2000-1)*100) + '%');
     yearContext.innerHTML = buildEraCard(yr);
+    renderYearTimeline(yr);
+    renderYearEon(yr);
+    renderYearJumpChips(yr);
   }
+  // Expose so fine buttons / chips can call it
+  window._refreshYearDisplay = updateYearDisplay;
 
   yearSlider.addEventListener('input', updateYearDisplay);
   yearSlider.addEventListener('change', updateYearDisplay);
+  renderYearJumpChips(parseInt(yearSlider.value)); // build chips once
   updateYearDisplay(); // fire immediately on load
 
   document.querySelectorAll('.gender-btn').forEach(btn => {
@@ -13467,6 +13562,106 @@ buildSystemPrompt = function() {
 
   return prompt;
 };
+
+// ================================================================
+// ── DETAILED YEAR SELECTOR: timeline, eon label, era jumps ───────
+// ================================================================
+
+// Major historical events placed on the birth-year timeline.
+const YEAR_TIMELINE_EVENTS = [
+  { year:1,   type:'founding', label:'Year 1 — Qi discovered by Ichiro & Reo' },
+  { year:50,  type:'founding', label:'Tazar established as Azure capital' },
+  { year:130, type:'death',    label:'Ichiro Katsumi dies' },
+  { year:144, type:'war',      label:'Buo-Luo-Tin War begins' },
+  { year:150, type:'death',    label:'Reo Yamamoto dies — the founders\' era ends' },
+  { year:154, type:'war',      label:'Láng the Warlord dies' },
+  { year:166, type:'maligned', label:'Zeret of Lust spawn year' },
+  { year:200, type:'maligned', label:'Xelaad of Pride spawn year' },
+  { year:244, type:'maligned', label:'Iasiba of Envy spawn year' },
+  { year:270, type:'maligned', label:'Dranoel of Greed spawn year' },
+  { year:310, type:'maligned', label:'Normac of Sloth spawn year' },
+  { year:381, type:'religion', label:'Yaqism emerges — D\'la preaches' },
+  { year:389, type:'religion', label:'D\'la becomes the Great Flame' },
+  { year:405, type:'war',      label:'The Nao Rebellion begins' },
+  { year:425, type:'founding', label:'The Nao Confederacy is founded' },
+  { year:535, type:'war',      label:'The Normac Campaign — 5,000 destroyed' },
+  { year:1150,type:'war',      label:'The Sect Wars' },
+  { year:1450,type:'war',      label:'The First Contact — ancient things wake' },
+  { year:1520,type:'war',      label:'The Breaking Years begin' },
+];
+
+// Era quick-jump destinations
+const YEAR_JUMP_ERAS = [
+  { year:1,    name:'Year One' },
+  { year:75,   name:'Pioneer Era' },
+  { year:125,  name:'Founders\' Peak' },
+  { year:147,  name:'The War' },
+  { year:175,  name:'Post-Founder' },
+  { year:300,  name:'Sect Age' },
+  { year:415,  name:'Nao Rebellion' },
+  { year:535,  name:'Normac Campaign' },
+  { year:850,  name:'Tomb Age' },
+  { year:1150, name:'Sect Wars' },
+  { year:1600, name:'Second Cult. Age' },
+  { year:2000, name:'The Threshold' },
+];
+
+function renderYearTimeline(yr) {
+  const el = document.getElementById('year-timeline');
+  if(!el) return;
+  const MIN = 1, MAX = 2000;
+  const pct = v => ((v - MIN) / (MAX - MIN)) * 100;
+  const cursorPct = pct(yr);
+
+  let html = `<div class="year-timeline-track"></div>`;
+  html += `<div class="year-timeline-fill" style="width:${cursorPct}%"></div>`;
+  YEAR_TIMELINE_EVENTS.forEach(ev => {
+    html += `<div class="year-marker ${ev.type}" style="left:${pct(ev.year)}%" onclick="jumpYear(${ev.year})">
+      <div class="year-marker-tip">${ev.label}</div>
+    </div>`;
+  });
+  html += `<div class="year-marker-cursor" style="left:${cursorPct}%"></div>`;
+  el.innerHTML = html;
+}
+
+function renderYearEon(yr) {
+  const el = document.getElementById('year-eon-label');
+  if(!el) return;
+  let eon;
+  if(yr <= 130)      eon = 'The Founders walk the earth';
+  else if(yr <= 154) eon = 'The age of war and collapse';
+  else if(yr <= 425) eon = 'The post-founder world';
+  else if(yr <= 700) eon = 'Four nations, deep history';
+  else if(yr <= 1000)eon = 'The tombs and their relics';
+  else if(yr <= 1520)eon = 'Sect wars and the Stirring';
+  else               eon = 'The deep future';
+  el.textContent = eon;
+}
+
+function renderYearJumpChips(currentYr) {
+  const el = document.getElementById('year-jump-chips');
+  if(!el) return;
+  el.innerHTML = YEAR_JUMP_ERAS.map(e =>
+    `<button type="button" class="year-fine-btn" onclick="jumpYear(${e.year})">${e.name}</button>`
+  ).join('');
+}
+
+function nudgeYear(delta) {
+  const slider = document.getElementById('inp-year');
+  if(!slider) return;
+  let v = (parseInt(slider.value) || 1) + delta;
+  v = Math.max(1, Math.min(2000, v));
+  slider.value = v;
+  // Dispatch input so ALL listeners fire (era card + city dropdown rebuild)
+  slider.dispatchEvent(new Event('input'));
+}
+
+function jumpYear(year) {
+  const slider = document.getElementById('inp-year');
+  if(!slider) return;
+  slider.value = Math.max(1, Math.min(2000, year));
+  slider.dispatchEvent(new Event('input'));
+}
 
 // ================================================================
 // ── ERA CARD: Rich year context on character creation ────────────
