@@ -13592,7 +13592,8 @@ const YEAR_TIMELINE_EVENTS = (() => {
     { year:1150,type:'war',      label:'The Sect Wars — the Fracture\'s repercussion' },
     { year:1180,type:'founding', label:'The Ash Compact — Nagisa Hanzou traps the sects behind Foula' },
     { year:1250,type:'founding', label:'Kōichi Hanzou, the Sword Saint — the Second Renaissance' },
-    { year:1450,type:'war',      label:'The First Contact — ancient things wake' },
+    { year:1400,type:'maligned', label:'First Contact — Yoshiro reaches Nyokuro past bar lēlyā' },
+    { year:1450,type:'war',      label:'The First Contact aftermath — Qi destabilizes worldwide' },
     { year:1520,type:'war',      label:'The Breaking Years begin' },
   ];
   // Every Maligned Lord spawn year
@@ -13736,7 +13737,7 @@ function buildEraCard(yr) {
   else if(yr <= 1220) { eraName = 'The Ash Compact'; tagline = 'Nagisa Hanzou traps the sect leaders behind the giant Foula until they carve peace into its body.'; eraColor='#886633'; }
   else if(yr <= 1300) { eraName = 'The Second Renaissance'; tagline = 'Kōichi Hanzou — the Sword Saint — surpasses the founders. Cultivation reaches heights they never mapped.'; eraColor='#55aa88'; }
   else if(yr <= 1380) { eraName = 'The Stirring'; tagline = 'Ancient things — older than Qi, older than the kingdoms — begin to move.'; eraColor='#664477'; }
-  else if(yr <= 1450) { eraName = 'The First Contact'; tagline = 'Something from before Qi makes itself known. The cultivation world has no framework for it.'; eraColor='#553388'; }
+  else if(yr <= 1450) { eraName = 'The First Contact'; tagline = 'Yoshiro spat in bar lēlyā\'s face and called something older. Nyokuro answered. The world has no framework for what woke.'; eraColor='#3a2266'; }
   else if(yr <= 1520) { eraName = 'The Breaking Years'; tagline = 'The most catastrophic period since the founders\' deaths. Sects fall. Cities vanish. The old order breaks.'; eraColor='#772211'; }
   else if(yr <= 1600) { eraName = 'The Reclamation'; tagline = 'Survivors rebuild. New cultivation schools form from what was preserved. Different from before.'; eraColor='#665522'; }
   else if(yr <= 1700) { eraName = 'The Second Cultivation Age'; tagline = 'A renaissance. New techniques built on ruins of the old. Higher ceilings than the founders imagined.'; eraColor='#557733'; }
@@ -13826,7 +13827,7 @@ function buildEraCard(yr) {
   else if(yr <= 1220) politics = `The Ash Compact. Nagisa Hanzou of the Hown Sect — working with the descendant of Masaki Jūrō — summoned every sect leader to a mountain pass, then called upon Foula, a colossal rock giant, to seal the only way out. Trapped together, the sect leaders argued and fought for weeks. Many died; many were maimed. The survivors finally carved a binding pact into Foula's own body — the Ash Compact, the peace that ended the Sect Wars. Its terms are disputed ever since (different sects carved different clauses), but the giant still holds them, and the wars stopped.`;
   else if(yr <= 1300) politics = 'The Second Renaissance — the era of Kōichi Hanzou, the Sword Saint. With the Sect Wars ended by his father\'s Compact, cultivation enters a golden age. Political power reorganizes around the new heights cultivators can reach. Kōichi himself becomes a force no government or sect can meaningfully oppose — not a conqueror, but a presence that reshapes what everyone believes is possible.';
   else if(yr <= 1380) politics = 'The Stirring. Ancient things are moving — not the Maligned Lords, something older. The political response is confused because nobody has a category for it. Sects that were rivals are quietly cooperating. Old enmities are being set aside for reasons nobody is explaining publicly.';
-  else if(yr <= 1450) politics = 'The First Contact. Whatever was stirring has made itself known. The political world is reorganizing around something it does not understand. Old power structures are meaningless in this context. New ones are forming fast, based on who can respond to the new situation rather than who has the most cultivation resources.';
+  else if(yr <= 1450) politics = `<span class="era-war">⚠ The First Contact.</span> A scholar named Yoshiro — the maddest man in recorded history, devout to research and understanding above sanity — went to bar lēlyā for power. But he could sense bar lēlyā was weak compared to something deeper, and he SPAT IN BAR LĒLYĀ'S FACE. Enraged, the night-force nearly killed him. In the final moment Yoshiro called out to the oldest, deepest, coldest force in the universe — Nyokuro, the conscious darkness that birthed even the Twin Monarchs. She answered. She smothered the darkness in bar lēlyā until he backed down, and Yoshiro struck a bargain with her. This was First Contact: the first time since creation that the primordial darkness was directly reached by a mortal. The whole world felt it — the forces shifted, Yokai grew agitated, Qi turned unstable and reckless. The political world reorganizes around something nobody understands. No one knows what is coming.`;
   else if(yr <= 1520) politics = `<span class="era-war">The Breaking Years.</span> The most catastrophic political collapse since the founders' deaths. Sects that stood for six centuries fall in decades. Cities disappear — not destroyed, just gone. The survivors form desperate confederacies based on proximity and mutual terror rather than ideology or cultivation lineage.`;
   else if(yr <= 1600) politics = 'Reclamation. Survivors are rebuilding from what was preserved — partial records, fragmented technique lineages, ruins of the old order. New power structures form around whoever can offer stability. What gets rebuilt is different from what existed before.';
   else if(yr <= 1700) politics = 'The Second Cultivation Age. New techniques built on ruins of the old reach ceilings the founders never mapped. The political world reorganizes around these new powers. Old sects that survived the Breaking Years by being conservative find themselves outpaced. A genuine renaissance — creative, violent, and rapidly expanding.';
@@ -13854,7 +13855,7 @@ function buildEraCard(yr) {
   else if(yr <= 1080) cultWorld = 'Cultivation in political chaos. Technique lineages are being lost as sects collapse during the Fracture. Other techniques are being rediscovered in ruins. The cultivation world during the Fracture is genuinely dangerous for practitioners — their power makes them targets rather than protectors.';
   else if(yr <= 1150) cultWorld = 'The Sect Wars are a cultivation arms race. Techniques developed specifically for sect-on-sect combat. Methods for breaking other cultivators\' foundations. Counter-cultivation — ways of disrupting another person\'s Qi circulation. This era produces the most vicious cultivation innovations since the founders.';
   else if(yr <= 1300) cultWorld = 'The Second Renaissance. Kōichi Hanzou — who as a child sneaked into the Ash Compact and watched every sect leader unleash their techniques, feeling more Qi in those weeks than most feel in a lifetime — grew into the strongest Qi user since the founders. He did not merely match Ichiro and Reo; he surpassed the ceiling they set by miles, and his sword techniques became legend. He is the origin of the title Sword Saint. The cultivation world during his life reaches heights the founders never imagined, because someone finally proved the ceiling was not real.';
-  else if(yr <= 1450) cultWorld = 'The Stirring and First Contact disrupt cultivation theory entirely. Things from before Qi interact with cultivation in ways nobody predicted. Some practitioners find their Qi responding to the old things in unexpected ways. New techniques emerge from these interactions. Old techniques sometimes stop working near certain locations.';
+  else if(yr <= 1450) cultWorld = 'After Yoshiro reached Nyokuro, cultivation theory breaks. Qi turns unstable and reckless — breakthroughs deviate without warning, techniques behave differently near certain places, the primordial darkness now has a foothold in the waking world and Qi flows wrong around it. Some practitioners find their Qi answering to the old cold instead of to them. Yokai are agitated everywhere. New techniques emerge from contact with what woke; old reliable ones fail unpredictably.';
   else if(yr <= 1520) cultWorld = 'The Breaking Years. The single worst period for cultivation continuity since Year 1. Entire lineages end. Technique schools that stood for six hundred years are gone. What survives does so because someone hid it, memorized it, or fled with it. Cultivation in the Breaking Years means knowing that everything you learned might be the last time anyone practices it.';
   else if(yr <= 1700) cultWorld = 'The Second Cultivation Age. Built from surviving fragments, ruins, and — crucially — new insights that emerged from the Breaking Years\' forced innovation. The new techniques reach stages that early practitioners of those stages would not recognize. The power ceiling is genuinely higher than the founders imagined. Some researchers believe the founders weren\'t actually at the ceiling — just the highest anyone had gone.';
   else if(yr <= 1880) cultWorld = 'A mature second cultivation world, different from the first. The techniques are different. The schools are different. The theory has evolved through two catastrophic disruptions and emerged with more depth. The founders are still revered — their techniques, where reconstructed, are still among the most powerful — but they are no longer the ceiling.';
@@ -13896,6 +13897,7 @@ function buildEraCard(yr) {
   else if(yr <= 1150) birthMeaning = 'You are born during the Sect Wars. Power in your world is defined by cultivation strength and sect membership, full stop. Everything else is secondary. If you cultivate, the question of which sect you join or build is the most consequential choice of your life. If you do not cultivate, you navigate between powers that do not think about your interests.';
   else if(yr <= 1300) birthMeaning = 'You are born into the Second Renaissance — the age of Kōichi Hanzou, the Sword Saint, the first cultivator to surpass the founders\' ceiling. It is the most inspiring era to be a cultivator since Year One. The limits everyone believed were absolute have just been proven false. If you have ambition and talent, you are living at the exact moment the world decided the sky was higher than anyone thought. Whatever is coming after — the Stirring is barely perceptible yet — you do not know about it.';
   else if(yr <= 1380) birthMeaning = 'You are born in the early Stirring. You may not know what to call what is happening. Something has shifted in the texture of the world — in certain locations, in certain Qi behaviors, in the way ancient things respond to cultivation. You are growing up in a world that is changing in ways nobody has a good explanation for yet.';
+  else if(yr <= 1450) birthMeaning = 'You are born in the age of First Contact. A madman named Yoshiro reached past bar lēlyā to Nyokuro — the primordial darkness that predates the gods — and she answered. Qi is unstable now; cultivation is more dangerous and more reckless than it has been in a thousand years. Yokai are agitated. The cold at the bottom of the world has a door open to it for the first time since creation, and nobody alive understands what that means. You grow up under that open door.';
   else if(yr <= 1520) birthMeaning = 'You are born during the most destabilized period since the founders\' deaths. The things that emerged from the Stirring and the First Contact have broken the old order. The cultivation techniques and political structures that stood for centuries are failing. You are born into a world where the question is not how to get ahead — it is whether the things you know will survive.';
   else if(yr <= 1700) birthMeaning = 'You are born in the Second Cultivation Age — a renaissance after catastrophe. The old things that broke the previous order are still present but no longer expanding. New techniques are being developed on ruins of the old. The world is being remade. Someone born now with talent and ambition has more opportunity than any generation since the founders\' era — and fewer rules about what is possible.';
   else if(yr <= 1880) birthMeaning = 'You are born in the Long Silence — the most stable era in centuries. The cultivation world is mature, well-documented, and functioning. You inherit two thousand years of accumulated history, technique, and consequence. The ceiling is high. The floor has risen. What you do with this is yours to decide in a world that has, for once, stopped actively trying to end itself.';
@@ -25980,7 +25982,7 @@ function buildBarLelyaContext() {
   if(b.acknowledged <= 0 && !b.appeared) return '';
 
   const lines = ['## BAR LĒLYĀ — THE NIGHT-FORCE'];
-  lines.push(`Bar lēlyā is the cold counter-current to D'yaqed — the thing the first Aruwium reached past his own dulling flame to grasp. He is not a god to be worshipped and not a spirit to be summoned by ritual. He is reached by ATTENTION. The more a person acknowledges him — speaks his name, dwells on him, reaches toward what he is — the more he notices back. He does not announce himself. He simply becomes present, and then more present.`);
+  lines.push(`Bar lēlyā is the cold counter-current to D'yaqed — the thing the first Aruwium reached past his own dulling flame to grasp. He is not a god to be worshipped and not a spirit to be summoned by ritual. He is reached by ATTENTION. The more a person acknowledges him — speaks his name, dwells on him, reaches toward what he is — the more he notices back. He does not announce himself. He simply becomes present, and then more present. (Note: powerful as he is, bar lēlyā is only a fragment of the dark — he is WEAK compared to Nyokuro, the conscious darkness that birthed the gods. In Year 1400 the madman Yoshiro reached past bar lēlyā to Nyokuro herself, and the night-force backed down before her instantly. A character who understands this can unsettle bar lēlyā by invoking what is deeper than him.)`);
 
   if(b.acknowledged >= 1 && b.acknowledged < 4 && !b.appeared) {
     lines.push(`CURRENT STATE — FAINT NOTICE (acknowledged ${b.acknowledged}x): The player has acknowledged bar lēlyā ${b.acknowledged} time(s). He is not here. But there is the faintest cold at the edges of cold places — a draft where there should be none, a held breath in a silent room, the sense of being noticed by something that is still very far away. Surface this only subtly, occasionally. Do NOT have him speak or appear yet.`);
@@ -26413,13 +26415,14 @@ Object.assign(LORE_NPCS, {
   // REO'S TOMB
   rin_shizuka: {
     id:'rin_shizuka', name:'Rin Shizuka',
-    title:'The Youngest — The One Reo\'s Soul Recognized',
+    title:'The Dawn — The One Reo\'s Soul Recognized',
+    nickname:'The Dawn',
     gender:'female', alive:true,
-    birthNote:'An orphan girl, age six. She does not know about Reo\'s tomb. She does not know about cultivation theory or historical significance. She knows how to survive in a city that does not care about her.',
+    birthNote:'An orphan girl, age six. She does not know about Reo\'s tomb. She does not know about cultivation theory or historical significance. She knows how to survive in a city that does not care about her. Those who come to know what she becomes call her The Dawn.',
     glowColor:'rgba(255,255,200,0.2)', specialGlow:'lore',
     stats:{ strength:8, agility:14, endurance:10, intelligence:22, perception:28, willpower:20, charisma:18, luck:95 },
     qiStageIndex:0, qiPath:null,
-    personality:'Six years old. Observant to a degree that adults find unsettling. Asks questions that should not occur to someone her age. Does not cry easily. Has survived things that should have broken her and appears not to have noticed they were supposed to. Reo Yamamoto\'s residual consciousness, deep in the tomb, stirs when she enters. Something in her ideological structure — her instinctive understanding of what makes things work — resonates with his. If she finds the tomb, she will leave it the youngest prodigy in recorded cultivation history. She will also leave changed in ways she cannot yet articulate.',
+    personality:'Six years old. Observant to a degree that adults find unsettling. Asks questions that should not occur to someone her age. Does not cry easily. Has survived things that should have broken her and appears not to have noticed they were supposed to. Reo Yamamoto\'s residual consciousness, deep in the tomb, stirs when she enters. Something in her ideological structure — her instinctive understanding of what makes things work — resonates with his. If she finds the tomb, she will rival and then surpass the founders themselves — younger than any cultivator in history, younger than even Kōichi Hanzou was. The only thing she will not do is start a renaissance; she does not lead, she simply becomes. The world will come to call her The Dawn.',
     isLore:true,
     special:true,
   },
@@ -26538,13 +26541,42 @@ Object.assign(LORE_NPCS, {
 
   // ── FOULA — the mountain giant who holds the Ash Compact ────────
   foula: {
-    id:'foula', name:'Foula', title:'The Mountain That Holds the Pact',
+    id:'foula', name:'Foula', title:'The Mountain That Walks — Equal of Yuluh',
     gender:'neutral', alive:true,
     glowColor:'rgba(120,110,90,0.2)', specialGlow:'lore',
-    stats:{ strength:100, agility:10, endurance:100, intelligence:60, perception:80, willpower:100, charisma:40, luck:50 },
+    stats:{ strength:100, agility:60, endurance:100, intelligence:60, perception:90, willpower:100, charisma:40, luck:50 },
     qiStageIndex:13, qiPath:'beast',
-    appearance:'A rock giant the size of a mountain pass — when still, indistinguishable from the mountain itself. The Ash Compact is carved across its body in the hands of dozens of different sect leaders, each clause in a different style, some contradicting the others. Moss grows in the older letters. It moves rarely, and when it does, the ground remembers.',
-    personality:'Foula is an ancient mountain spirit-giant, answerable to very few. Nagisa Hanzou called upon it to seal the mountain pass during the Ash Compact, and it agreed — for reasons Foula has never explained. It now bears the carved pact on its own body, which makes it both the enforcer and the physical text of the peace that ended the Sect Wars. Sects still make pilgrimage to read the clauses off its flesh. Foula permits this. It does not permit much else. It is not hostile, but it is not safe — it operates on the timescale and priorities of a mountain, and a person who inconveniences it is simply removed, the way you brush away an insect without malice.',
+    appearance:'A rock giant the size of a mountain pass — when still, indistinguishable from the mountain itself. The Ash Compact is carved across its body in the hands of dozens of different sect leaders, each clause in a different style, some contradicting the others. Moss grows in the older letters. When it chooses to move, it MOVES — and the ground remembers for generations.',
+    personality:'Foula is an ancient mountain spirit-giant on the order of Yuluh itself — one of the oldest and most powerful forces in the world. A single swipe of its arm can level a kingdom; armies and empires are not threats to it but terrain. It CAN move, and when it does the landscape rearranges. It is not a stationary obstacle — it is a continent-scale being that chose to hold the Ash Compact. Nagisa Hanzou called upon it to seal the mountain pass, and it agreed — for reasons Foula has never explained. It now bears the carved pact on its own body, both enforcer and physical text of the peace that ended the Sect Wars. Sects make pilgrimage to read the clauses off its flesh. Foula permits this. It permits little else. Not hostile, but never safe — it operates on the timescale and priorities of a mountain, and a person who inconveniences it is simply removed, the way you brush away an insect without malice.',
+    powerTier: 'cosmic — Yuluh-equivalent. Can destroy kingdoms and empires with a single swipe. Not defeatable by any mortal force.',
+    isLore:true, special:true,
+  },
+
+  // ── YOSHIRO — the madman who made First Contact ─────────────────
+  yoshiro: {
+    id:'yoshiro', name:'Yoshiro', title:'The Maddest Man in History — Who Reached Nyokuro',
+    gender:'male', alive:true, birthYear:1350, deathYear:null,
+    glowColor:'rgba(40,30,70,0.3)', specialGlow:'lore',
+    stats:{ strength:55, agility:62, endurance:70, intelligence:100, perception:99, willpower:100, charisma:60, luck:40 },
+    qiStageIndex:9, qiPath:'demonic',
+    affinity:['void','cold','knowledge'],
+    appearance:'Wild, unkempt, eyes that have read too much and slept too little. He looks at people as though they are texts he has already finished. There is a cold around him now that was not there before First Contact — the residue of what he touched. He does not seem to notice it. He does not seem to notice most things that aren\'t questions.',
+    personality:'Yoshiro is the maddest man in recorded history — and the most devout to research and understanding that has ever lived. Sanity was a price he paid to knowledge a long time ago and he considers it a fair trade. He went to bar lēlyā for power, like others before him. Unlike any of them, he SENSED that bar lēlyā was weak compared to something deeper, older, colder — and he spat in the night-force\'s face. It nearly killed him for the insult. In the final instant he called out, not to a god or a spirit, but to the oldest, deepest, coldest force in the universe: Nyokuro, the conscious darkness that birthed the Twin Monarchs themselves. She ANSWERED. She smothered the darkness in bar lēlyā until the night-force backed down before her, and Yoshiro struck a bargain with the primordial dark. This was First Contact — the first time since creation that a mortal reached Nyokuro directly. He does not regret it. He is too curious about what comes next to regret anything.',
+    voice: 'Talks too fast, in tangents that turn out to be connected, citing sources nobody else has read. Excited by terrible things in the way a scholar is excited by a discovery — the danger is data to him. Treats his own near-death as an interesting result. Refers to Nyokuro with reverence and to bar lēlyā with open contempt. Asks more questions than he answers, and the questions are unsettling.',
+    deathNote: 'Unknown. After First Contact, Yoshiro does not so much live a life as conduct an ongoing experiment with the world as his laboratory. What Nyokuro is doing through the door he opened, and what it costs him, is still unfolding.',
+    isLore:true, special:true,
+  },
+
+  // ── NYOKURO — the conscious darkness before the gods ────────────
+  nyokuro: {
+    id:'nyokuro', name:'Nyokuro', title:'The Conscious Darkness — Older Than the Gods',
+    gender:'female', alive:true, mythic:true,
+    glowColor:'rgba(10,5,25,0.4)', specialGlow:'lore',
+    stats:{ strength:100, agility:100, endurance:100, intelligence:100, perception:100, willpower:100, charisma:100, luck:100 },
+    qiStageIndex:13, qiPath:null, noQi:true,
+    appearance:'Not a form — an absence with attention behind it. Where she is present, light does not so much fail as decline to matter. The cold of her is not temperature; it is the cold of the space before anything was made. To perceive her directly is to understand, briefly and permanently, how small and recent everything you know is.',
+    personality:'Nyokuro is the conscious darkness that was always present — the origin from which the Twin Monarchs (Zuriroku and Hikarudo) were born. She predates the gods, the cosmos, Qi, and every named force in the world. In NzuriKami theology darkness is not evil; it is ORIGIN, and Nyokuro is its will. She is so far above bar lēlyā that the night-force backed down before her instantly when she answered Yoshiro\'s call — bar lēlyā is a thing Aruwium grasped at the edge of the dark; Nyokuro IS the dark, all of it, awake. She does not act often. When she does, the whole world feels the forces shift. What she wants, and why she answered a madman\'s call, is the single largest open question in the world\'s future.',
+    powerTier: 'beyond cosmic — the primordial origin. She birthed the creator-gods. Not measurable, not opposable. The deepest force in existence.',
     isLore:true, special:true,
   },
 
@@ -37470,8 +37502,16 @@ Gaining a real named contact (someone specific) is harder and rarer than simply 
       { year:1280, event:'Died of old age, undefeated, having proven the founders\' limit was never a law of the world.' },
     ],
     foula: [
-      { year:-3000, event:'Ancient beyond record — a mountain spirit-giant older than the kingdoms, older than most things that have names.' },
+      { year:-3000, event:'Ancient beyond record — a mountain spirit-giant on the order of Yuluh, older than the kingdoms, older than most things that have names. A single swipe could level an empire.' },
       { year:1180, event:'Answered Nagisa Hanzou\'s call and sealed the mountain pass for the Ash Compact. Why it agreed, it has never said. It now carries the carved pact on its own body.' },
+    ],
+    yoshiro: [
+      { year:1350, event:'Born. Became, over a life of relentless study, the most devout researcher in history and the maddest man in it — sanity traded for understanding long ago.' },
+      { year:1400, event:'Went to bar lēlyā for power, then sensed bar lēlyā was weak compared to something older and spat in his face. Nearly killed for the insult, he called out to Nyokuro — the conscious darkness that birthed the gods. She answered, smothered bar lēlyā until he backed down, and struck a bargain with Yoshiro. FIRST CONTACT. The world felt the forces shift; Qi destabilized; Yokai grew agitated.' },
+    ],
+    nyokuro: [
+      { year:-99999, event:'Was always present — the conscious darkness before anything was made. Birthed the Twin Monarchs, Zuriroku and Hikarudo, from within herself.' },
+      { year:1400, event:'Answered Yoshiro\'s call past bar lēlyā — the first time since creation a mortal reached her directly. What she wants, and why she answered, is the largest open question in the world\'s future.' },
     ],
   };
 
