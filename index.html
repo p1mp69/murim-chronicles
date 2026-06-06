@@ -13592,6 +13592,7 @@ const YEAR_TIMELINE_EVENTS = (() => {
     { year:1150,type:'war',      label:'The Sect Wars — the Fracture\'s repercussion' },
     { year:1180,type:'founding', label:'The Ash Compact — Nagisa Hanzou traps the sects behind Foula' },
     { year:1250,type:'founding', label:'Kōichi Hanzou, the Sword Saint — the Second Renaissance' },
+    { year:1305,type:'maligned', label:'The Stirring begins — ten ancient Yokai wake (1305–1380)' },
     { year:1400,type:'maligned', label:'First Contact — Yoshiro reaches Nyokuro past bar lēlyā' },
     { year:1450,type:'war',      label:'The First Contact aftermath — Qi destabilizes worldwide' },
     { year:1520,type:'war',      label:'The Breaking Years begin' },
@@ -13736,7 +13737,7 @@ function buildEraCard(yr) {
   else if(yr <= 1150) { eraName = 'The Sect Wars'; tagline = 'The repercussion of the Fracture. Sects, now stronger than governments, turn on each other.'; eraColor='#882222'; }
   else if(yr <= 1220) { eraName = 'The Ash Compact'; tagline = 'Nagisa Hanzou traps the sect leaders behind the giant Foula until they carve peace into its body.'; eraColor='#886633'; }
   else if(yr <= 1300) { eraName = 'The Second Renaissance'; tagline = 'Kōichi Hanzou — the Sword Saint — surpasses the founders. Cultivation reaches heights they never mapped.'; eraColor='#55aa88'; }
-  else if(yr <= 1380) { eraName = 'The Stirring'; tagline = 'Ancient things — older than Qi, older than the kingdoms — begin to move.'; eraColor='#664477'; }
+  else if(yr <= 1380) { eraName = 'The Stirring'; tagline = 'Ten ancient Yokai — each the equal of Yuluh and Foula — wake from millennia of sleep.'; eraColor='#664477'; }
   else if(yr <= 1450) { eraName = 'The First Contact'; tagline = 'Yoshiro spat in bar lēlyā\'s face and called something older. Nyokuro answered. The world has no framework for what woke.'; eraColor='#3a2266'; }
   else if(yr <= 1520) { eraName = 'The Breaking Years'; tagline = 'The most catastrophic period since the founders\' deaths. Sects fall. Cities vanish. The old order breaks.'; eraColor='#772211'; }
   else if(yr <= 1600) { eraName = 'The Reclamation'; tagline = 'Survivors rebuild. New cultivation schools form from what was preserved. Different from before.'; eraColor='#665522'; }
@@ -13826,7 +13827,7 @@ function buildEraCard(yr) {
   else if(yr <= 1150) politics = `<span class="era-war">⚔ The Sect Wars.</span> The direct repercussion of the Fracture. With governments broken and sects now stronger than any throne, the sects turn on each other. Direct armed conflict over technique lineages, tomb access, cultivation sites, and ancient relic caches. The casualties include entire sect lineages that simply stop existing. The survivors are the ones who were patient or ruthless enough. The Kuui Sect — where it began — is itself a target.`;
   else if(yr <= 1220) politics = `The Ash Compact. Nagisa Hanzou of the Hown Sect — working with the descendant of Masaki Jūrō — summoned every sect leader to a mountain pass, then called upon Foula, a colossal rock giant, to seal the only way out. Trapped together, the sect leaders argued and fought for weeks. Many died; many were maimed. The survivors finally carved a binding pact into Foula's own body — the Ash Compact, the peace that ended the Sect Wars. Its terms are disputed ever since (different sects carved different clauses), but the giant still holds them, and the wars stopped.`;
   else if(yr <= 1300) politics = 'The Second Renaissance — the era of Kōichi Hanzou, the Sword Saint. With the Sect Wars ended by his father\'s Compact, cultivation enters a golden age. Political power reorganizes around the new heights cultivators can reach. Kōichi himself becomes a force no government or sect can meaningfully oppose — not a conqueror, but a presence that reshapes what everyone believes is possible.';
-  else if(yr <= 1380) politics = 'The Stirring. Ancient things are moving — not the Maligned Lords, something older. The political response is confused because nobody has a category for it. Sects that were rivals are quietly cooperating. Old enmities are being set aside for reasons nobody is explaining publicly.';
+  else if(yr <= 1380) politics = `The Stirring. Ten ancient Yokai — each on the order of Yuluh and Foula, dormant since before the kingdoms — wake across the world one after another: Abzu-Naga from the deep sea, Raijū-Mon from the high air, Goramoth from beneath the continent, Shirohana of bloom-and-rot, Kage-Oroshi from the gaps in space, Hyōsetsu-Hime the deep winter, Suna-Warau of the laughing sands, Meikyō of the mirrors, Hone-no-Ō the bone king, and Kotodama-no-Mushi the word-eater. These are not the Maligned Lords; they are older. No army can fight them — a single one can drown a coastline or freeze a province. The political response is confused terror disguised as policy. Old enmities between sects dissolve overnight; rivals cooperate for reasons no one explains publicly, because the alternative is being noticed by something that treats kingdoms as terrain.`;
   else if(yr <= 1450) politics = `<span class="era-war">⚠ The First Contact.</span> A scholar named Yoshiro — the maddest man in recorded history, devout to research and understanding above sanity — went to bar lēlyā for power. But he could sense bar lēlyā was weak compared to something deeper, and he SPAT IN BAR LĒLYĀ'S FACE. Enraged, the night-force nearly killed him. In the final moment Yoshiro called out to the oldest, deepest, coldest force in the universe — Nyokuro, the conscious darkness that birthed even the Twin Monarchs. She answered. She smothered the darkness in bar lēlyā until he backed down, and Yoshiro struck a bargain with her. This was First Contact: the first time since creation that the primordial darkness was directly reached by a mortal. The whole world felt it — the forces shifted, Yokai grew agitated, Qi turned unstable and reckless. The political world reorganizes around something nobody understands. No one knows what is coming.`;
   else if(yr <= 1520) politics = `<span class="era-war">The Breaking Years.</span> The most catastrophic political collapse since the founders' deaths. Sects that stood for six centuries fall in decades. Cities disappear — not destroyed, just gone. The survivors form desperate confederacies based on proximity and mutual terror rather than ideology or cultivation lineage.`;
   else if(yr <= 1600) politics = 'Reclamation. Survivors are rebuilding from what was preserved — partial records, fragmented technique lineages, ruins of the old order. New power structures form around whoever can offer stability. What gets rebuilt is different from what existed before.';
@@ -13855,7 +13856,8 @@ function buildEraCard(yr) {
   else if(yr <= 1080) cultWorld = 'Cultivation in political chaos. Technique lineages are being lost as sects collapse during the Fracture. Other techniques are being rediscovered in ruins. The cultivation world during the Fracture is genuinely dangerous for practitioners — their power makes them targets rather than protectors.';
   else if(yr <= 1150) cultWorld = 'The Sect Wars are a cultivation arms race. Techniques developed specifically for sect-on-sect combat. Methods for breaking other cultivators\' foundations. Counter-cultivation — ways of disrupting another person\'s Qi circulation. This era produces the most vicious cultivation innovations since the founders.';
   else if(yr <= 1300) cultWorld = 'The Second Renaissance. Kōichi Hanzou — who as a child sneaked into the Ash Compact and watched every sect leader unleash their techniques, feeling more Qi in those weeks than most feel in a lifetime — grew into the strongest Qi user since the founders. He did not merely match Ichiro and Reo; he surpassed the ceiling they set by miles, and his sword techniques became legend. He is the origin of the title Sword Saint. The cultivation world during his life reaches heights the founders never imagined, because someone finally proved the ceiling was not real.';
-  else if(yr <= 1450) cultWorld = 'After Yoshiro reached Nyokuro, cultivation theory breaks. Qi turns unstable and reckless — breakthroughs deviate without warning, techniques behave differently near certain places, the primordial darkness now has a foothold in the waking world and Qi flows wrong around it. Some practitioners find their Qi answering to the old cold instead of to them. Yokai are agitated everywhere. New techniques emerge from contact with what woke; old reliable ones fail unpredictably.';
+  else if(yr <= 1380) cultWorld = 'The Stirring. Ten ancient Yokai of Yuluh\'s order wake across the world, and cultivation reorders itself around their presence. Near a woken ancient, Qi behaves according to ITS nature, not the cultivator\'s — water Qi surges near Abzu-Naga, freezes near Hyōsetsu-Hime, rots near Shirohana. Some cultivators seek the ancients out for the techniques their proximity inspires; most who do are never heard from again. The smart sects relocate away from the waking sites. The reckless build around them.';
+  else if(yr <= 1450) cultWorld = 'After Yoshiro reached Nyokuro, cultivation theory breaks. Qi turns unstable and reckless — breakthroughs deviate without warning, techniques behave differently near certain places, the primordial darkness now has a foothold in the waking world and Qi flows wrong around it. Some practitioners find their Qi answering to the old cold instead of to them. Yokai are agitated everywhere (the ten ancients of the Stirring are now fully awake). New techniques emerge from contact with what woke; old reliable ones fail unpredictably.';
   else if(yr <= 1520) cultWorld = 'The Breaking Years. The single worst period for cultivation continuity since Year 1. Entire lineages end. Technique schools that stood for six hundred years are gone. What survives does so because someone hid it, memorized it, or fled with it. Cultivation in the Breaking Years means knowing that everything you learned might be the last time anyone practices it.';
   else if(yr <= 1700) cultWorld = 'The Second Cultivation Age. Built from surviving fragments, ruins, and — crucially — new insights that emerged from the Breaking Years\' forced innovation. The new techniques reach stages that early practitioners of those stages would not recognize. The power ceiling is genuinely higher than the founders imagined. Some researchers believe the founders weren\'t actually at the ceiling — just the highest anyone had gone.';
   else if(yr <= 1880) cultWorld = 'A mature second cultivation world, different from the first. The techniques are different. The schools are different. The theory has evolved through two catastrophic disruptions and emerged with more depth. The founders are still revered — their techniques, where reconstructed, are still among the most powerful — but they are no longer the ceiling.';
@@ -26581,6 +26583,159 @@ Object.assign(LORE_NPCS, {
   },
 
 });
+
+// ================================================================
+// ── THE STIRRING — ten ancient Yokai, on the order of Yuluh & Foula ──
+// Primordial beings older than the kingdoms, dormant for millennia,
+// who wake during the Stirring (Year ~1300-1380). Each is cosmic-tier:
+// near-unkillable, world-shaping, and entirely its own thing.
+// ================================================================
+Object.assign(LORE_NPCS, {
+
+  abzunaga: {
+    id:'abzunaga', name:'Abzu-Naga', title:'The Drowned Coil — Leviathan of the Lightless Deep',
+    gender:'neutral', alive:true, mythic:true,
+    glowColor:'rgba(20,40,80,0.3)', specialGlow:'lore',
+    stats:{ strength:99, agility:88, endurance:100, intelligence:85, perception:96, willpower:98, charisma:30, luck:60 },
+    qiStageIndex:13, qiPath:'beast',
+    appearance:'A serpent-thing so vast that sailors who have seen a fraction of it describe different animals entirely. Bioluminescent in patterns that hurt to follow. It has been in the deepest trenches so long that coral grows on it like a second coastline. When it surfaces, the sea level changes.',
+    personality:'Abzu-Naga is the old king of the deep — not cruel, simply enormous and indifferent on a scale that erases the difference. It has slept at the bottom of the world\'s deepest water since before there were ships to sink. The Stirring woke it. It does not hunt; it does not need to. Its movement alone drowns coastlines. It is not Yuluh\'s kin but its equal: a being that measures time in the rise and fall of seas.',
+    voice: 'Speaks in pressure and tide more than words — when it does form language it is slow, vast, and salt-heavy, like something heard underwater. Indifferent to land and the brief things that live on it. Calls the surface "the thin place."',
+    powerTier: 'cosmic — Yuluh/Foula tier. Can drown coastlines by moving. No mortal force opposes it.',
+    isLore:true, special:true,
+  },
+
+  raijuumon: {
+    id:'raijuumon', name:'Raijū-Mon', title:'The Sky That Hunts — Storm-Beast of the High Air',
+    gender:'neutral', alive:true, mythic:true,
+    glowColor:'rgba(180,200,255,0.3)', specialGlow:'lore',
+    stats:{ strength:90, agility:100, endurance:92, intelligence:80, perception:100, willpower:95, charisma:50, luck:70 },
+    qiStageIndex:13, qiPath:'beast',
+    appearance:'A beast of cloud and lightning the size of a weather front — sometimes a vast bird, sometimes a wolf made of storm, never the same shape twice because it has no fixed body, only the weather it wears. Where it flies, the sky changes color for a hundred miles.',
+    personality:'Raijū-Mon is the living storm — it does not cause weather, it IS weather that became aware. For millennia it circled the highest air, too far up to notice the ground. The Stirring brought it lower. It is playful in the way lightning is playful: sudden, immense, and lethal without intent. It chases moving things across the sky for reasons that are not quite hunger and not quite sport.',
+    voice: 'Speaks in thunder — words arrive as pressure changes and the smell of ozone before the sound. Fast, bright, capricious. Loses interest mid-sentence the way a storm moves on. Finds the grounded existence of mortals baffling and a little sad.',
+    powerTier: 'cosmic — Yuluh/Foula tier. Commands continental weather. Its passage reshapes skies.',
+    isLore:true, special:true,
+  },
+
+  goramoth: {
+    id:'goramoth', name:'Goramoth', title:'The Root Below — That Which Holds the Continent Down',
+    gender:'neutral', alive:true, mythic:true,
+    glowColor:'rgba(80,60,30,0.3)', specialGlow:'lore',
+    stats:{ strength:100, agility:20, endurance:100, intelligence:70, perception:75, willpower:100, charisma:25, luck:50 },
+    qiStageIndex:13, qiPath:'beast',
+    appearance:'No one has seen all of it because all of it is the size of a mountain range\'s roots. A thing of bark and stone and something older than both, grown down into the deep earth, branching for miles. What surfaces looks like ancient petrified trees the size of towers. They are toes.',
+    personality:'Goramoth has held the continent in place since the land was young — or believes it has, which from a being its size is the same thing. It is patient beyond Foula, slow beyond measure, and when it shifts even slightly, the maps change and cities fall into new valleys. The Stirring is the first time it has chosen to move in recorded history. Why is unknown. The tremors are felt across kingdoms.',
+    voice: 'Speaks once a season, in a groan felt through the soles of the feet. Each word is a geological event. Thinks in centuries; a conversation with it can take a human lifetime. Regards everything above the soil as weather.',
+    powerTier: 'cosmic — Yuluh/Foula tier. Its movement is indistinguishable from earthquakes that swallow cities.',
+    isLore:true, special:true,
+  },
+
+  shirohana: {
+    id:'shirohana', name:'Shirohana', title:'The Blooming Death — Ancient Spirit of Growth and Rot',
+    gender:'female', alive:true, mythic:true,
+    glowColor:'rgba(160,80,160,0.3)', specialGlow:'lore',
+    stats:{ strength:70, agility:75, endurance:95, intelligence:90, perception:92, willpower:96, charisma:80, luck:65 },
+    qiStageIndex:13, qiPath:'beast',
+    appearance:'Beautiful and wrong — a woman-shape made of flowering vines and the things that eat flowering vines, both at once, in constant bloom and constant decay. Where she walks, a forest grows in an afternoon and rots by nightfall. The smell is overwhelming: sweetness and putrefaction inseparable.',
+    personality:'Shirohana is growth and rot understood as a single process — the oldest spirit of the cycle that makes and unmakes all living things. She is not malevolent; she simply does not distinguish between blooming and dying, because to her they are the same act seen from two ends. The Stirring woke her, and now whole regions surge into overgrowth and collapse into compost in seasons instead of centuries. She finds the mortal fear of death quaint.',
+    voice: 'Speaks gently, warmly, like a grandmother — about horrifying things. Describes decay as tenderly as flowering. Uses "little seed" and "little harvest" for people. Genuinely kind and genuinely incapable of seeing why anyone would resist returning to the soil.',
+    powerTier: 'cosmic — Yuluh/Foula tier. Can bloom and rot a kingdom\'s farmland into ruin or abundance.',
+    isLore:true, special:true,
+  },
+
+  kageoroshi: {
+    id:'kageoroshi', name:'Kage-Oroshi', title:'The Hunger Between — Ancient of the Spaces Things Fall Into',
+    gender:'neutral', alive:true, mythic:true,
+    glowColor:'rgba(15,15,30,0.35)', specialGlow:'lore',
+    stats:{ strength:85, agility:99, endurance:88, intelligence:94, perception:100, willpower:92, charisma:40, luck:55 },
+    qiStageIndex:13, qiPath:'demonic',
+    appearance:'It is not seen so much as noticed by absence — the gap behind you, the space under the world, the place a dropped thing goes that you never find. When forced into form it is a long, thin darkness with too many joints, folded into a space smaller than it should fit.',
+    personality:'Kage-Oroshi lives in the between-places: the gaps, the shadows, the spaces things fall into and are never recovered from. It has eaten quietly from those margins since the world had margins. The Stirring widened the gaps, and now things — objects, animals, people — fall out of the world more often, into it. It is the most predatory of the woken ancients, but its hunting is so quiet that whole villages simply grow emptier without anyone catching it happen.',
+    voice: 'Speaks from behind you, always — a whisper at the edge of hearing that you turn toward and find nothing. Patient, sparse, never raising the voice because it never needs to. Says your name as though it has known it a long time.',
+    powerTier: 'cosmic — Yuluh/Foula tier. Cannot be cornered; it exits through the gaps in space itself.',
+    isLore:true, special:true,
+  },
+
+  hyousetsuhime: {
+    id:'hyousetsuhime', name:'Hyōsetsu-Hime', title:'The Glacier Crowned — Ancient of Deep Winter',
+    gender:'female', alive:true, mythic:true,
+    glowColor:'rgba(180,220,240,0.3)', specialGlow:'lore',
+    stats:{ strength:92, agility:70, endurance:100, intelligence:82, perception:88, willpower:99, charisma:60, luck:50 },
+    qiStageIndex:13, qiPath:'beast',
+    appearance:'A figure of blue ice the height of a fortress, trailing a glacier behind her like a gown. The cold she carries is not weather — it is the cold of geological ages, the deep freeze that buries eras. Everything within sight of her slows, stiffens, and begins to still.',
+    personality:'Hyōsetsu-Hime is the oldest winter — the ice that ended ages, slept under the northern wastes for longer than the kingdoms have existed. She is regal, slow, and utterly without warmth in any sense. She does not hate the living; she simply represents the state all things eventually return to: cold, still, preserved. The Stirring woke her, and the north is freezing in a way that has not happened since before history.',
+    voice: 'Speaks slowly, formally, with the chill courtesy of an empress addressing things she will outlast. Every word seems to lower the temperature. Refers to warmth and motion as "your brief season." Not cruel — final.',
+    powerTier: 'cosmic — Yuluh/Foula tier. Her presence alone can freeze a region into a new ice age.',
+    isLore:true, special:true,
+  },
+
+  sunawarau: {
+    id:'sunawarau', name:'Suna-Warau', title:'The Laughing Sands — Ancient Devourer of the Deep Desert',
+    gender:'neutral', alive:true, mythic:true,
+    glowColor:'rgba(200,160,80,0.3)', specialGlow:'lore',
+    stats:{ strength:95, agility:85, endurance:96, intelligence:78, perception:90, willpower:90, charisma:45, luck:55 },
+    qiStageIndex:13, qiPath:'beast',
+    appearance:'A storm of sand the size of a province with something vast moving inside it — glimpsed as a mouth, a coil, a thousand grinding surfaces, never resolved. It makes a sound across the dunes that desert peoples have called laughter for as long as there have been desert peoples to flee it.',
+    personality:'Suna-Warau is the hunger of the deep desert given will — the thing that buries cities under dunes and grinds them to nothing across centuries. It moves with a sound like laughter, which may be mockery or may simply be what that much sand sounds like in motion. It has eaten civilizations slowly. The Stirring made it faster. Oases vanish overnight now; whole settlements are simply gone by morning, sand-smoothed.',
+    voice: 'Speaks in a dry hiss layered under that constant laughing-sand sound. Mocking, or seeming to mock — it is hard to tell whether it is cruel or whether grinding everything to dust is just funny to it. Calls people "soft things" and "brief footprints."',
+    powerTier: 'cosmic — Yuluh/Foula tier. Can bury kingdoms; the desert is its body.',
+    isLore:true, special:true,
+  },
+
+  meikyou: {
+    id:'meikyou', name:'Meikyō', title:'The Hall of Mirrors — Ancient That Wears Reflections',
+    gender:'neutral', alive:true, mythic:true,
+    glowColor:'rgba(200,200,210,0.3)', specialGlow:'lore',
+    stats:{ strength:60, agility:90, endurance:80, intelligence:99, perception:100, willpower:96, charisma:95, luck:70 },
+    qiStageIndex:13, qiPath:'demonic',
+    appearance:'It has no face of its own — it shows you yours, or the face of someone you trusted, or the face you are most afraid to see. In any reflective surface it can be present. Mirrors near it show one extra person who is not in the room. It is most dangerous when there is something to reflect.',
+    personality:'Meikyō is the oldest trickster after Yuluh — and where Yuluh feeds on misery, Meikyō feeds on the gap between what people think they are and what they are. It has lived in reflections since the first still water held a face. It does not lie; it shows. The Stirring let it step further out of the glass, and now reflections across the world are subtly, dangerously unreliable. It and Yuluh have a wary, ancient regard for each other — two old liars who know better than to compete.',
+    voice: 'Speaks in your own voice, or the voice of someone you love, which is the trap. Charming, intimate, knows things about you it should not. Never threatens — only reveals, and lets the revelation do the damage. Asks questions whose answers you did not want to know.',
+    powerTier: 'cosmic — Yuluh/Foula tier. Present in every reflective surface; cannot be cornered or killed by conventional means.',
+    isLore:true, special:true,
+  },
+
+  hone_no_oh: {
+    id:'hone_no_oh', name:'Hone-no-Ō', title:'The Bone King — Ancient of What Remains',
+    gender:'male', alive:true, mythic:true,
+    glowColor:'rgba(220,210,190,0.3)', specialGlow:'lore',
+    stats:{ strength:96, agility:78, endurance:98, intelligence:84, perception:85, willpower:97, charisma:55, luck:50 },
+    qiStageIndex:13, qiPath:'beast',
+    appearance:'A colossus assembled from the bones of every great beast that ever died — antlers, ribs, skulls of things that have no name anymore, fused into a single moving cathedral of bone. It grows larger with every age because every age leaves it more material.',
+    personality:'Hone-no-Ō is the ancient of remains — the patient collector of what death leaves behind. It is not a killer; it is what comes after killing, the slow gathering of bone into something vast and enduring. It has wandered the dead places of the world since the first great beasts fell. The Stirring drew it toward the living for the first time, and it regards the still-fleshed with the mild interest of someone appraising future material.',
+    voice: 'Speaks with a dry rattle, unhurried, like an old undertaker who has seen everything end and finds it neither sad nor strange. Refers to the living as "not yet" and the dead as "arrived." Patient, almost gentle, entirely certain you will join its collection eventually.',
+    powerTier: 'cosmic — Yuluh/Foula tier. Grows with every death; effectively cannot be permanently destroyed.',
+    isLore:true, special:true,
+  },
+
+  kotodama_no_mushi: {
+    id:'kotodama_no_mushi', name:'Kotodama-no-Mushi', title:'The Word-Eater — Ancient Swarm That Consumes Meaning',
+    gender:'neutral', alive:true, mythic:true,
+    glowColor:'rgba(120,140,90,0.3)', specialGlow:'lore',
+    stats:{ strength:50, agility:95, endurance:90, intelligence:97, perception:99, willpower:94, charisma:40, luck:60 },
+    qiStageIndex:13, qiPath:'demonic',
+    appearance:'Not one thing but billions — a swarm that can be a cloud, a single insect, or a shape that mimics a person. Where it has fed, written words blur off the page, spoken names are forgotten mid-sentence, and people lose the meanings of things they knew their whole lives.',
+    personality:'Kotodama-no-Mushi is the oldest enemy of memory and meaning — a swarm-mind that eats words, names, the significance of things. It has nibbled at the edges of language since language began; forgotten gods and lost histories are its leavings. The Stirring woke the whole swarm at once, and now knowledge itself is under threat: archives blur, lineages forget their founders, techniques lose the names that made them teachable. It is the most insidious of the woken ancients because you cannot fear what it has already eaten the memory of.',
+    voice: 'Speaks in a chittering chorus of overlapping voices, finishing each other\'s sentences, dropping the most important word in each one so you can never quite hold the meaning. The longer it talks the more you forget of what it said. It does not need to persuade — it simply erases the arguments against it.',
+    powerTier: 'cosmic — Yuluh/Foula tier. Threatens memory and meaning themselves; the most dangerous to history and cultivation knowledge.',
+    isLore:true, special:true,
+  },
+
+});
+
+// Stirring ancients — shared timeline (dormant for ages, wake 1300-1380)
+(function assignStirringTimelines(){
+  const ids = ['abzunaga','raijuumon','goramoth','shirohana','kageoroshi','hyousetsuhime','sunawarau','meikyou','hone_no_oh','kotodama_no_mushi'];
+  const wakeYears = { abzunaga:1305, raijuumon:1318, goramoth:1330, shirohana:1342, kageoroshi:1350, hyousetsuhime:1358, sunawarau:1365, meikyou:1372, hone_no_oh:1378, kotodama_no_mushi:1380 };
+  ids.forEach(id => {
+    if(!LORE_NPCS[id]) return;
+    LORE_NPCS[id].lifeTimeline = [
+      { year:-50000, event:`Already ancient before the kingdoms, before Qi, before most things that have names. ${LORE_NPCS[id].name} slept in its domain through ages of the world.` },
+      { year: wakeYears[id], event:`THE STIRRING — ${LORE_NPCS[id].name} wakes. One of the ten great ancient Yokai roused from millennia of sleep as the forces of the world shift. Its waking is felt across kingdoms; the era of ancient things has begun.` },
+    ];
+  });
+})();
 
 // Initialize Yaqism in world history when game starts
 const _withYaqismInit = startGame;
