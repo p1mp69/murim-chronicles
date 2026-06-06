@@ -13587,7 +13587,9 @@ const YEAR_TIMELINE_EVENTS = (() => {
     { year:405, type:'war',      label:'The Nao Rebellion begins (405–425)' },
     { year:425, type:'founding', label:'The Nao Confederacy is founded' },
     { year:535, type:'war',      label:'The Normac Campaign — 5,000 destroyed' },
-    { year:1150,type:'war',      label:'The Sect Wars' },
+    { year:1000,type:'founding', label:'Masaki Jūrō & the Kuui Sect — the Fracture begins' },
+    { year:1080,type:'war',      label:'Masaki Jūrō mocks the Azure Emperor — sects break free' },
+    { year:1150,type:'war',      label:'The Sect Wars — the Fracture\'s repercussion' },
     { year:1450,type:'war',      label:'The First Contact — ancient things wake' },
     { year:1520,type:'war',      label:'The Breaking Years begin' },
   ];
@@ -13727,8 +13729,8 @@ function buildEraCard(yr) {
   else if(yr <= 850)  { eraName = 'The Tomb Age'; tagline = 'Breaching the founders\' tombs becomes the defining obsession of the cultivation world.'; eraColor='#885522'; }
   else if(yr <= 1000) { eraName = 'The Deep Era'; tagline = 'The first artifacts from Reo\'s tomb are in circulation. What they do is not fully understood.'; }
   // ── YEARS 1000–2000 — One Thousand Years of Deep History ─────────
-  else if(yr <= 1080) { eraName = 'The Fracture Age'; tagline = 'The original kingdoms finally collapse under sect weight. The map is unrecognizable.'; eraColor='#664422'; }
-  else if(yr <= 1150) { eraName = 'The Sect Wars'; tagline = 'Sects fight sects openly. No kingdom strong enough to stop them. Centuries of blood.'; eraColor='#882222'; }
+  else if(yr <= 1080) { eraName = 'The Fracture Age'; tagline = 'Masaki Jūrō of the Kuui Sect undercuts the Azure throne. Government and sect tear apart.'; eraColor='#664422'; }
+  else if(yr <= 1150) { eraName = 'The Sect Wars'; tagline = 'The repercussion of the Fracture. Sects, now stronger than governments, turn on each other.'; eraColor='#882222'; }
   else if(yr <= 1220) { eraName = 'The Ash Compact'; tagline = 'The sect wars end with a pact carved into a mountain. Its terms are disputed ever since.'; eraColor='#886633'; }
   else if(yr <= 1300) { eraName = 'The Quiet Century'; tagline = 'A strange stability nobody fully trusts. Something in the world has gone still.'; eraColor='#557755'; }
   else if(yr <= 1380) { eraName = 'The Stirring'; tagline = 'Ancient things — older than Qi, older than the kingdoms — begin to move.'; eraColor='#664477'; }
@@ -13817,8 +13819,8 @@ function buildEraCard(yr) {
   else if(yr <= 800) politics = 'Deep political history — layers of sect wars, treaty lineages, absorbed kingdoms, and lost power. The original three kingdoms still nominally exist alongside the Confederacy. In practice, whoever controls the cultivation resources controls the territory.';
   else if(yr <= 850) politics = 'The Tomb Age reshapes politics. Reo\'s tomb has been breached — partially — and the artifacts emerging from it are destabilizing power balances. Whoever holds a founders\' relic holds a political weapon. Ichiro\'s tomb has defeated every attempt to go deeper than the outer passages. Both tombs are now the single most contested sites in the world.';
   else if(yr <= 1000) politics = 'Political power is defined almost entirely by sect strength and relic possession. The original kingdom names survive as historical labels for geographic regions, not functioning governments. The founders are divine figures in the political imagination — their names are invoked, their artifacts are the highest legitimacy.';
-  else if(yr <= 1080) politics = 'The Fracture. The last governments claiming succession from the original kingdoms collapse under sect weight during this century. The political map is a mosaic of sect territories, relic-holder domains, cultivation bloodline fiefdoms, and city-states. Nobody can agree on what anything is called.';
-  else if(yr <= 1150) politics = `<span class="era-war">⚔ The Sect Wars.</span> Direct armed conflict between major cultivation sects — no kingdom strong enough to stop them. Wars fought over technique lineages, tomb access, cultivation sites, and ancient relic caches. The casualties include entire sect lineages that simply stop existing. The survivors are the ones who were patient or ruthless enough.`;
+  else if(yr <= 1080) politics = `<span class="era-war">⚠ The Fracture.</span> Caused by the Kuui Sect — an unremarkable order until one member, Masaki Jūrō, advanced with impossible speed (the price was paid to bar lēlyā). Sharpened by isolation into something smarter than almost anyone alive, Jūrō's rise directly undercut the Azure Empire's authority — provided the throne had no founder-tier force behind it (Reo's Tomb never found, Reo never revived). The breaking point came when he openly mocked the sitting Emperor of Azure and faced no consequence. Every sect saw it: the government could no longer enforce its will over those with real cultivation power. Sects everywhere began arming and expanding, no longer pretending to answer to any throne. The old kingdom governments collapse under the weight. The map becomes a mosaic of sect territories.`;
+  else if(yr <= 1150) politics = `<span class="era-war">⚔ The Sect Wars.</span> The direct repercussion of the Fracture. With governments broken and sects now stronger than any throne, the sects turn on each other. Direct armed conflict over technique lineages, tomb access, cultivation sites, and ancient relic caches. The casualties include entire sect lineages that simply stop existing. The survivors are the ones who were patient or ruthless enough. The Kuui Sect — where it began — is itself a target.`;
   else if(yr <= 1220) politics = 'The Ash Compact — a peace agreement carved into a mountain face at a location that every major sect agreed was neutral. Its exact terms are debated. Different versions circulate. The sect wars end, technically. The underlying conflicts do not.';
   else if(yr <= 1300) politics = 'The Quiet Century. A stability nobody trusts. Historians later argue about why it happened — exhaustion from the sect wars, some unknown external pressure, a shift in cultivation Qi availability, coincidence. While it lasts: rebuilding, scholarship, the first serious attempt to compile a complete history of the last five centuries.';
   else if(yr <= 1380) politics = 'The Stirring. Ancient things are moving — not the Maligned Lords, something older. The political response is confused because nobody has a category for it. Sects that were rivals are quietly cooperating. Old enmities are being set aside for reasons nobody is explaining publicly.';
@@ -26476,6 +26478,20 @@ Object.assign(LORE_NPCS, {
     isLore:true,
     special:true,
     yuluHPassage: 'Yuluh makes a deal — not in words, but in action. He steps aside because the war Yuuta will start feeds Yuluh directly. Yuluh does not care about Yokai rights. He cares about the misery the conflict will produce. He moves.',
+  },
+
+  // ── MASAKI JŪRŌ — the man who fractured the world ───────────────
+  masaki_juro: {
+    id:'masaki_juro', name:'Masaki Jūrō', title:'The Mind That Broke the Throne — Kuui Sect',
+    gender:'male', alive:false, birthYear:970, deathYear:1095,
+    glowColor:'rgba(80,60,110,0.25)', specialGlow:'lore',
+    stats:{ strength:78, agility:80, endurance:82, intelligence:100, perception:98, willpower:96, charisma:88, luck:50 },
+    qiStageIndex:11, qiPath:'demonic',
+    appearance:'Unremarkable until you speak with him, and then impossible to forget. Plain robes. A stillness that reads as patience until you realize it is calculation. His eyes track everything and rest on nothing. People who met him describe the specific discomfort of being understood faster than they could understand themselves.',
+    personality:'Masaki Jūrō was an ordinary member of the unremarkable Kuui Sect until he advanced with impossible speed — the price was paid to bar lēlyā, in a bargain he never publicly named. Whatever left his life, he replaced with cultivation and a mind sharpened by long isolation into something faster than almost anyone alive. He saw the truth the cultivation world had been pretending around for centuries: the governments held authority only because the sects allowed it. His rise directly undercut the Azure Empire — and the nail in the coffin was the day he openly mocked the sitting Emperor of Azure and faced no consequence at all. Every sect watched it happen. They understood. Within a generation the thrones were ornamental and the sects were arming. He did not set out to start the Sect Wars. He set out to prove a point. The Sect Wars were the repercussion of how thoroughly he proved it.',
+    fractureNote: 'Masaki Jūrō is the cause of the Fracture Age. CONDITION: his rise undercuts the Azure Empire ONLY if Reo\'s Tomb was never found / Reo never revived. If Azure\'s authority had been restored by a second founding, Jūrō\'s mockery would have met a force that could answer it, and the Fracture would have taken a very different shape — or not happened at all.',
+    deathNote: 'Died Year 1095, during the early Sect Wars he had inadvertently caused. The Kuui Sect, where it all began, became one of the most hunted targets of the wars. Whether bar lēlyā collected anything further at the end is not recorded — but those who study him note that for all his mind, he died with very little of a life around him.',
+    isLore:true, special:true,
   },
 
 });
