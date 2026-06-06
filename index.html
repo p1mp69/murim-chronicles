@@ -36332,6 +36332,19 @@ buildSystemPrompt = function() {
 // ================================================================
 Object.assign(TRAITS_CATALOG, {
 
+  // ── FABLE — CHAMPION OF D'YAQED ────────────────────────────────
+  // Only obtainable during the Stirring / First Contact / Breaking Years,
+  // when Nyokuro's influence rises and D'yaqed needs a hand in the world.
+  born_from_sun: {
+    name: 'Born From Sun',
+    type: 'innate_spiritual', rarity: 'fable', inherited: false,
+    desc: 'A piece of D\'yaqed\'s own flame burns in you — not the small flame inside every living thing, but a fragment of the One Who Burns himself. You are his champion in the waking world, shaped to act where a god of his order will not walk directly. While the deep dark rises through Nyokuro, you are the warmth that answers it.',
+    flavor: 'You woke one morning and the cold places did not feel cold to you anymore.\n\nThen you understood why.\n\nSomething enormous and warm had decided you were the hand it would use.',
+    effects: { strength: 4, endurance: 5, willpower: 6, perception: 4, charisma: 4, luck: 5 },
+    gameplay: 'Fire, light, and life-aspected cultivation come naturally and cost less. Your presence steadies unstable Qi (a direct counter to the First Contact instability). Bar lēlyā cannot bargain with you — the flame in you refuses him. Yokai and dark-aspected entities sense the One Who Burns in you and react with caution, hostility, or awe. You are a fixed counterweight to Nyokuro\'s influence; her instrument Yoshiro will know what you are on sight.',
+    aiHint: 'BORN FROM SUN — CHAMPION OF D\'YAQED: This character carries a fragment of D\'yaqed\'s own flame. They are the avatar/champion a god of D\'yaqed\'s order sends rather than coming himself. Describe a warmth that precedes them into cold rooms — the inverse of bar lēlyā / Masaki Jūrō\'s chill. Unstable Qi calms near them. Dark and ancient things (the Stirring ancients, bar lēlyā, Nyokuro\'s instruments) recognize what they are and treat them as a genuine threat or a fixed point they must work around. This is fable-tier — the rarest thing a mortal can be in this age. It is not subtle to those who can sense it, though the character themselves may take time to understand it. D\'yaqed never speaks to them directly through it — he acts through them, which is different.',
+  },
+
   // ── EPIC ──────────────────────────────────────────────────────
 
   the_unbroken_thread: {
@@ -36701,6 +36714,51 @@ applyAIResponse = function(res) {
     // Check if any technique advanced to stage 6
     if(res?.newTechniques?.length || res?.skills?.length) checkSwordSaintTrigger();
     // Also check on technique stage advance (practiseTech)
+  } catch(e) {}
+};
+
+// ── BORN FROM SUN — D'yaqed's champion, only in the dark eras ──────
+// During the Stirring (1300-1380), First Contact (1380-1450), and the
+// Breaking Years (1450-1520), as Nyokuro's influence rises, D'yaqed may
+// shape a mortal into his champion. Rolled once per year boundary.
+function checkBornFromSunTrigger(prevYear) {
+  const c = GS.char, w = GS.world;
+  if(!c || c.traits?.some(t => t.id === 'born_from_sun')) return;
+  const yr = w.year;
+  if(yr < 1300 || yr > 1520) return;          // only the three dark eras
+  if(w._bornFromSunRolledYear === yr) return; // one roll per year
+  w._bornFromSunRolledYear = yr;
+
+  // Base chance per year by era; higher as the dark deepens
+  let chance;
+  if(yr <= 1380)      chance = 0.015; // Stirring — 1.5%/yr
+  else if(yr <= 1450) chance = 0.025; // First Contact — 2.5%/yr
+  else                chance = 0.04;  // Breaking Years — 4%/yr (D'yaqed needs a hand most)
+
+  // Modifiers: the flame favors the willful, the warm, and the already-touched
+  if((c.willpower||0) >= 50) chance += 0.01;
+  if(c.qi?.path === 'righteous') chance += 0.01;
+  if(c.skills?.yaqism || c.traits?.some(t => /yaqist|sun|flame/i.test(t.id||''))) chance += 0.02;
+  // Acknowledging bar lēlyā / the dark makes you a more pointed counter-target for the flame
+  if(c._barLelya?.acknowledged > 0) chance += 0.015;
+
+  if(Math.random() < chance) {
+    giveTrait('born_from_sun', null);
+    addChronicleEntry(`Born From Sun — became the champion of D'yaqed in Year ${yr}, as the dark rose.`, 'major');
+    addPersonalEvent(`Born From Sun: A fragment of the One Who Burns took root in you. You are D'yaqed's champion now. Year ${yr}.`);
+    GS.narrative.push('You wake, and the cold places do not feel cold to you anymore.\n\nThere is a warmth in your chest that is not your own — older, vaster, and entirely certain of its purpose. It does not speak. It does not need to. Somewhere far above the reach of the rising dark, something enormous and warm has chosen a hand to act with, in a world it will not walk into directly.\n\nYou are *Born From Sun.* You are the answer the deep dark was never meant to have.');
+    toast('✦ Born From Sun — Champion of D\'yaqed', 'gold', 9000);
+    updateCharacterTab();
+  }
+}
+
+// Roll it on every year boundary during the dark eras
+const _advanceForBornSun = advanceTime;
+advanceTime = function(days, months, years) {
+  const prevYear = GS.world.year;
+  _advanceForBornSun.apply(this, arguments);
+  try {
+    if(GS.world.year !== prevYear) checkBornFromSunTrigger(prevYear);
   } catch(e) {}
 };
 
