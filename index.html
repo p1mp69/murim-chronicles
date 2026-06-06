@@ -632,14 +632,20 @@ a { color: var(--gold); text-decoration: none; }
   transition: left .1s;
 }
 .year-marker-tip {
-  position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%);
+  position: absolute; bottom: 22px;
   background: rgba(12,10,22,.98); border: 1px solid rgba(196,154,48,.3);
   border-radius: 5px; padding: 5px 9px; font-size: 10px;
-  color: rgba(220,210,190,.9); white-space: nowrap;
+  color: rgba(220,210,190,.9);
   pointer-events: none; opacity: 0; transition: opacity .12s;
-  z-index: 10; max-width: 200px; white-space: normal; width: max-content; max-width: 180px;
-  line-height: 1.4; text-align: center;
+  z-index: 10; width: max-content; max-width: 170px;
+  line-height: 1.4;
 }
+/* Center anchor (default, for middle markers) */
+.year-marker-tip.center { left: 50%; transform: translateX(-50%); text-align: center; }
+/* Left anchor — for markers near the left edge, tooltip extends rightward */
+.year-marker-tip.left  { left: 0; transform: translateX(-4px); text-align: left; }
+/* Right anchor — for markers near the right edge, tooltip extends leftward */
+.year-marker-tip.right { right: 0; transform: translateX(4px); text-align: right; }
 .year-marker:hover .year-marker-tip { opacity: 1; }
 .year-timeline-legend {
   display: flex; flex-wrap: wrap; gap: 10px;
@@ -13568,27 +13574,36 @@ buildSystemPrompt = function() {
 // ================================================================
 
 // Major historical events placed on the birth-year timeline.
-const YEAR_TIMELINE_EVENTS = [
-  { year:1,   type:'founding', label:'Year 1 — Qi discovered by Ichiro & Reo' },
-  { year:50,  type:'founding', label:'Tazar established as Azure capital' },
-  { year:130, type:'death',    label:'Ichiro Katsumi dies' },
-  { year:144, type:'war',      label:'Buo-Luo-Tin War begins' },
-  { year:150, type:'death',    label:'Reo Yamamoto dies — the founders\' era ends' },
-  { year:154, type:'war',      label:'Láng the Warlord dies' },
-  { year:166, type:'maligned', label:'Zeret of Lust spawn year' },
-  { year:200, type:'maligned', label:'Xelaad of Pride spawn year' },
-  { year:244, type:'maligned', label:'Iasiba of Envy spawn year' },
-  { year:270, type:'maligned', label:'Dranoel of Greed spawn year' },
-  { year:310, type:'maligned', label:'Normac of Sloth spawn year' },
-  { year:381, type:'religion', label:'Yaqism emerges — D\'la preaches' },
-  { year:389, type:'religion', label:'D\'la becomes the Great Flame' },
-  { year:405, type:'war',      label:'The Nao Rebellion begins' },
-  { year:425, type:'founding', label:'The Nao Confederacy is founded' },
-  { year:535, type:'war',      label:'The Normac Campaign — 5,000 destroyed' },
-  { year:1150,type:'war',      label:'The Sect Wars' },
-  { year:1450,type:'war',      label:'The First Contact — ancient things wake' },
-  { year:1520,type:'war',      label:'The Breaking Years begin' },
-];
+const YEAR_TIMELINE_EVENTS = (() => {
+  const base = [
+    { year:1,   type:'founding', label:'Year 1 — Qi discovered by Ichiro & Reo' },
+    { year:50,  type:'founding', label:'Tazar established as Azure capital' },
+    { year:130, type:'death',    label:'Ichiro Katsumi dies' },
+    { year:144, type:'war',      label:'Buo-Luo-Tin War begins' },
+    { year:150, type:'death',    label:'Reo Yamamoto dies — the founders\' era ends' },
+    { year:154, type:'war',      label:'Láng the Warlord dies' },
+    { year:381, type:'religion', label:'Yaqism emerges — D\'la preaches' },
+    { year:389, type:'religion', label:'D\'la becomes the Great Flame' },
+    { year:405, type:'war',      label:'The Nao Rebellion begins (405–425)' },
+    { year:425, type:'founding', label:'The Nao Confederacy is founded' },
+    { year:535, type:'war',      label:'The Normac Campaign — 5,000 destroyed' },
+    { year:1150,type:'war',      label:'The Sect Wars' },
+    { year:1450,type:'war',      label:'The First Contact — ancient things wake' },
+    { year:1520,type:'war',      label:'The Breaking Years begin' },
+  ];
+  // Every Maligned Lord spawn year
+  const lords = {
+    'Zeret of Lust':    [166,188,199,255,574,666,678,738,800],
+    'Xelaad of Pride':  [200,288,350,450,600,725,820],
+    'Iasiba of Envy':   [244,333,405,510,650,755,900],
+    'Dranoel of Greed': [270,360,440,560,680,790,920],
+    'Normac of Sloth':  [310,420,500,620,720,850,950],
+  };
+  Object.entries(lords).forEach(([name, years]) => {
+    years.forEach(y => base.push({ year:y, type:'maligned', label:`${name} — spawn year ${y}` }));
+  });
+  return base.sort((a,b) => a.year - b.year);
+})();
 
 // Era quick-jump destinations
 const YEAR_JUMP_ERAS = [
@@ -13616,8 +13631,13 @@ function renderYearTimeline(yr) {
   let html = `<div class="year-timeline-track"></div>`;
   html += `<div class="year-timeline-fill" style="width:${cursorPct}%"></div>`;
   YEAR_TIMELINE_EVENTS.forEach(ev => {
-    html += `<div class="year-marker ${ev.type}" style="left:${pct(ev.year)}%" onclick="jumpYear(${ev.year})">
-      <div class="year-marker-tip">${ev.label}</div>
+    const p = pct(ev.year);
+    // Edge-aware tooltip: anchor left on the left third, right on the right third
+    let tipClass = 'center', tipStyle = '';
+    if(p < 22)      { tipClass = 'left';  }
+    else if(p > 78) { tipClass = 'right'; }
+    html += `<div class="year-marker ${ev.type}" style="left:${p}%" onclick="jumpYear(${ev.year})">
+      <div class="year-marker-tip ${tipClass}">${ev.label}</div>
     </div>`;
   });
   html += `<div class="year-marker-cursor" style="left:${cursorPct}%"></div>`;
