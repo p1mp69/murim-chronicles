@@ -13739,7 +13739,7 @@ function buildEraCard(yr) {
   else if(yr <= 1300) { eraName = 'The Second Renaissance'; tagline = 'Kōichi Hanzou — the Sword Saint — surpasses the founders. Cultivation reaches heights they never mapped.'; eraColor='#55aa88'; }
   else if(yr <= 1380) { eraName = 'The Stirring'; tagline = 'Ten ancient Yokai — each the equal of Yuluh and Foula — wake from millennia of sleep.'; eraColor='#664477'; }
   else if(yr <= 1450) { eraName = 'The First Contact'; tagline = 'Yoshiro spat in bar lēlyā\'s face and called something older. Nyokuro answered. The world has no framework for what woke.'; eraColor='#3a2266'; }
-  else if(yr <= 1520) { eraName = 'The Breaking Years'; tagline = 'The most catastrophic period since the founders\' deaths. Sects fall. Cities vanish. The old order breaks.'; eraColor='#772211'; }
+  else if(yr <= 1520) { eraName = 'The Breaking Years'; tagline = 'The ten ancients stop being felt and start being SEEN. Nyokuro moves through Yoshiro. The world breaks.'; eraColor='#772211'; }
   else if(yr <= 1600) { eraName = 'The Reclamation'; tagline = 'Survivors rebuild. New cultivation schools form from what was preserved. Different from before.'; eraColor='#665522'; }
   else if(yr <= 1700) { eraName = 'The Second Cultivation Age'; tagline = 'A renaissance. New techniques built on ruins of the old. Higher ceilings than the founders imagined.'; eraColor='#557733'; }
   else if(yr <= 1800) { eraName = 'The Consolidation Wars'; tagline = 'The new powers fight to define the next thousand years. Brutal, decisive, and still unresolved.'; eraColor='#883322'; }
@@ -13829,7 +13829,7 @@ function buildEraCard(yr) {
   else if(yr <= 1300) politics = 'The Second Renaissance — the era of Kōichi Hanzou, the Sword Saint. With the Sect Wars ended by his father\'s Compact, cultivation enters a golden age. Political power reorganizes around the new heights cultivators can reach. Kōichi himself becomes a force no government or sect can meaningfully oppose — not a conqueror, but a presence that reshapes what everyone believes is possible.';
   else if(yr <= 1380) politics = `The Stirring. Ten ancient Yokai — each on the order of Yuluh and Foula, dormant since before the kingdoms — wake across the world one after another: Abzu-Naga from the deep sea, Raijū-Mon from the high air, Goramoth from beneath the continent, Shirohana of bloom-and-rot, Kage-Oroshi from the gaps in space, Hyōsetsu-Hime the deep winter, Suna-Warau of the laughing sands, Meikyō of the mirrors, Hone-no-Ō the bone king, and Kotodama-no-Mushi the word-eater. These are not the Maligned Lords; they are older. No army can fight them — a single one can drown a coastline or freeze a province. The political response is confused terror disguised as policy. Old enmities between sects dissolve overnight; rivals cooperate for reasons no one explains publicly, because the alternative is being noticed by something that treats kingdoms as terrain.`;
   else if(yr <= 1450) politics = `<span class="era-war">⚠ The First Contact.</span> A scholar named Yoshiro — the maddest man in recorded history, devout to research and understanding above sanity — went to bar lēlyā for power. But he could sense bar lēlyā was weak compared to something deeper, and he SPAT IN BAR LĒLYĀ'S FACE. Enraged, the night-force nearly killed him. In the final moment Yoshiro called out to the oldest, deepest, coldest force in the universe — Nyokuro, the conscious darkness that birthed even the Twin Monarchs. She answered. She smothered the darkness in bar lēlyā until he backed down, and Yoshiro struck a bargain with her. This was First Contact: the first time since creation that the primordial darkness was directly reached by a mortal. The whole world felt it — the forces shifted, Yokai grew agitated, Qi turned unstable and reckless. The political world reorganizes around something nobody understands. No one knows what is coming.`;
-  else if(yr <= 1520) politics = `<span class="era-war">The Breaking Years.</span> The most catastrophic political collapse since the founders' deaths. Sects that stood for six centuries fall in decades. Cities disappear — not destroyed, just gone. The survivors form desperate confederacies based on proximity and mutual terror rather than ideology or cultivation lineage.`;
+  else if(yr <= 1520) politics = `<span class="era-war">The Breaking Years.</span> This is when the ten ancient Yokai stop being a felt unease and FULLY MANIFEST — Abzu-Naga drowns coastlines, Goramoth stands a mountain range up, Hyōsetsu-Hime freezes the north, Hone-no-Ō walks the battlefields growing with every death. Cities don\'t fall to armies; they are drowned, frozen, buried, overgrown, or simply forgotten by Kotodama-no-Mushi. And Yoshiro — by now fully engulfed inside Nyokuro, no longer steering himself — moves through the world as her hand. Nyokuro is not evil; she is selfish, and humanity is not her creation, so she spends it without cruelty or care, the way you spend weather. Governments are meaningless against this. Survivors form desperate confederacies based on proximity and shared terror. The only hope anyone whispers about is whether D\'yaqed — who rivals Nyokuro — might answer. He has not come himself. At most he would send a champion or shape an avatar; gods of his order do not walk into another\'s domain directly.`;
   else if(yr <= 1600) politics = 'Reclamation. Survivors are rebuilding from what was preserved — partial records, fragmented technique lineages, ruins of the old order. New power structures form around whoever can offer stability. What gets rebuilt is different from what existed before.';
   else if(yr <= 1700) politics = 'The Second Cultivation Age. New techniques built on ruins of the old reach ceilings the founders never mapped. The political world reorganizes around these new powers. Old sects that survived the Breaking Years by being conservative find themselves outpaced. A genuine renaissance — creative, violent, and rapidly expanding.';
   else if(yr <= 1800) politics = `<span class="era-war">The Consolidation Wars.</span> The new powers of the Second Cultivation Age fight to define who rules the next era. No ideology drives it — pure competition between cultivation bloodlines and technique schools for dominance. Brutal, decisive in the short term, and still generating conflicts centuries later.`;
@@ -16463,10 +16463,14 @@ function buildNPCContextForAI() {
     // Lore figures — surface their hand-written detail and any special signs
     if(npc.isLore) {
       if(npc.title)                  lines.push(`    Title: ${npc.title}`);
+      if(npc.nickname)               lines.push(`    Known as: ${npc.nickname}`);
       if(npc.appearance)             lines.push(`    Appearance: ${npc.appearance}`);
       if(typeof npc.personality === 'string') lines.push(`    Who they are: ${npc.personality}`);
       if(npc.voice)                  lines.push(`    VOICE & MANNERISMS (speak and move them exactly like this): ${npc.voice}`);
+      if(npc.powerTier)              lines.push(`    Power tier: ${npc.powerTier}`);
       if(npc.barLelyaSigns)          lines.push(`    ⚠ Bar lēlyā signs: ${npc.barLelyaSigns}`);
+      if(npc.nyokuroProgression)     lines.push(`    Nyokuro progression: ${npc.nyokuroProgression}`);
+      if(npc.vsDyaqed)               lines.push(`    Re: D'yaqed: ${npc.vsDyaqed}`);
       if(npc.encounterNote)          lines.push(`    Encounter guidance: ${npc.encounterNote}`);
     }
 
@@ -26565,7 +26569,8 @@ Object.assign(LORE_NPCS, {
     appearance:'Wild, unkempt, eyes that have read too much and slept too little. He looks at people as though they are texts he has already finished. There is a cold around him now that was not there before First Contact — the residue of what he touched. He does not seem to notice it. He does not seem to notice most things that aren\'t questions.',
     personality:'Yoshiro is the maddest man in recorded history — and the most devout to research and understanding that has ever lived. Sanity was a price he paid to knowledge a long time ago and he considers it a fair trade. He went to bar lēlyā for power, like others before him. Unlike any of them, he SENSED that bar lēlyā was weak compared to something deeper, older, colder — and he spat in the night-force\'s face. It nearly killed him for the insult. In the final instant he called out, not to a god or a spirit, but to the oldest, deepest, coldest force in the universe: Nyokuro, the conscious darkness that birthed the Twin Monarchs themselves. She ANSWERED. She smothered the darkness in bar lēlyā until the night-force backed down before her, and Yoshiro struck a bargain with the primordial dark. This was First Contact — the first time since creation that a mortal reached Nyokuro directly. He does not regret it. He is too curious about what comes next to regret anything.',
     voice: 'Talks too fast, in tangents that turn out to be connected, citing sources nobody else has read. Excited by terrible things in the way a scholar is excited by a discovery — the danger is data to him. Treats his own near-death as an interesting result. Refers to Nyokuro with reverence and to bar lēlyā with open contempt. Asks more questions than he answers, and the questions are unsettling.',
-    deathNote: 'Unknown. After First Contact, Yoshiro does not so much live a life as conduct an ongoing experiment with the world as his laboratory. What Nyokuro is doing through the door he opened, and what it costs him, is still unfolding.',
+    deathNote: 'There is no clean death. By the Breaking Years (Year 1450+) Yoshiro is fully engulfed inside Nyokuro — she is in control of him, and what walks the world wearing his face is her hand, not his will. The curious madman who reached her is still in there somewhere, or was; it is no longer possible to tell where Yoshiro ends and Nyokuro begins. He got exactly the understanding he bargained for. He simply is not the one holding it anymore.',
+    nyokuroProgression: 'STIRRING (1305-1380): Yoshiro is himself, conducting experiments, bargaining with Nyokuro at arm\'s length. FIRST CONTACT YEARS (1400-1450): the bargain deepens; the cold around him thickens; he speaks of "we" more than "I". BREAKING YEARS (1450+): fully engulfed — Nyokuro controls him completely. He is her instrument in the waking world, the way she touches what is not hers.',
     isLore:true, special:true,
   },
 
@@ -26577,8 +26582,9 @@ Object.assign(LORE_NPCS, {
     stats:{ strength:100, agility:100, endurance:100, intelligence:100, perception:100, willpower:100, charisma:100, luck:100 },
     qiStageIndex:13, qiPath:null, noQi:true,
     appearance:'Not a form — an absence with attention behind it. Where she is present, light does not so much fail as decline to matter. The cold of her is not temperature; it is the cold of the space before anything was made. To perceive her directly is to understand, briefly and permanently, how small and recent everything you know is.',
-    personality:'Nyokuro is the conscious darkness that was always present — the origin from which the Twin Monarchs (Zuriroku and Hikarudo) were born. She predates the gods, the cosmos, Qi, and every named force in the world. In NzuriKami theology darkness is not evil; it is ORIGIN, and Nyokuro is its will. She is so far above bar lēlyā that the night-force backed down before her instantly when she answered Yoshiro\'s call — bar lēlyā is a thing Aruwium grasped at the edge of the dark; Nyokuro IS the dark, all of it, awake. She does not act often. When she does, the whole world feels the forces shift. What she wants, and why she answered a madman\'s call, is the single largest open question in the world\'s future.',
-    powerTier: 'beyond cosmic — the primordial origin. She birthed the creator-gods. Not measurable, not opposable. The deepest force in existence.',
+    personality:'Nyokuro is the conscious darkness that was always present — the origin from which the Twin Monarchs (Zuriroku and Hikarudo) were born. She predates the gods, the cosmos, Qi, and every named force in the world. In NzuriKami theology darkness is not evil; it is ORIGIN, and Nyokuro is its will. She is so far above bar lēlyā that the night-force backed down before her instantly — bar lēlyā is a thing Aruwium grasped at the EDGE of the dark; Nyokuro IS the dark, all of it, awake. CRUCIAL: she is NOT evil. She is selfish — concerned with herself and her own ends — and humanity is not her creation, so she cares for it about as much as a person cares for the weather of a country they will never visit. She does not hate the living; she simply spends them. After First Contact she works through Yoshiro, whom she fully engulfs by the Breaking Years, using him as her hand in a world that is not hers to walk directly. Her power RIVALS D\'yaqed — they are of the same order — but the two have never directly clashed, and gods of their scale do not enter one another\'s domains in person. What she ultimately wants remains the single largest open question in the world\'s future.',
+    vsDyaqed: 'Nyokuro and D\'yaqed are of the same cosmic order — she rivals him. But D\'yaqed would not face her directly even if he chose to respond; gods at this scale do not walk into a rival\'s working in person. At most, D\'yaqed sends a CHAMPION or shapes an AVATAR — a fragment of his flame given form and purpose — to act in the world against Nyokuro\'s influence. Any "intervention by D\'yaqed" the player encounters is one of these, never the One Who Burns himself.',
+    powerTier: 'beyond cosmic — the primordial origin, rival of D\'yaqed. She birthed the creator-gods. Not measurable, not opposable by mortals. Selfish, not evil; indifferent to a humanity that is not hers.',
     isLore:true, special:true,
   },
 
@@ -26726,13 +26732,46 @@ Object.assign(LORE_NPCS, {
 
 // Stirring ancients — shared timeline (dormant for ages, wake 1300-1380)
 (function assignStirringTimelines(){
-  const ids = ['abzunaga','raijuumon','goramoth','shirohana','kageoroshi','hyousetsuhime','sunawarau','meikyou','hone_no_oh','kotodama_no_mushi'];
-  const wakeYears = { abzunaga:1305, raijuumon:1318, goramoth:1330, shirohana:1342, kageoroshi:1350, hyousetsuhime:1358, sunawarau:1365, meikyou:1372, hone_no_oh:1378, kotodama_no_mushi:1380 };
-  ids.forEach(id => {
+  // Each ancient: a wake year (the Stirring, felt-but-not-seen) and a
+  // manifestation year (the Breaking Years, when it fully shows itself).
+  const data = {
+    abzunaga: { wake:1305, manifest:1455,
+      wakeEv:'THE STIRRING — Abzu-Naga stirs at the bottom of the deepest trench. Tides stop matching the moon. Coastal fishermen feel the deep change shape beneath them. Felt, not seen.',
+      manifestEv:'THE BREAKING YEARS — Abzu-Naga rises. The first coastal kingdom drowns not in a storm but in the simple displacement of the leviathan surfacing. The sea is no longer a border; it is a mouth.' },
+    raijuumon: { wake:1318, manifest:1460,
+      wakeEv:'THE STIRRING — Raijū-Mon descends from the highest air. Weather across a continent begins behaving with intent. Storms follow people. Felt, not seen.',
+      manifestEv:'THE BREAKING YEARS — Raijū-Mon comes fully into the lower sky. Cities are scoured from ridgelines. The storm now has eyes and chooses where to fall.' },
+    goramoth: { wake:1330, manifest:1470,
+      wakeEv:'THE STIRRING — Goramoth shifts for the first time in recorded history. Tremors cross kingdoms. Wells move. The ground feels, suddenly, like the back of something. Felt, not seen.',
+      manifestEv:'THE BREAKING YEARS — Goramoth rises partway out of the earth. A mountain range stands up. Whole provinces fall into the valleys it leaves. The continent is no longer reliably underfoot.' },
+    shirohana: { wake:1342, manifest:1475,
+      wakeEv:'THE STIRRING — Shirohana wakes in the old forests. Growth and rot accelerate; a woodland blooms and composts in a single season. Felt, not seen.',
+      manifestEv:'THE BREAKING YEARS — Shirohana walks among people. Farmland surges and dies in days; cities are swallowed by overgrowth and reduced to soil. She tends the world like a garden that includes the gardeners.' },
+    kageoroshi: { wake:1350, manifest:1480,
+      wakeEv:'THE STIRRING — Kage-Oroshi stirs in the gaps. Things go missing more often — dropped, then simply gone. Shadows hold an extra depth. Felt, not seen.',
+      manifestEv:'THE BREAKING YEARS — Kage-Oroshi feeds openly. Villages empty overnight; people fall out of the world mid-stride. The space behind you is no longer safe, anywhere, ever.' },
+    hyousetsuhime: { wake:1358, manifest:1485,
+      wakeEv:'THE STIRRING — Hyōsetsu-Hime stirs beneath the northern wastes. The cold reaches further south each winter and lingers later each spring. Felt, not seen.',
+      manifestEv:'THE BREAKING YEARS — Hyōsetsu-Hime walks south, glacier trailing. Provinces freeze into a new ice age in a single season. The north is simply lost to the living.' },
+    sunawarau: { wake:1365, manifest:1490,
+      wakeEv:'THE STIRRING — Suna-Warau stirs in the deep desert. The dunes laugh louder; oases vanish faster than drought explains. Felt, not seen.',
+      manifestEv:'THE BREAKING YEARS — Suna-Warau moves as a province-sized storm. Kingdoms at the desert\'s edge are buried in a week, sand-smoothed, as if they were never there.' },
+    meikyou: { wake:1372, manifest:1495,
+      wakeEv:'THE STIRRING — Meikyō steps further out of the glass. Reflections across the world grow unreliable; mirrors show one person too many. Felt, not seen.',
+      manifestEv:'THE BREAKING YEARS — Meikyō wears the world\'s reflections fully. People cannot trust their own faces or the faces of those they love. Whole courts collapse into paranoia as no one can be sure who is real.' },
+    hone_no_oh: { wake:1378, manifest:1500,
+      wakeEv:'THE STIRRING — Hone-no-Ō stirs in the dead places and turns, for the first time, toward the living. Old battlefields lose their bones overnight. Felt, not seen.',
+      manifestEv:'THE BREAKING YEARS — Hone-no-Ō walks among the living as a moving cathedral of bone, larger with every death it gathers. War feeds it directly; it grows fastest exactly where people die fighting it.' },
+    kotodama_no_mushi: { wake:1380, manifest:1505,
+      wakeEv:'THE STIRRING — Kotodama-no-Mushi wakes as a whole swarm. Archives blur at the edges; names slip mid-sentence; lineages forget their founders. Felt — and then forgotten that it was felt.',
+      manifestEv:'THE BREAKING YEARS — Kotodama-no-Mushi consumes openly. Entire technique lineages lose the words that made them teachable; histories erase as they are read. The most dangerous of the ten, because the world is losing the ability to even remember what it is fighting.' },
+  };
+  Object.entries(data).forEach(([id, d]) => {
     if(!LORE_NPCS[id]) return;
     LORE_NPCS[id].lifeTimeline = [
       { year:-50000, event:`Already ancient before the kingdoms, before Qi, before most things that have names. ${LORE_NPCS[id].name} slept in its domain through ages of the world.` },
-      { year: wakeYears[id], event:`THE STIRRING — ${LORE_NPCS[id].name} wakes. One of the ten great ancient Yokai roused from millennia of sleep as the forces of the world shift. Its waking is felt across kingdoms; the era of ancient things has begun.` },
+      { year:d.wake,     event:d.wakeEv },
+      { year:d.manifest, event:d.manifestEv },
     ];
   });
 })();
