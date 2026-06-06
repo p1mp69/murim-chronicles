@@ -6374,6 +6374,13 @@ function assignNPCReligion(location, alignment) {
   if(yr >= 30 && ['beggars_rest','tazar','ironhaven','silverwake'].includes(location)) {
     relWeights.push(['yumijiyū', 12]);
   }
+  // NzuriKami — the old creation faith; strongest in Buo/southern regions and trade cities
+  if(['red_sand_city','buo_capital','mistveil','stone_root','wild_bloom','hollow_crown'].includes(location)) {
+    relWeights.push(['nzurikami', 28]);
+  }
+  if(['shen_port','silverwake','jade_province','ooina'].includes(location)) {
+    relWeights.push(['nzurikami', 12]);
+  }
 
   if(!relWeights.length) return null;
   const totalW = relWeights.reduce((s,[,w]) => s+w, 0);
@@ -36415,6 +36422,113 @@ const WORLD_RELIGIONS = {
     yaqism_relation: 'Yumijiyū and Yaqism have a respectful, curious relationship. Yumijiyū was the first established religion to formally welcome Yaqist refugees when Hammurabi was hunting D\'la\'s followers. The theological comparison — inner light vs. D\'yaqed\'s flame — is treated by Yumijiyū as a family resemblance rather than a contradiction. Yaqists find Yumijiyū\'s emphasis on joy and food familiar. The major tension is that Yaqism\'s five laws are binding; Yumijiyū\'s four sins are a framework. One tells you what to do. The other tells you what to avoid.',
     founding_story: 'Yumiko was a kitsune cultivator serving the Rice God of the East — an angry and wealthy man who bought children for his fields and kept cultivators\' Qi suppressed through debt and contract. Ichiro Katsumi, passing through the eastern territories, saw this and gave Yumiko something that changed the calculation. She left. She was banished. She traveled. She practiced the bow because it brought her joy. She changed lives because she could not help it. She died peacefully and her resting place became the Ohaka. The religion that formed around her example is best understood not as worship of what she was but as an attempt to become something like it.',
     texts: ['The Path Scrolls — collected accounts of Yumiko\'s journey, written by witnesses', 'The Ohaka Records — practices and governance of Yumiko Ohaka', 'The Free Bow Forms — 108 bow techniques, each named for a lesson Yumiko taught', 'The Obon Liturgy — songs, prayers, and rites for the three-day festival'],
+  },
+
+  // ── 8. NZURIKAMI ────────────────────────────────────────────────
+  nzurikami: {
+    name: 'NzuriKami',
+    shortName: 'NzuriKami',
+    deity: 'The Fifteen (Munguwa & Kamiwa)',
+    pronunciation: 'nzoo-ree-KAH-mee',
+    core_belief: 'The cosmos was made by divine hands. Every living thing carries an embedded purpose from the moment it exists. The dead rest inside the heart of their creator, Zuriroku, in the Heartland at the core of the Earth. There is no hell — death is rest. The greatest sin is to deny another the chance to discover and live their purpose.',
+    origin: 'A polytheistic creation faith centered on fifteen divine beings who shaped the cosmos before Year One. All sacred history (the Five Eras) is Pre-Year One. The demigods, the Twenty-Six Holy Families, and King Alp occupy the threshold between the divine age and the dawn of human civilization at Year One.',
+    structure: 'NO central authority, NO universal doctrine, NO mandatory gathering place. Each believer forms a primary devotion to one (or a few) of the fifteen gods whose domain speaks to their life. Worship form, offerings, and ritual all follow from WHICH god is honored. What unites believers is shared cosmology, not shared practice.',
+    regions: ['red_sand_city','buo_capital','mistveil','stone_root','wild_bloom','shen_port','silverwake','hollow_crown'],
+    timeline: [
+      { year:-9999, event:'Era Nulla — The Birth. Zuriroku (Kamiwa of Sun) and Hikarudo (Munguwa of Moon), the Twin Monarchs, emerge from Nyokuro, the conscious darkness. Stars, sun, moon, Earth, and time itself are created. Nnekoji, first being born of divine wonder, invents time.' },
+      { year:-9000, event:'Era I — Fertile Lands. Dadaishi and Kodamaeji terraform the Earth — carving rivers, raising forests, filling oceans. The divine family grows.' },
+      { year:-8000, event:'Era II — Inhabitants. The full pantheon forms. Shinamori builds Mount Taharuma\'s interior and discovers Essence. The Kivuliths are created and given souls by Nikuhiro. The Sedimentary War. The Trine of the Grotesque (Amechiro, Tumijin, Madomizu) are born from catastrophe. Zawabin\'s envy festers.' },
+      { year:-7000, event:'Era III — Crumbling Farces. The mirror incident and the fall of the Kivuliths — genocide orchestrated by Zawabin and Mukasaji. Mukasaji rises from the hollow core of the Earth and begins his 210-year reign of terror. The gods go into hiding in Mount Shivakuro.' },
+      { year:-6800, event:'Era IV — The Years of the Forgotten. Mukasaji ruins the Earth: the sun turns red, the moon collapses, rivers dry. The First Divine War. Gizahito\'s act of loyalty. Zuriroku defeats Mukasaji and imprisons him in the glass orb.' },
+      { year:-6700, event:'Era V — The Burning Maw of Life. The trial of Zawabin (sentenced to 21 years of sun exposure). Nikuhiro\'s grief births the Sawan; Hikarudo slaughters ten million of them. Zuriroku removes her own heart, captures every soul within it, buries it in the Earth\'s core, and descends — creating the Heartland.' },
+      { year:-100, event:'The threshold age: demigods walk the Earth. The Twenty-Six Holy Families — the closest mortal equivalents to demigods — exist. King Alp, an ordinary man unable to bear his insignificance, bargains his soul to Hofutero and enslaves all Twenty-Six Holy Families.' },
+      { year:-50, event:'Tahara, still mortal, confronts and defeats King Alp. Zuriroku grants Tahara godhood — the only deity in the pantheon who was once fully human. The Holy Families are freed, but turn AWAY from the gods entirely, a collective rejection born of trauma. Jaa Unios steals the Rod of the Birth and is transformed into a cat by divine judgment. He still walks the earth.' },
+      { year:1, event:'Year One — the dawn of human civilization and the discovery of Qi. NzuriKami teaches that believers now live in the ongoing, unnamed age: not observers of sacred history but its current authors. The Erascript is still being written.' },
+    ],
+    pantheon: {
+      zuriroku:   'Kamiwa of Sun, Summer, Plains, Stars. Twin Monarch. Supreme figure — creator of stars/sun/Earth, sacrificed her own heart to house the dead.',
+      hikarudo:   'Munguwa of Moon, Winter, Mountains, Space. Twin Monarch. Built the five sacred mountains. Measured, protective, emotionally distant father.',
+      nnekoji:    'Kamiwa of Past, Present, Future. Invented time. Sees all futures. Most enigmatic of the pantheon.',
+      kodamaeji:  'Kamiwa of Nature, Water, Stone. Terraformed the Earth. Model of dignified grief and continued creation under pain.',
+      nikuhiro:   'Kamiwa of Flesh, Humans, Living Organisms. Gave the Kivuliths souls. Grief birthed the Sawan. Imprisoned inside Mount Taharuma.',
+      amechiro:   'Kamiwa of Beauty, Disfiguration, Inequality. Trine of the Grotesque. Beauty and the grotesque are inseparable.',
+      tumijin:    'Kamiwa of Death, Eternity, Rebirth. Trine of the Grotesque. Governs the passage of souls into the Heartland.',
+      madomizu:   'Kamiwa of Dreams, Nightmares, Sleep. Trine of the Grotesque. Governs the unconscious mind.',
+      dadaishi:   'Munguwa of Speed, Deserts, Winds. Mischievous; saved Jamakaze during Mukasaji\'s assault.',
+      shinamori:  'Munguwa of Forging, Inventing, Intelligence. Discovered Essence. Patron of makers and thinkers.',
+      mweziakari: 'Munguwa of Aura, Enlightenment, Peace. His suppressed anger birthed his opposite, Zawabin.',
+      zawabin:    'Munguwa of War, Conflict, Wisdom, Strategy. Orchestrated the Kivulith genocide; tried and convicted. Worshipped by some, condemned by others.',
+      jamakaze:   'Munguwa of Music, Harmony, Grace. Most beloved among common worshippers — god of pleasure and communal joy. Lost an arm to Mukasaji.',
+      jumaito:    'Munguwa of Tricks, Confusion, Hypnotism. Complicit in the Kivulith genocide. Morally complicated.',
+      tahara:     'Munguwa of Storms, Metal, Swords, Blood. Once mortal — bargained his soul to Hofutero, was defeated by Zuriroku, then granted godhood. The only formerly-human deity.',
+    },
+    practices: {
+      dawnkeeping: {
+        name: 'The Dawnkeeping (Zuriroku)',
+        desc: 'Each morning at sunrise the worshipper faces east, presses an open palm to their chest, and states aloud one intention for the day as an offering to the Star-Mother. Brief, personal, done anywhere.',
+        effect: 'Followers of Zuriroku develop unusual clarity of intention. Their Qi, when it forms, tends toward light and order.',
+      },
+      moonwatch: {
+        name: 'The Moonwatch (Hikarudo)',
+        desc: 'On the full moon, worshippers sit in sustained silence under the moon. The silence IS the ritual — speaking during Moonwatch is disrespectful. Some also perform the Stone Carry: carrying a heavy stone a long distance and placing it to remain, mirroring Hikarudo building the mountains.',
+        effect: 'Patience and endurance. Followers tend toward earth, stone, and stillness in their cultivation.',
+      },
+      excess_worship: {
+        name: 'Excess Worship & The Golden Cup (Jamakaze)',
+        desc: 'Pleasure offered freely and generously is the highest prayer — communal feasting, music, drink, performed with gratitude rather than indulgence. At any celebration, a follower pours the first portion of their drink onto the ground for Jamakaze.',
+        effect: 'Followers of Jamakaze are socially magnetic. Communal Qi gathers around them; gatherings they lead carry a warmth others can feel.',
+      },
+      the_ordeal: {
+        name: 'The Ordeal & War Prayer (Zawabin)',
+        desc: 'Physically demanding devotion: extended fasting, silent combat training, controlled self-mortification. The body is an instrument of will. The War Prayer — a structured declaration of intent, strategy, and willingness to bear consequences — precedes any significant conflict.',
+        effect: 'Followers of Zawabin gain combat focus and strategic insight. Their willpower hardens. (Controversial — the self-mortification has no governing limit.)',
+      },
+      the_naming: {
+        name: 'The Naming & Threshold Offering (Tumijin)',
+        desc: 'The names of the dead are spoken aloud at dusk to strengthen their rest in the Heartland. Objects of the deceased are placed at doorways, river edges, or buried shallowly as offerings to Tumijin.',
+        effect: 'Followers of Tumijin develop comfort with death and dying. Death-aspected cultivation comes more naturally.',
+      },
+      the_sleep_ritual: {
+        name: 'The Sleep Ritual (Madomizu)',
+        desc: 'Before sleep, a brief meditation in complete darkness asking Madomizu to govern the night\'s dreams. Dream journals are kept and presented at altars. Periodic fasting before sleep invites vivid dreams.',
+        effect: 'Followers of Madomizu have unusually vivid, sometimes prophetic dreams. Mental and perception cultivation deepen through sleep.',
+      },
+      the_watershed: {
+        name: 'The Watershed & Body Prayer (Kodamaeji / Nikuhiro)',
+        desc: 'Followers of Kodamaeji perform acts of environmental service — cleaning rivers, planting, tending land — as worship, not charity. Followers of Nikuhiro treat the body as sacred: intentional rest, healing, attentiveness to the body\'s signals.',
+        effect: 'Followers develop a bond with the natural world and bodily resilience. Nature and life-aspected Qi are accessible.',
+      },
+    },
+    doctrines: {
+      great_beyond: 'The universe emerged from Nyokuro — a conscious darkness always present, which birthed the Twin Monarchs. Darkness is not evil; it is origin. Evil arises from fear, envy, and the will to dominate.',
+      embedded_purpose: 'Every being carries a divine purpose from the moment of existence — a spiritual orientation, not a job. Purpose is never lost, only undiscovered or suppressed.',
+      heartland: 'When a person dies, their soul travels to the Heartland — the realm made when Zuriroku buried her own heart in the Earth\'s core. All souls rest there equally, inside her body. No hell. Death is rest. Zukaisen, son of Jamakaze, judges and guards the realm.',
+      fallible_divinity: 'The gods are not perfect. They grieve, err, imprison their own children. Perfection is not the standard — growth, accountability, and love are.',
+      ongoing_age: 'All five Eras are prologue. Believers live in the current unnamed age after Year One. Their choices carry cosmic weight. The Erascript is still being written and they are writing it.',
+    },
+    laws: {
+      purpose: 'Every being carries a divine purpose. To deny another the ability to discover and live it is the gravest sin.',
+      creation: 'What has been made deserves care — children, relationships, communities, the environment, the body. To destroy carelessly dishonors Zuriroku.',
+      accountability: 'Those who cause harm must face it. Harm cannot remain private. Accountability is communal. (From the trial of Zawabin.)',
+      grief: 'Grief is sacred and must be honored, not rushed — but it cannot become license for destruction. (From Nikuhiro\'s fall.)',
+      forgotten: 'Every person must be seen and remembered. Communal memory is a moral act. (From Mukasaji.)',
+      against_mass_destruction: 'No destruction of life at scale may occur without collective deliberation. (Zuriroku\'s decree after the Kivulith genocide.)',
+    },
+    afterlife: 'The Heartland — a warm, dim, living terrain that pulses like a heartbeat, inside Zuriroku\'s buried heart. Souls do not suffer, age, or remain conscious; they rest, held in her love. Prayers to the dead are directed DOWNWARD into the Earth. Zukaisen, Saint of the Heartland, returns souls who arrive before their time.',
+    sacred_sites: 'Mount Taharuma (the Pillar of Stars — supreme pilgrimage site, also Nikuhiro\'s prison). The five sacred mountains: Zorathar, Kimiraji, Shivakuro, Velmora, Taharuma. Natural water sources (Kodamaeji\'s gifts). The Heartland (not physically accessible).',
+    sacred_objects: 'The White Orb (primary symbol — stars, Mukasaji\'s prison, the Heartland-as-vessel). The Open Palm Sigil (greeting/blessing). The Rod of the Birth (Zuriroku\'s staff, stolen by Jaa Unios, location unknown). Personal Essence Stones (smooth stones carried as reminders of purpose).',
+    exemplars: {
+      adonis: 'Son of Tumijin, strongest demigod ever recorded. Defied death three times. Exemplar of will — absolute refusal to yield before one\'s purpose is fulfilled.',
+      zukaisen: 'Son of Jamakaze, Saint of the Heartland. Exemplar of sacred service — presence in the places others avoid, discernment in the face of the irreversible.',
+      alpaca: 'Daughter of Madomizu, elevated to minor godhood after saving her parent\'s collapsing realm. Exemplar of restoration — trusting one\'s instincts when there is no precedent.',
+    },
+    human_problem: 'Drawn from Mukasaji: every person carries embedded purpose yet most feel invisible, directionless, forgotten. Untreated, this wound turns outward as envy (Zawabin), destructive grief (Nikuhiro), or domination (Mukasaji, King Alp). The solution: discovery of purpose, a community of memory that refuses to let anyone disappear, and accountability without erasure.',
+    yaqism_relation: 'NzuriKami and Yaqism share the conviction that every being carries something divine inside it — Yaqism\'s flame of D\'yaqed, NzuriKami\'s embedded purpose. But NzuriKami is polytheistic and creation-centered where Yaqism is centered on a single One Who Burns. NzuriKami\'s decentralization (fifteen gods, no central authority) contrasts sharply with Yaqism\'s five binding laws. Where they meet, the conversation is genuinely curious — both faiths recognize a kinship in the idea of inner light, and disagree productively about whether that light has one source or many.',
+    yumijiyu_relation: 'NzuriKami and Yumijiyū are natural cousins — both teach that every person has an inner orientation (NzuriKami\'s embedded purpose, Yumijiyū\'s Light of the Path) and both prize personal devotion over enforced doctrine. Yumijiyū followers who encounter NzuriKami often feel at home in its decentralized structure. The main divergence: Yumijiyū venerates one god (Yumiko) while NzuriKami spreads devotion across fifteen.',
+    controversies: 'The veneration of Zawabin (a convicted genocide architect, worshipped by soldiers). Self-mortification in Zawabin worship (no governing limit). Nikuhiro\'s imprisonment (incarcerating the grief-stricken). The Holy Families\' rejection of the gods (institutional spiritual trauma). The lost Rod of the Birth (most dangerous object in the cosmos, unaccounted for). Environmental ethics (the Law of Creation puts followers in direct conflict with destructive industry).',
+    texts: ['The Erascript — the record of the Five Eras of cosmological history', 'The Law of the Living — the six moral laws', 'God-specific liturgies — each deity has its own body of ritual texts'],
+    founding_story: 'NzuriKami is not founded by a prophet but assembled from the Erascript — the recorded testimony of how fifteen divine beings shaped the cosmos, where they failed, what they sacrificed, and what grew from their choices. Zuriroku and Hikarudo emerged from the conscious darkness Nyokuro. Across five Eras the pantheon created the world, suffered catastrophe (the Kivulith genocide, Mukasaji\'s 210-year reign), and made terrible sacrifices (Zuriroku burying her own heart to shelter the dead). The faith teaches that believers, living after Year One, are now the authors of the ongoing age.',
+    motto: '"We shall prosper many." — Zuriroku',
   },
 
 };
