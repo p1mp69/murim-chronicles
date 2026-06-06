@@ -25926,6 +25926,122 @@ buildSystemPrompt = function() {
   return prompt;
 };
 
+// ================================================================
+// ── BAR LĒLYĀ — THE NIGHT-FORCE THAT ANSWERS ACKNOWLEDGMENT ──────
+// He cannot be worshipped or summoned by ritual. He is reached by
+// ATTENTION. Acknowledge him enough — speak his name, dwell on him,
+// reach toward what he is — and he begins to notice back. Bargain
+// with him for power, wealth, or skill, and he grants it. But the
+// price is never paid in coin. Something always leaves your life.
+// ================================================================
+
+function ensureBarLelya() {
+  const c = GS.char;
+  if(!c._barLelya) {
+    c._barLelya = {
+      acknowledged: 0,   // how many times the player has acknowledged him
+      appeared: false,   // has he manifested at least once?
+      bargains: 0,       // how many bargains struck
+      taken: [],         // what he has taken from the player's life
+    };
+  }
+  return c._barLelya;
+}
+
+// Scan a piece of text (player input OR narrative) for acknowledgment of bar lēlyā.
+function trackBarLelya(text) {
+  if(!text || typeof text !== 'string') return;
+  const b = ensureBarLelya();
+  // Match "bar lelya", "bar lēlyā", "barlelya", "the night-force", "one who reached past the flame"
+  const re = /bar\s*l[ēe]ly[āa]|the night[\s-]?force|night that d'?yaqed cannot touch|reach(ed|ing)? past the flame/gi;
+  const matches = (text.match(re) || []).length;
+  if(matches > 0) {
+    b.acknowledged += matches;
+  }
+}
+
+// Build the bar lēlyā context for the system prompt — scales with acknowledgment.
+function buildBarLelyaContext() {
+  const b = ensureBarLelya();
+  if(b.acknowledged <= 0 && !b.appeared) return '';
+
+  const lines = ['## BAR LĒLYĀ — THE NIGHT-FORCE'];
+  lines.push(`Bar lēlyā is the cold counter-current to D'yaqed — the thing the first Aruwium reached past his own dulling flame to grasp. He is not a god to be worshipped and not a spirit to be summoned by ritual. He is reached by ATTENTION. The more a person acknowledges him — speaks his name, dwells on him, reaches toward what he is — the more he notices back. He does not announce himself. He simply becomes present, and then more present.`);
+
+  if(b.acknowledged >= 1 && b.acknowledged < 4 && !b.appeared) {
+    lines.push(`CURRENT STATE — FAINT NOTICE (acknowledged ${b.acknowledged}x): The player has acknowledged bar lēlyā ${b.acknowledged} time(s). He is not here. But there is the faintest cold at the edges of cold places — a draft where there should be none, a held breath in a silent room, the sense of being noticed by something that is still very far away. Surface this only subtly, occasionally. Do NOT have him speak or appear yet.`);
+  } else if(b.acknowledged >= 4 && b.acknowledged < 8 && !b.appeared) {
+    lines.push(`CURRENT STATE — DRAWING NEAR (acknowledged ${b.acknowledged}x): He is close now. The cold has a shape. The player may catch, at the edge of vision in darkness, something tall with no eyes. Dreams turn cold. The night feels occupied. He has not yet spoken — but he is at the threshold. One more meaningful acknowledgment and he will be THERE.`);
+  } else if(b.acknowledged >= 8 || b.appeared) {
+    b.appeared = true;
+    lines.push(`CURRENT STATE — PRESENT (acknowledged ${b.acknowledged}x): Bar lēlyā IS HERE. He can appear in darkness, in the quiet hours, whenever the player is alone. He is tall, eyeless, his spine barely held together, towering. He speaks rarely and without warmth. HE OFFERS BARGAINS: power (Qi, strength, cultivation advancement), wealth (silver, resources), or skill (mastery the player has not earned). He grants what is asked — genuinely, fully. But the price is NEVER coin. Something LEAVES the player's life: a relationship (someone dies, leaves, or forgets them), a memory, a part of the body, a capacity, a person's love, years of life, the ability to feel a certain thing. The player chooses to bargain or refuse. If they bargain, YOU decide what leaves — and it should HURT, should be roughly proportional to what was gained, and should be permanent. Report it via "barLelyaBargain" in the JSON.`);
+  }
+
+  if(b.taken.length) {
+    lines.push(`ALREADY TAKEN by bar lēlyā: ${b.taken.join('; ')}. These are gone and do not return.`);
+  }
+
+  lines.push(`barLelyaBargain JSON format (only when a bargain is actually struck): { "gained": "what the player received (prose)", "lost": "what left their life (prose)", "statChanges": {...optional}, "silver": 0, "qiChange": 0, "skills": [...optional], "removeRelationship": "npcId or name of someone who leaves/dies", "appeared": true }`);
+
+  return lines.join('\n');
+}
+
+// Wire bar lēlyā context into the system prompt
+const _bspWithBarLelya = buildSystemPrompt;
+buildSystemPrompt = function() {
+  let prompt = _bspWithBarLelya();
+  try {
+    const ctx = buildBarLelyaContext();
+    if(ctx) prompt = prompt.replace('## ABSOLUTE RULES', ctx + '\n\n## ABSOLUTE RULES');
+  } catch(e) {}
+  return prompt;
+};
+
+// Apply a bar lēlyā bargain from the AI response
+function applyBarLelyaBargain(bargain) {
+  if(!bargain) return;
+  const c = GS.char;
+  const b = ensureBarLelya();
+  b.appeared = true;
+  b.bargains++;
+
+  // ── Gains ──
+  if(bargain.statChanges) {
+    Object.entries(bargain.statChanges).forEach(([k,v]) => {
+      if(!v) return;
+      if(k === 'hp') c.hp = clamp(c.hp + v, 0, c.maxHp);
+      else if(k === 'silver') addSilver(v);
+      else if(c[k] !== undefined) c[k] = Math.max(1, c[k] + v);
+    });
+  }
+  if(bargain.silver) addSilver(bargain.silver);
+  if(bargain.qiChange) { try { addQi(bargain.qiChange); } catch(e) {} }
+  if(bargain.skills?.length) {
+    bargain.skills.forEach(s => addSkill(s.key||s.label?.toLowerCase().replace(/\s+/g,'_'), s.label||s.key, s.category||'misc', s.desc||'', s.xp||20));
+  }
+
+  // ── The price: something leaves ──
+  if(bargain.removeRelationship) {
+    const rel = c.relationships.find(r => r.npcId === bargain.removeRelationship || r.name === bargain.removeRelationship);
+    if(rel) {
+      rel.alive = false;
+      rel.deathCause = rel.deathCause || 'Taken by bar lēlyā';
+      const npc = GS.world.npcRegistry[rel.npcId];
+      if(npc) npc.alive = false;
+      try { updateRelationsTab(); } catch(e) {}
+    }
+  }
+
+  // Record what was taken (for permanence + future prompt context)
+  if(bargain.lost) {
+    b.taken.push(`Year ${GS.world.year}: ${bargain.lost}`);
+    addChronicleEntry(`Bargained with bar lēlyā. Gained: ${bargain.gained||'power'}. Lost: ${bargain.lost}`, 'major');
+  }
+
+  toast('A bargain is struck. Something has left your life.', 'error', 5000);
+  updateCharacterTab();
+}
+
 // Patch era card to include Yaqism events
 const _withYaqismEraCard = buildEraCard;
 buildEraCard = function(yr) {
@@ -37172,6 +37288,29 @@ Gaining a real named contact (someone specific) is harder and rarer than simply 
   } catch(e) {}
   return prompt;
 };
+
+// ── BAR LĒLYĀ — final wrappers (must run after all other patches) ──
+// Track acknowledgment from the player's input and the AI's narrative,
+// and apply any bargain the AI reports. Wrapped last so it sits outermost.
+(function wireBarLelya() {
+  const _sendForBarLelya = sendToAI;
+  sendToAI = async function(overrideMsg) {
+    try {
+      const msg = overrideMsg || document.getElementById('action-input')?.value || '';
+      trackBarLelya(msg);
+    } catch(e) {}
+    return _sendForBarLelya.apply(this, arguments);
+  };
+
+  const _applyForBarLelya = applyAIResponse;
+  applyAIResponse = function(res) {
+    _applyForBarLelya.apply(this, arguments);
+    try {
+      if(res?.narrative) trackBarLelya(res.narrative);
+      if(res?.barLelyaBargain) applyBarLelyaBargain(res.barLelyaBargain);
+    } catch(e) { console.error('[barLelya]', e); }
+  };
+})();
 
 console.log('Murim Chronicles fully loaded.');
 
