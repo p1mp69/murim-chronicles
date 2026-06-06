@@ -7586,6 +7586,10 @@ function buildQuickActions(r) {
 }
 
 function sendQuickAction(npcId, actionType) {
+  if(typeof isNPCReachable === 'function' && !isNPCReachable(npcId)) {
+    toast('They are imprisoned — you cannot reach them.', 'error', 3000);
+    return;
+  }
   const rel  = GS.char.relationships.find(r => r.npcId === npcId);
   const npc  = GS.world.npcRegistry[npcId];
   const name = rel?.name || 'them';
@@ -7864,8 +7868,16 @@ function buildNPCCard(r) {
   const glowStyle = r.glowColor && !isZeret && !isReo
     ? `box-shadow:0 0 10px ${r.glowColor}` : '';
 
+  // Imprisonment: NPC is locked up and unreachable unless the player is at the same prison
+  const imprisoned = !!(r.imprisoned || npc?.imprisoned);
+  const prisonLoc  = r.prisonLocation || npc?.prisonLocation || null;
+  // Player can only reach an imprisoned NPC if the player is imprisoned at the same place
+  const playerPrison = GS.char.prisonStatus?.location || null;
+  const canReachImprisoned = imprisoned && playerPrison && prisonLoc && playerPrison === prisonLoc;
+
   // Relationship status labels
   const badges = [];
+  if(imprisoned) badges.push(`<span style="font-size:9px;color:#cc8844;padding:1px 5px;border-radius:8px;border:1px solid #886633;background:rgba(120,80,30,.15)">⛓ IMPRISONED</span>`);
   if(isMentor) badges.push(`<span style="font-size:9px;color:var(--gold);padding:1px 5px;border-radius:8px;border:1px solid var(--gold)">MENTOR</span>`);
   if(isHostile) badges.push(`<span style="font-size:9px;color:var(--red);padding:1px 5px;border-radius:8px;border:1px solid var(--red2)">HOSTILE</span>`);
   if(r.type === 'lover' || r.type === 'spouse') badges.push(`<span style="font-size:9px;color:#ff88bb;padding:1px 5px;border-radius:8px;border:1px solid #aa4466">♥</span>`);
@@ -7907,12 +7919,14 @@ function buildNPCCard(r) {
         return s;
       })()
     }</div>
-    ${buildQuickActions(r)}
+    ${(imprisoned && !canReachImprisoned)
+      ? `<div style="margin-top:8px;padding:8px 10px;background:rgba(120,80,30,.12);border:1px solid #886633;border-radius:6px;font-size:11px;color:#cca877;line-height:1.6">⛓ Imprisoned${prisonLoc ? ` at ${LOCATIONS[prisonLoc]?.name || prisonLoc}` : ''}. You cannot reach or speak to them while they are held — you would need to visit the prison, secure their release, or break them out.</div>`
+      : `${buildQuickActions(r)}
     ${buildNPCNetworkSection(r)}
     <div class="npc-card-footer">
       <input class="npc-msg-input" placeholder="Or say something directly..." id="msg-${r.npcId}">
       <button class="npc-msg-btn" onclick="sendNPCMessage('${r.npcId}')">→</button>
-    </div>`;
+    </div>`}`;
   return card;
 }
 
@@ -8020,7 +8034,22 @@ function introduceNPCsPrompt(npcId) {
   sendToAI(context);
 }
 
+// Is this NPC reachable for conversation right now? (not imprisoned, or player is at same prison)
+function isNPCReachable(npcId) {
+  const rel = GS.char.relationships.find(r=>r.npcId===npcId);
+  const npc = GS.world.npcRegistry[npcId];
+  const imprisoned = !!(rel?.imprisoned || npc?.imprisoned);
+  if(!imprisoned) return true;
+  const prisonLoc = rel?.prisonLocation || npc?.prisonLocation || null;
+  const playerPrison = GS.char.prisonStatus?.location || null;
+  return !!(playerPrison && prisonLoc && playerPrison === prisonLoc);
+}
+
 function sendNPCMessage(npcId) {
+  if(!isNPCReachable(npcId)) {
+    toast('They are imprisoned — you cannot reach them.', 'error', 3000);
+    return;
+  }
   const input = document.getElementById(`msg-${npcId}`);
   if(!input) return;
   const msg = input.value.trim();
@@ -8774,7 +8803,7 @@ PART 2 — DATA (immediately after the narrative, on its own line):
   "scars": ["string only"],
   "removeInjuries": ["exact string to remove"],
   "newRelationships": [{ "npcId": "", "name": "", "title": "", "type": "", "summary": "", "alive": true, "isLore": false, "glowColor": null }],
-  "updateRelationships": [{ "npcId": "", "type": "", "summary": "", "memoryAddition": "", "trust": 0, "alive": null }],
+  "updateRelationships": [{ "npcId": "", "type": "", "summary": "", "memoryAddition": "", "trust": 0, "alive": null, "imprisoned": null, "prisonLocation": null }],
   "reputation": [{ "location": "tazar", "renown": 0, "infamy": 0, "eventDesc": "" }],
   "decisions": ["narrative text"],
   "personalEvents": ["narrative text"],
@@ -8798,6 +8827,8 @@ PART 2 — DATA (immediately after the narrative, on its own line):
 CRITICAL: The narrative is NEVER inside the JSON. The JSON block has NO "narrative" field — the prose above is the narrative. Only include JSON fields that actually changed. Omit unchanged/zero/empty fields entirely.
 
 CREW SYSTEM — crewUpdate: Use when the player founds, develops, or loses elements of a crew/organization (criminal gang, merchant company, pirate fleet, mercenary band, research collective, clan, smuggling ring, cult — anything). Format: { "found":true, "name":"...", "type":"criminal|merchant|pirate|mercenary|gang|cult|espionage|guild|research|clan|raiders|smugglers", "description":"...", "tier":"nascent|small|established|powerful|feared|renowned", "silverDelta":0, "influence":0, "heat":0, "operation":"what they did", "upgrade":"what they gained", "addMembers":[{"name":"...","role":"..."}], "removeMembers":[{"name":"...","reason":"..."}] }
+
+IMPRISONMENT RULE: If an NPC the player knows is arrested, jailed, captured, or imprisoned, set "imprisoned": true (and "prisonLocation": "<location key>") on that NPC in updateRelationships. An imprisoned NPC CANNOT be casually spoken to — the player cannot just message or chat with someone behind bars. To interact, the player must physically go to the prison, secure their release, or break them out. When they are freed, set "imprisoned": false. Likewise, never narrate the player chatting with an imprisoned NPC as if they were free.
 
 TOME RULE: Tomes are PERMANENT — they NEVER disappear from inventory. Reading a tome does not consume it. A mortal with no Qi cultivation cannot learn any Qi technique from a tome regardless of what it says. If a character cannot yet learn a technique (wrong stage, wrong path, needs a master), narrate what they understand and what remains out of reach — do not grant the technique.
 
@@ -11195,7 +11226,7 @@ The JSON carries ONLY state changes. There is NO "narrative" field in the JSON �
   "scars": ["string only"],
   "removeInjuries": ["exact string to remove"],
   "newRelationships": [{ "npcId": "", "name": "", "title": "", "type": "", "summary": "1 sentence max", "alive": true, "isLore": false, "glowColor": null }],
-  "updateRelationships": [{ "npcId": "", "type": "", "summary": "", "memoryAddition": "full prose paragraph of what happened", "trust": 0, "alive": null }],
+  "updateRelationships": [{ "npcId": "", "type": "", "summary": "", "memoryAddition": "full prose paragraph of what happened", "trust": 0, "alive": null, "imprisoned": null, "prisonLocation": null }],
   "reputation": [{ "location": "tazar", "renown": 0, "infamy": 0, "eventDesc": "specific deed", "impact": 10, "renownTitle": null, "infamyTitle": null }],
   "decisions": ["prose — what the character chose and what it cost or meant"],
   "personalEvents": ["prose — what happened"],
@@ -24879,6 +24910,14 @@ updateCharacterTab = function() {
           if(u.memoryAddition) { updateRelationshipMemory(u.npcId, u.memoryAddition); recordNPCMemory(u.npcId, u.memoryAddition.slice(0,200)); }
           if(u.trust != null) rel.trust = (rel.trust||0)+u.trust;
           if(u.alive != null) { rel.alive = u.alive; const npc=GS.world.npcRegistry[u.npcId]; if(npc) npc.alive=u.alive; }
+          // Imprisonment — blocks contact until released/freed
+          if(u.imprisoned != null) {
+            rel.imprisoned = u.imprisoned;
+            const npc = GS.world.npcRegistry[u.npcId];
+            if(npc) npc.imprisoned = u.imprisoned;
+            if(u.imprisoned && u.prisonLocation) { rel.prisonLocation = u.prisonLocation; if(npc) npc.prisonLocation = u.prisonLocation; }
+            if(!u.imprisoned) { rel.prisonLocation = null; if(npc) npc.prisonLocation = null; }
+          }
         }
       });
       updateRelationsTab();
