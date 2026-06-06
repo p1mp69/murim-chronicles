@@ -37645,24 +37645,69 @@ Gaining a real named contact (someone specific) is harder and rarer than simply 
 };
 
 // ================================================================
-// ── MYTHIC & FABLE TRAITS ARE OUT OF THIS WORLD ──────────────────
-// Scale up the raw stat effects of the top two rarities so they feel
-// like the apex they are. Positive bonuses are amplified; intentional
-// negative tradeoffs (e.g. the Mad Demon's willpower cost) are kept.
-// born_from_sun is hand-tuned already and skipped.
+// ── MYTHIC & FABLE TRAITS — HAND-TUNED APEX VALUES ───────────────
+// Explicit final stats + reinforced gameplay for the top two rarities,
+// so each one feels like the world-bending thing it is. These are
+// FINAL values (no further multiplier). born_from_sun already hand-set.
 // ================================================================
-(function ampApexTraits() {
-  const MULT = { mythic: 2.2, fable: 2.5 };
-  Object.entries(TRAITS_CATALOG).forEach(([id, t]) => {
-    if(id === 'born_from_sun') return;          // already hand-tuned huge
-    const m = MULT[t.rarity];
-    if(!m || !t.effects) return;
-    Object.keys(t.effects).forEach(k => {
-      const v = t.effects[k];
-      if(typeof v !== 'number') return;
-      // Amplify positive bonuses; leave intentional negative tradeoffs alone
-      if(v > 0) t.effects[k] = Math.round(v * m);
-    });
+(function tuneApexTraits() {
+  const OVR = {
+    // ── FABLE — reality-bending ──
+    time_affinity: {
+      effects: { perception:18, intelligence:16, willpower:16, agility:14, luck:10 },
+      gameplayAdd: ' At full mastery you do not merely slow or read time — you can stop it in a radius for a held breath, step outside a moment to act within it, and perceive the next few seconds before they arrive. The Qi cost is brutal, but what it buys is a tier no ordinary cultivator can contest: against you, faster opponents are simply slow. Only beings who themselves stand outside time (Reo with G\'S\\shock, cosmic ancients) are immune.',
+    },
+    vessel_wrath: {
+      effects: { strength:32, endurance:28, willpower:30, agility:18, charisma:12, perception:12 },
+      gameplayAdd: ' As a Maligned Lord vessel your physical power is on the order of the Five themselves — you trade blows with the Stirring ancients and founder-tier cultivators. Wrath fuels you: the angrier and more endangered you are, the stronger you become, with no apparent ceiling in a true crisis. Pain barely registers; wounds that would drop a cultivator only sharpen you. Mortals, sects, and armies are not threats — they are kindling.',
+    },
+    vessel_gluttony: {
+      effects: { endurance:30, strength:24, willpower:20, intelligence:16, perception:14, luck:10 },
+      gameplayAdd: ' VACANT-DOMAIN VESSEL — no precedent binds you, so there is no ceiling forced from above. Everything you consume feeds you permanently: food, Qi, cultivation resources, defeated opponents\' essence, even techniques you witness. You grow stronger every time you take something in, without limit, forever. Given time, a Vessel of Gluttony out-scales every other Maligned Lord because the others stopped growing and you never do.',
+    },
+    the_unkillable_name: {
+      effects: { willpower:22, luck:20, charisma:16, endurance:16, perception:12 },
+      gameplayAdd: ' Your name will outlive your body — and the world\'s belief in that has become real. Killing blows land wrong. Fatal poisons resolve as illness. Drowning becomes a cough of water. You can be hurt, captured, broken — but death itself keeps failing to finish the sentence. Only a being that can erase the name (a cosmic ancient, Kotodama-no-Mushi, a god) can truly end you.',
+    },
+    the_gods_oversight: {
+      effects: { willpower:22, luck:22, endurance:18, charisma:14, perception:12 },
+      gameplayAdd: ' Something above forgot to write you down, and the world\'s machinery for ending people keeps skipping your line. Disasters route around you. Ambushes misfire. The blade meant for you finds the person beside you. You move through catastrophes that flatten everyone else and walk out asking what happened. This is not luck — it is an administrative error in fate, and it holds until something notices and corrects it.',
+    },
+    the_permanent_exception: {
+      effects: { luck:25, willpower:20, perception:16, agility:12 },
+      gameplayAdd: ' The rules that bind everyone else are, for you, suggestions. Cultivation bottlenecks that stop others for decades, you simply pass. Curses slide off. Bargains with dark powers cost you less than they should. Prophecies about you fail. You are the variable the world cannot solve for — and that unpredictability is itself a weapon nothing can plan around.',
+    },
+    // ── MYTHIC — far above legendary ──
+    tree_lust:     { effects: { charisma:18, perception:13, agility:9, luck:9 } },
+    tree_wrath:    { effects: { strength:22, endurance:15, willpower:9, agility:9 } },
+    tree_envy:     { effects: { intelligence:13, perception:17, luck:11, agility:7 } },
+    tree_sloth:    { effects: { endurance:24, willpower:15, strength:11 } },
+    tree_pride:    { effects: { charisma:22, willpower:18, perception:9 } },
+    tree_greed:    { effects: { luck:18, intelligence:11, willpower:9, perception:7 } },
+    tree_gluttony: { effects: { endurance:19, strength:15, intelligence:11, willpower:9 } },
+    borrowed_time: { effects: { luck:18, perception:9, agility:9, willpower:7 } },
+    the_threshold_crossed: {
+      effects: { willpower:20, endurance:14, perception:14, strength:9 },
+      gameplayAdd: ' You crossed a line cultivators are warned never to cross and came back changed rather than dead. Your Qi runs deeper and colder than your stage should allow; breakthroughs that kill others, you simply survive. You are harder to read, harder to kill, and you understand something about the threshold between states that gives you an edge in any fight that pushes a body past its limit.',
+    },
+    witnessed_by_heaven: {
+      effects: { willpower:22, perception:14, luck:13, charisma:8 },
+      gameplayAdd: ' Something vast saw what you did and has not looked away since. Your cultivation carries an authority others can feel; your declarations land heavier; your presence in a tribulation or a crisis bends the moment toward you. Heaven\'s attention is double-edged — it steadies you and it marks you — but while it holds, you operate with a weight far beyond your stage.',
+    },
+    regressor: {
+      effects: { willpower:14, perception:11, luck:9, intelligence:7 },
+      // gameplay (3 lives) already defined; just strengthen stats
+    },
+  };
+  Object.entries(OVR).forEach(([id, o]) => {
+    const t = TRAITS_CATALOG[id];
+    if(!t) return;
+    if(o.effects) t.effects = o.effects;
+    if(o.gameplayAdd && t.gameplay && !t.gameplay.includes(o.gameplayAdd.trim().slice(0,20))) {
+      t.gameplay = t.gameplay + o.gameplayAdd;
+    } else if(o.gameplayAdd && !t.gameplay) {
+      t.gameplay = o.gameplayAdd.trim();
+    }
   });
 })();
 
