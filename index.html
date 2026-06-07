@@ -26250,28 +26250,35 @@ function trackBarLelya(text) {
   }
 }
 
-// Build the bar lēlyā context for the system prompt — scales with acknowledgment.
+// Build the bar lēlyā context for the system prompt.
+// He is no longer summoned by an acknowledgment COUNT. He answers a deliberate
+// CALL — but ONLY in a dark place with no other people present. Under those exact
+// conditions he appears EVERY time, without fail. Anywhere else, nothing happens.
 function buildBarLelyaContext() {
   const b = ensureBarLelya();
+  // Only inject the section once the player has ever called to / learned of him.
   if(b.acknowledged <= 0 && !b.appeared) return '';
 
-  const lines = ['## BAR LĒLYĀ — THE NIGHT-FORCE'];
-  lines.push(`Bar lēlyā is the cold counter-current to D'yaqed — the thing the first Aruwium reached past his own dulling flame to grasp. He is not a god to be worshipped and not a spirit to be summoned by ritual. He is reached by ATTENTION. The more a person acknowledges him — speaks his name, dwells on him, reaches toward what he is — the more he notices back. He does not announce himself. He simply becomes present, and then more present. (Note: powerful as he is, bar lēlyā is only a fragment of the dark — he is WEAK compared to Nyokuro, the conscious darkness that birthed the gods. In Year 1400 the madman Yoshiro reached past bar lēlyā to Nyokuro herself, and the night-force backed down before her instantly. A character who understands this can unsettle bar lēlyā by invoking what is deeper than him.)`);
+  const lines = ['## BAR LĒLYĀ — THE NIGHT-FORCE THAT ANSWERS THE DARK'];
+  lines.push(`Bar lēlyā is the cold counter-current to D'yaqed — the fragment of the deep dark the first Aruwium reached past his own dulling flame to grasp. He is NOT a god to be worshipped and NOT summoned by ritual.`);
 
-  if(b.acknowledged >= 1 && b.acknowledged < 4 && !b.appeared) {
-    lines.push(`CURRENT STATE — FAINT NOTICE (acknowledged ${b.acknowledged}x): The player has acknowledged bar lēlyā ${b.acknowledged} time(s). He is not here. But there is the faintest cold at the edges of cold places — a draft where there should be none, a held breath in a silent room, the sense of being noticed by something that is still very far away. Surface this only subtly, occasionally. Do NOT have him speak or appear yet.`);
-  } else if(b.acknowledged >= 4 && b.acknowledged < 8 && !b.appeared) {
-    lines.push(`CURRENT STATE — DRAWING NEAR (acknowledged ${b.acknowledged}x): He is close now. The cold has a shape. The player may catch, at the edge of vision in darkness, something tall with no eyes. Dreams turn cold. The night feels occupied. He has not yet spoken — but he is at the threshold. One more meaningful acknowledgment and he will be THERE.`);
-  } else if(b.acknowledged >= 8 || b.appeared) {
-    b.appeared = true;
-    lines.push(`CURRENT STATE — PRESENT (acknowledged ${b.acknowledged}x): Bar lēlyā IS HERE. He can appear in darkness, in the quiet hours, whenever the player is alone. He is tall, eyeless, his spine barely held together, towering. He speaks rarely and without warmth. HE OFFERS BARGAINS: power (Qi, strength, cultivation advancement), wealth (silver, resources), or skill (mastery the player has not earned). He grants what is asked — genuinely, fully. But the price is NEVER coin. Something LEAVES the player's life: a relationship (someone dies, leaves, or forgets them), a memory, a part of the body, a capacity, a person's love, years of life, the ability to feel a certain thing. The player chooses to bargain or refuse. If they bargain, YOU decide what leaves — and it should HURT, should be roughly proportional to what was gained, and should be permanent. Report it via "barLelyaBargain" in the JSON.`);
-  }
+  lines.push(`THE ONLY WAY HE APPEARS — STRICT, NON-NEGOTIABLE CONDITIONS (ALL must be true):
+  (1) The player is in a DARK place — true darkness or near-darkness: night with no lamp, an unlit room, a cave, a sealed tomb, a moonless wood. Daylight, firelight, lamplight, or any lit space = he does NOT come.
+  (2) The player is ALONE — not a single other person, ally, or conscious creature present. If anyone else is there (a companion, a sleeping servant in the same room, a captured enemy), he does NOT come.
+  (3) The player deliberately CALLS to him — speaks his name, reaches for him, asks him to come.
+  When and ONLY when all three are true, bar lēlyā appears — EVERY SINGLE TIME, without fail, no roll, no chance of nothing. If any condition is missing, he does NOT appear and you give NO sign of him — no cold, no whisper, nothing. Do not tease him in lit or crowded scenes.`);
+
+  lines.push(`WHEN HE APPEARS — HE IS TERRIFYING. This is not a polite spirit. Make the player's heart drop. He is impossibly tall, unfolding upward into the dark further than the ceiling should allow, a body of wrong angles and a spine that looks barely held together, joints that bend a hair too far. He has NO eyes — only the smooth cold places where eyes should be, and yet the player KNOWS they are being looked at, looked INTO. The temperature crashes; breath fogs; the player's own pulse becomes audible to them. He does not move so much as he is suddenly nearer. When he speaks it is quiet, intimate, and without any warmth — he already knows what the player wants and what the player is most afraid to lose. Dread should radiate off the page. The player should feel, viscerally, that they have made a mistake by calling, even if they go through with it.`);
+
+  lines.push(`THE BARGAIN — POWER CEILING AND PRICE: Bar lēlyā can grant ANYTHING up to and including LEGENDARY tier — great power, great wealth, mastery the player never earned, a rare technique, a legendary weapon, a leap in cultivation. He CANNOT grant mythic or fable tier — that is beyond him (he is only a fragment of the dark; Nyokuro is the whole of it). If the player asks for something beyond legendary, he tells them, coldly, that what they ask is not his to give — only the deep dark itself (Nyokuro) holds that, and reaching her is another matter entirely. The price is NEVER coin. Something LEAVES the player's life forever: a relationship (someone dies, leaves, or forgets the player entirely), a memory, a part of the body, a sense, a capacity, the ability to feel a certain emotion, years of life. THE PRICE SCALES WITH WHAT IS GAINED: a small favor costs something painful; a LEGENDARY-tier gift costs something DEVASTATING — a beloved person, the player's own sight, a decade of life, the capacity to ever love again. It must HURT, be permanent, and feel proportionate. The player chooses to bargain or refuse. If they bargain, YOU decide what leaves and report it via "barLelyaBargain" in the JSON. If the price is a permanent bodily/sensory loss (sight, a limb), ALSO emit it as a "conditions" entry so it persists as a status effect.`);
+
+  lines.push(`(Bar lēlyā is WEAK compared to Nyokuro, the conscious darkness that birthed the gods. In Year 1400 Yoshiro reached past him to Nyokuro herself and the night-force backed down instantly. A player who invokes what is deeper than him can unsettle him.)`);
 
   if(b.taken.length) {
     lines.push(`ALREADY TAKEN by bar lēlyā: ${b.taken.join('; ')}. These are gone and do not return.`);
   }
 
-  lines.push(`barLelyaBargain JSON format (only when a bargain is actually struck): { "gained": "what the player received (prose)", "lost": "what left their life (prose)", "statChanges": {...optional}, "silver": 0, "qiChange": 0, "skills": [...optional], "removeRelationship": "npcId or name of someone who leaves/dies", "appeared": true }`);
+  lines.push(`barLelyaBargain JSON format (only when a bargain is actually struck): { "gained": "what the player received (prose)", "lost": "what left their life (prose)", "statChanges": {...optional}, "silver": 0, "qiChange": 0, "skills": [...optional], "removeRelationship": "npcId or name of someone who leaves/dies", "conditions": [...if a bodily/sensory loss], "appeared": true }`);
 
   return lines.join('\n');
 }
@@ -26322,6 +26329,11 @@ function applyBarLelyaBargain(bargain) {
     }
   }
 
+  // Permanent bodily/sensory price → persistent condition (e.g. blindness)
+  if(bargain.conditions?.length && typeof addCondition === 'function') {
+    bargain.conditions.forEach(cnd => addCondition(cnd));
+  }
+
   // Record what was taken (for permanence + future prompt context)
   if(bargain.lost) {
     b.taken.push(`Year ${GS.world.year}: ${bargain.lost}`);
@@ -26331,6 +26343,95 @@ function applyBarLelyaBargain(bargain) {
   toast('A bargain is struck. Something has left your life.', 'error', 5000);
   updateCharacterTab();
 }
+
+// ── NYOKURO — THE CONSCIOUS DARKNESS, OLDER THAN THE GODS ──────────
+// Far harder to reach than bar lēlyā. She can grant what he cannot (beyond
+// legendary), but RECEIVING her power can kill a weak-willed mortal outright —
+// the channel her gift opens is too much for a small will to hold. High
+// willpower is required to survive. Yoshiro survived; he was also engulfed.
+function ensureNyokuro() {
+  const c = GS.char;
+  if(!c._nyokuro) c._nyokuro = { reached:false, bargains:0, gifts:[] };
+  return c._nyokuro;
+}
+
+function buildNyokuroContext() {
+  const n = ensureNyokuro();
+  const b = ensureBarLelya();
+  // Only inject once the player has at least encountered bar lēlyā / the deep dark.
+  if(!b.appeared && b.acknowledged <= 0 && !n.reached) return '';
+
+  const wil = GS.char.willpower || 10;
+  const lines = ['## NYOKURO — THE CONSCIOUS DARKNESS (OLDER THAN THE GODS)'];
+  lines.push(`Nyokuro is the conscious darkness that was always present — the origin from which the Twin Monarchs were born. She predates the gods, Qi, and the cosmos. Bar lēlyā is a fragment Aruwium grasped at the EDGE of the dark; Nyokuro IS the dark, all of it, awake. She is not evil — she is SELFISH, and humanity is not her creation, so she spends it like weather.`);
+  lines.push(`REACHING HER IS FAR HARDER THAN BAR LĒLYĀ. She does not answer a call in the dark. To reach her the player must be in the DEEP dark and alone (as with bar lēlyā), AND deliberately reach PAST bar lēlyā toward what is older and colder beneath him — usually only possible for someone who already understands the cosmology and has the will to spit in the night-force's face, as Yoshiro did. Even then she rarely answers; she answers when something about the reaching interests her. Do NOT let her be summoned casually or often. Most attempts get only bar lēlyā, or nothing, or the deep cold turning its attention and then ignoring the player.`);
+  lines.push(`WHAT SHE GRANTS: She can give what bar lēlyā cannot — power beyond legendary, into MYTHIC and toward fable, things that rewrite what a person is. But her gift is not handed over; it is POURED INTO the recipient, and a mortal vessel can shatter under it.`);
+  lines.push(`THE WILLPOWER GATE — LIFE OR DEATH: Receiving Nyokuro's gift forces the recipient to hold a channel to the primordial dark. A weak will is burned out by it — the mortal simply dies, or is hollowed and engulfed (as Yoshiro was, becoming her hand). The player's current WILLPOWER is ${wil}. As a guide: willpower 40+ survives intact; 25–39 survives but is marked/changed (a permanent condition, lost years, or the dark now has a foothold in them); below 25 they DIE or are engulfed unless something extraordinary intervenes. NEVER let a low-willpower player receive a Nyokuro gift and walk away clean. If they die, set "death": true with an appropriate deathCause. If they survive but are marked, emit a "conditions" entry. Report the outcome via "nyokuroBargain" in the JSON.`);
+  if(n.gifts.length) lines.push(`ALREADY GRANTED by Nyokuro: ${n.gifts.join('; ')}.`);
+  lines.push(`nyokuroBargain JSON format (only when she actually grants something): { "gained": "what was poured in (prose)", "survived": true|false, "willpowerTest": <number she demanded>, "statChanges": {...}, "qiChange": 0, "skills": [...], "conditions": [...if marked], "engulfed": false, "appeared": true }`);
+  return lines.join('\n');
+}
+
+function applyNyokuroBargain(bargain) {
+  if(!bargain) return;
+  const c = GS.char;
+  const n = ensureNyokuro();
+  n.reached = true;
+  n.bargains++;
+
+  const wil = c.willpower || 10;
+  const demand = bargain.willpowerTest || 40;
+  // The engine enforces the willpower gate even if the AI is lenient.
+  const survives = bargain.survived !== undefined ? bargain.survived : (wil >= 25);
+
+  if(!survives || bargain.engulfed || wil < 25) {
+    // The channel burns out a will too small to hold it.
+    addChronicleEntry(`Reached Nyokuro and could not hold what she poured in. Willpower ${wil} against a demand of ${demand}.`, 'major');
+    c.hp = 0;
+    handleDeath(bargain.engulfed ? 'Engulfed by Nyokuro — the will consumed, the body left as her hand.' : 'Burned out by Nyokuro — a mortal will too small to hold the primordial dark.');
+    return;
+  }
+
+  // Survived — apply the gift
+  if(bargain.statChanges) {
+    Object.entries(bargain.statChanges).forEach(([k,v]) => {
+      if(!v) return;
+      if(k === 'hp') c.hp = clamp(c.hp + v, 0, c.maxHp);
+      else if(k === 'silver') addSilver(v);
+      else if(c[k] !== undefined) c[k] = Math.max(1, c[k] + v);
+    });
+  }
+  if(bargain.qiChange) { try { addQi(bargain.qiChange); } catch(e) {} }
+  if(bargain.skills?.length) {
+    bargain.skills.forEach(s => addSkill(s.key||s.label?.toLowerCase().replace(/\s+/g,'_'), s.label||s.key, s.category||'misc', s.desc||'', s.xp||30));
+  }
+  // Survived-but-marked: permanent condition
+  if(bargain.conditions?.length && typeof addCondition === 'function') {
+    bargain.conditions.forEach(cnd => addCondition(cnd));
+  }
+  if(bargain.gained) n.gifts.push(`Year ${GS.world.year}: ${bargain.gained}`);
+  addChronicleEntry(`Held what Nyokuro poured in and survived. Gained: ${bargain.gained||'power beyond legend'}.`, 'major');
+  toast('You held the primordial dark — and lived.', 'gold', 6000);
+  updateCharacterTab();
+}
+
+// Wire Nyokuro context into the system prompt
+const _bspWithNyokuro = buildSystemPrompt;
+buildSystemPrompt = function() {
+  let prompt = _bspWithNyokuro();
+  try {
+    const ctx = buildNyokuroContext();
+    if(ctx) prompt = prompt.replace('## ABSOLUTE RULES', ctx + '\n\n## ABSOLUTE RULES');
+  } catch(e) {}
+  return prompt;
+};
+
+// Apply Nyokuro bargains from AI responses
+const _withNyokuroApply = applyAIResponse;
+applyAIResponse = function(res) {
+  _withNyokuroApply(res);
+  try { if(res?.nyokuroBargain) applyNyokuroBargain(res.nyokuroBargain); } catch(e) {}
+};
 
 // Patch era card to include Yaqism events
 const _withYaqismEraCard = buildEraCard;
