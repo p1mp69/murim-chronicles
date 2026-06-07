@@ -5141,6 +5141,9 @@ function advanceTime(days=0, months=0, years=0) {
     if(yearsCrossed > 0) tickNPCMortality(n, yearsCrossed);
   });
 
+  // Offspring age + abandoned children may come looking
+  if(yearsCrossed > 0) { try { tickOffspring(yearsCrossed); } catch(e) {} }
+
   // Dynamic NPC network drift (once per year)
   if(w.year !== prevYear) tickNPCNetworkDrift(prevYear);
 
@@ -6864,6 +6867,52 @@ function tickNPCMortality(npc, years) {
   }
 }
 
+// ── OFFSPRING AGING + RETURN OF THE ABANDONED ─────────────────────
+// Children age. A child the player abandoned (or never raised) grows up, and if
+// the player is well-known, there is a real chance they come looking — for
+// answers, for help, for revenge, or for a place in the legacy.
+function tickOffspring(years) {
+  const c = GS.char;
+  if(!Array.isArray(c.offspring) || !c.offspring.length) return;
+  const renown = Math.max(0, ...Object.values(c.reputation||{}).map(r => r.renown||0), 0);
+  const infamy = Math.max(0, ...Object.values(c.reputation||{}).map(r => r.infamy||0), 0);
+  const fame = Math.max(renown, infamy, (c.bounty||0) > 500 ? 60 : 0);
+
+  c.offspring.forEach(child => {
+    if(child.birthYear != null) child.age = Math.max(child.age||0, GS.world.year - child.birthYear);
+    if(!child.alive || child.soughtPlayer) return;
+    // Only grown (or near-grown) abandoned/estranged children seek the player out.
+    const grown = (child.age||0) >= 13;
+    const estranged = child.abandoned || child.knowsPlayer === false;
+    if(!grown || !estranged) return;
+    // Chance scales with the player's fame. Unknown player → they can't find you.
+    const perYear = fame >= 80 ? 0.5 : fame >= 50 ? 0.3 : fame >= 25 ? 0.12 : fame >= 10 ? 0.04 : 0;
+    let triggered = false;
+    for(let i=0;i<years;i++){ if(Math.random() < perYear){ triggered = true; break; } }
+    if(triggered) {
+      child.soughtPlayer = true;
+      child.seekYear = GS.world.year;
+      c._pendingOffspringReturn = c._pendingOffspringReturn || [];
+      c._pendingOffspringReturn.push({
+        name: child.name, gender: child.gender, age: child.age,
+        otherParent: child.otherParent, abandonedYear: child.abandonedYear,
+        conceivedPlayerAge: child.conceivedPlayerAge,
+      });
+      try { addPersonalEvent(`A young ${child.gender==='female'?'woman':'man'} named ${child.name} — the child you ${child.abandoned?'abandoned':'left behind'} years ago — is asking after you. They have heard your name.`); } catch(e) {}
+      try { toast(`${child.name} is looking for you.`, 'gold', 6000); } catch(e) {}
+    }
+  });
+}
+
+// Inject a returning-child event into the next AI turn.
+function buildOffspringReturnInjection() {
+  const c = GS.char;
+  if(!c._pendingOffspringReturn?.length) return '';
+  const r = c._pendingOffspringReturn.shift();
+  if(!c._pendingOffspringReturn.length) delete c._pendingOffspringReturn;
+  return `[OFFSPRING SEEKS YOU OUT: ${r.name}, the child the player ${r.abandonedYear?'abandoned':'left behind'} (other parent: ${r.otherParent||'unknown'}), is now about ${r.age} years old and has tracked the player down because the player has become well-known. They arrive in the narrative this turn. Their feelings are complicated — some mix of longing, resentment, curiosity, need, or anger (you decide based on how they were left). This is a real, weighty reunion. Register them as a relationship via newRelationships if the player engages, with their true identity as the player's child.]`;
+}
+
 // Handles: connections weakening from inactivity, falling outs, death-severing,
 // location drift, and organic new casual contacts.
 function tickNPCNetworkDrift(prevYear) {
@@ -7425,7 +7474,17 @@ function updateCharacterTab() {
   const offEl = document.getElementById('offspring-block');
   if(offEl) {
     offEl.innerHTML = offspring.length
-      ? offspring.map(o => `<span class="condition-tag" style="background:rgba(60,60,100,.25);color:var(--blue);border:1px solid var(--blue)">${o.name} (age ${o.age})</span>`).join('')
+      ? offspring.map(o => {
+          const dead = o.alive === false;
+          const tags = [];
+          if(o.otherParent) tags.push(`w/ ${o.otherParent}`);
+          if(o.abandoned) tags.push('abandoned');
+          if(o.soughtPlayer) tags.push('found you');
+          const sub = tags.length ? ` · ${tags.join(' · ')}` : '';
+          const col = o.abandoned ? '#aa7755' : 'var(--blue)';
+          const title = (o.otherParent?`Other parent: ${o.otherParent}. `:'') + (o.abandoned?`Abandoned in Year ${o.abandonedYear}.`:'');
+          return `<span class="condition-tag" style="background:rgba(60,60,100,.25);color:${col};border:1px solid ${col}${dead?';opacity:.5;text-decoration:line-through':''}" title="${title.replace(/"/g,'&quot;')}">${o.name} (age ${o.age}${o.gender?', '+(o.gender==='female'?'♀':'♂'):''})${sub}</span>`;
+        }).join('')
       : '';
   }
 
@@ -9212,6 +9271,13 @@ CONDITIONS RULE: Permanent harm produces a "conditions" entry, NOT just a scar. 
 BROKEN CHANNELS RULE: Attempting a cultivation breakthrough on a Qi DEFICIT (negative Qi) shatters the meridian channels. A character with shattered channels CANNOT cultivate, cannot gather or hold Qi, and any attempt to force Qi through the ruined channels risks DEATH — narrate it that way. This is permanent and tracked as the "broken_channels" condition. It can ONLY be healed two ways: (1) a genuinely HIGH-LEVEL expert (a master healer of advanced cultivation, a sect's grand physician, or similar) painstakingly mends the channels, or (2) the player consumes the HIESTLER — a rare medicinal plant that grows in only one specific place in the world (a remote, hard-to-reach locale you may establish/keep consistent). Nothing else works — common pills, rest, or ordinary doctors will NOT fix it. When the player is genuinely healed by one of these means, emit "removeConditions":["broken_channels"]. Until then, treat them as a cripple who has lost the path. Never let them quietly cultivate again.
 
 AGING RULE: The player ages forward with the calendar only — NEVER younger. Ordinary time passing already ages them automatically; do NOT send ageChange for normal time. Use ageChange ONLY for unnatural shifts (a time/cultivation art, a youth elixir, a curse of aging) and ALWAYS pair it with "ageViaTechnique": true. Negative ageChange (getting younger) is only ever valid with ageViaTechnique:true.
+
+ROMANCE & OFFSPRING RULE:
+- Romance develops gradually and believably through the stage system; do not skip from strangers to lovers. NPCs have their own feelings, standards, and lives — they can decline, drift, or leave.
+- CHILDREN: A child requires a partner and plausible circumstances and time (a pregnancy is ~9 months). Fertility favors the young — it is natural for a character in their late teens through forties; it becomes unlikely and then implausible with age (and cultivation can extend this somewhat, but acknowledge it). When a child is conceived/born, report it via the "offspring" array including the other parent's name (otherParent), and abandoned:true if the player walked away.
+- ABANDONING: The player CAN abandon a child or never raise one. Mark abandoned:true. Abandoned children grow up elsewhere with their own feelings about it.
+- THE CHILD RETURNS: An abandoned or estranged child, once grown, may track the player down IF the player has become well-known (renown, infamy, or notoriety). The game will tell you when this happens via an [OFFSPRING SEEKS YOU OUT] note — when it does, play the reunion with real emotional weight (longing, resentment, need, or revenge). An unknown, obscure player is not found.
+- AGING IN RELATIONSHIPS: Lovers, spouses, and children age with the calendar like everyone else. A spouse grows older alongside the player; children grow up. Reflect this.
 
 SKILL REALISM RULE: Skills take real time and practice to acquire. A short period of study or training grants only a FEW skills, at LOW level — never "all" skills of a category. If the player declares something like "I read for 30 days and learn all the physical skills," that is not how it works: 30 days of reading might give them 1–3 relevant skills at a beginner level (a little theory, a touch of practice), NOT the entire physical skill set, and not high levels. Do NOT dump a long list of skills in the "skills" array to satisfy an unrealistic claim. Grant at most 1–3 skills per turn, with modest xp (xp roughly: a few days = 3–10, a season = 15–40, a year of focused study = 50–120). Mastery of many skills is the work of years. Never list skills the player did not actually plausibly gain this turn.
 
@@ -11261,18 +11327,27 @@ function spawnIngredient(ingKey) {
 // OFFSPRING / LEGACY CONTINUATION SYSTEM
 // ================================================================
 
-function createOffspring(name, gender, imbueHalfPower=false) {
+function createOffspring(name, gender, imbueHalfPower=false, opts={}) {
   const c = GS.char;
   const child = {
     id: uid(),
     name: name || `${c.firstName}'s Child`,
     gender: gender || 'male',
-    age: 0,
-    birthYear: GS.world.year,
+    age: opts.age != null ? opts.age : 0,
+    birthYear: opts.birthYear != null ? opts.birthYear : GS.world.year,
     alive: true,
     traits: [],
     inheritedTraits: [],
     parentName: `${c.firstName} ${c.lastName}`,
+    // ── Parentage + status ──
+    otherParent: opts.otherParent || null,        // name of the co-parent
+    otherParentId: opts.otherParentId || null,    // npcId if a known NPC
+    conceivedPlayerAge: c.age,                      // how old the player was
+    abandoned: !!opts.abandoned,                    // did the player abandon them?
+    abandonedYear: opts.abandoned ? GS.world.year : null,
+    knowsPlayer: !opts.abandoned,                   // do they know their parent?
+    locationRaised: opts.locationRaised || GS.world.location,
+    soughtPlayer: false,                            // have they come looking yet?
   };
   // Inherit traits (some randomly)
   c.traits.forEach(t => {
@@ -11762,7 +11837,7 @@ The JSON carries ONLY state changes. There is NO "narrative" field in the JSON �
   "prisonStatus": null,
   "bounty": 0,
   "newSects": [{ "name": "", "alignment": "", "location": "", "desc": "" }],
-  "offspring": [{ "name": "", "gender": "male" }],
+  "offspring": [{ "name": "", "gender": "male", "otherParent": "", "abandoned": false, "age": 0 }],
   "raceChange": null,
   "death": false,
   "deathCause": null,
@@ -25334,6 +25409,9 @@ updateCharacterTab = function() {
     // Technique combination naming
     safeInject('techRename', () => buildCombinationNamingInjection() || '');
 
+    // Abandoned/estranged offspring coming to find the player
+    safeInject('offspringReturn', () => buildOffspringReturnInjection() || '');
+
     // Bounty hunter pending
     safeInject('bountyHunter', () => buildBountyHunterInjection() || '');
 
@@ -25591,7 +25669,11 @@ updateCharacterTab = function() {
     // Sects / race / offspring / death
     safe('supplies', () => {
       res.newSects?.forEach(s => { const sect = generateSect(s); if(s.name) sect.name=s.name; discoverSect(sect); });
-      res.offspring?.forEach(o => { if(!GS.char.offspring.find(c=>c.name===o.name)) createOffspring(o.name, o.gender||'male', false); });
+      res.offspring?.forEach(o => { if(!GS.char.offspring.find(c=>c.name===o.name)) createOffspring(o.name, o.gender||'male', false, {
+        otherParent: o.otherParent||null, otherParentId: o.otherParentId||null,
+        abandoned: !!o.abandoned, age: o.age, birthYear: o.birthYear,
+        locationRaised: o.locationRaised||null,
+      }); });
       if(res.raceChange) setRace(res.raceChange);
       if(res.death) handleDeath(res.deathCause||'unknown');
     });
