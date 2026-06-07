@@ -6619,8 +6619,9 @@ function evolveTrait(traitId) {
 // ================================================================
 function grantTitle(type, title) {
   // title: { name, desc, effects:{}, knownBy:[] }
+  if(!title || !title.name || !String(title.name).trim()) return; // ignore empty schema stubs
   const list = type==='spiritual' ? GS.char.spiritualTitles : GS.char.socialTitles;
-  if(list.find(t=>t.name===title.name)) { toast('Already have this title','',2000); return; }
+  if(list.find(t=>t.name===title.name)) return; // already have it — silent, no spam
   list.push({ name:title.name, desc:title.desc||'', effects:title.effects||{}, knownBy:title.knownBy||[], groupReach:{} });
   // Apply effects
   if(title.effects) Object.entries(title.effects).forEach(([k,v])=>{ if(GS.char[k]!==undefined) GS.char[k]+=v; });
@@ -9295,6 +9296,11 @@ BROKEN CHANNELS RULE: Attempting a cultivation breakthrough on a Qi DEFICIT (neg
 
 AGING RULE: The player ages forward with the calendar only — NEVER younger. Ordinary time passing already ages them automatically; do NOT send ageChange for normal time. Use ageChange ONLY for unnatural shifts (a time/cultivation art, a youth elixir, a curse of aging) and ALWAYS pair it with "ageViaTechnique": true. Negative ageChange (getting younger) is only ever valid with ageViaTechnique:true.
 
+TITLES RULE — AWARD THEM (the player earns reputation through deeds): The player can earn two kinds of title. You MUST grant them at genuinely earned moments — this is how the world recognizes who the player has become.
+- SPIRITUAL TITLES = epithets earned through cultivation, combat, and the murim world: a great feat, a famous victory, a fearsome reputation, a breakthrough that draws notice. Examples: "Sword Saint," "Frost Maiden," "The Undying," "Blade of the Crimson Vow," "Demon of Stone Root." Emit via "spiritualTitles": [{ "name": "...", "desc": "how/why it was earned", "effects": { "charisma": 2 } }] (effects optional and small).
+- SOCIAL TITLES = positions, ranks, and standing in society: an office, a clan/sect rank, recognized civic standing. Examples: "Magistrate of the Canal District," "Sect Elder," "Young Master of the Wei Clan," "Respected Advocate of Tazar." Emit via "socialTitles": [{ "name": "...", "desc": "...", "effects": {} }].
+- WHEN: grant a title only at a real milestone — a notable deed, a formal appointment, or reputation clearly crossing into "people now call you ___" territory. Do NOT invent titles every turn; one earned title at the right moment is worth more than ten cheap ones. Once granted, USE the title in narration when fitting (people address the player by it, it precedes their reputation). Do not re-grant a title the player already holds.
+
 ROMANCE & OFFSPRING RULE:
 - Romance develops gradually and believably through the stage system; do not skip from strangers to lovers. NPCs have their own feelings, standards, and lives — they can decline, drift, or leave.
 - CHILDREN: A child requires a partner and plausible circumstances and time (a pregnancy is ~9 months). Fertility favors the young — it is natural for a character in their late teens through forties; it becomes unlikely and then implausible with age (and cultivation can extend this somewhat, but acknowledge it). When a child is conceived/born, report it via the "offspring" array including the other parent's name (otherParent), and abandoned:true if the player walked away.
@@ -9800,7 +9806,7 @@ const SAVE_PREFIX = 'murim_slot_';
 // Scheme: MAJOR.MINOR. Big updates bump MAJOR (1.2 -> 2.2). Small updates
 // bump MINOR (2.2 -> 2.3). Each version has a name. The current version is
 // stamped onto every save; older saves can be updated to the latest.
-const GAME_VERSION = { number: '2.3', name: 'Lite Mode' };
+const GAME_VERSION = { number: '2.4', name: 'Titles Restored' };
 
 // Which model generates the story. Lite Mode swaps to a far cheaper, faster model
 // (Claude Haiku) so long sessions / limited credits cost a fraction per turn.
@@ -9817,6 +9823,7 @@ const VERSION_HISTORY = [
   { number:'2.1', name:'Shattered Channels',  note:'Negative-Qi breakthroughs shatter the meridians (healed only by a high-level expert or the Hiestler plant); bar lēlyā has no willpower gate; tomes are worth a fortune.' },
   { number:'2.2', name:'Memory & Legacy',     note:'Coins are real currency (not items); selling removes items; NPCs die of old age and natural causes; the AI remembers when/how you met people and how much time has passed; everyone ages; deeper romance & offspring (abandon a child and they may come find you when you are famous); time-skips make the world move on; many new achievements.' },
   { number:'2.3', name:'Lite Mode',           note:'New Lite Mode toggle in Settings — play on a smaller, far cheaper, faster model (Claude Haiku) to stretch limited API credits or play longer for less. Toggle off any time for full-quality prose.' },
+  { number:'2.4', name:'Titles Restored',     note:'Spiritual & social titles now actually work — the narrator awards earned epithets (Sword Saint, Frost Maiden) and social standing (Sect Elder, Magistrate) at real milestones, and they show on your character sheet.' },
 ];
 
 function cleanSaveData(gs) {
