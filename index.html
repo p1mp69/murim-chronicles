@@ -10851,7 +10851,7 @@ const SAVE_PREFIX = 'murim_slot_';
 // Scheme: MAJOR.MINOR. Big updates bump MAJOR (1.2 -> 2.2). Small updates
 // bump MINOR (2.2 -> 2.3). Each version has a name. The current version is
 // stamped onto every save; older saves can be updated to the latest.
-const GAME_VERSION = { number: '3.4', name: 'The Full Pantheon' };
+const GAME_VERSION = { number: '3.5', name: 'Omens & Destiny' };
 
 // Which model generates the story. Lite Mode swaps to a far cheaper, faster model
 // (Claude Haiku) so long sessions / limited credits cost a fraction per turn.
@@ -10881,6 +10881,7 @@ const VERSION_HISTORY = [
   { number:'3.2', name:'Blood of the Gods',   sys:'Holding the keys (or deed) to a place now registers it as yours in Properties & Assets, even if it came purely through the story. New fabled bloodline: Demigod — Child of a god — ten variants, each a child of a different deity with unique divine powers, huge boosts, and a name that reflects your parent and gender. New achievement.', note:'Key/deed -> asset registration safety net + stronger PROPERTY RULE; 10 Demigod fable traits with gender-aware naming; demigod achievement.' },
   { number:'3.3', name:'Divine Powers',       sys:'Demigod/divine traits now DO things, not just boost stats. Active powers with cooldowns (a Powers panel on your character sheet — heal, escape, defy death, call down fire, and more), passive effects (regeneration, healing in sunlight), real system hooks (court defense, Qi-infusion strength, deal risk), and genuine drawbacks the world plays against you. D\'yaqed is now correctly a CHOSEN vessel, not a bloodline.', note:'TRAIT_POWERS engine: active powers + cooldowns + Powers UI, passive ticks, death-saves, court/infusion/bust hooks, drawbacks surfaced to AI; D\'yaqed reframed as Chosen.' },
   { number:'3.4', name:'The Full Pantheon',   sys:'All fifteen gods of the old creation faith now have a demigod bloodline — six new ones (time, nature, beauty, peace, music, trickery), each with its own active power and drawback. Plus a one-time fix on update: if you already owned a property and were holding its key or deed, it now registers properly in your assets.', note:'Added 6 missing NzuriKami demigods (15 total) w/ powers+drawbacks; migrateSave one-time key/deed -> asset registration for updaters.' },
+  { number:'3.5', name:'Omens & Destiny',     sys:'Your name, birth year, and appearance are now OMENS — they quietly shape your odds of being born with a rare mythic or fabled destiny. A sun-name, golden eyes, or a birth in a fateful year pull toward specific bloodlines (and stack: the more your signs align, the better the chance). Ordinary names and features keep destiny rare, as it should be.', note:'computeTraitOmens(): name/birthYear/appearance -> weighted chance at mythic/fable traits; destiny roll in generateRandomTraits scaling with omen alignment.' },
 ];
 
 function cleanSaveData(gs) {
@@ -11519,8 +11520,8 @@ function initCreation() {
     state.char.hp = 80 + state.char.endurance * 2;
     state.char.maxHp = state.char.hp;
 
-    // Random traits — independent of origin
-    const randomTraits = generateRandomTraits();
+    // Random traits — omen-weighted by name, birth year, and appearance
+    const randomTraits = generateRandomTraits(state.char);
     randomTraits.forEach(t => {
       state.char.traits.push({ ...t });
       // Apply stat effects
@@ -14346,7 +14347,66 @@ function generateRandomStats() {
   };
 }
 
-function generateRandomTraits() {
+// ── TRAIT OMENS ───────────────────────────────────────────────────
+// Your NAME, BIRTH YEAR, and APPEARANCE are read as omens that raise the chance
+// of specific mythic/fable destinies. Aligned signs (a sun-name, born in a cosmic
+// year, golden eyes) stack toward a real shot at, e.g., being Chosen of D'yaqed.
+// Returns { traitId: bonusWeight }.
+function computeTraitOmens(char) {
+  const omens = {};
+  const add = (id, w) => { omens[id] = (omens[id]||0) + w; };
+  const name = `${char.firstName||''} ${char.lastName||''}`.toLowerCase();
+  const ap = (typeof char.appearance === 'object' ? char.appearance : {}) || {};
+  const eyes = (ap.eyes || ap.eye_color || '').toLowerCase();
+  const hair = (ap.hair || ap.hair_color || '').toLowerCase();
+  const feat = (ap.feature || '').toLowerCase();
+  const by = char.birthYear || 0;
+
+  // ── NAME omens ──
+  if(/\b(sol|sun|hikar|akari|hino|taiyo|amaterasu|hikari|aka)\w*/.test(name)) { add('chosen_dyaqed',120); add('born_from_sun',60); }
+  if(/\b(kuro|yami|yoru|kage|noir|shadow|kura)\w*/.test(name)) { add('demigod_tumijin',80); add('demigod_madomizu',70); }
+  if(/\b(tsuki|luna|moon|gekka|tsuk)\w*/.test(name)) add('demigod_hikarudo',120);
+  if(/\b(mizu|umi|kai|kawa|nami)\w*/.test(name)) add('demigod_kodamaeji',110);
+  if(/\b(kaze|fu|gale|hayate|haya)\w*/.test(name)) add('demigod_dadaishi',110);
+  if(/\b(uta|kana|melo|song|oto|rin)\w*/.test(name)) add('demigod_jamakaze',90);
+  if(/\b(yume|dream|mu)\w*/.test(name)) add('demigod_madomizu',90);
+  if(/\b(toki|chrono|aeon)\w*/.test(name)) { add('demigod_nnekoji',120); add('time_affinity',80); }
+  if(/\brin\b|dawn|akatsuki/.test(name)) add('prodigy_mind',120);
+  // Direct invocation of a god's name = strong pull to that bloodline
+  const GODS = { tahara:'demigod_tahara', zawabin:'demigod_zawabin', shinamori:'demigod_shinamori',
+    nikuhiro:'demigod_nikuhiro', zuriroku:'demigod_zuriroku', hikarudo:'demigod_hikarudo',
+    nnekoji:'demigod_nnekoji', kodamaeji:'demigod_kodamaeji', amechiro:'demigod_amechiro',
+    mweziakari:'demigod_mweziakari', jamakaze:'demigod_jamakaze', jumaito:'demigod_jumaito',
+    tumijin:'demigod_tumijin', madomizu:'demigod_madomizu', dadaishi:'demigod_dadaishi' };
+  Object.entries(GODS).forEach(([g,id]) => { if(name.includes(g.slice(0,4))) add(id, 70); });
+  // Founder bloodline surnames
+  if(/yamamoto/.test(name)) { add('demigod_dadaishi',90); add('time_affinity',60); } // Reo: speed/time
+  if(/katsumi/.test(name)) add('demigod_kodamaeji',90); // Ichiro: earth/water/space
+
+  // ── BIRTH-YEAR omens (cosmic alignment) ──
+  if(by >= 1300 && by <= 1380) { add('demigod_tumijin',60); add('born_from_sun',40); }       // The Stirring
+  if(by >= 1380 && by <= 1450) { add('demigod_madomizu',60); add('demigod_tumijin',50); add('the_threshold_crossed',40); } // First Contact
+  if(by >= 1450 && by <= 1520) { add('born_from_sun',70); add('chosen_dyaqed',50); add('witnessed_by_heaven',40); }       // Breaking Years
+  if(by % 100 === 0) add('witnessed_by_heaven', 40);   // turn-of-century births draw heaven's eye
+  if(by % 111 === 0) add('the_gods_oversight', 30);     // an auspicious/ominous numerology
+  if(String(by).includes('777')) add('the_permanent_exception', 50);
+
+  // ── APPEARANCE omens ──
+  if(/gold|amber|fox-gold/.test(eyes)) { add('chosen_dyaqed',100); add('born_from_sun',50); }
+  if(/black|so dark/.test(eyes)) { add('demigod_tumijin',80); add('demigod_madomizu',50); }
+  if(/grey|gray/.test(eyes)) { add('demigod_madomizu',60); add('prodigy_mind',50); }
+  if(/blue/.test(eyes)) add('demigod_hikarudo',70);
+  if(/green|hazel/.test(eyes)) add('demigod_kodamaeji',70);
+  if(/silver|white/.test(hair)) add('demigod_hikarudo',90);
+  if(/red|crimson/.test(hair)) add('demigod_tahara',70);
+  if(/catch light oddly|catch light|cheekbones/.test(feat)) add('demigod_amechiro',80); // unearthly beauty
+  if(/steadiness|evaluate before/.test(feat)) add('demigod_zawabin',60);
+
+  return omens;
+}
+
+function generateRandomTraits(char) {
+  char = char || (GS && GS.char) || {};
   // Pool of assignable traits (exclude sin seeds, evolution stages, gained-only)
   const excluded = new Set([
     'sapling_lust','tree_lust','servant_lust',
@@ -14377,31 +14437,43 @@ function generateRandomTraits() {
   // Rebalanced for variety: commons no longer dominate so hard, so uncommon/rare
   // traits surface much more often and runs feel distinct.
   const rarityWeight = { common:150, uncommon:85, rare:38, epic:15, legendary:5, mythic:0, fable:0 };
+  // OMENS: name/birth-year/appearance can grant a real chance at otherwise
+  // unrollable mythic/fable destinies.
+  const omens = computeTraitOmens(char) || {};
   const pool = Object.entries(TRAITS_CATALOG)
     .filter(([id]) => !excluded.has(id))
-    .map(([id, def]) => ({ id, def, weight: rarityWeight[def.rarity] || 1 }));
-
-  // Decide how many traits: 0 (20%), 1 (40%), 2 (30%), 3 (10%)
-  const counts = [0,1,1,2,2,2,2,3];
-  const count = counts[Math.floor(Math.random()*counts.length)];
+    .map(([id, def]) => ({ id, def, weight: (rarityWeight[def.rarity] || 1) + (omens[id] || 0) }));
 
   const chosen = [];
   const usedIds = new Set();
+  const pick = (candidates) => {
+    const remaining = candidates.filter(p => !usedIds.has(p.id) && p.weight > 0);
+    if(!remaining.length) return null;
+    const total = remaining.reduce((s,p) => s+p.weight, 0);
+    let roll = Math.random() * total;
+    for(const p of remaining) { roll -= p.weight; if(roll <= 0) { usedIds.add(p.id); chosen.push({ id:p.id, ...p.def }); return p; } }
+    return null;
+  };
 
-  for(let i = 0; i < count; i++) {
-    const remaining = pool.filter(p => !usedIds.has(p.id));
-    if(!remaining.length) break;
-    const totalWeight = remaining.reduce((s,p) => s+p.weight, 0);
-    let roll = Math.random() * totalWeight;
-    for(const p of remaining) {
-      roll -= p.weight;
-      if(roll <= 0) {
-        chosen.push({ id:p.id, ...p.def });
-        usedIds.add(p.id);
-        break;
-      }
+  // ── DESTINY ROLL: the more your omens align, the better your shot at a
+  // specific mythic/fable trait. Strong, layered signs ≈ up to ~45% chance. ──
+  const omenIds = Object.keys(omens);
+  if(omenIds.length) {
+    const totalOmen = omenIds.reduce((s,id) => s + omens[id], 0);
+    const destinyChance = Math.min(0.45, totalOmen / 700);
+    if(Math.random() < destinyChance) {
+      const omenPool = omenIds
+        .filter(id => TRAITS_CATALOG[id] && !excluded.has(id))
+        .map(id => ({ id, def: TRAITS_CATALOG[id], weight: omens[id] }));
+      pick(omenPool);
     }
   }
+
+  // ── Ordinary trait slots (omen-boosted traits can also surface here) ──
+  const counts = [0,1,1,2,2,2,2,3];
+  let count = counts[Math.floor(Math.random()*counts.length)];
+  for(let i = 0; i < count; i++) pick(pool);
+
   return chosen;
 }
 
