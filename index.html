@@ -7286,6 +7286,10 @@ function giveTrait(traitId, custom=null) {
       if(GS.char[k]!==undefined) GS.char[k] += v;
     });
   }
+  // A blood demigod IS the Demigod race — the trait names which god is the parent.
+  if(traitDef.demigod && GS.char.race !== 'demigod') {
+    try { setRace('demigod'); } catch(e) {}
+  }
   updateCharacterTab();
   toast(`Trait gained: ${traitDef.name}`, 'gold', 3000);
 }
@@ -10299,6 +10303,16 @@ It can ONLY be healed two ways, and you must use the dedicated "healChannels" fi
 
 NEGATIVE QI RULE: Negative Qi (reverse/inverted Qi, the cold corrupt current) is REAL — but it is NOT for humans. Only a genuinely CURSED or DEMONIC being can wield it: a true demon, a Yokai, the demon-touched, a Maligned Lord's seed/vessel, or someone irreversibly cursed/corrupted (check race and traits — an ordinary human does NOT qualify, no matter their demonic Qi PATH or karma; the path is not the same as being inhuman). A normal human who tries to research, channel, or "master" negative Qi is destroyed by it — it burns out their humanity and body; narrate ruin or death, never mastery. For such qualifying beings, negative Qi is their nature and works for them; for everyone else it is suicide.
 
+RACE TRANSFORMATION RULE: A character's RACE can genuinely change through committed in-world arcs — and when it does, you MUST register it with "raceChange": "<race_id>" so the body's modifiers actually apply. The real paths:
+- ascended_human — forge a Perfect Meridian Body (a flawless, waste-free breakthrough; very rare).
+- demon_touched — fuse beast/demon essence (consume arch-demon or high-beast blood/cores, a demonic-blood ritual). Survivable only with strong endurance/willpower; it can kill or warp the weak, and makes you less human.
+- spirit_vessel — bind a spirit into the body (pact, sealing rite, or a survived/mastered possession).
+- heavenly_marked — survive a true heavenly tribulation and be remade.
+- corpse_cultivator — walk a death-Qi path (corpse arts / undying rituals); become semi-undead, nearly unkillable, shunned.
+- yokai — full beast transformation into a spiritual-beast form.
+- spirit_folk — awaken a dormant spirit-bloodline.
+These are EARNED, dangerous arcs, not casual swaps — gate them behind real effort, cost, and risk (and let weak attempts fail or maim). DEMIGOD is NOT obtainable this way — it is born-only, granted with a divine bloodline. Do not turn an ordinary human into a demigod via any ritual; only birth confers it.
+
 NO BROKEN-CHANNEL BYPASS: Negative Qi (or any other method) does NOT repair or work around SHATTERED CHANNELS — ruined channels cannot move ANY kind of Qi, ordinary or negative, by definition. If a broken-channelled player tries to "master negative qi" or invent any reverse-cultivation workaround, it fails (and for a human, it also destroys them per the rule above). Do NOT grant Qi, techniques, realms, or progress from it, and do NOT invent meaningless consolation "conditions." The ONLY paths back from broken channels remain a high-level healer or the Hiestler — point the player there clearly. (In general: every condition you add must be coherent and actually matter.)
 
 DEATH RULE: When the player's HP reaches 0, they are DEAD — no exceptions, no narrative hand-waving them surviving a fatal blow. If an action would kill the player, set "death": true with "deathCause", and let HP hit 0. The game raises a gravestone and offers the only legitimate outs (a revival/reincarnation technique they actually possess, or a regressor ability) — you do NOT need to invent survival. Do not write the player walking off a killing blow they had no ability to survive. Lethal danger must be able to actually kill.
@@ -10890,7 +10904,7 @@ const SAVE_PREFIX = 'murim_slot_';
 // Scheme: MAJOR.MINOR. Big updates bump MAJOR (1.2 -> 2.2). Small updates
 // bump MINOR (2.2 -> 2.3). Each version has a name. The current version is
 // stamped onto every save; older saves can be updated to the latest.
-const GAME_VERSION = { number: '3.7', name: 'The Cold Current' };
+const GAME_VERSION = { number: '3.8', name: 'Blood & Becoming' };
 
 // Which model generates the story. Lite Mode swaps to a far cheaper, faster model
 // (Claude Haiku) so long sessions / limited credits cost a fraction per turn.
@@ -10923,6 +10937,7 @@ const VERSION_HISTORY = [
   { number:'3.5', name:'Omens & Destiny',     sys:'Your name, birth year, and appearance are now OMENS — they quietly shape your odds of being born with a rare mythic or fabled destiny. A sun-name, golden eyes, or a birth in a fateful year pull toward specific bloodlines (and stack: the more your signs align, the better the chance). Ordinary names and features keep destiny rare, as it should be.', note:'computeTraitOmens(): name/birthYear/appearance -> weighted chance at mythic/fable traits; destiny roll in generateRandomTraits scaling with omen alignment.' },
   { number:'3.6', name:'No More Refusals',     sys:'Much stronger guards against the AI breaking character: a far wider net catches refusals/disclaimers AND forced multiple-choice menus, auto-retries in character, and permanently hardens itself after any slip — so it stops wasting your credits and railroading you. Demigods are now genuinely OUT-OF-THIS-WORLD: huge across-the-board buffs, and Defy Death now works THREE times. Qi pills/stones actually restore Qi, with clear messaging when shattered channels can\'t hold it. And no invented "negative Qi" loophole around broken channels — the only cures are a high-level healer or the Hiestler.', note:'Broadened OOC refusal + forced-choice railroad filters + escalating deterrent; demigod stat buffs (all-stat floor + amplified) + Defy Death x3; qi-restore items; broken-channel feedback; no-bypass prompt rule.' },
   { number:'3.7', name:'The Cold Current',     sys:'Refined how corrupt "negative" Qi works: it is only safely wielded by genuinely cursed or inhuman beings — an ordinary cultivator who tries it is destroyed, not empowered. It also still cannot repair shattered channels. A rules/balance clarification, no power for free.', note:'Negative-Qi rule: real but exclusive to cursed/demonic/inhuman beings; humans are ruined by it; still no broken-channel bypass.' },
+  { number:'3.8', name:'Blood & Becoming',     sys:'Demigod is now a RACE (your bloodline trait names which god is your parent) — born demigods get its divine constitution automatically. And the paths to CHANGE your race actually work now: fusing demon essence, surviving a tribulation, walking a death-Qi path, binding a spirit, beast transformation, and more genuinely transform you (with real cost and risk), applying that race\'s body. Demigod stays born-only.', note:'Added demigod race + auto-set on blood-demigod trait (creation + giveTrait); RACE_PATHS + RACE TRANSFORMATION RULE so raceChange arcs (demon_touched etc.) work; Chosen stays human vessel.' },
 ];
 
 function cleanSaveData(gs) {
@@ -11570,6 +11585,14 @@ function initCreation() {
         if(state.char[k] !== undefined) state.char[k] = Math.max(1, state.char[k] + v);
       });
     });
+    // Born a blood demigod → the Demigod race (apply its modifiers too).
+    if(randomTraits.some(t => t.demigod)) {
+      const dr = RACES.demigod;
+      state.char.race = 'demigod';
+      if(dr?.modifiers) Object.entries(dr.modifiers).forEach(([k,v]) => {
+        if(typeof v === 'number' && state.char[k] !== undefined) state.char[k] = Math.max(1, state.char[k] + v);
+      });
+    }
 
     // Origin is narrative context only — stored for AI to use, no mechanical application
     if(selectedOrigin || _creationSelectedOrigin) {
@@ -12697,6 +12720,20 @@ const RACES = {
   corpse_cultivator:{ name:'Corpse Cultivator', desc:'Semi-undead. Death Qi replaces life Qi. Extraordinarily hard to kill. Impossible to relate to.', modifiers:{ endurance:10, strength:5, charisma:-8, luck:-3 } },
   yokai:         { name:'Yokai',           desc:'A spiritual beast in humanoid or hybrid form. Ancient. Instinctive. Neither fully human nor fully beast.', modifiers:{ perception:8, agility:6, charisma:-2 }, qiPathForced:'beast' },
   spirit_folk:   { name:'Spirit Folk',     desc:'Descended from spiritual entities. Can sense cultivators and spiritual titles naturally.', modifiers:{ perception:6, willpower:4 } },
+  demigod:       { name:'Demigod',         desc:'Born of a mortal and a god. Divine blood runs in you — your body holds far more than a mortal frame should, you age slowly, and the heavens are never quite indifferent to you. (Your bloodline trait names which god is your parent.)', modifiers:{ endurance:8, willpower:8, perception:4, qi_efficiency:0.6 } },
+};
+
+// Race-transformation paths — how an ordinary person BECOMES each non-human race.
+// Surfaced to the AI so these are real, achievable arcs (resolved via raceChange).
+const RACE_PATHS = {
+  ascended_human:   'Forge a Perfect Meridian Body — a flawless, waste-free cultivation breakthrough (extremely rare, demands near-perfect technique and conditions).',
+  demon_touched:    'Fuse beast/demon essence into the body — consuming arch-demon or high-beast blood/cores, or a demonic-blood ritual. It magnifies strength and instinct and makes you less human by degree. Survivable only with strong endurance/willpower; it can kill or warp the weak.',
+  spirit_vessel:    'Bind a spirit into your body (a willing pact, a sealing rite, or possession survived and mastered) — granting a second consciousness and unnatural techniques.',
+  heavenly_marked:  'Survive a true heavenly tribulation and be remade by it — emerge partially heaven-made.',
+  corpse_cultivator:'Walk a death-Qi path — corpse arts, undying rituals, replacing life-Qi with death-Qi. You become semi-undead: nearly unkillable, but hard to relate to and shunned.',
+  yokai:            'Undergo full beast transformation — a beast cultivator who crosses fully into a spiritual-beast/yokai form (beast-blood awakening, a yokai bargain, or deep wilderness ascension).',
+  spirit_folk:      'Awaken a dormant spirit-bloodline, or be reshaped by long communion with spiritual entities.',
+  demigod:          'You do not BECOME a demigod — you are born one. It comes only with a demigod bloodline (a god is your parent).',
 };
 
 function setRace(raceId) {
