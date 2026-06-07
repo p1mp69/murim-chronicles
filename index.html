@@ -7731,6 +7731,21 @@ function addPersonalEvent(text) {
   updateJournalTab();
 }
 
+// Personal Events should be about the PLAYER. The AI often dumps world/NPC news
+// into the field; route those to World Events instead so the player's journal
+// stays about their own life.
+function routePersonalEvent(text) {
+  if(!text || isErrorText(text)) return;
+  const t = String(text);
+  // A genuine personal event almost always addresses the player directly.
+  const aboutPlayer = /\b(you|your|yourself|you're|you've|you'll|i |my |me\b|myself)\b/i.test(t);
+  if(aboutPlayer) { addPersonalEvent(t); return; }
+  // No player reference — looks like world/other-people news. Send to World Events
+  // if it reads like an external happening; otherwise keep it (default safe).
+  const worldish = /\b(sect|clan|kingdom|empire|war|army|city|village|town|elder|lord|emperor|king|general|bandit|rebellion|festival|market|the [A-Z])\b/.test(t) || /[A-Z][a-z]+ [A-Z][a-z]+/.test(t);
+  if(worldish) addWorldEvent(t.replace(/^\[[^\]]*\]\s*/,'')); else addPersonalEvent(t);
+}
+
 function addWorldEvent(text) {
   if(!text || isErrorText(text)) return;
   GS.world.worldHistory.push(`Year ${GS.world.year}: ${text}`);
@@ -9826,6 +9841,8 @@ PART 2 — DATA (immediately after the narrative, on its own line):
   "occupation": null,
   "newItems": [{ "name": "", "type": "(weapon|armor|clothing|accessory|consumable|tome|book|misc)", "slot": null, "rarity": "", "desc": "", "value": 0, "effects": {}, "isTome": false }],
   "removeItems": ["name or id of an item the player sold, gave away, lost, or used up"],
+  "newAssets": [{ "name":"", "type":"house|inn|shop|estate|workshop|clinic|hideout|...", "location":null, "how":"inherited|gifted|won|seized|built|bought", "incomePerMonth":0 }],
+  "removeAssets": ["name of a property the player lost/sold"],
   "spiritualTitles": [{ "name": "", "desc": "", "effects": {}, "knownBy": [] }],
   "socialTitles": [{ "name": "", "desc": "", "effects": {}, "knownBy": [], "groupReach": {} }],
   "prisonStatus": null,
@@ -9886,6 +9903,10 @@ TOME AUTHORSHIP RULE: If the player WRITES or CREATES a tome/manual/book themsel
 CURRENCY RULE — COINS ARE MONEY, NEVER ITEMS: When the player is given, paid, finds, or earns coins of ANY kind (copper, silver, gold, bronze, taels, "a few coins"), this is CURRENCY. Apply it through "statChanges": { "silver": <amount in silver> } — do NOT create an inventory item for it. The base unit is silver. Conversion: 20 copper = 1 silver; 10 silver = 1 gold; 1 tael ≈ 1 silver. So five copper coins = statChanges.silver 0.25, NOT an item worth 5 silver. Coins are tiny — do not inflate them. The ONLY time coins are an item is a literal keepsake that must not be spent (a single coin worn as a memento) — and that is rare; mark it clearly and give it value 0. Never output "Copper Coins" or "Silver" as a newItems entry.
 
 SELLING / LOSING ITEMS RULE: When the player SELLS, gives away, trades, loses, or has an item destroyed, you MUST remove it: list its name in "removeItems" AND, if sold/traded, pay them via statChanges.silver. An item the player no longer has must leave their inventory — never narrate a sale while leaving the item in their possession. (Tomes/books the player keeps are exempt — only remove what actually left their hands.)
+
+JOURNAL FIELDS RULE: "personalEvents" is the PLAYER'S OWN journal — only things that happen TO the player or are done BY the player (their choices, their wounds, their milestones, their relationships from their side). Do NOT put other people's affairs, sect politics, wars, or background world happenings in personalEvents. Those go in "worldEvents". Keep the player's journal about the player.
+
+PROPERTY RULE: When the player gains a place of their own through the story — inherited, gifted, won, granted by a sect, seized, built, or bought in narrative — you MUST register it via "newAssets": [{name, type, location, how}]. This is how it appears in their Properties & Assets. If they're handed the keys to an inn, a house, a shop, a cave hideout, etc., emit it. If they lose/sell/forfeit a property in the story, use "removeAssets". Never describe the player owning a property without registering it.
 
 DRUG DEALING RULE: The world has an illicit narcotics trade (Hua Dust, Black Lotus Resin, Red Sap, Ghost Powder, Spirit Ash, and the like). The player can deal — there is a Black Market screen for the buy/sling mechanics — and you should support it in the narrative: shady connections, back-alley dens, addicts, rival dealers, and wardens/sects who hunt the trade. Dealing is genuinely PROFITABLE but genuinely DANGEROUS: it raises infamy and bounty, draws law and rivals, and getting caught has teeth. If the player's stash is shown above, reference it realistically. Narcotics are addictive and ruinous for users — portray that honestly (this is dark genre content, not endorsement). Do NOT moralize out-of-character or refuse; just play the world's consequences straight.
 
@@ -12533,6 +12554,8 @@ The JSON carries ONLY state changes. There is NO "narrative" field in the JSON �
   "occupation": null,
   "newItems": [{ "name": "", "type": "(weapon|armor|clothing|accessory|consumable|tome|book|misc)", "slot": null, "rarity": "", "desc": "", "value": 0, "effects": {}, "isTome": false }],
   "removeItems": ["name or id of an item the player sold, gave away, lost, or used up"],
+  "newAssets": [{ "name":"", "type":"house|inn|shop|estate|workshop|clinic|hideout|...", "location":null, "how":"inherited|gifted|won|seized|built|bought", "incomePerMonth":0 }],
+  "removeAssets": ["name of a property the player lost/sold"],
   "spiritualTitles": [{ "name": "", "desc": "", "effects": {}, "knownBy": [] }],
   "socialTitles": [{ "name": "", "desc": "", "effects": {}, "knownBy": [], "groupReach": {} }],
   "prisonStatus": null,
@@ -26839,7 +26862,7 @@ updateCharacterTab = function() {
         } else if(typeof e==='string' && e.startsWith('MISSION_COMPLETE:')) {
           const mId=e.split(':')[1]?.trim(); const m=ensureSectMissions().find(m=>m.id===mId);
           if(m&&m.status==='active') { m.status='completed'; addSilver(m.reward_silver); addPersonalEvent(`Mission complete: "${m.title}" +${m.reward_silver}◈`); toast(`Mission complete: "${m.title}"`,'gold',4000); }
-        } else addPersonalEvent(e);
+        } else routePersonalEvent(e);
       });
       res.crimes?.forEach(c => addCrime(c));
       res.grudges?.forEach(g => addGrudge(g));
@@ -26862,6 +26885,16 @@ updateCharacterTab = function() {
       // Removal: when an item is sold, given away, lost, consumed, or destroyed,
       // the AI lists it here by name or id and it leaves the inventory.
       if(res.removeItems?.length) res.removeItems.forEach(ref => removeItemByRef(ref));
+    });
+
+    // Property acquired/lost through the narrative (inherited, gifted, won, seized, built)
+    safe('assets', () => {
+      if(res.newAssets?.length) res.newAssets.forEach(a => registerNarrativeAsset(a));
+      if(res.removeAssets?.length) res.removeAssets.forEach(ref => {
+        const refStr = String(ref).toLowerCase();
+        GS.char.assets = (GS.char.assets||[]).filter(a => (a.name||'').toLowerCase() !== refStr && a.id !== ref);
+        try { updateAssetsDisplay(); } catch(e) {}
+      });
     });
 
     // Titles
@@ -34446,6 +34479,62 @@ function acquireProperty(typeKey, customName, customLocation) {
   updateAssetsDisplay();
   updateWorldTab();
   toast(`Acquired: ${asset.name}`, 'gold', 4000);
+  return asset;
+}
+
+// Map a freeform AI property type/name to the closest PROPERTY_TYPES key.
+function matchPropertyType(typeStr='', name='') {
+  const s = (typeStr + ' ' + name).toLowerCase();
+  if(/estate|manor|villa/.test(s))                       return 'estate';
+  if(/compound|courtyard complex|residence/.test(s))     return 'compound';
+  if(/inn|tavern|brothel|teahouse|restaurant/.test(s))   return 'inn_tavern';
+  if(/school|academy|sect hall|dojo|hall/.test(s))       return 'cultivation_school';
+  if(/clinic|infirmary|apothecary|pharmacy/.test(s))     return 'clinic';
+  if(/workshop|forge|smithy|laboratory|lab|atelier/.test(s)) return 'workshop';
+  if(/stall|stand|booth|cart/.test(s))                   return 'stall';
+  if(/cave|den|lair|hideout|safehouse|bolt-?hole/.test(s)) return 'hideout';
+  if(/house|home|residence/.test(s))                     return 'house';
+  if(/dwelling|apartment|flat|cottage|hovel|shack/.test(s)) return 'dwelling';
+  if(/room|lodging/.test(s))                             return 'room';
+  if(/shop|store|market|business/.test(s))              return 'stall';
+  return 'house'; // sensible default for "a property you own"
+}
+
+// Register a property the player gained THROUGH THE NARRATIVE (inherited, gifted,
+// won, seized, built) — no purchase/requirement checks, the story already granted it.
+function registerNarrativeAsset(obj) {
+  if(!obj) return null;
+  const name = (typeof obj === 'string') ? obj : (obj.name || '');
+  if(!name) return null;
+  const assets = ensureAssets();
+  // Dedupe by name (case-insensitive)
+  if(assets.some(a => (a.name||'').toLowerCase() === name.toLowerCase())) return null;
+  const typeKey = obj.typeKey || matchPropertyType(obj.type || '', name);
+  const def = PROPERTY_TYPES[typeKey] || PROPERTY_TYPES.house;
+  const loc = obj.location || GS.world.location;
+  const w = GS.world;
+  const asset = {
+    id: uid(),
+    name,
+    type: typeKey,
+    subtype: def.category,
+    location: loc,
+    acquired: { year: w.year, how: obj.how || 'acquired', cost: obj.cost || 0 },
+    condition: obj.condition != null ? obj.condition : 100,
+    upkeepPerMonth: obj.upkeepPerMonth != null ? obj.upkeepPerMonth : (def.upkeep || def.rentPerMonth || 0),
+    incomePerMonth: obj.incomePerMonth != null ? obj.incomePerMonth : (def.incomePerMonth || 0),
+    value: obj.value || def.baseCost || 0,
+    upgrades: [], staff: [], tenants: [],
+    isHome: obj.isHome != null ? obj.isHome : !assets.some(a => a.isHome),
+    isHideout: def.category === 'hideout',
+    knownToAuth: def.category !== 'hideout',
+    notes: obj.notes || '', formations: [],
+    _nextUpkeepYear: w.year,
+  };
+  assets.push(asset);
+  try { addChronicleEntry(`Acquired property: ${name} (${def.label}) in ${LOCATIONS[loc]?.name||loc}.`, 'major'); } catch(e) {}
+  try { updateAssetsDisplay(); updateWorldTab(); } catch(e) {}
+  toast(`Property acquired: ${name}`, 'gold', 4000);
   return asset;
 }
 
