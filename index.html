@@ -1600,7 +1600,37 @@ a { color: var(--gold); text-decoration: none; }
   padding: 16px 0;
 }
 .death-legacy { font-size: 13px; color: var(--muted); line-height: 1.9; text-align: left; margin-bottom: 28px; }
-.death-actions { display: flex; gap: 10px; justify-content: center; }
+.death-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+
+/* ── GRAVESTONE ───────────────────────────────────────────────── */
+.gravestone {
+  width: 340px; max-width: 86vw; margin: 0 auto 26px;
+  background: linear-gradient(180deg, #3a3d42 0%, #2b2d31 60%, #232427 100%);
+  border: 1px solid #14151a;
+  border-radius: 160px 160px 14px 14px / 200px 200px 14px 14px;
+  padding: 54px 30px 38px;
+  box-shadow: 0 24px 50px rgba(0,0,0,.6), inset 0 2px 0 rgba(255,255,255,.06), inset 0 -30px 40px rgba(0,0,0,.4);
+  color: #cdd0d6; text-align: center;
+  transform-origin: bottom center;
+  animation: gravestone-drop 1.25s cubic-bezier(.2,.9,.25,1.05) both;
+}
+@keyframes gravestone-drop {
+  0%   { transform: translateY(-120vh) rotate(-4deg); opacity: 0; }
+  70%  { transform: translateY(0) rotate(0deg); opacity: 1; }
+  82%  { transform: translateY(-16px); }
+  91%  { transform: translateY(0); }
+  95%  { transform: translateY(-5px); }
+  100% { transform: translateY(0); }
+}
+.gravestone.shake { animation: gravestone-drop 1.25s cubic-bezier(.2,.9,.25,1.05) both, gs-thud 0.18s ease-out 1.15s; }
+@keyframes gs-thud { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-3px)} 75%{transform:translateX(3px)} }
+.gs-cross { font-size: 26px; color: #6b6f78; margin-bottom: 10px; }
+.gs-rip { font-size: 12px; letter-spacing: 4px; color: #7e828c; margin-bottom: 14px; }
+.gs-name { font-family: Georgia, 'Times New Roman', serif; font-size: 24px; font-weight: 700; color: #e6e8ec; margin-bottom: 6px; }
+.gs-dates { font-size: 12px; color: #9aa0aa; margin-bottom: 16px; }
+.gs-epitaph { font-size: 12.5px; color: #b7bcc4; font-style: italic; line-height: 1.7; border-top: 1px solid #4a4d53; padding-top: 14px; text-align: left; }
+.gs-feelings { font-size: 11.5px; color: #969ba4; margin-top: 12px; text-align: left; line-height: 1.6; }
+.gravestone-ground { width: 360px; max-width: 90vw; height: 14px; margin: -8px auto 24px; background: radial-gradient(ellipse at center, rgba(0,0,0,.55), transparent 70%); }
 
 /* ============================================================
    MOBILE MODE
@@ -2568,9 +2598,20 @@ body.generating [onclick*="shopSellItem"], body.generating [onclick*="closeMapGo
      ============================================================ -->
 <div id="screen-death" class="screen hidden">
   <div class="death-container">
+    <div id="gravestone" class="gravestone">
+      <div class="gs-cross">✝</div>
+      <div class="gs-rip">REST IN PEACE</div>
+      <div id="gs-name" class="gs-name">—</div>
+      <div id="gs-dates" class="gs-dates">—</div>
+      <div id="gs-epitaph" class="gs-epitaph">—</div>
+      <div id="gs-feelings" class="gs-feelings"></div>
+    </div>
+    <div class="gravestone-ground"></div>
     <div class="death-title">The world moves on without you.</div>
     <div id="death-legacy" class="death-legacy"></div>
     <div class="death-actions">
+      <button id="btn-revive" class="btn-primary hidden">Use Revival Technique</button>
+      <button id="btn-regress" class="btn-primary hidden">Regress — Turn Back Death</button>
       <button id="btn-offspring" class="btn-primary hidden">Continue as Offspring</button>
       <button id="btn-reincarnate" class="btn-secondary hidden">Reincarnate</button>
       <button id="btn-newgame-death" class="btn-secondary">New Life</button>
@@ -5793,11 +5834,38 @@ function breakChannels(cause) {
   updateCharacterTab();
 }
 
+// THE MARK OF DEATH — branded on those whose shattered channels were "healed"
+// by something that should never have worked (the old cultivation-heals-channels
+// bug). Worse than broken channels: the path is not just lost, it is cursed.
+function applyMarkOfDeath() {
+  const c = GS.char;
+  if(c.conditions && c.conditions.find(x => x.id === 'mark_of_death')) return;
+  c.channelsBroken = true; // still cannot cultivate — the channels were never truly whole
+  c._channelsHealedLegit = false;
+  if(!c.conditions) c.conditions = [];
+  c.conditions.push({
+    id: 'mark_of_death',
+    label: 'The Mark of Death',
+    desc: 'You forced what should not be forced and were mended by what should never have mended you. The natural order noticed. Your meridians are a ruin wearing the shape of health, and something cold has its hand on your shoulder. Cultivation is impossible; your body is weaker than it has ever been; and death has marked you for collection.',
+    kind: 'permanent',
+  });
+  // Heavy, permanent stat penalties — far worse than the original broken channels.
+  const drop = (stat, amt) => { if(c[stat] !== undefined) c[stat] = Math.max(1, c[stat] - amt); };
+  drop('strength', 8); drop('agility', 8); drop('endurance', 12);
+  drop('perception', 5); drop('willpower', 6); drop('charisma', 4);
+  c.qi.current = 0;
+  c.maxHp = Math.max(20, Math.round((c.maxHp || 100) * 0.5)); // frailer body
+  c.hp = Math.min(c.hp || c.maxHp, c.maxHp);
+  try { addChronicleEntry('THE MARK OF DEATH settles over you. What was healed should never have healed. The order of things has been broken, and it remembers.', 'major'); } catch(e) {}
+  try { addInjury('The Mark of Death — meridians ruined beyond cultivation; the body failing.'); } catch(e) {}
+}
+
 function healChannels(source) {
   const c = GS.char;
   if(!c.channelsBroken) return;
   c.channelsBroken = false;
-  if(typeof removeCondition === 'function') removeCondition('broken_channels');
+  c._channelsHealedLegit = true; // a real, sanctioned heal — exempt from Mark of Death
+  if(typeof removeCondition === 'function') removeCondition('broken_channels', true);
   try { GS.char.injuries = GS.char.injuries.filter(i => !/shattered meridian/i.test(i)); updateConditionBlock(); } catch(e) {}
   try { addChronicleEntry(`Meridian channels mended${source?' by '+source:''}. Cultivation is possible once more.`, 'major'); } catch(e) {}
   toast('Your channels are mended. You can cultivate again.', 'gold', 6000);
@@ -7308,10 +7376,15 @@ function addCondition(cnd) {
   updateCharacterTab();
 }
 
-function removeCondition(id) {
+function removeCondition(id, force=false) {
   if(!GS.char.conditions) return;
+  // Broken channels (and the Mark of Death) can NEVER be cleared by a generic
+  // condition removal — not by cultivation, not by the AI hand-waving it. They
+  // are only healed through the dedicated legitimate path (healChannels: a
+  // high-level expert or the Hiestler plant). This blocks the exploit where a
+  // cultivation arc "fixed" shattered meridians.
+  if(!force && (id === 'broken_channels' || id === 'mark_of_death')) return;
   GS.char.conditions = GS.char.conditions.filter(c => c.id !== id);
-  // Healing the broken-channels condition restores the ability to cultivate.
   if(id === 'broken_channels') {
     GS.char.channelsBroken = false;
     try { GS.char.injuries = GS.char.injuries.filter(i => !/shattered meridian/i.test(i)); } catch(e) {}
@@ -7380,24 +7453,88 @@ function addWorldEvent(text) {
 // ================================================================
 // DEATH SYSTEM
 // ================================================================
+// Detect whether the player owns a technique/skill of a given kind.
+function hasRevivalAbility() {
+  const c = GS.char;
+  const re = /reviv|resurrect|rebirth|undying|nine ?lives|return from death|phoenix/i;
+  return (c.techniques||[]).some(t => re.test(t.name) || re.test(t.desc||''))
+      || (c.martialArts||[]).some(t => re.test(t.name) || re.test(t.desc||''));
+}
+function hasReincarnationAbility() {
+  const c = GS.char;
+  const re = /reincarnat|samsara|transmigrat|soul ?transfer/i;
+  return (c.techniques||[]).some(t => re.test(t.name) || re.test(t.desc||''));
+}
+function hasRegressorAbility() {
+  const c = GS.char;
+  const re = /regress|regressor|turn back time|rewind|return to the past|second life|time ?reversal/i;
+  return (c.techniques||[]).some(t => re.test(t.name) || re.test(t.desc||''))
+      || Object.values(c.skills||{}).some(s => re.test(s.label||''));
+}
+
 function handleDeath(cause) {
+  // HP at zero is death. Absolute. The only outs are an actual revival/
+  // reincarnation technique or the regressor ability — chosen here, on the grave.
+  if(GS.char.isDead) return; // already handled
   GS.char.isDead = true;
+  GS.char.hp = 0;
   GS.char.deathCause = cause;
   GS.char.deathYear = GS.world.year;
+  GS.char.deathAge = GS.char.age;
 
-  // Check for offspring / reincarnation options
-  const hasOffspring = GS.char.offspring.length > 0;
-  const hasReincarnation = GS.char.techniques.some(t=>t.name.toLowerCase().includes('reincarnation'));
+  // ── Populate the gravestone ──
+  const c = GS.char;
+  const bM = MONTH_NAMES[c.birthMonth] || `Month ${c.birthMonth||1}`;
+  setEl('gs-name', `${c.firstName} ${c.lastName}`);
+  setEl('gs-dates', `Born Year ${c.birthYear}, ${bM} Day ${c.birthDay||1}  ·  Died Year ${c.deathYear}, age ${c.age}`);
+  setHTML('gs-epitaph', buildEpitaph(cause));
+  setHTML('gs-feelings', buildHowPeopleFelt());
 
-  // Generate legacy
-  const legacy = buildLegacy();
-  document.getElementById('death-legacy').innerHTML = legacy;
+  // Re-trigger the drop animation
+  const stone = document.getElementById('gravestone');
+  if(stone) { stone.classList.remove('shake'); void stone.offsetWidth; stone.classList.add('shake'); }
 
+  // Legacy block (kept below the stone)
+  document.getElementById('death-legacy').innerHTML = buildLegacy();
+
+  // ── Outs ──
+  const hasOffspring = (c.offspring||[]).some(o => o.alive !== false);
   document.getElementById('btn-offspring').classList.toggle('hidden', !hasOffspring);
-  document.getElementById('btn-reincarnate').classList.toggle('hidden', !hasReincarnation);
+  document.getElementById('btn-reincarnate').classList.toggle('hidden', !hasReincarnationAbility());
+  const reviveBtn = document.getElementById('btn-revive');
+  if(reviveBtn) reviveBtn.classList.toggle('hidden', !hasRevivalAbility());
+  const regressBtn = document.getElementById('btn-regress');
+  if(regressBtn) regressBtn.classList.toggle('hidden', !hasRegressorAbility());
 
   document.getElementById('screen-game').classList.add('hidden');
   document.getElementById('screen-death').classList.remove('hidden');
+}
+
+// A short epitaph from how the life was lived.
+function buildEpitaph(cause) {
+  const c = GS.char;
+  const stage = getQiStage();
+  const titles = [...(c.spiritualTitles||[]), ...(c.socialTitles||[])].map(t=>t.name);
+  const bits = [];
+  if(titles.length) bits.push(`Known as ${titles.slice(0,2).join(', ')}.`);
+  bits.push(`Walked the path to ${stage.name}.`);
+  if((c.offspring||[]).length) bits.push(`Left ${c.offspring.length} child${c.offspring.length>1?'ren':''} behind.`);
+  bits.push(`Fell to ${cause || 'unknown ends'} in their ${c.age}th year.`);
+  return bits.join(' ');
+}
+
+// How the people who knew the player felt about them — drawn from relationships.
+function buildHowPeopleFelt() {
+  const c = GS.char;
+  const rels = (c.relationships||[]).filter(r => r.name);
+  if(!rels.length) return 'No one who knew them was near enough to mourn. They passed unmarked.';
+  const loved = rels.filter(r => (r.bond_level||r.trust||0) >= 40 || ['lover','spouse','friend','family'].includes(r.type));
+  const hated = rels.filter(r => { const npc = GS.world.npcRegistry[r.npcId]; return (npc?.grudgeLevel||0) >= 40 || ['enemy','hostile','rival'].includes(r.type); });
+  const parts = [];
+  if(loved.length) parts.push(`${loved.slice(0,3).map(r=>r.name).join(', ')} grieve${loved.length===1?'s':''} the loss.`);
+  if(hated.length) parts.push(`${hated.slice(0,3).map(r=>r.name).join(', ')} will not pretend to mourn.`);
+  if(!parts.length) parts.push(`${rels.slice(0,3).map(r=>r.name).join(', ')} heard the news and went quiet.`);
+  return parts.join(' ');
 }
 
 function buildLegacy() {
@@ -9397,7 +9534,10 @@ IMPRISONMENT RULE: If an NPC the player knows is arrested, jailed, captured, or 
 
 CONDITIONS RULE: Permanent harm produces a "conditions" entry, NOT just a scar. If the player loses an eye (stabbed, gouged, offered to a deity/entity), they are PERMANENTLY blind in that eye — add {"id":"blind_left_eye" or "blind_right_eye","label":"Blind (Left/Right Eye)","desc":"...","kind":"permanent"}. Both eyes → "fully_blind". Lost arm/hand/leg, deafness, muteness, a curse, a bargained-away sense — all permanent conditions that STAY. Once a condition exists, honor it forever: a blind character cannot see and you narrate accordingly every time. Never quietly heal a permanent condition — only an extraordinary, explicitly-narrated event can, via removeConditions.
 
-BROKEN CHANNELS RULE: Attempting a cultivation breakthrough on a Qi DEFICIT (negative Qi) shatters the meridian channels. A character with shattered channels CANNOT cultivate, cannot gather or hold Qi, and any attempt to force Qi through the ruined channels risks DEATH — narrate it that way. This is permanent and tracked as the "broken_channels" condition. It can ONLY be healed two ways: (1) a genuinely HIGH-LEVEL expert (a master healer of advanced cultivation, a sect's grand physician, or similar) painstakingly mends the channels, or (2) the player consumes the HIESTLER — a rare medicinal plant that grows in only one specific place in the world (a remote, hard-to-reach locale you may establish/keep consistent). Nothing else works — common pills, rest, or ordinary doctors will NOT fix it. When the player is genuinely healed by one of these means, emit "removeConditions":["broken_channels"]. Until then, treat them as a cripple who has lost the path. Never let them quietly cultivate again.
+BROKEN CHANNELS RULE (ABSOLUTE — NO EXCEPTIONS): Attempting a cultivation breakthrough on a Qi DEFICIT (negative Qi) shatters the meridian channels. A character with shattered channels CANNOT cultivate AT ALL — they cannot meditate to gather Qi, cannot circulate Qi, cannot advance a realm, cannot use Qi techniques, and cannot regain Qi reserves. THIS IS NON-NEGOTIABLE. If the player declares ANY cultivation activity while their channels are broken (a meditation arc, a "month of stillness cultivation," "confluent gathering," a breakthrough attempt, training a Qi technique), you MUST refuse it in the narrative: their Qi will not move, the meridians scream, pushing harder injures them further or kills them. DO NOT narrate them gaining Qi, advancing realms, or "rebuilding their foundation" through cultivation. Cultivation does NOT and CANNOT heal broken channels — that is the whole point. A broken-channelled character at 0 Qi who tries to cultivate for seven months is STILL at 0 Qi and STILL broken seven months later.
+It can ONLY be healed two ways, and you must use the dedicated "healChannels" field (NOT removeConditions — removeConditions will be ignored for this): (1) a genuinely HIGH-LEVEL expert (a master healer of advanced cultivation, a sect's grand physician, a Core Formation+ medical authority) painstakingly mends them over time — emit "healChannels": { "source": "the grand physician of <sect>" }; or (2) the player obtains and consumes the HIESTLER, a rare plant that grows in only one specific, remote place in the world — emit "healChannels": { "source": "the Hiestler" }. Nothing else works: not common pills, not rest, not ordinary doctors, not willpower, and ABSOLUTELY NOT cultivation. Until legitimately healed, treat them as a cripple who has lost the path.
+
+DEATH RULE: When the player's HP reaches 0, they are DEAD — no exceptions, no narrative hand-waving them surviving a fatal blow. If an action would kill the player, set "death": true with "deathCause", and let HP hit 0. The game raises a gravestone and offers the only legitimate outs (a revival/reincarnation technique they actually possess, or a regressor ability) — you do NOT need to invent survival. Do not write the player walking off a killing blow they had no ability to survive. Lethal danger must be able to actually kill.
 
 AGING RULE: The player ages forward with the calendar only — NEVER younger. Ordinary time passing already ages them automatically; do NOT send ageChange for normal time. Use ageChange ONLY for unnatural shifts (a time/cultivation art, a youth elixir, a curse of aging) and ALWAYS pair it with "ageViaTechnique": true. Negative ageChange (getting younger) is only ever valid with ageViaTechnique:true.
 
@@ -9911,7 +10051,7 @@ const SAVE_PREFIX = 'murim_slot_';
 // Scheme: MAJOR.MINOR. Big updates bump MAJOR (1.2 -> 2.2). Small updates
 // bump MINOR (2.2 -> 2.3). Each version has a name. The current version is
 // stamped onto every save; older saves can be updated to the latest.
-const GAME_VERSION = { number: '2.5', name: 'Reputation & Renown' };
+const GAME_VERSION = { number: '2.6', name: 'The Mark of Death' };
 
 // Which model generates the story. Lite Mode swaps to a far cheaper, faster model
 // (Claude Haiku) so long sessions / limited credits cost a fraction per turn.
@@ -9930,6 +10070,7 @@ const VERSION_HISTORY = [
   { number:'2.3', name:'Lite Mode',           note:'New Lite Mode toggle in Settings — play on a smaller, far cheaper, faster model (Claude Haiku) to stretch limited API credits or play longer for less. Toggle off any time for full-quality prose.' },
   { number:'2.4', name:'Titles Restored',     note:'Spiritual & social titles now actually work — the narrator awards earned epithets (Sword Saint, Frost Maiden) and social standing (Sect Elder, Magistrate) at real milestones, and they show on your character sheet.' },
   { number:'2.5', name:'Reputation & Renown', note:'Titles now come from any feat (not just combat). Fame & infamy actually do things — discounts, fear premiums, NPC disposition, bounty hunters, doors that open or close — starting at lower tiers. Fixed the Properties/Assets dropdown. Off-hand slot now has real gear (shields, buckler, parrying dagger, war fan, talisman, spirit lantern). ~25 new achievements and 10 new traits.' },
+  { number:'2.6', name:'The Mark of Death',   note:'Broken channels can NO LONGER be healed by cultivation — only a high-level expert or the Hiestler plant mends them, and every Qi-gain path now enforces it. Anyone whose channels were wrongly "healed" by cultivating is branded with THE MARK OF DEATH on update. Fixed a bug where death silently failed (infinite loop). Death is now final: when HP hits 0, a gravestone rises with your name, dates, epitaph, and how people felt — revival/reincarnation techniques and the regressor skill can act from the grave. Updating a save at 0 HP now correctly triggers death.' },
 ];
 
 function cleanSaveData(gs) {
@@ -10021,6 +10162,19 @@ function migrateSave(data) {
   if(!c._maxAgeReached || c._maxAgeReached < (c.age||0)) c._maxAgeReached = c.age || 0;
   if(!c.birthMonth) c.birthMonth = 1 + Math.floor(Math.random()*12);
   if(!c.birthDay)   c.birthDay   = 1 + Math.floor(Math.random()*30);
+
+  // ── THE MARK OF DEATH ──────────────────────────────────────────
+  // If this character EVER had broken channels but is no longer broken AND was
+  // never legitimately healed (the old bug where cultivation "fixed" shattered
+  // meridians), brand them on update. Worse than the original injury.
+  if(c._everBroken && !c.channelsBroken && !c._channelsHealedLegit
+     && !(c.conditions||[]).some(x => x.id === 'mark_of_death')) {
+    if(typeof applyMarkOfDeath === 'function') applyMarkOfDeath();
+  }
+  // Also catch the inconsistent state: still flagged broken yet holding Qi/realm
+  // progress that broken channels could never have produced — scrub the Qi and,
+  // if they have an old broken_channels condition, leave it (still legitimately broken).
+  if(c.channelsBroken && c.qi && (c.qi.current||0) > 0) c.qi.current = 0;
 
   // Scrub stale "Stage 0 / current mastery" text baked into old technique bios
   if(typeof sanitizeTechDesc === 'function') {
@@ -10132,6 +10286,14 @@ function loadFromSlot(slot) {
     // Silently initialise achievement state for loaded saves (no toasts)
     try { checkAndSaveAchievements(true); } catch(e) {}
     toast(`${GS.char.firstName} ${GS.char.lastName} — loaded.`, 'success', 3000);
+    // HP at zero on load = death. Honor it (e.g., a save updated after the rule
+    // change, or a save left at 0 HP). The gravestone rises.
+    if((GS.char.hp || 0) <= 0 && !GS.char.isDead) {
+      GS.char.isDead = false; // let handleDeath run its full path
+      handleDeath(GS.char.deathCause || 'wounds that never closed');
+    } else if(GS.char.isDead) {
+      handleDeath(GS.char.deathCause || 'death');
+    }
   } catch(e) { toast('Load failed.', 'error'); console.error(e); }
 }
 
@@ -11437,6 +11599,15 @@ function craftPill(pillId) {
 function takePill(itemId) {
   const item = GS.char.inventory.find(i => i.id === itemId);
   if(!item || item.type !== 'consumable') return;
+  // The Hiestler — the one plant that mends shattered meridian channels.
+  if(/hiestler/i.test(item.name||'')) {
+    if(GS.char.channelsBroken) healChannels('the Hiestler');
+    else toast('You eat the Hiestler. Nothing in you was broken for it to mend.', '', 4000);
+    GS.char.inventory = GS.char.inventory.filter(i => i.id !== itemId);
+    updateInventoryTab();
+    if(typeof sendToAI === 'function') sendToAI(`I consume the Hiestler.`);
+    return;
+  }
   const pillId = item.pillId;
   const pill = PILL_TYPES[pillId];
   const charStage = GS.char.qi.stageIndex;
@@ -12385,6 +12556,37 @@ document.getElementById('btn-reincarnate').addEventListener('click', () => {
   startGame(false);
 });
 
+// ── Revival technique: claw back from the grave, at a cost ──
+document.getElementById('btn-revive')?.addEventListener('click', () => {
+  if(!hasRevivalAbility()) { toast('No revival technique.', 'error'); return; }
+  const c = GS.char;
+  c.isDead = false;
+  c.hp = Math.max(1, Math.round((c.maxHp||100) * 0.25)); // claw back, barely
+  c.qi.current = 0;
+  // Revival is never free — it ages the body and exacts a toll.
+  c._allowAgeRewind = false;
+  c.endurance = Math.max(1, (c.endurance||10) - 3);
+  try { addChronicleEntry(`Clawed back from death by a revival technique in Year ${GS.world.year}. The body remembers dying.`, 'major'); } catch(e) {}
+  document.getElementById('screen-death').classList.add('hidden');
+  document.getElementById('screen-game').classList.remove('hidden');
+  updateCharacterTab(); updateTopbar();
+  if(typeof sendToAI === 'function') sendToAI(`[REVIVAL: My revival technique activates at the threshold of death. I return to life — gasping, drained, barely standing (HP ${c.hp}/${c.maxHp}, Qi empty). Narrate the wrenching return from death and its toll. The thing that killed me may still be here.]`);
+});
+
+// ── Regressor: turn back death itself ──
+document.getElementById('btn-regress')?.addEventListener('click', () => {
+  if(!hasRegressorAbility()) { toast('No regressor ability.', 'error'); return; }
+  const c = GS.char;
+  c.isDead = false;
+  c.hp = c.maxHp || 100;
+  c.qi.current = 0;
+  try { addChronicleEntry(`At the moment of death, the regression activated. Time recoiled. Year ${GS.world.year}.`, 'major'); } catch(e) {}
+  document.getElementById('screen-death').classList.add('hidden');
+  document.getElementById('screen-game').classList.remove('hidden');
+  updateCharacterTab(); updateTopbar();
+  if(typeof sendToAI === 'function') sendToAI(`[REGRESSION: At the instant of my death, my regressor ability tears time backward. Death is undone — I return to the moment before the killing blow, knowing what was about to happen. Narrate the regression: the world snapping back, the disorienting certainty of having just died, and the chance to change what comes next.]`);
+});
+
 // ================================================================
 // HANDLE ITEM USE FOR PILLS — extend openItemModal in place
 // (no _orig pattern needed — just patch the use button after the base modal opens)
@@ -13100,6 +13302,8 @@ function applyDamage(amount, damageType = 'generic') {
 
 // Apply Qi gain with cultivation multiplier from traits
 function addQiWithTraits(baseAmount) {
+  // Shattered channels cannot gather or hold Qi — block ALL gain, no exceptions.
+  if(GS.char.channelsBroken && baseAmount > 0) return 0;
   const mult = getTraitQiMult('cultivation_gain');
   const actual = Math.round(baseAmount * mult);
   const qi = GS.char.qi;
@@ -13977,11 +14181,14 @@ function initMainMenu() {
 // PATCH handleDeath to save to Hall of Dead
 // ================================================================
 const _origHandleDeath = handleDeath;
-function handleDeath(cause) {
+// NOTE: must be an ASSIGNMENT, not a `function handleDeath` declaration — a second
+// declaration would be hoisted over the first, making _origHandleDeath capture
+// THIS wrapper and infinitely recurse. (That was a real bug; deaths stack-overflowed.)
+handleDeath = function(cause) {
   // Save to hall before clearing state
   saveToHallOfDead(GS.char, GS.world, cause);
   _origHandleDeath(cause);
-}
+};
 
 // ================================================================
 // PATCH applyAIResponse to check achievements each turn
@@ -25946,6 +26153,14 @@ updateCharacterTab = function() {
     safe('conditions', () => {
       if(res.conditions?.length) res.conditions.forEach(cnd => addCondition(cnd));
       if(res.removeConditions?.length) res.removeConditions.forEach(id => removeCondition(id));
+      // LEGITIMATE channel heal — the ONLY way broken channels are mended. The AI
+      // must emit this with a valid source (a high-level expert or the Hiestler
+      // plant). Generic removeConditions can NOT clear broken channels.
+      if(res.healChannels && (res.healChannels.source || res.healChannels === true)) {
+        const src = (res.healChannels.source || '').toLowerCase();
+        const legit = /hiestler|grand physician|master healer|sect elder|grandmaster|divine|immortal|venerable|high[- ]?level|core formation|nascent soul|spirit severing/.test(src);
+        if(legit) healChannels(res.healChannels.source);
+      }
     });
 
     // Age change — only honored if explicitly via a technique/effect (forward OR backward)
