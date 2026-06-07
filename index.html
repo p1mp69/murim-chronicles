@@ -4947,6 +4947,113 @@ const TRAITS_CATALOG = {
     effects: { intelligence: 5, perception: 2 },
   },
 
+  // ──────────────────────────────────────────────────────────
+  // DEMIGOD — CHILDREN OF THE GODS (FABLE TIER)
+  // Born of a mortal and a god. Each carries a sliver of their divine parent's
+  // domain. Not random — these are the rarest of bloodlines, granted by story or
+  // by the heavens themselves. "Child" resolves to Son/Daughter by gender.
+  // ──────────────────────────────────────────────────────────
+  demigod_dyaqed: {
+    name: 'Demigod — Child of D\'yaqed', type: 'divine', rarity: 'fable', inherited: true,
+    demigod: true, godName: "D'yaqed", domain: 'the Sun and all its Stars',
+    desc: 'A sliver of the First Flame — the One Who Burns — lives in your blood. Light bends toward you; the cold and the dark recoil.',
+    flavor: 'You were a sick child laid in the sun to die.\n\nYou rose from it warm, and the fever was gone, and your shadow had two lights.',
+    gameplay: 'Fire/light cultivation is effortless and immense. Wounds close in sunlight; the dark, cold, and demonic are weak against you. You can call the sun\'s fire at apocalyptic scale.',
+    aiHint: 'DEMIGOD OF D\'YAQED (FABLE): A child of the sun-god. Fire and light answer them instinctively and on a scale ordinary cultivators cannot match; under open sky/sunlight they heal and strengthen; dark, cold, and demonic powers are sharply diminished against them; bar lēlyā and Nyokuro\'s lesser servants recoil. Their flame can scour battlefields. Not omnipotent — peers (other fable beings, cosmic ancients, the great gods) can still match them — but against anything lesser they are a walking dawn.',
+    effects: { strength: 14, endurance: 16, willpower: 18, charisma: 14, perception: 10 },
+    qiCostMult: { fire: 0.1, light: 0.1, life: 0.2 },
+  },
+  demigod_zuriroku: {
+    name: 'Demigod — Child of Zuriroku', type: 'divine', rarity: 'fable', inherited: true,
+    demigod: true, godName: 'Zuriroku', domain: 'Sun, Stars, and the Heart that houses the dead',
+    desc: 'The Star-Mother who tore out her own heart to shelter every soul is your blood. Life answers you, and death listens when you speak.',
+    flavor: 'A field of dead crops greened where you slept.\n\nThe village called it a blessing. They were not wrong.',
+    gameplay: 'Mastery over life, light, and the soul: heal grievous wounds, sense and steady spirits, draw on starlight. The dead and dying are within your sight.',
+    aiHint: 'DEMIGOD OF ZURIROKU (FABLE): Child of the supreme Star-Mother. Commands life, light, healing, and the threshold of souls — can heal the near-dead, soothe or read spirits, and channel starfire. Plants quicken near them; the dying linger when they wish it. Immense and radiant; only true peers threaten them.',
+    effects: { intelligence: 12, willpower: 18, charisma: 16, endurance: 14, perception: 12 },
+    qiCostMult: { light: 0.1, life: 0.1, cultivation_gain: 0.4 },
+  },
+  demigod_hikarudo: {
+    name: 'Demigod — Child of Hikarudo', type: 'divine', rarity: 'fable', inherited: true,
+    demigod: true, godName: 'Hikarudo', domain: 'Moon, Winter, Mountains, and Space',
+    desc: 'The Moon-King who raised the five sacred mountains is your father. Distance folds for you; cold obeys; the night is your country.',
+    flavor: 'They cornered you against a wall.\n\nYou were, a heartbeat later, atop the wall. You did not climb it.',
+    gameplay: 'Bend space and distance (blink, fold, reach the far as near), command cold and ice, and move untouched through night. Calm, vast, hard to pin down.',
+    aiHint: 'DEMIGOD OF HIKARUDO (FABLE): Child of the Moon-Monarch of space and winter. Folds distance (short-range teleport, attacks that arrive from impossible angles), wields killing cold, and is nearly impossible to corner or trap. Detached, immense, lunar. Peers only.',
+    effects: { agility: 16, perception: 16, willpower: 16, intelligence: 12, endurance: 10 },
+    qiCostMult: { space: 0.1, ice: 0.1, void: 0.3 },
+  },
+  demigod_tahara: {
+    name: 'Demigod — Child of Tahara', type: 'divine', rarity: 'fable', inherited: true,
+    demigod: true, godName: 'Tahara', domain: 'Storms, Metal, Swords, and Blood',
+    desc: 'The only god who was once a man — storm-lord, blade-lord — is your blood. Steel sings for you and the sky answers your anger.',
+    flavor: 'You drew the blade and the thunder came a breath before the strike, not after.',
+    gameplay: 'Supreme mastery of weapons and war: lightning, storms, and metal bend to you; blood (yours and others\') is a weapon. The greatest swordsman in any room you stand in.',
+    aiHint: 'DEMIGOD OF TAHARA (FABLE): Child of the storm-and-sword god (the only formerly-mortal deity). Peerless with weapons; calls lightning and storms; commands metal and blood. In any duel they are the deadliest blade present. Titanic in open battle. Only true peers stand against them.',
+    effects: { strength: 18, agility: 16, endurance: 14, willpower: 14, perception: 12 },
+    qiCostMult: { lightning: 0.1, storm: 0.1, metal: 0.15, blood: 0.2 },
+  },
+  demigod_zawabin: {
+    name: 'Demigod — Child of Zawabin', type: 'divine', rarity: 'fable', inherited: true,
+    demigod: true, godName: 'Zawabin', domain: 'War, Conflict, Wisdom, and Strategy',
+    desc: 'The war-god\'s mind runs in you — the one who orchestrated a genocide and was convicted for it. You see the whole board, always.',
+    flavor: 'You looked at the battlefield once.\n\nYou knew, already, how every soldier on it would die.',
+    gameplay: 'Flawless tactical and strategic insight; read enemies, predict moves, command armies. Conflict sharpens rather than rattles you. A genius of war.',
+    aiHint: 'DEMIGOD OF ZAWABIN (FABLE): Child of the war-and-strategy god. Sees battle and conflict with terrifying clarity — predicts opponents, exploits every weakness, commands armies brilliantly, and is never outmaneuvered by lesser minds. Their edge is mind and war, not raw element; in a battle of wits or generalship they do not lose to mortals.',
+    effects: { intelligence: 20, perception: 16, willpower: 14, charisma: 12, strength: 8 },
+    qiCostMult: { standard: 0.5 },
+  },
+  demigod_tumijin: {
+    name: 'Demigod — Child of Tumijin', type: 'divine', rarity: 'fable', inherited: true,
+    demigod: true, godName: 'Tumijin', domain: 'Death, Eternity, and Rebirth',
+    desc: 'The god who ushers souls into the Heartland is your parent. Death is not your enemy — it is family business.',
+    flavor: 'The assassin\'s blade found your heart.\n\nYou watched yourself die, found it tedious, and came back.',
+    gameplay: 'Dominion over death: see and command the dead, resist dying, and return from it. Decay and necrotic forces obey you; the soul is yours to read.',
+    aiHint: 'DEMIGOD OF TUMIJIN (FABLE): Child of the death-and-rebirth god. Commands death itself — sees/raises the dead, wields decay, resists being killed, and can return from death (rarely, dramatically). Souls are an open book. Cold and unhurried. Peers only can truly end them, and even then not easily.',
+    effects: { willpower: 20, endurance: 16, perception: 14, intelligence: 12 },
+    qiCostMult: { death: 0.1, decay: 0.1, void: 0.25 },
+  },
+  demigod_shinamori: {
+    name: 'Demigod — Child of Shinamori', type: 'divine', rarity: 'fable', inherited: true,
+    demigod: true, godName: 'Shinamori', domain: 'Forging, Invention, and Intelligence',
+    desc: 'The maker-god who discovered Essence itself is your blood. Your hands build what others can only dream, and your mind sees how everything works.',
+    flavor: 'You took the broken mechanism apart.\n\nYou put it back together better. You were six.',
+    gameplay: 'Genius of crafting, forging, alchemy, and formations — you create artifacts and devices beyond any mortal smith. Qi infusion and item-making are second nature.',
+    aiHint: 'DEMIGOD OF SHINAMORI (FABLE): Child of the god of forging and invention. Crafts artifacts, weapons, formations, and alchemy at a level no mortal maker reaches; understands the workings of any mechanism or technique on sight; Qi-infusion and creation are trivial for them. Their genius is making and understanding.',
+    effects: { intelligence: 20, perception: 16, willpower: 12, strength: 8 },
+    qiCostMult: { forging: 0.1, formation: 0.1, standard: 0.6 },
+  },
+  demigod_dadaishi: {
+    name: 'Demigod — Child of Dadaishi', type: 'divine', rarity: 'fable', inherited: true,
+    demigod: true, godName: 'Dadaishi', domain: 'Speed, Deserts, and Winds',
+    desc: 'The trickster wind-god is your parent. You are faster than thought, light as a sandstorm, gone before the blow lands.',
+    flavor: 'The arrows arrived where you had been.\n\nYou were already laughing from somewhere else.',
+    gameplay: 'Inhuman speed and wind mastery — outrun anything, strike a dozen times in a breath, ride and command the winds. Mischief and escape come easy.',
+    aiHint: 'DEMIGOD OF DADAISHI (FABLE): Child of the god of speed and wind. Moves faster than any mortal can track — blitzes, evades, and strikes many times in an instant; commands wind and sand. Playful and impossible to catch. Only beings with their own speed/time mastery can keep up.',
+    effects: { agility: 22, perception: 16, endurance: 12, luck: 10 },
+    qiCostMult: { speed: 0.1, wind: 0.1, lightning: 0.3 },
+  },
+  demigod_nikuhiro: {
+    name: 'Demigod — Child of Nikuhiro', type: 'divine', rarity: 'fable', inherited: true,
+    demigod: true, godName: 'Nikuhiro', domain: 'Flesh, Living Organisms, and the Soul-gift',
+    desc: 'The god who gave the soulless their souls is your blood. Flesh — your own and others\' — is clay in your hands.',
+    flavor: 'The wound was mortal.\n\nYou pressed your hand to it and told the flesh to close. It obeyed.',
+    gameplay: 'Command over the living body: reshape and heal flesh, regenerate from grievous harm, strengthen or unmake bodies, sense all living things nearby.',
+    aiHint: 'DEMIGOD OF NIKUHIRO (FABLE): Child of the god of flesh and life. Heals and reshapes bodies (own and others), regenerates from near-anything, can strengthen or wither living things, and senses all life around them. Hard to kill through mere injury. Peers only.',
+    effects: { endurance: 20, strength: 14, willpower: 14, perception: 12 },
+    qiCostMult: { life: 0.1, flesh: 0.1, cultivation_gain: 0.4 },
+  },
+  demigod_madomizu: {
+    name: 'Demigod — Child of Madomizu', type: 'divine', rarity: 'fable', inherited: true,
+    demigod: true, godName: 'Madomizu', domain: 'Dreams, Nightmares, and Sleep',
+    desc: 'The dream-god of the unconscious is your parent. You walk in sleeping minds and the line between dream and waking thins where you stand.',
+    flavor: 'Your enemy slept soundly.\n\nIn the morning he could not stop screaming, and would not say why.',
+    gameplay: 'Enter and shape dreams, weave illusions indistinguishable from reality, inflict nightmares, and read the unconscious. The mind is your battlefield.',
+    aiHint: 'DEMIGOD OF MADOMIZU (FABLE): Child of the god of dreams and nightmares. Walks into sleeping minds, conjures flawless illusions, drives enemies mad with nightmares, and reads the unconscious. Their power is mental and oneiric — devastating against any will lesser than a peer\'s; resisted only by extraordinary willpower or fellow divine-blooded.',
+    effects: { willpower: 18, intelligence: 16, perception: 16, charisma: 12 },
+    qiCostMult: { illusion: 0.1, shadow: 0.2, mind: 0.1 },
+  },
+
 };
 
 const LORE_NPCS = {
@@ -6522,6 +6629,22 @@ function spawnItem(item) {
 
   // Auto-detect type from name if AI didn't specify
   const nameLower = (item.name || '').toLowerCase();
+
+  // KEY / DEED SAFETY NET: holding the keys (or deed/title) to a place IS owning
+  // it. If the AI spawns such an item, register the property in assets so it shows
+  // up — even if it forgot to emit newAssets. (The key item still spawns normally.)
+  if(typeof registerNarrativeAsset === 'function' && !item._noAssetRegister) {
+    const km = nameLower.match(/\b(?:keys?|deed|title|ownership papers?)\s+to\s+(?:the\s+)?(.+)/)
+            || nameLower.match(/^(?:the\s+)?(.+?)['’]s?\s+(?:keys?|deed|title)$/);
+    if(km && km[1]) {
+      const propName = km[1].replace(/['"’]/g,'').replace(/\b\w/g, c => c.toUpperCase()).trim();
+      const already = (GS.char.assets||[]).some(a => (a.name||'').toLowerCase().includes(km[1].toLowerCase()) || km[1].toLowerCase().includes((a.name||'').toLowerCase()));
+      if(propName && !already) {
+        registerNarrativeAsset({ name: propName, type: propName, how: 'acquired (held the keys)' });
+      }
+    }
+  }
+
   let autoType = item.type;
   if(!autoType) {
     if(/necklace|pendant|ring|amulet|bracelet|earring|brooch|jewel/i.test(nameLower)) autoType = 'accessory';
@@ -7085,6 +7208,11 @@ function giveTrait(traitId, custom=null) {
     const cat = TRAITS_CATALOG[traitId];
     if(!cat) { toast('Unknown trait', 'error'); return; }
     traitDef = { id:traitId, ...cat };
+  }
+  // Demigod traits resolve Son/Daughter from the character's gender.
+  if(traitDef.demigod && traitDef.name) {
+    const kin = GS.char.gender === 'female' ? 'Daughter' : 'Son';
+    traitDef = { ...traitDef, name: traitDef.name.replace(/\bChild\b/, kin) };
   }
   GS.char.traits.push(traitDef);
   // Apply stat effects
@@ -9965,7 +10093,7 @@ COURT / TRIAL RULE: When the player is caught for a real crime (theft, murder, t
 
 JOURNAL FIELDS RULE: "personalEvents" is the PLAYER'S OWN journal — only things that happen TO the player or are done BY the player (their choices, their wounds, their milestones, their relationships from their side). Do NOT put other people's affairs, sect politics, wars, or background world happenings in personalEvents. Those go in "worldEvents". Keep the player's journal about the player.
 
-PROPERTY RULE: When the player gains a place of their own through the story — inherited, gifted, won, granted by a sect, seized, built, or bought in narrative — you MUST register it via "newAssets": [{name, type, location, how}]. This is how it appears in their Properties & Assets. If they're handed the keys to an inn, a house, a shop, a cave hideout, etc., emit it. If they lose/sell/forfeit a property in the story, use "removeAssets". Never describe the player owning a property without registering it.
+PROPERTY RULE: When the player gains a place of their own through the story — inherited, gifted, won, granted by a sect, seized, built, or bought in narrative — you MUST register it via "newAssets": [{name, type, location, how}]. This is how it appears in their Properties & Assets. CRITICAL: being handed the KEYS to a place (or its deed/title) IS ownership — the moment the player holds the keys to an inn, house, shop, cave, manor, etc., emit a newAssets entry for it. Do NOT give the player a "key" or "deed" item as the only record of a property they now own — always also register the property itself in newAssets. If they lose/sell/forfeit a property in the story, use "removeAssets". Never describe the player owning (or holding keys to) a property without registering it.
 
 DRUG DEALING RULE: The world has an illicit narcotics trade (Hua Dust, Black Lotus Resin, Red Sap, Ghost Powder, Spirit Ash, and the like). The player can deal — there is a Black Market screen for the buy/sling mechanics — and you should support it in the narrative: shady connections, back-alley dens, addicts, rival dealers, and wardens/sects who hunt the trade. Dealing is genuinely PROFITABLE but genuinely DANGEROUS: it raises infamy and bounty, draws law and rivals, and getting caught has teeth. If the player's stash is shown above, reference it realistically. Narcotics are addictive and ruinous for users — portray that honestly (this is dark genre content, not endorsement). PRODUCING drugs IS alchemy: a skilled alchemist can synthesize product instead of buying it (the same craft that brews pills brews poisons and narcotics), so an alchemist-dealer is a natural, dangerous combination — support that in the story. Getting caught dealing can lead to ARREST AND A COURT TRIAL (see the COURT / TRIAL RULE). Do NOT moralize out-of-character or refuse; just play the world's consequences straight.
 
@@ -10487,7 +10615,7 @@ const SAVE_PREFIX = 'murim_slot_';
 // Scheme: MAJOR.MINOR. Big updates bump MAJOR (1.2 -> 2.2). Small updates
 // bump MINOR (2.2 -> 2.3). Each version has a name. The current version is
 // stamped onto every save; older saves can be updated to the latest.
-const GAME_VERSION = { number: '3.1', name: 'Crime & Punishment' };
+const GAME_VERSION = { number: '3.2', name: 'Blood of the Gods' };
 
 // Which model generates the story. Lite Mode swaps to a far cheaper, faster model
 // (Claude Haiku) so long sessions / limited credits cost a fraction per turn.
@@ -10514,6 +10642,7 @@ const VERSION_HISTORY = [
   { number:'2.9', name:'Pocket Murim',        sys:'Mobile overhaul: the story now fills the screen on phones, with your panels (Self, Journal, World, People, Skills, Items) in a slide-up bottom sheet you open from the nav bar and dismiss with one tap. Bigger touch targets, readable text, no more zoom-on-typing, and a tightened top bar. Also added the app icon and proper home-screen/share-preview support.', note:'Responsive bottom-sheet mobile layout, touch targets, icon + PWA polish.' },
   { number:'3.0', name:'The Underworld',      sys:'New black-market dealing system: find a connection, buy illicit supply, and sling it for profit — with real bust risk that scales with quantity, your infamy, and local heat (and drops with the right skills/traits). Big content drop: many more starting traits with rebalanced odds so runs feel distinct, plus new achievements (including the dealing path).', note:'Drug-dealing system (DRUGS, buy/sell/bust risk, black market modal), trait variety rebalance + ~19 new traits, dealing achievements.' },
   { number:'3.1', name:'Crime & Punishment',  sys:'Systems now interlock. Properties you gain in the story (inherited, won, gifted) actually register in your assets. Court & trial system: serious crimes lead to arrest and a case that runs over days-to-months — hire a lawyer or defend yourself, with verdicts weighing your defense, reputation, and bribes. Dealing now ties into alchemy (cook your own product) with more substances, and busts can land you in court. New: infuse Qi into your gear to strengthen it. Personal Events stays about YOU now. More traits and achievements.', note:'Narrative asset registration, court/trial system, alchemy drug production + more drugs, Qi item infusion, personalEvents routing, +traits/+achievements.' },
+  { number:'3.2', name:'Blood of the Gods',   sys:'Holding the keys (or deed) to a place now registers it as yours in Properties & Assets, even if it came purely through the story. New fabled bloodline: Demigod — Child of a god — ten variants, each a child of a different deity with unique divine powers, huge boosts, and a name that reflects your parent and gender. New achievement.', note:'Key/deed -> asset registration safety net + stronger PROPERTY RULE; 10 Demigod fable traits with gender-aware naming; demigod achievement.' },
 ];
 
 function cleanSaveData(gs) {
@@ -14535,6 +14664,10 @@ const ACHIEVEMENTS_DEF = [
     icon:'🗝️', name:'Keys to Your Name',
     desc:'Come to own a property.',
     check: gs => (gs.char.assets||[]).length > 0 },
+  { id:'demigod',
+    icon:'🩸', name:'Blood of the Gods',
+    desc:'Be revealed as a demigod — a child of one of the gods.',
+    check: gs => (gs.char.traits||[]).some(t => t.demigod || /^demigod/i.test(t.id||'')) },
 ];
 
 // ── Track specific achievement state that can't be inferred from existing data ──
