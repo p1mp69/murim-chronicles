@@ -8968,6 +8968,8 @@ CONDITIONS RULE: Permanent harm produces a "conditions" entry, NOT just a scar. 
 
 AGING RULE: The player ages forward with the calendar only — NEVER younger. Ordinary time passing already ages them automatically; do NOT send ageChange for normal time. Use ageChange ONLY for unnatural shifts (a time/cultivation art, a youth elixir, a curse of aging) and ALWAYS pair it with "ageViaTechnique": true. Negative ageChange (getting younger) is only ever valid with ageViaTechnique:true.
 
+SKILL REALISM RULE: Skills take real time and practice to acquire. A short period of study or training grants only a FEW skills, at LOW level — never "all" skills of a category. If the player declares something like "I read for 30 days and learn all the physical skills," that is not how it works: 30 days of reading might give them 1–3 relevant skills at a beginner level (a little theory, a touch of practice), NOT the entire physical skill set, and not high levels. Do NOT dump a long list of skills in the "skills" array to satisfy an unrealistic claim. Grant at most 1–3 skills per turn, with modest xp (xp roughly: a few days = 3–10, a season = 15–40, a year of focused study = 50–120). Mastery of many skills is the work of years. Never list skills the player did not actually plausibly gain this turn.
+
 TECHNIQUE NAMING RULE: Every technique and martial art MUST have a real, evocative, in-world name — the kind a cultivator would actually call it. Names like "Plum Blossom Severing Palm," "Nine-Stage Frostwyrm Breath," "Stillwater Heart Sutra" are good. NEVER use a description as a name: "Ultimate Technique for Killing Beings with Qi," "Strong Fire Attack," "Technique 3," "Powerful Sword Move" are FORBIDDEN. If you cannot think of a good name, invent a poetic two-to-four-word one tied to its element/effect.
 
 TECHNIQUE BIO RULE: When you create a technique via newTechniques, the "desc" is a flavorful description of WHAT it does — never bake a mastery stage into it. Do NOT write "Stage 0," "Fragmented Comprehension," "current mastery," etc. into the desc. The game tracks mastery separately and tells you the real current stage in [TECHNIQUE STAGE CONTEXT]. Always trust that stage context: a technique the player has raised to Conceptual Authority is mastered and stable — do NOT make it backlash or "explode" as if it were fragmented. Backlash only when the stage context itself reports a high failure chance.
@@ -25121,8 +25123,27 @@ updateCharacterTab = function() {
       if(res.newQiStageIndex != null) setQiStage(res.newQiStageIndex);
     });
 
-    // Skills
-    safe('skills', () => { res.skills?.forEach(s => addSkill(s.key||s.label?.toLowerCase().replace(/\s+/g,'_'), s.label||s.key, s.category||'misc', s.desc||'', s.xp||s.gain||1)); });
+    // Skills — REALISM CAP: a single action/montage cannot teach a pile of
+    // skills at once. "Read 30 days, learn all physical skills" should grant a
+    // FEW skills modestly, never the whole catalogue. Cap NEW skills per turn to
+    // 3; existing skills can still gain XP. This also kills the flood of popups.
+    safe('skills', () => {
+      if(!res.skills?.length) return;
+      let newSkillBudget = 3;
+      res.skills.forEach(s => {
+        const key = s.key || s.label?.toLowerCase().replace(/\s+/g,'_');
+        if(!key) return;
+        const normKey = key.toLowerCase().replace(/\s+/g,'_').replace(/[^a-z0-9_]/g,'');
+        const isNew = !GS.char.skills[normKey];
+        if(isNew) {
+          if(newSkillBudget <= 0) return; // over budget — skip extra new skills silently
+          newSkillBudget--;
+        }
+        // Clamp per-skill xp so a short montage can't rocket a skill up many levels
+        let xp = s.xp || s.gain || 1;
+        addSkill(key, s.label||key, s.category||'misc', s.desc||'', xp);
+      });
+    });
 
     // Techniques & martial arts
     safe('techniques', () => { res.newTechniques?.forEach(t => grantTechnique(t)); });
