@@ -2393,7 +2393,7 @@ body.generating [onclick*="shopSellItem"], body.generating [onclick*="closeMapGo
           <div class="collapsible-header" data-target="w-assets">
             <span>Properties &amp; Assets</span><span class="collapse-arrow">▼</span>
           </div>
-          <div id="w-assets" class="collapsible-body" style="display:none">
+          <div id="w-assets" class="collapsible-body">
             <div id="networth-summary"></div>
             <div id="w-assets-content">
               <div class="empty-state" style="padding:12px 0;font-size:12px">No properties owned. Find a place to call your own.</div>
@@ -4474,6 +4474,108 @@ const TRAITS_CATALOG = {
     effects: { perception: 3 },
   },
 
+  // ──────────────────────────────────────────────────────────
+  // MIND & TEMPERAMENT
+  // ──────────────────────────────────────────────────────────
+
+  eidetic_memory: {
+    name: 'Eidetic Memory',
+    type: 'mind', rarity: 'rare', inherited: true,
+    desc: 'You forget nothing. A page read once is a page kept. A face seen once is a face known.',
+    flavor: 'The merchant claimed they\'d never met.\n\nYou recited the date, the stall, the price he\'d quoted.\n\nHe stopped claiming.',
+    gameplay: 'You learn knowledge-based skills (literacy, medicine, law, formations, scholarly subjects) noticeably faster, and you recall details from earlier — names, debts, overheard facts — with perfect clarity.',
+    aiHint: 'EIDETIC MEMORY: This character remembers everything precisely. Let them recall exact details from past scenes — words spoken, faces, numbers — that others would have forgotten. Scholarly/knowledge skills come faster. Never let them be fooled by a contradiction they would have caught.',
+    effects: { intelligence: 4, perception: 1 },
+  },
+
+  silver_tongue: {
+    name: 'Silver Tongue',
+    type: 'mind', rarity: 'uncommon', inherited: false,
+    desc: 'Words bend for you. You find the phrasing that opens doors and softens refusals before others have finished thinking.',
+    flavor: 'The guard had every reason to turn you away.\n\nBy the time you finished speaking, he was apologizing for the inconvenience.',
+    gameplay: 'Persuasion, negotiation, bargaining, and deception go better for you. Merchants give ground; hostile NPCs can sometimes be talked down where others would draw steel.',
+    aiHint: 'SILVER TONGUE: This character is genuinely persuasive. Give their social attempts a real edge — better prices, NPCs more willing to bend, talk-downs that would fail for others sometimes succeeding. Not mind control; just unusually effective speech.',
+    effects: { charisma: 4 },
+  },
+
+  iron_will: {
+    name: 'Iron Will',
+    type: 'mind', rarity: 'rare', inherited: false,
+    desc: 'Your mind does not break. Pain, fear, temptation, despair — they crash against you and recede.',
+    flavor: 'They tortured you for a name.\n\nYou gave them silence so complete they began to doubt you knew anything at all.',
+    gameplay: 'Strongly resists fear, mental attacks, illusions, corruption, and Qi deviation. Breakthroughs are steadier. Bargains with dark powers are survivable where a weaker will would be consumed.',
+    aiHint: 'IRON WILL: This character has extraordinary mental fortitude. Fear effects, illusions, mental manipulation, torture, and corruption land far weaker on them. In willpower checks (Qi deviation, dark bargains, intimidation), treat them as exceptional.',
+    effects: { willpower: 5 },
+  },
+
+  slow_to_anger: {
+    name: 'Still Lake',
+    type: 'mind', rarity: 'uncommon', inherited: false,
+    desc: 'You do not rattle. Provocation washes over you, and you answer when you choose to, not when goaded.',
+    flavor: 'He spat at your feet and named your mother.\n\nYou finished your tea.',
+    gameplay: 'Hard to provoke, bait, or manipulate through emotion. You keep a clear head in chaos and rarely make the mistake an enemy is trying to force.',
+    aiHint: 'STILL LAKE: This character is genuinely hard to provoke. Taunts, baiting, and emotional manipulation rarely work — they keep composure when others would lash out. Let them notice manipulation attempts for what they are.',
+    effects: { willpower: 3, charisma: 1 },
+  },
+
+  // ──────────────────────────────────────────────────────────
+  // BODY & CONSTITUTION
+  // ──────────────────────────────────────────────────────────
+
+  ironhide: {
+    name: 'Ironhide',
+    type: 'body', rarity: 'rare', inherited: true,
+    desc: 'Your skin and bone are simply tougher than they should be. Blows that would break others leave you bruised.',
+    flavor: 'The cudgel snapped.\n\nYou hadn\'t.',
+    gameplay: 'You take less physical damage, shrug off minor wounds, and endure beatings that would cripple a normal person. Body-tempering cultivation comes more naturally.',
+    aiHint: 'IRONHIDE: This character is unusually durable. Physical blows do less to them; minor injuries barely register. In combat, narrate them taking hits that would fell others and staying up. Body-tempering arts progress faster.',
+    effects: { endurance: 5 },
+  },
+
+  fast_healer: {
+    name: 'Quick Mending',
+    type: 'body', rarity: 'uncommon', inherited: true,
+    desc: 'You knit back together fast. Wounds close, fevers break, bones set cleaner than they have any right to.',
+    flavor: 'The physician said two months.\n\nYou were walking in nine days.',
+    gameplay: 'Injuries and illnesses heal much faster than normal. Recovery from exhaustion and Qi depletion is quicker. Lasting scars are rarer.',
+    aiHint: 'QUICK MENDING: This character heals fast. Cut recovery times sharply, let wounds close cleaner, and rarely leave lasting scars from ordinary injuries. (Does NOT undo permanent conditions or grievous, narratively-significant maiming.)',
+    effects: { endurance: 3 },
+  },
+
+  tireless: {
+    name: 'Tireless',
+    type: 'body', rarity: 'uncommon', inherited: true,
+    desc: 'You keep going long after others fold. Hunger, cold, sleeplessness, and exertion cost you less.',
+    flavor: 'The others made camp at dusk.\n\nYou could have walked through the night and into the next.',
+    gameplay: 'Far greater stamina. You can train longer, travel farther, fight past the point others collapse, and endure deprivation that would break a normal body.',
+    aiHint: 'TIRELESS: This character has exceptional endurance reserves. They outlast others in long fights, forced marches, extended training, and deprivation. Fatigue arrives much later for them.',
+    effects: { endurance: 4, strength: 1 },
+  },
+
+  // ──────────────────────────────────────────────────────────
+  // FORTUNE & FATE
+  // ──────────────────────────────────────────────────────────
+
+  silver_magnet: {
+    name: 'Silver Magnet',
+    type: 'fortune', rarity: 'uncommon', inherited: false,
+    desc: 'Money finds you. Opportunities to earn, bargains, lucky finds — coin has a way of ending up in your hand.',
+    flavor: 'You went to the market to spend.\n\nYou came home with more than you left with, and you weren\'t entirely sure how.',
+    gameplay: 'You earn more from work, missions, and trade; you stumble onto valuables and good deals more often than chance would explain.',
+    aiHint: 'SILVER MAGNET: This character has a knack for coin. Lean toward better payouts, lucky finds, and favorable deals coming their way. Not infinite money — just fortune consistently tilted toward profit.',
+    effects: { luck: 3 },
+  },
+
+  survivor: {
+    name: 'Survivor',
+    type: 'fortune', rarity: 'rare', inherited: false,
+    desc: 'You walk away from things that kill other people. Collapses, ambushes, poisonings — somehow, you make it out.',
+    flavor: 'They counted the bodies twice.\n\nYours was supposed to be among them.',
+    gameplay: 'In lethal situations, fate tilts toward your survival — the blow lands an inch wide, the escape route appears, the poison was the weaker dose. You can be hurt, but death has to work harder for you.',
+    aiHint: 'SURVIVOR: When this character faces a lethal situation, bias outcomes toward survival in believable ways — near-misses, lucky timing, the weaker poison, the unlocked door. They can still be badly hurt and can still die, but cheap or random deaths should pass them by.',
+    effects: { luck: 4 },
+  },
+
 };
 
 const LORE_NPCS = {
@@ -6031,6 +6133,8 @@ function spawnItem(item) {
     else if(/\btome\b|manual|secret.*art|technique.*(book|scroll)|cultivation.*method|martial.*manual/i.test(nameLower)) autoType = 'tome';
     else if(/book|journal|diary|memoir|record|text|treatise|primer|codex|chronicle|annals/i.test(nameLower)) autoType = 'book';
     else if(/herb|ingredient|seed|root|flower|pill|elixir|potion|food|meal|fruit/i.test(nameLower)) autoType = 'consumable';
+    // OFF-HAND gear (checked before weapon so "parrying dagger"/"war fan" land here)
+    else if(/shield|buckler|parrying dagger|main-gauche|war ?fan|iron fan|talisman|warding charm|spirit lantern|off-?hand/i.test(nameLower)) autoType = 'offhand';
     else if(/sword|blade|knife|spear|bow|staff|hammer|axe|weapon/i.test(nameLower)) autoType = 'weapon';
   }
 
@@ -6042,7 +6146,7 @@ function spawnItem(item) {
   // ── DEDUPE: tomes, books, and unique equipment must never duplicate. ──
   // A tester saw a tome duplicate when re-read because the AI re-listed it in
   // newItems. Unique/permanent items with the same name are not re-added.
-  const NON_STACKABLE = new Set(['tome','book','weapon','armor','accessory','clothing','equipment']);
+  const NON_STACKABLE = new Set(['tome','book','weapon','armor','accessory','clothing','equipment','offhand']);
   if(NON_STACKABLE.has(type) || isTome || isBook) {
     const exists = (GS.char.inventory||[]).some(i => (i.name||'').toLowerCase() === nameLower)
       || Object.values(GS.char.equipment||{}).some(e => e && (e.name||'').toLowerCase() === nameLower);
@@ -8812,7 +8916,7 @@ function updateInventoryTab() {
     const div = document.createElement('div');
     div.className = `inv-item ${rarityClass(itm.rarity)}`;
     const TYPE_ICONS = {
-      weapon:'⚔', armor:'🛡', clothing:'👘', accessory:'💎', consumable:'💊',
+      weapon:'⚔', armor:'🛡', offhand:'🛡', clothing:'👘', accessory:'💎', consumable:'💊',
       tome:'📜', book:'📖', misc:'📦', supplies:'🎒', equipment:'⚙',
     };
     const typeIcon = TYPE_ICONS[itm.type] || '◆';
@@ -8820,6 +8924,7 @@ function updateInventoryTab() {
       : itm.isTome ? 'Tome'
       : itm.type === 'accessory' ? 'Accessory'
       : itm.type === 'clothing' ? 'Clothing'
+      : itm.type === 'offhand' ? 'Off-hand'
       : itm.type === 'misc' ? 'Item'
       : itm.type || 'Item';
     div.innerHTML = `<div class="inv-item-name ${rarityText(itm.rarity)}">${itm.name}</div><div class="inv-item-type">${typeIcon} ${typeLabel}</div>`;
@@ -9296,10 +9401,10 @@ BROKEN CHANNELS RULE: Attempting a cultivation breakthrough on a Qi DEFICIT (neg
 
 AGING RULE: The player ages forward with the calendar only — NEVER younger. Ordinary time passing already ages them automatically; do NOT send ageChange for normal time. Use ageChange ONLY for unnatural shifts (a time/cultivation art, a youth elixir, a curse of aging) and ALWAYS pair it with "ageViaTechnique": true. Negative ageChange (getting younger) is only ever valid with ageViaTechnique:true.
 
-TITLES RULE — AWARD THEM (the player earns reputation through deeds): The player can earn two kinds of title. You MUST grant them at genuinely earned moments — this is how the world recognizes who the player has become.
-- SPIRITUAL TITLES = epithets earned through cultivation, combat, and the murim world: a great feat, a famous victory, a fearsome reputation, a breakthrough that draws notice. Examples: "Sword Saint," "Frost Maiden," "The Undying," "Blade of the Crimson Vow," "Demon of Stone Root." Emit via "spiritualTitles": [{ "name": "...", "desc": "how/why it was earned", "effects": { "charisma": 2 } }] (effects optional and small).
-- SOCIAL TITLES = positions, ranks, and standing in society: an office, a clan/sect rank, recognized civic standing. Examples: "Magistrate of the Canal District," "Sect Elder," "Young Master of the Wei Clan," "Respected Advocate of Tazar." Emit via "socialTitles": [{ "name": "...", "desc": "...", "effects": {} }].
-- WHEN: grant a title only at a real milestone — a notable deed, a formal appointment, or reputation clearly crossing into "people now call you ___" territory. Do NOT invent titles every turn; one earned title at the right moment is worth more than ten cheap ones. Once granted, USE the title in narration when fitting (people address the player by it, it precedes their reputation). Do not re-grant a title the player already holds.
+TITLES RULE — AWARD THEM (the player earns reputation through deeds of EVERY kind): The player can earn two kinds of title, and titles are NOT just for combat or cultivation. ANY notable achievement — scholarly, professional, civic, criminal, artistic, mercantile — can earn one. "The Youngest Unlicensed Lawyer in History," "The Poison Sage of Tazar," "Master Forgemaster," "The Beggar Who Reads," "Three-Time Champion of the Spring Examinations" are all valid titles. You MUST grant titles at genuinely earned moments — this is how the world recognizes who the player has become.
+- SPIRITUAL TITLES = renown-as-legend epithets — what the wider world whispers about this person. These can come from cultivation/combat (Sword Saint, Frost Maiden, The Undying) OR from any extraordinary feat of skill, mind, or notoriety (The Living Library, The Plague Doctor, The Coin That Never Lies, Demon of Stone Root). Emit via "spiritualTitles": [{ "name": "...", "desc": "how/why it was earned", "effects": { "charisma": 2 } }] (effects optional and small).
+- SOCIAL TITLES = positions, ranks, professions, and standing in society: an office, a clan/sect rank, a professional standing, recognized civic role. Examples: "Magistrate of the Canal District," "Sect Elder," "Young Master of the Wei Clan," "Licensed Advocate," "Youngest Physician in the Imperial Registry," "Guildmaster." Emit via "socialTitles": [{ "name": "...", "desc": "...", "effects": {} }].
+- WHEN: grant a title only at a real milestone — a notable deed of ANY kind, a formal appointment, a record set, or reputation clearly crossing into "people now call you ___" territory. Do NOT invent titles every turn; one earned title at the right moment is worth more than ten cheap ones. Once granted, USE the title in narration when fitting (people address the player by it, it precedes their reputation). Do not re-grant a title the player already holds.
 
 ROMANCE & OFFSPRING RULE:
 - Romance develops gradually and believably through the stage system; do not skip from strangers to lovers. NPCs have their own feelings, standards, and lives — they can decline, drift, or leave.
@@ -9806,7 +9911,7 @@ const SAVE_PREFIX = 'murim_slot_';
 // Scheme: MAJOR.MINOR. Big updates bump MAJOR (1.2 -> 2.2). Small updates
 // bump MINOR (2.2 -> 2.3). Each version has a name. The current version is
 // stamped onto every save; older saves can be updated to the latest.
-const GAME_VERSION = { number: '2.4', name: 'Titles Restored' };
+const GAME_VERSION = { number: '2.5', name: 'Reputation & Renown' };
 
 // Which model generates the story. Lite Mode swaps to a far cheaper, faster model
 // (Claude Haiku) so long sessions / limited credits cost a fraction per turn.
@@ -9824,6 +9929,7 @@ const VERSION_HISTORY = [
   { number:'2.2', name:'Memory & Legacy',     note:'Coins are real currency (not items); selling removes items; NPCs die of old age and natural causes; the AI remembers when/how you met people and how much time has passed; everyone ages; deeper romance & offspring (abandon a child and they may come find you when you are famous); time-skips make the world move on; many new achievements.' },
   { number:'2.3', name:'Lite Mode',           note:'New Lite Mode toggle in Settings — play on a smaller, far cheaper, faster model (Claude Haiku) to stretch limited API credits or play longer for less. Toggle off any time for full-quality prose.' },
   { number:'2.4', name:'Titles Restored',     note:'Spiritual & social titles now actually work — the narrator awards earned epithets (Sword Saint, Frost Maiden) and social standing (Sect Elder, Magistrate) at real milestones, and they show on your character sheet.' },
+  { number:'2.5', name:'Reputation & Renown', note:'Titles now come from any feat (not just combat). Fame & infamy actually do things — discounts, fear premiums, NPC disposition, bounty hunters, doors that open or close — starting at lower tiers. Fixed the Properties/Assets dropdown. Off-hand slot now has real gear (shields, buckler, parrying dagger, war fan, talisman, spirit lantern). ~25 new achievements and 10 new traits.' },
 ];
 
 function cleanSaveData(gs) {
@@ -13560,6 +13666,90 @@ const ACHIEVEMENTS_DEF = [
     icon:'⛔', name:'Permanent Mark',
     desc:'Carry a permanent condition — blindness, a lost limb, or worse.',
     check: gs => (gs.char.conditions||[]).length > 0 },
+
+  // ── Titles ──
+  { id:'first_title',
+    icon:'🎖️', name:'Named',
+    desc:'Earn your first title — spiritual or social.',
+    check: gs => (gs.char.spiritualTitles||[]).length > 0 || (gs.char.socialTitles||[]).length > 0 },
+  { id:'many_titles',
+    icon:'📛', name:'A Name That Carries',
+    desc:'Hold five or more titles at once.',
+    check: gs => ((gs.char.spiritualTitles||[]).length + (gs.char.socialTitles||[]).length) >= 5 },
+
+  // ── Reputation ──
+  { id:'locally_known',
+    icon:'📣', name:'Known',
+    desc:'Reach renown 40+ somewhere.',
+    check: gs => Object.values(gs.char.reputation||{}).some(r => (r.renown||0) >= 40) },
+  { id:'living_legend',
+    icon:'🌟', name:'Living Legend',
+    desc:'Reach renown 85+ somewhere.',
+    check: gs => Object.values(gs.char.reputation||{}).some(r => (r.renown||0) >= 85) },
+  { id:'feared_name',
+    icon:'☠️', name:'Feared',
+    desc:'Reach infamy 55+ somewhere.',
+    check: gs => Object.values(gs.char.reputation||{}).some(r => (r.infamy||0) >= 55) },
+  { id:'the_boogeyman',
+    icon:'👹', name:'The Boogeyman',
+    desc:'Reach infamy 100 — a nightmare made real.',
+    check: gs => Object.values(gs.char.reputation||{}).some(r => (r.infamy||0) >= 100) },
+  { id:'known_far',
+    icon:'🗺️', name:'Word Travels',
+    desc:'Be known (renown or infamy 40+) in five different places.',
+    check: gs => Object.values(gs.char.reputation||{}).filter(r => (r.renown||0) >= 40 || (r.infamy||0) >= 40).length >= 5 },
+
+  // ── Equipment ──
+  { id:'fully_armed',
+    icon:'🥷', name:'Fully Outfitted',
+    desc:'Equip something in every equipment slot at once.',
+    check: gs => { const e = gs.char.equipment||{}; return ['head','body','hands','feet','weapon','offhand','acc1','acc2'].every(s => e[s]); } },
+  { id:'dual_wield',
+    icon:'⚔️', name:'Two Hands, Two Threats',
+    desc:'Equip both a weapon and an off-hand item.',
+    check: gs => !!(gs.char.equipment?.weapon && gs.char.equipment?.offhand) },
+
+  // ── Skills / Mastery ──
+  { id:'jack_of_trades',
+    icon:'🎭', name:'Jack of All Trades',
+    desc:'Learn ten or more different skills.',
+    check: gs => Object.keys(gs.char.skills||{}).length >= 10 },
+  { id:'master_of_one',
+    icon:'🏅', name:'Master of the Craft',
+    desc:'Raise any skill to level 10 or higher.',
+    check: gs => Object.values(gs.char.skills||{}).some(s => (s.level||0) >= 10) },
+  { id:'technique_collector',
+    icon:'📚', name:'Collector of Arts',
+    desc:'Know five or more techniques.',
+    check: gs => (gs.char.techniques||[]).length >= 5 },
+  { id:'conceptual_authority',
+    icon:'🌀', name:'Conceptual Authority',
+    desc:'Raise a technique to its highest mastery stage (Authority).',
+    check: gs => (gs.char.techniques||[]).some(t => (t.stage||0) >= 6) },
+  { id:'literate',
+    icon:'✍️', name:'Lettered',
+    desc:'Become fully literate (Literacy level 5+).',
+    check: gs => (gs.char.skills?.literacy?.level||0) >= 5 },
+
+  // ── Cultivation ──
+  { id:'foundation',
+    icon:'🪨', name:'Foundation Laid',
+    desc:'Open your meridians and begin true cultivation.',
+    check: gs => (gs.char.qi?.stageIndex||0) >= 1 },
+  { id:'core_formed',
+    icon:'🔮', name:'Core Formed',
+    desc:'Reach the Core Formation realm or beyond.',
+    check: gs => (gs.char.qi?.stageIndex||0) >= 7 },
+  { id:'path_chosen',
+    icon:'🧭', name:'A Path of One\'s Own',
+    desc:'Settle into a cultivation path (righteous, demonic, or beast).',
+    check: gs => !!gs.char.qi?.path },
+
+  // ── Wealth / Property continued ──
+  { id:'estate_holder',
+    icon:'🏘️', name:'Estate Holder',
+    desc:'Own five or more properties.',
+    check: gs => (gs.char.assets||[]).length >= 5 },
 ];
 
 // ── Track specific achievement state that can't be inferred from existing data ──
@@ -15624,6 +15814,12 @@ const PRICE_BASE = {
   armor_plate:         900,
   shield_wood:         15,
   shield_iron:         60,
+  buckler_steel:       110,
+  parrying_dagger:     90,
+  offhand_saber:       130,
+  warding_talisman:    140,
+  spirit_lantern:      220,
+  iron_fan:            70,
 
   // ── Cultivation Resources ──
   spirit_herb:         8,
@@ -19710,55 +19906,102 @@ function getReputationEffects(locKey) {
 
   const effects = {};
 
-  // RENOWN effects
+  // RENOWN effects — start mattering EARLY, not just at the top.
   if(rep.renown >= 100) {
     effects.renownTier  = 'mythic';
-    effects.priceMod    = 0.82;  // 18% discount — you're too famous to overcharge
-    effects.guardBehavior = 'deferential';  // wardens treat you with ceremony
-    effects.npcDeference  = 'immediate';   // rooms shift before you do anything
-    effects.accessOpen    = true;          // most doors open to you
-    effects.rumorsSpread  = true;          // word travels ahead of you
-    effects.requestsMagnet = true;         // people bring problems to you
-    effects.entranceEffect = true;         // your arrival changes the room
+    effects.priceMod    = 0.70;  // 30% discount — you're too famous to overcharge
+    effects.guardBehavior = 'deferential';
+    effects.npcDeference  = 'immediate';
+    effects.accessOpen    = true;
+    effects.rumorsSpread  = true;
+    effects.requestsMagnet = true;
+    effects.entranceEffect = true;
+    effects.dispositionBonus = 35; // NPCs start far warmer
   } else if(rep.renown >= 85) {
     effects.renownTier  = 'regional_icon';
-    effects.priceMod    = 0.90;
+    effects.priceMod    = 0.80;
     effects.guardBehavior = 'respectful';
     effects.npcDeference  = 'warm';
-    effects.accessOpen    = false;
+    effects.accessOpen    = true;
+    effects.requestsMagnet = true;
+    effects.entranceEffect = true;
+    effects.dispositionBonus = 28;
   } else if(rep.renown >= 70) {
     effects.renownTier  = 'local_legend';
-    effects.priceMod    = 0.95;
+    effects.priceMod    = 0.86;
     effects.npcDeference  = 'respectful';
     effects.guardBehavior = 'polite';
+    effects.accessOpen    = true;
+    effects.dispositionBonus = 22;
   } else if(rep.renown >= 55) {
     effects.renownTier  = 'notable';
+    effects.priceMod    = 0.90;
+    effects.npcDeference  = 'respectful';
+    effects.guardBehavior = 'polite';
+    effects.dispositionBonus = 16;
+  } else if(rep.renown >= 40) {
+    effects.renownTier  = 'respected';
+    effects.priceMod    = 0.93;
+    effects.npcDeference  = 'courteous';
+    effects.dispositionBonus = 11;
+  } else if(rep.renown >= 25) {
+    effects.renownTier  = 'known';
+    effects.priceMod    = 0.96;
+    effects.npcDeference  = 'acknowledged';
+    effects.dispositionBonus = 6;
+  } else if(rep.renown >= 10) {
+    effects.renownTier  = 'noticed';
     effects.priceMod    = 0.98;
+    effects.dispositionBonus = 3;
   }
 
   // INFAMY effects — stack on top of renown (they're different axes)
   if(rep.infamy >= 100) {
     effects.infamyTier    = 'boogeyman';
-    effects.fearPriceMod  = 1.35; // 35% fear premium OR refusal
-    effects.shopRefusal   = true;  // some vendors refuse
-    effects.streetClear   = true;  // people actively avoid
-    effects.guardHostile  = true;  // wardens may attack on sight
-    effects.areaRestrict  = true;  // certain areas effectively bar you
-    effects.childrenWarn  = true;  // your name is used to scare children
-    effects.doorsClosed   = true;  // merchants close early
+    effects.fearPriceMod  = 1.50;
+    effects.shopRefusal   = true;
+    effects.streetClear   = true;
+    effects.guardHostile  = true;
+    effects.areaRestrict  = true;
+    effects.childrenWarn  = true;
+    effects.doorsClosed   = true;
+    effects.bountyHunterRate = 0.9; // near-constant pursuit
+    effects.dispositionPenalty = 45;
   } else if(rep.infamy >= 85) {
     effects.infamyTier    = 'blight';
-    effects.fearPriceMod  = 1.18;
+    effects.fearPriceMod  = 1.30;
     effects.streetClear   = true;
     effects.guardHostile  = false;
     effects.guardSuspicion = 'maximum';
+    effects.shopRefusal   = true;
+    effects.bountyHunterRate = 0.6;
+    effects.dispositionPenalty = 35;
   } else if(rep.infamy >= 70) {
     effects.infamyTier    = 'monster';
-    effects.fearPriceMod  = 1.08;
+    effects.fearPriceMod  = 1.18;
     effects.guardSuspicion = 'high';
+    effects.bountyHunterRate = 0.35;
+    effects.dispositionPenalty = 26;
   } else if(rep.infamy >= 55) {
     effects.infamyTier    = 'dreaded';
+    effects.fearPriceMod  = 1.10;
     effects.guardSuspicion = 'elevated';
+    effects.bountyHunterRate = 0.18;
+    effects.dispositionPenalty = 18;
+  } else if(rep.infamy >= 40) {
+    effects.infamyTier    = 'feared';
+    effects.fearPriceMod  = 1.06;
+    effects.guardSuspicion = 'elevated';
+    effects.bountyHunterRate = 0.08;
+    effects.dispositionPenalty = 12;
+  } else if(rep.infamy >= 25) {
+    effects.infamyTier    = 'criminal';
+    effects.fearPriceMod  = 1.03;
+    effects.guardSuspicion = 'watchful';
+    effects.dispositionPenalty = 7;
+  } else if(rep.infamy >= 10) {
+    effects.infamyTier    = 'rumored';
+    effects.dispositionPenalty = 3;
   }
 
   return Object.keys(effects).length > 0 ? effects : null;
@@ -19789,7 +20032,7 @@ function buildCurrentLocationReputationContext() {
     const deeds = (rep.definingEvents || []).filter(e => e.type === 'renown').slice(0,2).map(e => e.desc);
     if(deeds.length) lines.push(`  → They know you for: ${deeds.join('; ')}`);
   } else if(fx?.renownTier) {
-    lines.push(`Renown ${rep.renown}/100 (${fx.renownTier}) — ${fx.npcDeference || 'acknowledged'}. Some deference. People know your name.`);
+    lines.push(`Renown ${rep.renown}/100 (${fx.renownTier}) — ${fx.npcDeference || 'acknowledged'}. People here know your name; many start friendlier toward you (disposition +${fx.dispositionBonus||0}). Merchants shave a little off (×${fx.priceMod||1} prices). Some doors open that wouldn't for a stranger. Reflect this concretely.`);
   }
 
   // High infamy behaviors
@@ -19805,7 +20048,7 @@ function buildCurrentLocationReputationContext() {
     const infDeeds = (rep.definingEvents || []).filter(e => e.type === 'infamy').slice(0,2).map(e => e.desc);
     if(infDeeds.length) lines.push(`  → They know you for: ${infDeeds.join('; ')}`);
   } else if(fx?.infamyTier) {
-    lines.push(`Infamy ${rep.infamy}/100 (${fx.infamyTier}) — wardens watch. Prices carry a fear premium. Some people would rather not be seen talking to you.`);
+    lines.push(`Infamy ${rep.infamy}/100 (${fx.infamyTier}) — wardens watch you (suspicion: ${fx.guardSuspicion||'watchful'}). Prices carry a fear premium (×${fx.fearPriceMod||1}). NPCs start warier (disposition −${fx.dispositionPenalty||0}). Some would rather not be seen with you${fx.bountyHunterRate?`; bounty hunters may come looking`:''}. Reflect this concretely.`);
   }
 
   lines.push(`MANDATE: These effects are mechanical realities, not optional flavor. Write every scene in this location through this lens. The reputation precedes the character — it walks into the room before they do.`);
@@ -21209,7 +21452,14 @@ const SHOP_ITEMS = {
   armor: [
     { key:'armor_leather',    name:'Leather Armor',     slot:'body',    desc:'Tanned hide. Cuts and minor blows glance off. Heavy enough to matter.' },
     { key:'armor_chain',      name:'Chain Armor',        slot:'body',    rarity:'uncommon', desc:'Linked iron rings. A soldier\'s protection. Heavy enough to feel.' },
+    { key:'shield_wood',      name:'Wooden Shield',      slot:'offhand', desc:'Lashed planks banded with iron. Cheap, light, and it has saved more lives than any sword.' },
     { key:'shield_iron',      name:'Iron Shield',        slot:'offhand', desc:'Round iron shield. Sparring masters call it the honest defense.' },
+    { key:'buckler_steel',    name:'Steel Buckler',      slot:'offhand', rarity:'uncommon', desc:'A small fist-shield for the off-hand. Made for deflection, not cover — fast hands love it.' },
+    { key:'parrying_dagger',  name:'Parrying Dagger',    slot:'offhand', desc:'A long-quilloned blade for the off-hand. Catches an opponent\'s steel so your main hand can answer.' },
+    { key:'offhand_saber',    name:'Companion Saber',    slot:'offhand', rarity:'uncommon', desc:'A shorter saber meant to pair with a main blade. Two-weapon styles live and die by it.' },
+    { key:'iron_fan',         name:'Iron War Fan',       slot:'offhand', desc:'A folding fan with iron ribs. Looks harmless in a scholar\'s hand — until it opens. Blocks, strikes, and conceals.' },
+    { key:'warding_talisman', name:'Warding Talisman',   slot:'offhand', rarity:'uncommon', desc:'A paper charm wrapped on a jade tag, held in the off-hand. Steadies the Qi and turns aside minor curses.' },
+    { key:'spirit_lantern',   name:'Spirit Lantern',     slot:'offhand', rarity:'rare', desc:'A small caged lantern whose flame burns even underwater. Off-hand focus for light and shadow arts; reveals what hides in the dark.' },
     { key:'armor_padded',     name:'Padded Traveling Vest', slot:'body', desc:'Layered cotton. Absorbs some impact. More importantly, it\'s not armor — wardens don\'t ask questions.' },
     { key:'arm_guards',       name:'Reinforced Arm Guards', slot:'hands', desc:'Leather over bone. Takes a blade hit before your arm does.' },
     { key:'cultivator_robes', name:'Cultivator\'s Training Robes', slot:'body', rarity:'uncommon', desc:'Woven to allow Qi circulation. The stitching follows meridian paths. A sect sells these.' },
@@ -21313,10 +21563,11 @@ function buildShopInventory(locKey) {
   const c     = GS.char;
   const rep   = getReputationEffects(locKey);
 
-  // Infamy 100 = some categories refuse
-  const infamyBlocked = rep?.infamyTier === 'boogeyman';
-  // Renown 100 = price discount, exclusive items may appear
+  // Infamy: high tiers make some vendors refuse outright
+  const infamyBlocked = !!rep?.shopRefusal;
+  // Renown gives a discount; infamy adds a fear premium (both can apply).
   const renownDiscount = rep?.priceMod || 1.0;
+  const fearPremium    = rep?.fearPriceMod || 1.0;
 
   const items = [];
   shop.categories.forEach(cat => {
@@ -21326,12 +21577,10 @@ function buildShopInventory(locKey) {
       let price = getItemShopPrice(item.key, locKey);
       if(!price) return;
 
-      // Apply reputation discount/premium
+      // Apply renown discount, then infamy fear premium (stolen-goods fences don't fear you)
       price = Math.ceil(price * renownDiscount);
-
-      // Infamy premium or refusal
-      if(infamyBlocked && cat !== 'stolen') {
-        price = Math.ceil(price * 1.3); // fear premium
+      if(cat !== 'stolen' && fearPremium > 1) {
+        price = Math.ceil(price * fearPremium);
       }
 
       // Check if available (war makes some items scarce)
