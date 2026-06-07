@@ -2395,6 +2395,11 @@ body.generating [onclick*="shopSellItem"], body.generating [onclick*="closeMapGo
           <div id="traits-list"><span class="text-muted italic text-xs">None yet.</span></div>
         </div>
 
+        <div class="char-section" id="trait-powers-section" style="display:none">
+          <div class="sect-label">Powers</div>
+          <div id="trait-powers-block"></div>
+        </div>
+
         <div class="char-section">
           <div class="sect-label">Titles</div>
           <div class="titles-sub">Spiritual</div>
@@ -7245,6 +7250,135 @@ function evolveTrait(traitId) {
 }
 
 // ================================================================
+// TRAIT POWERS — active abilities, passive triggers, and drawbacks
+// so traits DO things beyond stat boosts.
+// ================================================================
+// Each entry (keyed by trait id) may define:
+//   active:  { id, name, desc, cdDays, qiCost, run(c) }  — a usable power
+//   passive: function(c, days){}                          — runs as time passes
+//   drawback: string                                      — surfaced to the AI
+const TRAIT_POWERS = {
+  chosen_dyaqed: {
+    active: { id:'solar_pyre', name:'Solar Pyre', desc:'Call down a column of D\'yaqed\'s fire — apocalyptic in daylight.', cdDays:5, qiCost:80,
+      run(c){ const day = isDaytime(); const heal = Math.round((c.maxHp||100)*(day?0.3:0.12)); c.hp=Math.min(c.maxHp||100,c.hp+heal);
+        return `[SOLAR PYRE: I unleash a column of D'yaqed's flame${day?' under open sky — at full, world-scarring power':' (weaker without the sun overhead)'}. Narrate it scouring everything before me; the dark and cold recoil. The flame's warmth knits my wounds (+${heal} HP).]`; } },
+    passive(c, days){ if(isDaytime()) c.hp = Math.min(c.maxHp||100, c.hp + Math.round(days*1.5)); }, // the sun mends you
+    drawback: 'THE FLAME HAS ITS OWN WILL: D\'yaqed chose this vessel for a purpose. Occasionally the flame acts on its own — flaring at the dark, refusing to harm the innocent, or burning hotter than intended. The character does not fully control it; let it assert itself at dramatic moments. It also will NOT serve cruelty done for its own sake.',
+  },
+  demigod_zuriroku: {
+    active: { id:'starmother_mercy', name:"Star-Mother's Mercy", desc:'Pour life into a body — heal yourself or another from the brink.', cdDays:7, qiCost:60,
+      run(c){ c.hp = c.maxHp||100; if(c.illnesses?.length) c.illnesses=[]; updateConditionBlock&&updateConditionBlock();
+        return `[STAR-MOTHER'S MERCY: I channel Zuriroku's life — wounds close, sickness burns away, I am restored to full (and can do the same for someone dying before me). Narrate the warm, starlit healing.]`; } },
+    passive(c, days){ /* faster cultivation already via qiCostMult */ },
+    drawback: 'The dead and dying are always faintly present to a child of the Star-Mother — graveyards, battlefields, and the recently-deceased press on their senses.',
+  },
+  demigod_hikarudo: {
+    active: { id:'fold_space', name:'Fold Space', desc:'Step through folded distance — escape any trap, cross any gap.', cdDays:3, qiCost:40,
+      run(c){ c._escapeReady = true; return `[FOLD SPACE: I fold the distance and step through it — out of any corner, across any chasm, to anywhere I can perceive. Narrate the impossible, silent relocation. No cage holds a child of Hikarudo.]`; } },
+    passive(c, days){},
+    drawback: 'Distance feels unreal to them; they are aloof, and forming close mortal bonds is harder when nowhere is ever truly far.',
+  },
+  demigod_tahara: {
+    active: { id:'heavens_edge', name:"Heaven's Edge", desc:'A single strike wreathed in storm and metal — drops the lightning before the blow.', cdDays:4, qiCost:70,
+      run(c){ return `[HEAVEN'S EDGE: I strike once — lightning arriving a breath before the blade, metal singing to my will. Narrate a devastating, near-unblockable blow against my target.]`; } },
+    drawback: 'Tahara\'s blood runs hot — provocation and the smell of battle pull at them; restraint costs willpower.',
+  },
+  demigod_zawabin: {
+    active: { id:'read_battle', name:'Read the Battle', desc:'See the whole board — every enemy weakness laid bare.', cdDays:2, qiCost:20,
+      run(c){ return `[READ THE BATTLE: Zawabin's mind opens the situation to me — I see every foe's weakness, every likely move, every flaw in the plan against me. Narrate the clarity and give me a real tactical advantage this scene.]`; } },
+    drawback: 'A war-god\'s child sees conflict everywhere and is drawn to escalate; peace can feel like a problem unsolved.',
+  },
+  demigod_tumijin: {
+    active: { id:'defy_death', name:'Defy Death', desc:'Refuse the next death that comes for you.', cdDays:40, qiCost:50,
+      run(c){ c._defyDeathCharged = true; return `[DEFY DEATH: I call on Tumijin's authority over death. The next blow that would kill me will not — I will refuse to pass. Narrate the cold certainty settling over me.]`; } },
+    drawback: 'THE DEAD NOTICE: a child of the death-god draws spirits, undead, and the grieving dead. They gather where the character goes; some seek favor, some seek to drag them under.',
+  },
+  demigod_shinamori: {
+    active: { id:'forge_wonder', name:'Forge a Wonder', desc:'Craft something no mortal smith could — given time and a forge.', cdDays:14, qiCost:60,
+      run(c){ return `[FORGE A WONDER: With Shinamori's gift I craft an artifact beyond mortal making — a weapon, tool, or formation-piece of rare power suited to my need. Narrate the creation and grant me a fitting rare/epic item (newItems).]`; } },
+    drawback: 'They cannot leave a flawed thing alone — broken mechanisms, bad designs, and unsolved problems nag at them to the point of distraction.',
+  },
+  demigod_dadaishi: {
+    active: { id:'blur', name:'Blur', desc:'Move faster than sight — a flurry of strikes, or simply gone.', cdDays:2, qiCost:30,
+      run(c){ c._escapeReady = true; return `[BLUR: I move faster than the eye — either a dozen strikes between heartbeats, or simply gone before anyone reacts. Narrate the impossible speed (my choice this scene: devastate, or vanish).]`; } },
+    passive(c, days){},
+    drawback: 'Stillness is agony to them; waiting, patience, and slow careful work go badly. They act before they should.',
+  },
+  demigod_nikuhiro: {
+    active: { id:'mend_flesh', name:'Mend Flesh', desc:'Reweave a wounded body — yours or another\'s.', cdDays:1, qiCost:30,
+      run(c){ const heal=Math.round((c.maxHp||100)*0.45); c.hp=Math.min(c.maxHp||100,c.hp+heal);
+        return `[MEND FLESH: I command flesh to knit — wounds close, bone sets (+${heal} HP), and I can do the same for another. Narrate the visceral healing.]`; } },
+    passive(c, days){ c.hp = Math.min(c.maxHp||100, c.hp + Math.round(days*1.2)); }, // constant regeneration
+    drawback: 'Flesh is clay to them, and the temptation to reshape — others, or themselves — is a quiet constant pull.',
+  },
+  demigod_madomizu: {
+    active: { id:'dreamwalk', name:'Dreamwalk', desc:'Enter a sleeping mind — learn its secrets, or leave a nightmare.', cdDays:3, qiCost:40,
+      run(c){ return `[DREAMWALK: I step into the dream of someone sleeping — to learn what they hide, plant a suggestion, or leave a nightmare that will not let them rest. Narrate the dream-intrusion and its effect.]`; } },
+    drawback: 'The line between dreaming and waking is thin for them — they sometimes cannot be sure which they are in, and their own nightmares can bleed out.',
+  },
+};
+
+function isDaytime() {
+  try { const h = (typeof ensureWorldHour==='function') ? ensureWorldHour() : 12; return h >= 6 && h < 18; }
+  catch(e){ return true; }
+}
+
+// Use an active trait power.
+function useTraitPower(traitId) {
+  const c = GS.char;
+  const owns = (c.traits||[]).some(t => t.id === traitId);
+  const def = TRAIT_POWERS[traitId];
+  if(!owns || !def?.active) return;
+  const p = def.active;
+  c._powerCooldowns = c._powerCooldowns || {};
+  const readyDay = c._powerCooldowns[p.id] || 0;
+  const now = totalDays();
+  if(now < readyDay) { toast(`${p.name} is recovering — ${readyDay - now} day(s) left.`, '', 3000); return; }
+  if(p.qiCost && (c.qi?.current||0) < p.qiCost) { toast(`Need ${p.qiCost} Qi for ${p.name} (have ${Math.floor(c.qi?.current||0)}).`, 'error', 3000); return; }
+  if(c.channelsBroken) { toast('Your channels are shattered — you cannot channel power.', 'error', 3000); return; }
+  if(p.qiCost) c.qi.current = Math.max(0, c.qi.current - p.qiCost);
+  const inject = p.run(c) || '';
+  c._powerCooldowns[p.id] = now + (p.cdDays || 1);
+  c._powerUses = (c._powerUses||0) + 1;
+  try { addChronicleEntry(`Invoked ${p.name}.`, 'normal'); } catch(e) {}
+  toast(`${p.name} unleashed.`, 'gold', 4000);
+  updateCharacterTab(); updateTopbar(); renderTraitPowers();
+  if(inject && typeof sendToAI === 'function') sendToAI(inject);
+}
+
+// Passive trait effects as time passes (regen, etc.)
+function tickTraitPassives(days) {
+  const c = GS.char; if(!days || days <= 0) return;
+  (c.traits||[]).forEach(t => { const d = TRAIT_POWERS[t.id]; if(d?.passive) { try { d.passive(c, days); } catch(e) {} } });
+}
+
+// Render active powers in the Self tab.
+function renderTraitPowers() {
+  const el = document.getElementById('trait-powers-block');
+  if(!el) return;
+  const c = GS.char;
+  const powers = (c.traits||[]).map(t => ({ t, def: TRAIT_POWERS[t.id] })).filter(x => x.def?.active);
+  const section = document.getElementById('trait-powers-section');
+  if(!powers.length) { if(section) section.style.display='none'; el.innerHTML=''; return; }
+  if(section) section.style.display='';
+  const now = totalDays();
+  el.innerHTML = powers.map(({t, def}) => {
+    const p = def.active;
+    const ready = now >= ((c._powerCooldowns?.[p.id])||0);
+    const cdLeft = Math.max(0, ((c._powerCooldowns?.[p.id])||0) - now);
+    return `<div style="background:rgba(196,154,48,.06);border:1px solid rgba(196,154,48,.25);border-radius:7px;padding:8px 10px;margin-bottom:6px">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
+        <div style="font-size:12px;font-weight:700;color:var(--gold)">${p.name}</div>
+        <button class="btn-sm" onclick="useTraitPower('${t.id}')" ${ready?'':'disabled'}
+          style="background:${ready?'rgba(196,154,48,.18)':'var(--s3)'};border:1px solid rgba(196,154,48,.4);color:${ready?'var(--gold)':'var(--dim)'};border-radius:5px;padding:3px 10px;font-size:11px;cursor:${ready?'pointer':'not-allowed'}">
+          ${ready ? `Use${p.qiCost?` · ${p.qiCost} Qi`:''}` : `${cdLeft}d`}</button>
+      </div>
+      <div style="font-size:10px;color:var(--muted);margin-top:3px">${p.desc}</div>
+    </div>`;
+  }).join('');
+}
+
+// ================================================================
 // TITLE SYSTEM
 // ================================================================
 function grantTitle(type, title) {
@@ -7950,6 +8084,17 @@ function handleDeath(cause) {
   // reincarnation technique or the regressor ability — chosen here, on the grave.
   if(GS.char.isDead) return; // already handled
 
+  // DEFY DEATH — Tumijin's child can refuse a death they charged (the active power).
+  if(GS.char._defyDeathCharged) {
+    GS.char._defyDeathCharged = false;
+    GS.char.hp = Math.max(1, Math.round((GS.char.maxHp||100)*0.2));
+    try { addChronicleEntry(`Death came (${cause}) — and Tumijin's authority refused it. You did not pass.`, 'major'); } catch(e) {}
+    toast('DEFY DEATH — you refuse to die.', 'gold', 7000);
+    updateCharacterTab(); updateTopbar();
+    if(typeof sendToAI === 'function') sendToAI(`[DEFY DEATH TRIGGERS: The blow that should have killed me (${cause}) is simply refused — as a child of the death-god, I do not pass when I will not. Narrate death recoiling from me; I rise, cold and certain, at low HP. This charge is now spent.]`);
+    return;
+  }
+
   // CHEATED DEATH trait — a one-time get-out. Spends itself, then you're mortal.
   const cd = (GS.char.traits||[]).find(t => (t.id === 'cheated_death' || t.name === 'Cheated Death') && !t._spent);
   if(cd) {
@@ -8190,6 +8335,7 @@ function updateCharacterTab() {
       return `<span class="trait-chip" style="color:${rc};border-color:${rc};background:${bg}" onclick="showTraitDetail('${safeId}')">${t.name}</span>`;
     }).join(''));
   }
+  try { renderTraitPowers(); } catch(e) {}
 
   // --- Spiritual Titles ---
   const spTitles = Array.isArray(c.spiritualTitles) ? c.spiritualTitles : [];
@@ -10615,7 +10761,7 @@ const SAVE_PREFIX = 'murim_slot_';
 // Scheme: MAJOR.MINOR. Big updates bump MAJOR (1.2 -> 2.2). Small updates
 // bump MINOR (2.2 -> 2.3). Each version has a name. The current version is
 // stamped onto every save; older saves can be updated to the latest.
-const GAME_VERSION = { number: '3.2', name: 'Blood of the Gods' };
+const GAME_VERSION = { number: '3.3', name: 'Divine Powers' };
 
 // Which model generates the story. Lite Mode swaps to a far cheaper, faster model
 // (Claude Haiku) so long sessions / limited credits cost a fraction per turn.
@@ -10643,6 +10789,7 @@ const VERSION_HISTORY = [
   { number:'3.0', name:'The Underworld',      sys:'New black-market dealing system: find a connection, buy illicit supply, and sling it for profit — with real bust risk that scales with quantity, your infamy, and local heat (and drops with the right skills/traits). Big content drop: many more starting traits with rebalanced odds so runs feel distinct, plus new achievements (including the dealing path).', note:'Drug-dealing system (DRUGS, buy/sell/bust risk, black market modal), trait variety rebalance + ~19 new traits, dealing achievements.' },
   { number:'3.1', name:'Crime & Punishment',  sys:'Systems now interlock. Properties you gain in the story (inherited, won, gifted) actually register in your assets. Court & trial system: serious crimes lead to arrest and a case that runs over days-to-months — hire a lawyer or defend yourself, with verdicts weighing your defense, reputation, and bribes. Dealing now ties into alchemy (cook your own product) with more substances, and busts can land you in court. New: infuse Qi into your gear to strengthen it. Personal Events stays about YOU now. More traits and achievements.', note:'Narrative asset registration, court/trial system, alchemy drug production + more drugs, Qi item infusion, personalEvents routing, +traits/+achievements.' },
   { number:'3.2', name:'Blood of the Gods',   sys:'Holding the keys (or deed) to a place now registers it as yours in Properties & Assets, even if it came purely through the story. New fabled bloodline: Demigod — Child of a god — ten variants, each a child of a different deity with unique divine powers, huge boosts, and a name that reflects your parent and gender. New achievement.', note:'Key/deed -> asset registration safety net + stronger PROPERTY RULE; 10 Demigod fable traits with gender-aware naming; demigod achievement.' },
+  { number:'3.3', name:'Divine Powers',       sys:'Demigod/divine traits now DO things, not just boost stats. Active powers with cooldowns (a Powers panel on your character sheet — heal, escape, defy death, call down fire, and more), passive effects (regeneration, healing in sunlight), real system hooks (court defense, Qi-infusion strength, deal risk), and genuine drawbacks the world plays against you. D\'yaqed is now correctly a CHOSEN vessel, not a bloodline.', note:'TRAIT_POWERS engine: active powers + cooldowns + Powers UI, passive ticks, death-saves, court/infusion/bust hooks, drawbacks surfaced to AI; D\'yaqed reframed as Chosen.' },
 ];
 
 function cleanSaveData(gs) {
@@ -11534,14 +11681,19 @@ function infuseItemQi(itemId, isEquipped) {
   const maxLvl = Math.max(1, Math.ceil((c.qi.stageIndex||0) / 2) + 1);
   if(lvl >= maxLvl) { toast(`Already infused to your limit (Lv ${lvl}). Advance your cultivation to infuse further.`, '', 3000); return; }
 
-  const cost = 30 + lvl * 25; // rising Qi cost per level
-  if((c.qi.current||0) < cost) { toast(`Not enough Qi — need ${cost}, have ${Math.floor(c.qi.current||0)}.`, 'error', 3000); return; }
-
   // Slot → which stat the infusion strengthens
   const SLOT_STAT = { weapon:'strength', offhand:'agility', head:'perception', body:'endurance',
                       hands:'strength', feet:'agility', acc1:'willpower', acc2:'charisma' };
   const stat = SLOT_STAT[item.slot] || 'strength';
-  const bonus = 2; // per level
+  // Trait hooks: Qi Smith / Shinamori make infusion stronger and cheaper.
+  const tids = (c.traits||[]).map(t => t.id||'');
+  let bonus = 2; // per level
+  let costMult = 1;
+  if(tids.includes('qi_smith'))         { bonus += 1; costMult *= 0.8; }
+  if(tids.includes('demigod_shinamori')){ bonus += 2; costMult *= 0.6; }
+
+  const cost = Math.round((30 + lvl * 25) * costMult); // rising Qi cost per level
+  if((c.qi.current||0) < cost) { toast(`Not enough Qi — need ${cost}, have ${Math.floor(c.qi.current||0)}.`, 'error', 3000); return; }
 
   // If equipped, peel off current effects before modifying, then re-apply.
   if(inEquip && item.effects && Object.keys(item.effects).length) applyItemEffects(item.effects, -1);
@@ -13995,6 +14147,10 @@ function buildTraitMechanics() {
         else lines.push(`${t.name}: cultivation Qi gain ×${mult}`);
       });
     }
+    // Active powers & drawbacks (so the AI honors both the upside and the cost)
+    const pw = (typeof TRAIT_POWERS !== 'undefined') ? TRAIT_POWERS[t.id] : null;
+    if(pw?.active) lines.push(`${t.name}: ACTIVE POWER "${pw.active.name}" — ${pw.active.desc}`);
+    if(pw?.drawback) lines.push(`${t.name} — DRAWBACK: ${pw.drawback}`);
   });
   return lines.length ? lines.join('\n  ') : 'none';
 }
@@ -15229,6 +15385,7 @@ advanceTime = function(days=0, months=0, years=0) {
   if(elapsed > 0) {
     passiveQiAccumulation(elapsed);
     try { tickTrial(elapsed); } catch(e) {}
+    try { tickTraitPassives(elapsed); } catch(e) {}
   }
 
   // Track a meaningful time skip so the AI acknowledges the gap next turn —
@@ -22633,6 +22790,7 @@ function dealBustChance(drugKey, qty) {
   risk -= Math.min(0.22, (cha + intel - 20) * 0.005);
   const traitIds = (c.traits||[]).map(t => t.id || '');
   if(traitIds.includes('street_learned')) risk -= 0.08;
+  if(traitIds.includes('underworld_ties')) risk -= 0.10;
   if(traitIds.includes('natural_liar'))   risk -= 0.05;
   if(traitIds.includes('plain_face') || traitIds.includes('forgettable_face')) risk -= 0.05;
   if(traitIds.includes('cold_blooded'))   risk -= 0.03;
@@ -22897,7 +23055,13 @@ function trialDefenseStrength() {
   if(rep) def += Math.min(0.2, (rep.renown||0)/300) - Math.min(0.25, (rep.infamy||0)/250);
   // Bribes: each 200 silver ~ +0.1, with diminishing returns
   def += Math.min(0.3, (tr.bribes||0) / 2000);
-  return Math.max(0, Math.min(0.95, def));
+  // Trait hooks
+  const tids = (c.traits||[]).map(t => t.id||'');
+  if(tids.includes('jailhouse_lawyer') && !tr.lawyer) def += 0.18; // self-defense expertise
+  if(tids.includes('underworld_ties')) def += 0.08;               // strings to pull
+  if(tids.includes('demigod_zawabin')) def += 0.35;               // reads the court like a battlefield
+  if(tids.includes('natural_liar')) def += 0.06;
+  return Math.max(0, Math.min(0.97, def));
 }
 
 // Advance the case as time passes; resolve when the docket runs out.
