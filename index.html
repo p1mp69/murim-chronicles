@@ -4953,13 +4953,13 @@ const TRAITS_CATALOG = {
   // domain. Not random — these are the rarest of bloodlines, granted by story or
   // by the heavens themselves. "Child" resolves to Son/Daughter by gender.
   // ──────────────────────────────────────────────────────────
-  demigod_dyaqed: {
-    name: 'Demigod — Child of D\'yaqed', type: 'divine', rarity: 'fable', inherited: true,
-    demigod: true, godName: "D'yaqed", domain: 'the Sun and all its Stars',
-    desc: 'A sliver of the First Flame — the One Who Burns — lives in your blood. Light bends toward you; the cold and the dark recoil.',
-    flavor: 'You were a sick child laid in the sun to die.\n\nYou rose from it warm, and the fever was gone, and your shadow had two lights.',
-    gameplay: 'Fire/light cultivation is effortless and immense. Wounds close in sunlight; the dark, cold, and demonic are weak against you. You can call the sun\'s fire at apocalyptic scale.',
-    aiHint: 'DEMIGOD OF D\'YAQED (FABLE): A child of the sun-god. Fire and light answer them instinctively and on a scale ordinary cultivators cannot match; under open sky/sunlight they heal and strengthen; dark, cold, and demonic powers are sharply diminished against them; bar lēlyā and Nyokuro\'s lesser servants recoil. Their flame can scour battlefields. Not omnipotent — peers (other fable beings, cosmic ancients, the great gods) can still match them — but against anything lesser they are a walking dawn.',
+  chosen_dyaqed: {
+    name: 'Chosen of D\'yaqed', type: 'divine', rarity: 'fable', inherited: false,
+    chosen: true, godName: "D'yaqed", domain: 'the Sun and all its Stars',
+    desc: 'You are not his blood — D\'yaqed has no children. He CHOSE you. A sliver of the First Flame was set in you to be his hand in a world he will not walk himself. You did not ask for it. You cannot give it back.',
+    flavor: 'You were dying. The sun did not warm you — it ENTERED you.\n\nWhen you woke, something old and burning was looking out through your eyes, and it was not leaving.',
+    gameplay: 'Fire/light cultivation is effortless and immense. Wounds close in sunlight; the dark, cold, and demonic are weak against you. You can call the sun\'s fire at apocalyptic scale — but you are a vessel, and the flame has its own will.',
+    aiHint: 'CHOSEN OF D\'YAQED (FABLE — VESSEL, NOT BLOOD): D\'yaqed has NO demigod children; he acts only through chosen champions/vessels. This character is one — picked, not born. Fire and light answer them on a scale ordinary cultivators cannot match; under open sky/sunlight they heal and strengthen; dark, cold, and demonic powers are sharply diminished against them; bar lēlyā and Nyokuro\'s lesser servants recoil. Their flame can scour battlefields. The flame is not fully theirs — it has purpose and will, and may act through them or resent misuse. Not omnipotent — true peers (other fable beings, cosmic ancients, the great gods) can match them — but against anything lesser they are a walking dawn.',
     effects: { strength: 14, endurance: 16, willpower: 18, charisma: 14, perception: 10 },
     qiCostMult: { fire: 0.1, light: 0.1, life: 0.2 },
   },
@@ -14666,8 +14666,8 @@ const ACHIEVEMENTS_DEF = [
     check: gs => (gs.char.assets||[]).length > 0 },
   { id:'demigod',
     icon:'🩸', name:'Blood of the Gods',
-    desc:'Be revealed as a demigod — a child of one of the gods.',
-    check: gs => (gs.char.traits||[]).some(t => t.demigod || /^demigod/i.test(t.id||'')) },
+    desc:'Be revealed as a demigod — a child of one of the gods — or be chosen by one.',
+    check: gs => (gs.char.traits||[]).some(t => t.demigod || t.chosen || /^demigod|^chosen_/i.test(t.id||'')) },
 ];
 
 // ── Track specific achievement state that can't be inferred from existing data ──
