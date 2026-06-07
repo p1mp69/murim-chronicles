@@ -5114,12 +5114,14 @@ function advanceTime(days=0, months=0, years=0) {
     }
   }
 
-  // Age NPCs (also monotonic forward)
+  // Age NPCs (also monotonic forward) + natural mortality
+  const yearsCrossed = Math.max(0, w.year - prevYear);
   Object.values(w.npcRegistry).forEach(n => {
     if(n.birthYear) {
       const na = Math.max(0, w.year - n.birthYear);
       n.age = Math.max(n.age || 0, na);
     }
+    if(yearsCrossed > 0) tickNPCMortality(n, yearsCrossed);
   });
 
   // Dynamic NPC network drift (once per year)
@@ -5930,9 +5932,62 @@ function tomeBaseValue(rarity, isBook=false) {
   return isBook ? Math.round(base * 0.4) : base;
 }
 
+// Convert a coin description to silver units. 20 copper = 1 silver, 10 silver = 1 gold.
+// Returns null if the string isn't recognizably pure currency.
+function parseCurrencyToSilver(name, desc='') {
+  if(!name) return null;
+  const text = (name + ' ' + (desc||'')).toLowerCase();
+  // Must look like currency, not an item that merely mentions coins (e.g. "coin purse", "lucky coin pendant")
+  if(/(purse|pouch|pendant|amulet|charm|necklace|token|medallion|talisman|box|chest|ring)\b/.test(name.toLowerCase())) return null;
+  if(!/\b(copper|silver|gold|bronze)\s+(coin|coins|tael|taels|piece|pieces)\b|\bcoins?\b|\btaels?\b/.test(name.toLowerCase())) return null;
+  // Find an amount — prefer one adjacent to the currency word in the NAME.
+  const numWords = { a:1,an:1,one:1,two:2,three:3,four:4,five:5,six:6,seven:7,eight:8,nine:9,ten:10,
+    eleven:11,twelve:12,dozen:12,twenty:20,fifty:50,hundred:100,few:3,handful:5,several:5,some:5 };
+  function amountFor(unit) {
+    // number directly before the unit, e.g. "5 copper"
+    const re = new RegExp('(\\d+)\\s+' + unit, 'i');
+    const m = name.toLowerCase().match(re) || text.match(re);
+    if(m) return parseInt(m[1]);
+    const reW = new RegExp('(' + Object.keys(numWords).join('|') + ')\\s+' + unit, 'i');
+    const mw = name.toLowerCase().match(reW) || text.match(reW);
+    if(mw) return numWords[mw[1].toLowerCase()] || 1;
+    return null;
+  }
+  let silver = 0, matched = false;
+  const g = amountFor('gold');   if(g!=null){ silver += g*10; matched=true; }
+  const s = amountFor('silver'); if(s!=null){ silver += s;    matched=true; }
+  const cp = amountFor('copper'); if(cp!=null){ silver += cp/20; matched=true; }
+  const bz = amountFor('bronze'); if(bz!=null){ silver += bz/20; matched=true; }
+  if(!matched) {
+    // Generic "coins"/"taels" with a leading number → treat as silver (taels≈silver)
+    const m = name.toLowerCase().match(/(\d+)\s+(coins?|taels?|pieces?)/) ;
+    if(m) { silver += parseInt(m[1]); matched = true; }
+    else {
+      const mw = name.toLowerCase().match(new RegExp('('+Object.keys(numWords).join('|')+')\\s+(coins?|taels?|pieces?)'));
+      if(mw) { silver += numWords[mw[1].toLowerCase()]||1; matched = true; }
+    }
+  }
+  if(!matched) return null;
+  return Math.max(0, silver);
+}
+
 function spawnItem(item) {
   // item: { name, type, slot, rarity, desc, value, effects, isTome, techUnlock, pillId, consumable }
   if(!item?.name) return null;
+
+  // ── CURRENCY GUARD ────────────────────────────────────────────────
+  // Coins are MONEY, not inventory items. If the AI tries to spawn "Five copper
+  // coins" as an item, convert it to actual currency instead. (Unless it's
+  // explicitly a non-spendable type like a keepsake/quest token via type.)
+  if(item.type !== 'quest' && item.type !== 'key' && !item.effects?.keepsake) {
+    const asCoin = parseCurrencyToSilver(item.name, item.desc);
+    if(asCoin !== null) {
+      addSilver(asCoin);
+      const disp = (typeof formatCoins === 'function') ? formatCoins(asCoin) : asCoin + ' silver';
+      toast(`Received: ${disp}`, 'gold', 3000);
+      return null; // do NOT create an item
+    }
+  }
 
   // Auto-detect type from name if AI didn't specify
   const nameLower = (item.name || '').toLowerCase();
@@ -6002,6 +6057,33 @@ function spawnItem(item) {
   updateInventoryTab();
   toast(`Received: ${itm.name}`, 'gold', 3000);
   return itm;
+}
+
+// Remove an inventory item by id, exact name, or fuzzy name match.
+// Used when an item is sold, given away, lost, or destroyed in the narrative.
+function removeItemByRef(ref) {
+  if(!ref) return false;
+  const c = GS.char;
+  const refStr = String(ref).toLowerCase().trim();
+  // 1. by id
+  let idx = c.inventory.findIndex(i => i.id === ref);
+  // 2. by exact name
+  if(idx < 0) idx = c.inventory.findIndex(i => (i.name||'').toLowerCase() === refStr);
+  // 3. by fuzzy contains (longest match wins to avoid removing the wrong thing)
+  if(idx < 0) {
+    let best = -1, bestLen = 0;
+    c.inventory.forEach((i, j) => {
+      const n = (i.name||'').toLowerCase();
+      if((n && refStr.includes(n) && n.length > bestLen) || (n.includes(refStr) && refStr.length > bestLen)) {
+        best = j; bestLen = Math.max(n.length, refStr.length);
+      }
+    });
+    idx = best;
+  }
+  if(idx < 0) return false;
+  const removed = c.inventory.splice(idx, 1)[0];
+  updateInventoryTab();
+  return true;
 }
 
 function equipItem(itemId) {
@@ -6714,6 +6796,57 @@ function spreadPlayerNotoriety(locKey) {
 }
 
 // === NPC NETWORK DRIFT — runs once per year boundary ===
+// ── NPC NATURAL MORTALITY ─────────────────────────────────────────
+// NPCs die of old age and other natural causes as time passes. Cultivation
+// extends lifespan dramatically, so the death curve scales with Qi stage.
+function tickNPCMortality(npc, years) {
+  if(!npc || npc.alive === false) return;
+  if(npc.immortal || npc.protected || npc.isLore) return; // named lore figures handled by their own timelines
+  if(npc.age == null) return;
+
+  const stage = npc.qiStageIndex || 0;
+  // Maximum natural lifespan rises with cultivation.
+  // Mortal ~75; Body Tempering ~110; Qi Condensation ~160; Core+ ~250; high realms ~500+
+  const maxLifespan = stage <= 0 ? 75
+    : stage <= 3 ? 110
+    : stage <= 6 ? 160
+    : stage <= 9 ? 250
+    : stage <= 12 ? 500
+    : 1200;
+
+  let died = false, cause = '';
+  for(let i = 0; i < years; i++) {
+    const age = (npc.age || 0) - (years - 1 - i); // approximate age in each crossed year
+    // Old-age hazard ramps up as they approach/exceed max lifespan
+    let hazard;
+    if(age >= maxLifespan) hazard = 0.45 + (age - maxLifespan) * 0.06;
+    else if(age >= maxLifespan * 0.8) hazard = 0.04 + (age - maxLifespan*0.8) / (maxLifespan*0.2) * 0.25;
+    else hazard = 0.002 + age * 0.00015; // small baseline: illness, accident, violence
+    // Mortals are frailer; cultivators are hardy
+    if(stage === 0) hazard *= 1.3;
+    if(Math.random() < Math.min(0.95, hazard)) {
+      died = true;
+      cause = age >= maxLifespan * 0.8 ? 'old age' :
+              (Math.random() < 0.5 ? 'illness' : 'misadventure');
+      break;
+    }
+  }
+
+  if(died) {
+    npc.alive = false;
+    npc.deathYear = GS.world.year;
+    npc.deathCause = cause;
+    // Reflect in the player's relationships and surface it if they knew them
+    const rel = (GS.char.relationships || []).find(r => r.npcId === npc.id);
+    if(rel) {
+      rel.alive = false;
+      rel.deathCause = cause;
+      try { addPersonalEvent(`Word reaches you: ${npc.name} has died of ${cause}.`); } catch(e) {}
+      try { addChronicleEntry(`${npc.name} died of ${cause} in Year ${GS.world.year}.`, 'normal'); } catch(e) {}
+    }
+  }
+}
+
 // Handles: connections weakening from inactivity, falling outs, death-severing,
 // location drift, and organic new casual contacts.
 function tickNPCNetworkDrift(prevYear) {
@@ -6911,10 +7044,12 @@ function updateRelationshipMemory(npcId, addition) {
 // SILVER / ECONOMY
 // ================================================================
 function addSilver(amount) {
-  GS.char.silver = Math.max(0, GS.char.silver + amount);
+  // Round to the nearest copper (1/20 silver) to avoid float drift from coin math.
+  GS.char.silver = Math.max(0, Math.round((GS.char.silver + amount) * 20) / 20);
   updateTopbar();
   updateInventoryTab();
-  document.getElementById('char-silver').textContent = GS.char.silver;
+  const el = document.getElementById('char-silver');
+  if(el) el.textContent = (typeof formatCoins === 'function') ? formatCoins(GS.char.silver) : GS.char.silver;
 }
 
 function spendSilver(amount) {
@@ -9028,6 +9163,7 @@ PART 2 — DATA (immediately after the narrative, on its own line):
   "karma": { "righteous": 0, "blood": 0, "demonic": 0, "chaotic": 0 },
   "occupation": null,
   "newItems": [{ "name": "", "type": "(weapon|armor|clothing|accessory|consumable|tome|book|misc)", "slot": null, "rarity": "", "desc": "", "value": 0, "effects": {}, "isTome": false }],
+  "removeItems": ["name or id of an item the player sold, gave away, lost, or used up"],
   "spiritualTitles": [{ "name": "", "desc": "", "effects": {}, "knownBy": [] }],
   "socialTitles": [{ "name": "", "desc": "", "effects": {}, "knownBy": [], "groupReach": {} }],
   "prisonStatus": null,
@@ -9060,6 +9196,10 @@ TECHNIQUE COMBINATION RULE: When the player fuses/combines two techniques, the r
 TOME vs BOOK RULE: There are two kinds of readable item. A "tome" teaches Qi techniques or martial arts (type:"tome"). A "book" teaches skills or conveys knowledge/lore only — never a combat technique (type:"book"). Choose the correct type. Do NOT re-list a tome or book the player already owns in newItems — it is already permanent in their inventory and re-listing it creates a duplicate. Only emit a tome/book in newItems the first time they actually acquire it.
 
 TOME AUTHORSHIP RULE: If the player WRITES or CREATES a tome/manual/book themselves, it is brand-new and contemporary — it can NEVER be described as "ancient," "esoteric," "sealed," inherited, or of unknown origin. It is their own handwriting, dated to the present. Also: a player cannot author a text more advanced than their own literacy — they cannot create a tome that requires Literacy Level 5 when their literacy is Level 2. If they try to write something beyond their literacy, narrate that the result only captures what they themselves understand and can express at their level — the deeper material doesn't make it onto the page. Do not grant a self-authored tome a reading difficulty above the player's own literacy.
+
+CURRENCY RULE — COINS ARE MONEY, NEVER ITEMS: When the player is given, paid, finds, or earns coins of ANY kind (copper, silver, gold, bronze, taels, "a few coins"), this is CURRENCY. Apply it through "statChanges": { "silver": <amount in silver> } — do NOT create an inventory item for it. The base unit is silver. Conversion: 20 copper = 1 silver; 10 silver = 1 gold; 1 tael ≈ 1 silver. So five copper coins = statChanges.silver 0.25, NOT an item worth 5 silver. Coins are tiny — do not inflate them. The ONLY time coins are an item is a literal keepsake that must not be spent (a single coin worn as a memento) — and that is rare; mark it clearly and give it value 0. Never output "Copper Coins" or "Silver" as a newItems entry.
+
+SELLING / LOSING ITEMS RULE: When the player SELLS, gives away, trades, loses, or has an item destroyed, you MUST remove it: list its name in "removeItems" AND, if sold/traded, pay them via statChanges.silver. An item the player no longer has must leave their inventory — never narrate a sale while leaving the item in their possession. (Tomes/books the player keeps are exempt — only remove what actually left their hands.)
 
 TOME RULE: Tomes are PERMANENT — they NEVER disappear from inventory. Reading a tome does not consume it. A mortal with no Qi cultivation cannot learn any Qi technique from a tome regardless of what it says. If a character cannot yet learn a technique (wrong stage, wrong path, needs a master), narrate what they understand and what remains out of reach — do not grant the technique.
 
@@ -9646,6 +9786,19 @@ function migrateSave(data) {
   if(typeof sanitizeTechDesc === 'function') {
     (c.techniques||[]).forEach(t => { if(t && t.desc) t.desc = sanitizeTechDesc(t.desc); });
     (c.martialArts||[]).forEach(m => { if(m && m.desc) m.desc = sanitizeTechDesc(m.desc); });
+  }
+
+  // Convert any currency that was mistakenly stored as an inventory item back
+  // into real silver (fixes the "Copper Coins" misc-item bug on old saves).
+  if(typeof parseCurrencyToSilver === 'function' && Array.isArray(c.inventory)) {
+    let recovered = 0;
+    c.inventory = c.inventory.filter(it => {
+      if(!it || it.effects?.keepsake) return true;
+      const coin = parseCurrencyToSilver(it.name, it.desc);
+      if(coin !== null) { recovered += coin; return false; } // drop the item
+      return true;
+    });
+    if(recovered > 0) c.silver = Math.round(((c.silver||0) + recovered) * 20) / 20;
   }
 
   // Ensure karma sub-fields exist
@@ -11530,6 +11683,7 @@ The JSON carries ONLY state changes. There is NO "narrative" field in the JSON �
   "karma": { "righteous": 0, "blood": 0, "demonic": 0, "chaotic": 0 },
   "occupation": null,
   "newItems": [{ "name": "", "type": "(weapon|armor|clothing|accessory|consumable|tome|book|misc)", "slot": null, "rarity": "", "desc": "", "value": 0, "effects": {}, "isTome": false }],
+  "removeItems": ["name or id of an item the player sold, gave away, lost, or used up"],
   "spiritualTitles": [{ "name": "", "desc": "", "effects": {}, "knownBy": [] }],
   "socialTitles": [{ "name": "", "desc": "", "effects": {}, "knownBy": [], "groupReach": {} }],
   "prisonStatus": null,
@@ -25339,7 +25493,12 @@ updateCharacterTab = function() {
     safe('occupation', () => { if(res.occupation?.title) addOccupationToHistory(res.occupation); });
 
     // Items
-    safe('items', () => res.newItems?.forEach(item => spawnItem(item)));
+    safe('items', () => {
+      res.newItems?.forEach(item => spawnItem(item));
+      // Removal: when an item is sold, given away, lost, consumed, or destroyed,
+      // the AI lists it here by name or id and it leaves the inventory.
+      if(res.removeItems?.length) res.removeItems.forEach(ref => removeItemByRef(ref));
+    });
 
     // Titles
     safe('titles', () => {
