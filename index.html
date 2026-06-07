@@ -387,6 +387,13 @@ a { color: var(--gold); text-decoration: none; }
   background: rgba(196,154,48,.08);
   margin: 10px 0;
 }
+#game-version-badge {
+  position: fixed; left: 8px; bottom: 6px; z-index: 50;
+  font-size: 10px; color: rgba(180,170,150,.45);
+  pointer-events: none; user-select: none;
+  font-family: ui-monospace, monospace; letter-spacing: .3px;
+  text-shadow: 0 1px 2px rgba(0,0,0,.6);
+}
 .menu-version {
   margin-top: 36px;
   font-size: 9px; color: rgba(180,170,160,.2);
@@ -1960,6 +1967,9 @@ body.generating [onclick*="shopSellItem"], body.generating [onclick*="closeMapGo
           <button class="menu-btn" id="menu-achievements">
             <span class="menu-btn-icon">◆</span> Achievements
           </button>
+          <button class="menu-btn" id="menu-updatelog">
+            <span class="menu-btn-icon">📜</span> Update Log
+          </button>
           <div class="menu-divider"></div>
           <button class="menu-btn" id="menu-apikey">
             <span class="menu-btn-icon">⚙</span> API Key
@@ -2002,6 +2012,17 @@ body.generating [onclick*="shopSellItem"], body.generating [onclick*="closeMapGo
       <button class="modal-close" onclick="document.getElementById('panel-achievements').classList.add('hidden')">✕</button>
     </div>
     <div class="panel-body" id="achievements-list"></div>
+  </div>
+</div>
+
+<!-- Update Log panel -->
+<div id="panel-updatelog" class="panel-overlay hidden">
+  <div class="panel-card">
+    <div class="panel-header">
+      <h2>Update Log</h2>
+      <button class="modal-close" onclick="document.getElementById('panel-updatelog').classList.add('hidden')">✕</button>
+    </div>
+    <div class="panel-body" id="updatelog-list"></div>
   </div>
 </div>
 
@@ -2200,6 +2221,9 @@ body.generating [onclick*="shopSellItem"], body.generating [onclick*="closeMapGo
      GAME SCREEN
      ============================================================ -->
 <div id="screen-game" class="screen hidden">
+
+  <!-- Version badge (bottom-left) -->
+  <div id="game-version-badge" title="Game version of this save"></div>
 
   <!-- TOP BAR -->
   <div id="topbar">
@@ -4615,6 +4639,16 @@ const TRAITS_CATALOG = {
     gameplay: 'In lethal situations, fate tilts toward your survival — the blow lands an inch wide, the escape route appears, the poison was the weaker dose. You can be hurt, but death has to work harder for you.',
     aiHint: 'SURVIVOR: When this character faces a lethal situation, bias outcomes toward survival in believable ways — near-misses, lucky timing, the weaker poison, the unlocked door. They can still be badly hurt and can still die, but cheap or random deaths should pass them by.',
     effects: { luck: 4 },
+  },
+
+  cheated_death: {
+    name: 'Cheated Death',
+    type: 'fortune', rarity: 'legendary', inherited: false,
+    desc: 'Once, death came for you — and you walked back out. The ledger has your name with a line drawn through it. That kind of thing gets noticed.',
+    flavor: 'Your heart had stopped. The cold had your hand.\n\nThen you opened your eyes, and the room full of mourners went silent.',
+    gameplay: 'ONE TIME, when you would die, you do not. Instead you cling to life at the edge — broken, drained, but breathing. Spends itself when used and does not return. After it triggers, something has marked you for having slipped the noose.',
+    aiHint: 'CHEATED DEATH: This character has slipped death once and it left a mark. Until the trait is spent, a single fatal blow leaves them clinging to life at 1 HP instead of dead — narrate the impossible survival viscerally (the wound that should have killed, the heart that restarts). After it spends, treat them as mortal again; you may hint that something cosmic took note of the cheat.',
+    effects: { luck: 3, willpower: 2 },
   },
 
 };
@@ -7476,6 +7510,19 @@ function handleDeath(cause) {
   // HP at zero is death. Absolute. The only outs are an actual revival/
   // reincarnation technique or the regressor ability — chosen here, on the grave.
   if(GS.char.isDead) return; // already handled
+
+  // CHEATED DEATH trait — a one-time get-out. Spends itself, then you're mortal.
+  const cd = (GS.char.traits||[]).find(t => (t.id === 'cheated_death' || t.name === 'Cheated Death') && !t._spent);
+  if(cd) {
+    cd._spent = true;
+    GS.char.hp = 1;
+    try { addChronicleEntry(`Death came in Year ${GS.world.year} (${cause}) — and Cheated Death paid the toll. You clung to life by a thread. The trait is spent.`, 'major'); } catch(e) {}
+    try { addPersonalEvent('You should have died. You did not. Something, somewhere, noticed the cheat.'); } catch(e) {}
+    toast('CHEATED DEATH — you cling to life by a thread. (The trait is spent.)', 'gold', 7000);
+    updateCharacterTab(); updateTopbar();
+    if(typeof sendToAI === 'function') sendToAI(`[CHEATED DEATH TRIGGERS: The blow that should have killed me (${cause}) does not. My heart stutters back; I am alive at 1 HP, broken and gasping. Narrate the impossible, visceral survival — and the unsettling sense that something cosmic just took note that I slipped the noose. This was my one escape; it will not happen again.]`);
+    return;
+  }
   GS.char.isDead = true;
   GS.char.hp = 0;
   GS.char.deathCause = cause;
@@ -7573,6 +7620,13 @@ function updateTopbar() {
   const qiFill = document.getElementById('tb-qi-fill');
   if(hpFill) hpFill.style.width = hpPct + '%';
   if(qiFill) qiFill.style.width = qiPct + '%';
+  // Version badge (bottom-left) — shows the version this save is on
+  const vb = document.getElementById('game-version-badge');
+  if(vb) {
+    const num  = GS.gameVersion || GAME_VERSION.number;
+    const name = GS.gameVersionName || GAME_VERSION.name;
+    vb.textContent = `v${num} · ${name}`;
+  }
 }
 
 // ================================================================
@@ -9534,6 +9588,15 @@ IMPRISONMENT RULE: If an NPC the player knows is arrested, jailed, captured, or 
 
 CONDITIONS RULE: Permanent harm produces a "conditions" entry, NOT just a scar. If the player loses an eye (stabbed, gouged, offered to a deity/entity), they are PERMANENTLY blind in that eye — add {"id":"blind_left_eye" or "blind_right_eye","label":"Blind (Left/Right Eye)","desc":"...","kind":"permanent"}. Both eyes → "fully_blind". Lost arm/hand/leg, deafness, muteness, a curse, a bargained-away sense — all permanent conditions that STAY. Once a condition exists, honor it forever: a blind character cannot see and you narrate accordingly every time. Never quietly heal a permanent condition — only an extraordinary, explicitly-narrated event can, via removeConditions.
 
+CONDITIONS ENFORCEMENT (CRITICAL — the player listed under "PERMANENT CONDITIONS" in their stats): These are not flavor. They MECHANICALLY change every interaction and you must reflect them constantly and consistently:
+- Blind in one eye → no depth perception; ranged accuracy and ambush awareness suffer; people approach on the blind side.
+- Fully blind → CANNOT see at all. Describe the world through sound, smell, touch, and Qi-sense. They cannot read, cannot recognize faces by sight, cannot aim by sight. Never narrate them "seeing" anything.
+- Lost arm/hand → cannot wield two-handed weapons or do two-handed tasks; combat and craft are one-handed.
+- Lost leg / lame → slow, limps, cannot sprint or chase; stairs and rough terrain are hard.
+- Deaf → cannot hear speech, warnings, or approaching danger by sound.
+- Mute → cannot speak; must communicate by writing or gesture.
+A character with a relevant condition should regularly hit its limits in the narrative — and NPCs notice and react to visible conditions (pity, contempt, underestimation, exploitation). If you ever catch yourself narrating something a condition forbids (a blind man reading a letter), stop and route around it.
+
 BROKEN CHANNELS RULE (ABSOLUTE — NO EXCEPTIONS): Attempting a cultivation breakthrough on a Qi DEFICIT (negative Qi) shatters the meridian channels. A character with shattered channels CANNOT cultivate AT ALL — they cannot meditate to gather Qi, cannot circulate Qi, cannot advance a realm, cannot use Qi techniques, and cannot regain Qi reserves. THIS IS NON-NEGOTIABLE. If the player declares ANY cultivation activity while their channels are broken (a meditation arc, a "month of stillness cultivation," "confluent gathering," a breakthrough attempt, training a Qi technique), you MUST refuse it in the narrative: their Qi will not move, the meridians scream, pushing harder injures them further or kills them. DO NOT narrate them gaining Qi, advancing realms, or "rebuilding their foundation" through cultivation. Cultivation does NOT and CANNOT heal broken channels — that is the whole point. A broken-channelled character at 0 Qi who tries to cultivate for seven months is STILL at 0 Qi and STILL broken seven months later.
 It can ONLY be healed two ways, and you must use the dedicated "healChannels" field (NOT removeConditions — removeConditions will be ignored for this): (1) a genuinely HIGH-LEVEL expert (a master healer of advanced cultivation, a sect's grand physician, a Core Formation+ medical authority) painstakingly mends them over time — emit "healChannels": { "source": "the grand physician of <sect>" }; or (2) the player obtains and consumes the HIESTLER, a rare plant that grows in only one specific, remote place in the world — emit "healChannels": { "source": "the Hiestler" }. Nothing else works: not common pills, not rest, not ordinary doctors, not willpower, and ABSOLUTELY NOT cultivation. Until legitimately healed, treat them as a cripple who has lost the path.
 
@@ -10051,7 +10114,7 @@ const SAVE_PREFIX = 'murim_slot_';
 // Scheme: MAJOR.MINOR. Big updates bump MAJOR (1.2 -> 2.2). Small updates
 // bump MINOR (2.2 -> 2.3). Each version has a name. The current version is
 // stamped onto every save; older saves can be updated to the latest.
-const GAME_VERSION = { number: '2.6', name: 'The Mark of Death' };
+const GAME_VERSION = { number: '2.7', name: 'Flesh & Consequence' };
 
 // Which model generates the story. Lite Mode swaps to a far cheaper, faster model
 // (Claude Haiku) so long sessions / limited credits cost a fraction per turn.
@@ -10060,17 +10123,20 @@ const STORY_MODEL_LITE = 'claude-haiku-4-5';
 function storyModel() {
   return (GS && GS.settings && GS.settings.liteMode) ? STORY_MODEL_LITE : STORY_MODEL_FULL;
 }
+// `note` = internal/full (may reference lore). `sys` = PUBLIC, lore-free system
+// notes shown in the in-game Update Log. Never put story/lore details in `sys`.
 const VERSION_HISTORY = [
-  { number:'1.0', name:'First Breath',        note:'The base murim RPG: cultivation, NPCs, the founders.' },
-  { number:'1.1', name:'The Living World',    note:'Religions, NPC networks, the chronicle, deeper world simulation.' },
-  { number:'1.2', name:'Tombs & Relics',     note:'The founders\' tombs, deep-era relics, tomb-trigger figures.' },
-  { number:'2.0', name:'The Stirring',        note:'The full deep timeline: Nao Rebellion, the Fracture, the ten ancient Yokai, First Contact, bar lēlyā, Nyokuro, Born From Sun, conditions, aging, versioning.' },
-  { number:'2.1', name:'Shattered Channels',  note:'Negative-Qi breakthroughs shatter the meridians (healed only by a high-level expert or the Hiestler plant); bar lēlyā has no willpower gate; tomes are worth a fortune.' },
-  { number:'2.2', name:'Memory & Legacy',     note:'Coins are real currency (not items); selling removes items; NPCs die of old age and natural causes; the AI remembers when/how you met people and how much time has passed; everyone ages; deeper romance & offspring (abandon a child and they may come find you when you are famous); time-skips make the world move on; many new achievements.' },
-  { number:'2.3', name:'Lite Mode',           note:'New Lite Mode toggle in Settings — play on a smaller, far cheaper, faster model (Claude Haiku) to stretch limited API credits or play longer for less. Toggle off any time for full-quality prose.' },
-  { number:'2.4', name:'Titles Restored',     note:'Spiritual & social titles now actually work — the narrator awards earned epithets (Sword Saint, Frost Maiden) and social standing (Sect Elder, Magistrate) at real milestones, and they show on your character sheet.' },
-  { number:'2.5', name:'Reputation & Renown', note:'Titles now come from any feat (not just combat). Fame & infamy actually do things — discounts, fear premiums, NPC disposition, bounty hunters, doors that open or close — starting at lower tiers. Fixed the Properties/Assets dropdown. Off-hand slot now has real gear (shields, buckler, parrying dagger, war fan, talisman, spirit lantern). ~25 new achievements and 10 new traits.' },
-  { number:'2.6', name:'The Mark of Death',   note:'Broken channels can NO LONGER be healed by cultivation — only a high-level expert or the Hiestler plant mends them, and every Qi-gain path now enforces it. Anyone whose channels were wrongly "healed" by cultivating is branded with THE MARK OF DEATH on update. Fixed a bug where death silently failed (infinite loop). Death is now final: when HP hits 0, a gravestone rises with your name, dates, epitaph, and how people felt — revival/reincarnation techniques and the regressor skill can act from the grave. Updating a save at 0 HP now correctly triggers death.' },
+  { number:'1.0', name:'First Breath',        sys:'Initial release: character creation, cultivation, combat, inventory, NPCs, and the save system.', note:'The base murim RPG: cultivation, NPCs, the founders.' },
+  { number:'1.1', name:'The Living World',    sys:'Living-world simulation: dynamic NPC relationships and networks, a personal chronicle/journal, and deeper background world activity.', note:'Religions, NPC networks, the chronicle, deeper world simulation.' },
+  { number:'1.2', name:'Tombs & Relics',     sys:'Added discoverable locations and rare relic/equipment finds.', note:'Tombs, deep-era relics, trigger figures.' },
+  { number:'2.0', name:'The Stirring',        sys:'Major release: expanded world systems, injuries & permanent conditions, character aging with birthdays, and save versioning.', note:'Full deep timeline plus conditions, aging, versioning.' },
+  { number:'2.1', name:'Shattered Channels',  sys:'Cultivation risk: forcing a breakthrough without enough Qi can permanently shatter your channels. Rebalanced rare-text item values.', note:'Negative-Qi breakthroughs shatter meridians; tome value buff.' },
+  { number:'2.2', name:'Memory & Legacy',     sys:'Currency fixes (coins are money, not items), selling now removes items, NPCs age and die of natural causes, the narrator tracks how much in-game time has passed and who you met when, plus a deeper family/offspring system. Many new achievements.', note:'Currency/sell/aging/memory + romance & offspring.' },
+  { number:'2.3', name:'Lite Mode',           sys:'New Lite Mode toggle in Settings — runs the story on a smaller, much cheaper and faster model to stretch limited API credits. Toggle off any time for full quality.', note:'Lite Mode model toggle.' },
+  { number:'2.4', name:'Titles Restored',     sys:'Fixed the titles system — the narrator now awards earned titles at real milestones and they appear on your character sheet.', note:'Titles award + display fixed.' },
+  { number:'2.5', name:'Reputation & Renown', sys:'Reputation now has real teeth: fame and infamy affect prices, NPC reactions, pursuit, and access, starting at lower tiers. Fixed the Properties/Assets dropdown. Off-hand equipment slot now has gear to fill it. ~25 new achievements and 10 new traits.', note:'Reputation effects, assets dropdown, off-hand gear, content.' },
+  { number:'2.6', name:'The Mark of Death',   sys:'Shattered channels can no longer be cheated back to health by ordinary means. Fixed a bug that could make death silently fail to register. Death is now final, with a proper end-of-life screen; revival/regression abilities you actually own can act there. Loading a save at 0 HP now resolves correctly.', note:'Broken-channel exploit fix, Mark of Death, gravestone death, recursion fix.' },
+  { number:'2.7', name:'Flesh & Consequence', sys:'Permanent conditions (blindness, lost limbs, etc.) are now sent to the narrator and enforced — they shape what your character can do and how the world reacts. Healing items actually restore HP now. Added an in-game Update Log and a version badge in the bottom-left corner. New trait. Several smaller fixes.', note:'Conditions enforced in prompt, healing-item effects, update log + version badge, Cheated Death trait.' },
 ];
 
 function cleanSaveData(gs) {
@@ -11617,27 +11683,29 @@ function takePill(itemId) {
       // Dangerous — handled by AI narrative, mark as dangerous
       item._dangerous = true;
     }
-    // Apply effects
-    if(item.effects) {
-      if(item.effects.qi) addQi(item.effects.qi);
-      Object.entries(item.effects).forEach(([k,v]) => {
-        if(k !== 'qi' && GS.char[k] !== undefined) GS.char[k] = Math.max(1, GS.char[k] + v);
-      });
-    }
-  } else {
-    // Generic consumable
-    if(item.effects) Object.entries(item.effects).forEach(([k,v]) => {
-      if(k === 'qi') addQi(v);
-      else if(GS.char[k] !== undefined) GS.char[k] = Math.max(1, GS.char[k] + v);
-    });
   }
+  // Apply effects (uniform for pills and generic consumables)
+  let healed = 0;
+  const applyEffect = (k, v) => {
+    if(k === 'qi') { addQi(v); return; }
+    if(k === 'hp') {
+      const before = GS.char.hp;
+      GS.char.hp = Math.min(GS.char.maxHp || 100, (GS.char.hp || 0) + v);
+      healed += GS.char.hp - before;
+      return;
+    }
+    if(GS.char[k] !== undefined) GS.char[k] = Math.max(1, GS.char[k] + v);
+  };
+  if(item.effects) Object.entries(item.effects).forEach(([k,v]) => applyEffect(k, v));
+
   GS.char.inventory = GS.char.inventory.filter(i => i.id !== itemId);
   updateCharacterTab();
+  updateTopbar();
   updateInventoryTab();
   // Trigger narrative
   const pillName = item.name;
-  sendToAI(`I take the ${pillName}.${item._dangerous ? ' [NOTE: Stage mismatch — this is dangerous]' : ''}`);
-  toast(`Took: ${pillName}`, '', 2000);
+  sendToAI(`I take the ${pillName}.${healed>0?` [HEALED ${healed} HP — now ${GS.char.hp}/${GS.char.maxHp}]`:''}${item._dangerous ? ' [NOTE: Stage mismatch — this is dangerous]' : ''}`);
+  toast(healed > 0 ? `Took ${pillName} · +${healed} HP` : `Took: ${pillName}`, healed>0?'gold':'', 2500);
 }
 
 // Add alchemy tab to admin — ingredient spawner
@@ -12011,6 +12079,8 @@ Martial arts: ${c.martialArts.map(m=>m.name+' ['+MARTIAL_STAGES[m.stage]?.short+
 ${passiveTechs ? 'Active passives: '+passiveTechs : ''}
 ${equipped ? 'Equipped: '+equipped : ''}
 Injuries: ${c.injuries.join(', ')||'none'} | Scars: ${c.scars.join(', ')||'none'}
+${(c.conditions||[]).length ? 'PERMANENT CONDITIONS (MUST be honored in EVERY scene — these change what the character can physically do): ' + c.conditions.map(x => x.label + (x.desc ? ' ('+x.desc+')' : '')).join(' | ') : ''}
+${c.channelsBroken ? 'STATUS: CHANNELS SHATTERED — cannot cultivate, cannot gather/hold Qi, cannot use Qi techniques; forcing Qi risks death.' : ''}
 ${c.prisonStatus ? 'STATUS: IMPRISONED — '+c.prisonStatus.crime+' at '+c.prisonStatus.location : ''}
 Karma: Righteous ${c.karma.righteous} | Blood ${c.karma.blood} | Demonic ${c.karma.demonic} | Chaotic ${c.karma.chaotic}
 ${c.crimes.length ? 'Crimes on record: '+c.crimes.length : ''}
@@ -14026,6 +14096,24 @@ function checkAndSaveAchievements(silent = false) {
   }
 }
 
+function renderUpdateLog() {
+  const list = document.getElementById('updatelog-list');
+  if(!list) return;
+  // Newest first. Show number + name + lore-free system note only.
+  const entries = [...VERSION_HISTORY].reverse();
+  list.innerHTML = entries.map(v => {
+    const isCurrent = v.number === GAME_VERSION.number;
+    return `<div style="padding:12px 4px;border-bottom:1px solid var(--border)">
+      <div style="display:flex;align-items:baseline;gap:8px">
+        <span style="font-weight:700;color:var(--gold)">v${v.number}</span>
+        <span style="font-weight:600;color:var(--text)">${v.name}</span>
+        ${isCurrent?'<span style="font-size:10px;color:var(--green);border:1px solid var(--green);border-radius:4px;padding:1px 5px">CURRENT</span>':''}
+      </div>
+      <div style="font-size:12px;color:var(--muted);margin-top:5px;line-height:1.6">${v.sys || ''}</div>
+    </div>`;
+  }).join('');
+}
+
 function renderAchievements() {
   const unlocked = getUnlockedAchievements();
   const list = document.getElementById('achievements-list');
@@ -14163,6 +14251,11 @@ function initMainMenu() {
     document.getElementById('panel-achievements').classList.remove('hidden');
   });
 
+  document.getElementById('menu-updatelog').addEventListener('click', () => {
+    renderUpdateLog();
+    document.getElementById('panel-updatelog').classList.remove('hidden');
+  });
+
   document.getElementById('menu-apikey').addEventListener('click', () => {
     const inp = document.getElementById('menu-apikey-input');
     if(inp) inp.value = localStorage.getItem('murim_apikey') || '';
@@ -14170,7 +14263,7 @@ function initMainMenu() {
   });
 
   // Close panels on backdrop click
-  ['panel-continue','panel-dead','panel-achievements','panel-apikey'].forEach(id => {
+  ['panel-continue','panel-dead','panel-achievements','panel-updatelog','panel-apikey'].forEach(id => {
     document.getElementById(id)?.addEventListener('click', e => {
       if(e.target.id === id) document.getElementById(id).classList.add('hidden');
     });
@@ -21806,6 +21899,22 @@ function buildShopInventory(locKey) {
   return { items, shop, infamyBlocked };
 }
 
+// Infer real mechanical effects for healing/restorative consumables by key & name,
+// so a "healing pill" actually restores HP instead of doing nothing.
+function inferConsumableEffects(key='', name='') {
+  const s = (key + ' ' + name).toLowerCase();
+  if(/jade recovery|healing_major|major.*heal/.test(s))           return { hp: 90 };
+  if(/red vein|healing_minor|minor.*heal|recovery pill/.test(s))  return { hp: 45 };
+  if(/physician|treatment/.test(s))                                return { hp: 30 };
+  if(/wound.*powder|staunch/.test(s))                              return { hp: 18 };
+  if(/herb.*bundle|medicinal herb/.test(s))                        return { hp: 14 };
+  if(/\bsalve|poultice|bandage|tonic|balm\b/.test(s))             return { hp: 20 };
+  if(/clarity pill/.test(s))                                       return { qi: 25 };
+  if(/healing|heal\b|cure|remedy|elixir of life/.test(s))         return { hp: 35 };
+  if(/meal|dinner|rations|food|rice wine|stew/.test(s))           return { hp: 6 };
+  return null;
+}
+
 function buyItem(itemKey, itemName, price, slot, isTome, rarity, isConsumable) {
   const check = validateAndSpendSilver(price, `buy ${itemName}`);
   if(!check.ok) {
@@ -21820,6 +21929,7 @@ function buyItem(itemKey, itemName, price, slot, isTome, rarity, isConsumable) {
     slot: slot || null, rarity: rarity || 'common',
     desc: `Purchased in ${LOCATIONS[GS.world.location]?.name||GS.world.location} for ${priceDisplay}.`,
     value: Math.floor(price * 0.6), isTome: !!isTome,
+    effects: isConsumable ? (inferConsumableEffects(itemKey, itemName) || {}) : {},
   });
   toast(`Bought: ${itemName} for ${priceDisplay}`, 'gold', 2000);
   updateInventoryTab();
