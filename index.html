@@ -5058,6 +5058,66 @@ const TRAITS_CATALOG = {
     effects: { willpower: 18, intelligence: 16, perception: 16, charisma: 12 },
     qiCostMult: { illusion: 0.1, shadow: 0.2, mind: 0.1 },
   },
+  demigod_nnekoji: {
+    name: 'Demigod — Child of Nnekoji', type: 'divine', rarity: 'fable', inherited: true,
+    demigod: true, godName: 'Nnekoji', domain: 'Past, Present, and Future',
+    desc: 'The first being of divine wonder — the one who invented time — is your parent. You see what was, what is, and the branching shapes of what will be.',
+    flavor: 'You answered the question a breath before it was asked.\n\nYou had heard it already, in a tomorrow that no longer happens.',
+    gameplay: 'Glimpse moments before they arrive; sense the past of a place or person; rarely, fold a moment back. The future is a fog you can partly read.',
+    aiHint: 'DEMIGOD OF NNEKOJI (FABLE): Child of the god who invented time. Foresees imminent events (ambushes, betrayals, blows) a beat early, reads the history of people/places by touch or focus, and can — rarely, at great cost — rewind a single moment. Not omniscience: distant futures blur and free choice still shifts them. A peer\'s actions are opaque to their sight.',
+    effects: { perception: 20, intelligence: 16, willpower: 14, luck: 8 },
+    qiCostMult: { time: 0.1, space: 0.3, mind: 0.3 },
+  },
+  demigod_kodamaeji: {
+    name: 'Demigod — Child of Kodamaeji', type: 'divine', rarity: 'fable', inherited: true,
+    demigod: true, godName: 'Kodamaeji', domain: 'Nature, Water, and Stone',
+    desc: 'The god who terraformed the Earth is your blood. Stone shifts and water turns at your word; the wild knows you for kin.',
+    flavor: 'The river had run that course a thousand years.\n\nYou asked it, once, to move. It moved.',
+    gameplay: 'Command water, earth, and stone on a vast scale; raise walls of rock, part rivers, quiet or rouse the wild. Beasts and growing things treat you as kin.',
+    aiHint: 'DEMIGOD OF KODAMAEJI (FABLE): Child of the god of nature, water, and stone. Reshapes terrain (raise stone, part/summon water, open or seal ground), commands the wilderness and its beasts, and is never truly lost or trapped in the natural world. Titanic with earth/water; lesser elements obey too. Peers only.',
+    effects: { endurance: 18, strength: 16, willpower: 14, perception: 12 },
+    qiCostMult: { earth: 0.1, water: 0.1, stone: 0.1, nature: 0.1 },
+  },
+  demigod_amechiro: {
+    name: 'Demigod — Child of Amechiro', type: 'divine', rarity: 'fable', inherited: true,
+    demigod: true, godName: 'Amechiro', domain: 'Beauty, Disfiguration, and Inequality',
+    desc: 'The Trine god of the grotesque is your parent — beauty and ruin are the same gift in your hands. You can make a face unforgettable, or unbearable.',
+    flavor: 'You touched the scarred man\'s cheek and it healed flawless.\n\nYou touched the proud lord\'s and he wept at what he saw in the water after.',
+    gameplay: 'Bestow stunning beauty or grotesque disfigurement; your own presence compels or repels at will; you see the truth of worth beneath every surface.',
+    aiHint: 'DEMIGOD OF AMECHIRO (FABLE): Child of the god of beauty and the grotesque (they are inseparable). Can make beings beautiful or monstrous with a touch, shift their own appearance to compel awe or revulsion, and perceive the real worth/ugliness beneath any mask. Social and physical-form power; devastating in courts and crowds. Peers resist it.',
+    effects: { charisma: 20, perception: 16, willpower: 14, intelligence: 10 },
+    qiCostMult: { flesh: 0.15, illusion: 0.2, mind: 0.3 },
+  },
+  demigod_mweziakari: {
+    name: 'Demigod — Child of Mweziakari', type: 'divine', rarity: 'fable', inherited: true,
+    demigod: true, godName: 'Mweziakari', domain: 'Aura, Enlightenment, and Peace',
+    desc: 'The god of serene aura and enlightenment is your parent. Strife stills around you — though your own suppressed anger is a dangerous thing.',
+    flavor: 'The two armies stood ready to charge.\n\nYou walked between them, and the will to kill simply... left.',
+    gameplay: 'Radiate a calm that quiets violence and clears minds; accelerate your own and others\' enlightenment; sense auras and intent. But buried wrath festers.',
+    aiHint: 'DEMIGOD OF MWEZIAKARI (FABLE): Child of the god of aura, peace, and enlightenment. Their presence can defuse violence, calm panic, and clear clouded minds; they read auras and intent, and deepen cultivation insight (their own and allies\'). DRAWBACK is canonical: suppressed anger births its opposite — if they bottle rage too long, it erupts as something destructive and other. Peers resist the calm.',
+    effects: { willpower: 20, charisma: 16, intelligence: 14, perception: 12 },
+    qiCostMult: { light: 0.2, mind: 0.1, cultivation_gain: 0.5 },
+  },
+  demigod_jamakaze: {
+    name: 'Demigod — Child of Jamakaze', type: 'divine', rarity: 'fable', inherited: true,
+    demigod: true, godName: 'Jamakaze', domain: 'Music, Harmony, and Grace',
+    desc: 'The most beloved god — of music, joy, and communal grace — is your parent. Your voice and song move hearts, mend spirits, and bind crowds to you.',
+    flavor: 'You sang one verse in the ruined town.\n\nBy the chorus, strangers were weeping and holding one another.',
+    gameplay: 'Music and voice that sway crowds, heal grief, rally the broken, and charm the hostile. People love you on instinct; harmony follows you.',
+    aiHint: 'DEMIGOD OF JAMAKAZE (FABLE): Child of the beloved god of music and harmony. Song and voice move crowds to any feeling (joy, grief, courage, calm), mend morale and spirit, rally the defeated, and disarm hostility. People are drawn to them instinctively; they unite the divided. Mass social/emotional power; a peer or iron will can resist a single song.',
+    effects: { charisma: 22, willpower: 14, perception: 12, intelligence: 10 },
+    qiCostMult: { sound: 0.1, mind: 0.2, light: 0.3 },
+  },
+  demigod_jumaito: {
+    name: 'Demigod — Child of Jumaito', type: 'divine', rarity: 'fable', inherited: true,
+    demigod: true, godName: 'Jumaito', domain: 'Tricks, Confusion, and Hypnotism',
+    desc: 'The morally complicated trickster-god is your blood. Minds bend, certainties slip, and no one is ever quite sure what they just saw you do.',
+    flavor: 'The guards swore you walked straight past them.\n\nYou had not moved. They simply remembered it that way.',
+    gameplay: 'Hypnotize and confuse, plant false certainties, misdirect crowds, and slip memory itself. Reality is negotiable when you speak — but trust comes hard.',
+    aiHint: 'DEMIGOD OF JUMAITO (FABLE): Child of the god of tricks and hypnotism. Can hypnotize and confuse minds, implant false memories/beliefs, misdirect groups, and make people misremember events. DRAWBACK: morally distrusted — those who sense the trickery (and gods/peers) turn on them; their manipulations can rebound. Devastating against lesser minds; high willpower or a peer resists.',
+    effects: { charisma: 18, intelligence: 18, perception: 14, luck: 8 },
+    qiCostMult: { illusion: 0.1, mind: 0.1, shadow: 0.3 },
+  },
 
 };
 
@@ -7315,6 +7375,36 @@ const TRAIT_POWERS = {
     active: { id:'dreamwalk', name:'Dreamwalk', desc:'Enter a sleeping mind — learn its secrets, or leave a nightmare.', cdDays:3, qiCost:40,
       run(c){ return `[DREAMWALK: I step into the dream of someone sleeping — to learn what they hide, plant a suggestion, or leave a nightmare that will not let them rest. Narrate the dream-intrusion and its effect.]`; } },
     drawback: 'The line between dreaming and waking is thin for them — they sometimes cannot be sure which they are in, and their own nightmares can bleed out.',
+  },
+  demigod_nnekoji: {
+    active: { id:'glimpse_ahead', name:'Glimpse Ahead', desc:'See the next moments before they arrive — and act on what is coming.', cdDays:3, qiCost:45,
+      run(c){ c._escapeReady = true; return `[GLIMPSE AHEAD: Nnekoji's gift opens the next moments to me — I see what is about to happen (the strike, the betrayal, the collapse) and move before it lands. Narrate the foresight and let me act on it; I can avoid or counter what was coming.]`; } },
+    drawback: 'A child of the time-god sees too many futures — branching, contradictory, some terrible. It breeds dread and indecision, and the weight of knowing can be paralyzing.',
+  },
+  demigod_kodamaeji: {
+    active: { id:'shape_the_land', name:'Shape the Land', desc:'Raise stone, part water, rouse the wild to your will.', cdDays:4, qiCost:60,
+      run(c){ return `[SHAPE THE LAND: I command Kodamaeji's domain — raising walls of stone, parting or summoning water, opening the ground, or rousing the wild around me. Narrate the terrain itself bending to my will to fit my need this scene.]`; } },
+    drawback: 'They feel the land\'s wounds as their own — scorched earth, poisoned rivers, and felled forests cause them real pain, and they cannot easily ignore harm done to the wild.',
+  },
+  demigod_amechiro: {
+    active: { id:'gift_or_ruin', name:'Gift or Ruin', desc:'Bestow stunning beauty — or grotesque disfigurement — with a touch.', cdDays:4, qiCost:45,
+      run(c){ return `[GIFT OR RUIN: With Amechiro's touch I remake a face or form — flawless beauty as a blessing, or grotesque ruin as a curse (my choice). Narrate the transformation and how the target and onlookers react.]`; } },
+    drawback: 'Beauty and the grotesque are inseparable for them: every gift carries a hidden ugliness, every ruin a terrible allure, and their own form drifts toward one extreme or the other under stress.',
+  },
+  demigod_mweziakari: {
+    active: { id:'aura_of_peace', name:'Aura of Peace', desc:'Radiate a stillness that drains the will to fight from a whole space.', cdDays:4, qiCost:50,
+      run(c){ return `[AURA OF PEACE: I let Mweziakari's calm pour out — the will to violence drains from everyone in range, panic stills, clouded minds clear. Narrate the fighting faltering and tempers cooling around me (peers and the truly enraged may resist).]`; } },
+    drawback: 'CANONICAL: suppressed anger births its opposite. If this character bottles rage too long, it erupts as a destructive, other power — a Zawabin-shaped shadow of themselves. The longer they force calm, the worse the eventual break.',
+  },
+  demigod_jamakaze: {
+    active: { id:'song_of_hearts', name:'Song of Hearts', desc:'A song that moves a whole crowd — to courage, grief, calm, or devotion.', cdDays:3, qiCost:40,
+      run(c){ return `[SONG OF HEARTS: I sing, and Jamakaze's grace carries it into every heart present — I choose the feeling (courage, grief, calm, joy, devotion to me) and the crowd is swept into it; the broken are rallied, the hostile disarmed. Narrate the song and its sweep (a peer or iron will may shrug it off).]`; } },
+    drawback: 'They feel the room\'s emotions as their own, always — a grieving crowd grieves through them, a furious mob rages in them. Crowds are exhausting, and solitude is hard to find.',
+  },
+  demigod_jumaito: {
+    active: { id:'twist_perception', name:'Twist Perception', desc:'Hypnotize, confuse, or rewrite what a mind believes it saw.', cdDays:3, qiCost:45,
+      run(c){ return `[TWIST PERCEPTION: Jumaito's gift bends a mind (or a small group) — I hypnotize, confuse, plant a false certainty, or make them misremember what just happened. Narrate the deception taking hold (high willpower or a peer resists, and the perceptive may sense the trick).]`; } },
+    drawback: 'A trickster-god\'s child is trusted by no one who knows what they are — gods, peers, and the perceptive turn on them, and their own manipulations can rebound and tangle.',
   },
 };
 
@@ -10761,7 +10851,7 @@ const SAVE_PREFIX = 'murim_slot_';
 // Scheme: MAJOR.MINOR. Big updates bump MAJOR (1.2 -> 2.2). Small updates
 // bump MINOR (2.2 -> 2.3). Each version has a name. The current version is
 // stamped onto every save; older saves can be updated to the latest.
-const GAME_VERSION = { number: '3.3', name: 'Divine Powers' };
+const GAME_VERSION = { number: '3.4', name: 'The Full Pantheon' };
 
 // Which model generates the story. Lite Mode swaps to a far cheaper, faster model
 // (Claude Haiku) so long sessions / limited credits cost a fraction per turn.
@@ -10790,6 +10880,7 @@ const VERSION_HISTORY = [
   { number:'3.1', name:'Crime & Punishment',  sys:'Systems now interlock. Properties you gain in the story (inherited, won, gifted) actually register in your assets. Court & trial system: serious crimes lead to arrest and a case that runs over days-to-months — hire a lawyer or defend yourself, with verdicts weighing your defense, reputation, and bribes. Dealing now ties into alchemy (cook your own product) with more substances, and busts can land you in court. New: infuse Qi into your gear to strengthen it. Personal Events stays about YOU now. More traits and achievements.', note:'Narrative asset registration, court/trial system, alchemy drug production + more drugs, Qi item infusion, personalEvents routing, +traits/+achievements.' },
   { number:'3.2', name:'Blood of the Gods',   sys:'Holding the keys (or deed) to a place now registers it as yours in Properties & Assets, even if it came purely through the story. New fabled bloodline: Demigod — Child of a god — ten variants, each a child of a different deity with unique divine powers, huge boosts, and a name that reflects your parent and gender. New achievement.', note:'Key/deed -> asset registration safety net + stronger PROPERTY RULE; 10 Demigod fable traits with gender-aware naming; demigod achievement.' },
   { number:'3.3', name:'Divine Powers',       sys:'Demigod/divine traits now DO things, not just boost stats. Active powers with cooldowns (a Powers panel on your character sheet — heal, escape, defy death, call down fire, and more), passive effects (regeneration, healing in sunlight), real system hooks (court defense, Qi-infusion strength, deal risk), and genuine drawbacks the world plays against you. D\'yaqed is now correctly a CHOSEN vessel, not a bloodline.', note:'TRAIT_POWERS engine: active powers + cooldowns + Powers UI, passive ticks, death-saves, court/infusion/bust hooks, drawbacks surfaced to AI; D\'yaqed reframed as Chosen.' },
+  { number:'3.4', name:'The Full Pantheon',   sys:'All fifteen gods of the old creation faith now have a demigod bloodline — six new ones (time, nature, beauty, peace, music, trickery), each with its own active power and drawback. Plus a one-time fix on update: if you already owned a property and were holding its key or deed, it now registers properly in your assets.', note:'Added 6 missing NzuriKami demigods (15 total) w/ powers+drawbacks; migrateSave one-time key/deed -> asset registration for updaters.' },
 ];
 
 function cleanSaveData(gs) {
@@ -10932,6 +11023,27 @@ function migrateSave(data) {
       return true;
     });
     if(recovered > 0) c.silver = Math.round(((c.silver||0) + recovered) * 20) / 20;
+  }
+
+  // ONE-TIME (on update): if the player already owns a property the old system
+  // never recorded — and they're holding its key/deed — register it now so it
+  // shows in Properties & Assets. This is purely a migration catch-up; a key is
+  // NOT a requirement to own property going forward.
+  if(!c._keyAssetsMigrated && typeof registerNarrativeAsset === 'function' && Array.isArray(c.inventory)) {
+    c._keyAssetsMigrated = true;
+    c.inventory.forEach(it => {
+      const n = (it?.name || '').toLowerCase();
+      const km = n.match(/\b(?:keys?|deed|title|ownership papers?)\s+to\s+(?:the\s+)?(.+)/)
+              || n.match(/^(?:the\s+)?(.+?)['’]s?\s+(?:keys?|deed|title)$/);
+      if(km && km[1]) {
+        const propName = km[1].replace(/['"’]/g,'').replace(/\b\w/g, ch => ch.toUpperCase()).trim();
+        const already = (c.assets||[]).some(a => (a.name||'').toLowerCase().includes(km[1].toLowerCase()) || km[1].toLowerCase().includes((a.name||'').toLowerCase()));
+        if(propName && !already) {
+          // register without toast/chronicle spam during migration
+          try { const a = registerNarrativeAsset({ name: propName, type: propName, how: 'already owned (registered on update)' }); } catch(e) {}
+        }
+      }
+    });
   }
 
   // Ensure karma sub-fields exist
