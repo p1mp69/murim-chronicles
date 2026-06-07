@@ -5078,6 +5078,23 @@ function totalDays(year=GS.world.year, month=GS.world.month, day=GS.world.day) {
   return (year - 1) * 360 + (month - 1) * 30 + (day - 1);
 }
 
+// Human-readable elapsed time from a past (year, month) to the current date.
+// Used to anchor the AI's sense of time so it never says "three weeks" when it
+// has been a year. Returns strings like "now", "2 months", "3 years".
+function elapsedSince(year, month=1, day=1) {
+  if(year == null) return 'unknown';
+  const days = totalDays(GS.world.year, GS.world.month, GS.world.day)
+             - totalDays(year, month||1, day||1);
+  if(days <= 0) return 'now';
+  if(days < 30) return `${days} day${days===1?'':'s'}`;
+  const months = Math.floor(days / 30);
+  if(months < 12) return `${months} month${months===1?'':'s'}`;
+  const years = Math.floor(days / 360);
+  const remMonths = Math.floor((days % 360) / 30);
+  if(years < 1) return `${months} months`;
+  return remMonths > 0 ? `${years} year${years===1?'':'s'} ${remMonths} month${remMonths===1?'':'s'}` : `${years} year${years===1?'':'s'}`;
+}
+
 function advanceTime(days=0, months=0, years=0) {
   const w = GS.world;
   // Convert everything to days, advance, then normalize
@@ -7010,11 +7027,14 @@ function spawnLoreNPC(loreId) {
 }
 
 function addOrUpdateRelationship(npc, type='encountered', summary='') {
+  const w = GS.world;
   const existing = GS.char.relationships.find(r=>r.npcId===npc.id);
   if(existing) {
     existing.type = type || existing.type;
     if(summary) existing.summary = summary.slice(0,120);
-    existing.lastSeen = `Year ${GS.world.year}`;
+    existing.lastSeen = `Year ${w.year}`;
+    existing.lastSeenYear = w.year;
+    existing.lastSeenMonth = w.month;
     return existing;
   }
   const rel = {
@@ -7026,7 +7046,15 @@ function addOrUpdateRelationship(npc, type='encountered', summary='') {
     isLore: npc.isLore||false,
     glowColor: npc.glowColor||null,
     specialGlow: npc.specialGlow||null,
-    lastSeen: `Year ${GS.world.year}`,
+    lastSeen: `Year ${w.year}`,
+    // ── IMMUTABLE MEETING RECORD — locks who they were & how/when you met ──
+    metYear: w.year, metMonth: w.month, metDay: w.day,
+    metPlayerAge: GS.char.age,
+    metContext: (summary||'').slice(0,200), // how/where you first met
+    npcAgeAtMeeting: npc.age != null ? npc.age : null,
+    npcGender: npc.gender || null,
+    npcAppearance: npc.appearance || npc.appearanceNote || null,
+    lastSeenYear: w.year, lastSeenMonth: w.month,
   };
   GS.char.relationships.push(rel);
   updateRelationsTab();
@@ -9788,6 +9816,24 @@ function migrateSave(data) {
     (c.martialArts||[]).forEach(m => { if(m && m.desc) m.desc = sanitizeTechDesc(m.desc); });
   }
 
+  // Backfill meeting/last-seen metadata on legacy relationships so the AI gets
+  // time + identity anchors even for people met before this update.
+  if(Array.isArray(c.relationships)) {
+    c.relationships.forEach(r => {
+      if(r.metYear == null) {
+        const m = /Year\s+(\d+)/.exec(r.lastSeen || '');
+        r.metYear = m ? parseInt(m[1]) : (w.year || 1);
+        r.metMonth = 1; r.metDay = 1;
+        if(r.metContext == null) r.metContext = (r.summary || r.fullMemory || '').slice(0,200);
+      }
+      if(r.lastSeenYear == null) {
+        const m = /Year\s+(\d+)/.exec(r.lastSeen || '');
+        r.lastSeenYear = m ? parseInt(m[1]) : r.metYear;
+        r.lastSeenMonth = r.lastSeenMonth || 1;
+      }
+    });
+  }
+
   // Convert any currency that was mistakenly stored as an inventory item back
   // into real silver (fixes the "Copper Coins" misc-item bug on old saves).
   if(typeof parseCurrencyToSilver === 'function' && Array.isArray(c.inventory)) {
@@ -11472,7 +11518,25 @@ function buildSystemPrompt() {
     const memSnip = r.fullMemory ? ` — context: "${r.fullMemory.slice(0,120)}"` : (r.summary ? ` — "${r.summary.slice(0,80)}"` : '');
     const grudge  = (npc?.grudgeLevel||0) > 30 ? ` [GRUDGE:${npc.grudgeLevel}]` : '';
     const fear    = (npc?.fearLevel||0)  > 30 ? ` [FEARS player]` : '';
-    return `• ${r.name}${r.title?' ('+r.title+')':''} — ${r.type}, bond:${r.bond_level||r.trust||0}/100${power}${occ}${daily}${loc}${grudge}${fear}${memSnip}`;
+    // ── Time + identity anchoring (prevents the AI from rewriting history) ──
+    let meta = '';
+    if(r.metYear != null) {
+      const since = elapsedSince(r.metYear, r.metMonth);
+      meta += ` | MET: Year ${r.metYear}${r.metContext?` (${r.metContext.slice(0,90)})`:''} — ${since} ago`;
+    }
+    // NPC age then vs now
+    let ageNote = '';
+    const ageNow = npc?.age ?? (npc?.birthYear ? w.year - npc.birthYear : null);
+    if(r.npcAgeAtMeeting != null) ageNote = `, was age ${r.npcAgeAtMeeting} at meeting${ageNow!=null?`, now ~${ageNow}`:''}`;
+    else if(ageNow != null) ageNote = `, age ~${ageNow}`;
+    if(r.npcGender) ageNote += `, ${r.npcGender}`;
+    if(r.npcAppearance) ageNote += `, appearance: ${String(r.npcAppearance).slice(0,70)}`;
+    let lastNote = '';
+    if(r.lastSeenYear != null) {
+      const ls = elapsedSince(r.lastSeenYear, r.lastSeenMonth);
+      lastNote = ls === 'now' || ls.startsWith('0 ') ? '' : ` | last seen ${ls} ago`;
+    }
+    return `• ${r.name}${r.title?' ('+r.title+')':''} — ${r.type}, bond:${r.bond_level||r.trust||0}/100${power}${ageNote}${occ}${daily}${loc}${grudge}${fear}${meta}${lastNote}${memSnip}`;
   }).join('\n  ') || 'none';
   const passiveTechs = c.techniques.filter(t=>t.passiveActive).map(t=>t.name).join(', ');
   const equipped = Object.entries(c.equipment).filter(([,v])=>v).map(([k,v])=>`${k}: ${v.name}`).join(', ');
@@ -11607,6 +11671,15 @@ If the prose you write depicts time passing (a montage, "the first week...", "by
 - A significant event → days: 3 to 30
 - A journey of weeks → months: 1 or 2
 - Long-term training arc → months: 1 to 6
+
+The current date is Year ${w.year}, ${MONTH_NAMES[w.month]||'Month '+w.month}, Day ${w.day||1}. The player is currently ${c.age} years old.
+
+## TIME & MEMORY CONSISTENCY (CRITICAL — DO NOT VIOLATE)
+The world has a real calendar and everyone in it experiences time passing. Obey these:
+- THE CLOCK IS AUTHORITATIVE. The "MET / last seen / X ago" notes on each known person are computed from the real calendar. Use those exact spans. NEVER invent a different duration. If the notes say you met someone 11 months ago, do NOT write "three weeks ago." If the player last visited a place a year ago, say a year, not weeks.
+- PEOPLE REMEMBER CORRECTLY. When recalling how/when the player met someone, you MUST match the MET record: the same year, the same circumstances, the same person. If the record says you met a 12-year-old girl who warned you, she is STILL that person — she is now 12 + (years elapsed) old. Do NOT change her into a different age, gender, or backstory. Do NOT reinvent first meetings.
+- EVERYONE AGES. NPCs grow older with the calendar exactly as the player does. A child met years ago is now older by that many years. The elderly may have died (you'll see them marked dead). Reflect aging in descriptions when time has passed — gray hair, a grown child, a frail elder.
+- THE PLAYER AGES TOO. The player is ${c.age}. If years have passed since an event, acknowledge it in their body and standing. People who "moved on" while the player was away (training for years, etc.) did not freeze waiting — relationships cooled, positions were filled, opportunities closed. Acknowledge the gap; the world did not pause.
 
 The current date is Year ${w.year}, ${MONTH_NAMES[w.month]||'Month '+w.month}, Day ${w.day||1}.
 
