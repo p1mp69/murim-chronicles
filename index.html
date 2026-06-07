@@ -6826,28 +6826,28 @@ function tickNPCMortality(npc, years) {
   if(npc.age == null) return;
 
   const stage = npc.qiStageIndex || 0;
-  // Maximum natural lifespan rises with cultivation.
-  // Mortal ~75; Body Tempering ~110; Qi Condensation ~160; Core+ ~250; high realms ~500+
-  const maxLifespan = stage <= 0 ? 75
-    : stage <= 3 ? 110
-    : stage <= 6 ? 160
-    : stage <= 9 ? 250
-    : stage <= 12 ? 500
-    : 1200;
+  // "Venerable" age — a soft ceiling where old-age hazard becomes significant.
+  // Lifespan rises sharply with cultivation. Many exceed it; few by a lot.
+  // Mortal ~85; Body Tempering ~120; Qi Condensation ~180; Core+ ~280; high ~600+
+  const maxLifespan = stage <= 0 ? 85
+    : stage <= 3 ? 120
+    : stage <= 6 ? 180
+    : stage <= 9 ? 280
+    : stage <= 12 ? 600
+    : 1500;
 
   let died = false, cause = '';
   for(let i = 0; i < years; i++) {
     const age = (npc.age || 0) - (years - 1 - i); // approximate age in each crossed year
-    // Old-age hazard ramps up as they approach/exceed max lifespan
+    // Gentle, realistic hazard curve.
     let hazard;
-    if(age >= maxLifespan) hazard = 0.45 + (age - maxLifespan) * 0.06;
-    else if(age >= maxLifespan * 0.8) hazard = 0.04 + (age - maxLifespan*0.8) / (maxLifespan*0.2) * 0.25;
-    else hazard = 0.002 + age * 0.00015; // small baseline: illness, accident, violence
-    // Mortals are frailer; cultivators are hardy
-    if(stage === 0) hazard *= 1.3;
-    if(Math.random() < Math.min(0.95, hazard)) {
+    if(age >= maxLifespan) hazard = Math.min(0.6, 0.10 + (age - maxLifespan) * 0.04); // ~10%/yr at venerable, rising
+    else if(age >= maxLifespan * 0.75) hazard = 0.01 + (age - maxLifespan*0.75) / (maxLifespan*0.25) * 0.09; // 1%→10%
+    else hazard = 0.0015 + age * 0.0001; // small baseline: illness, accident, violence
+    if(stage === 0) hazard *= 1.2; // mortals slightly frailer
+    if(Math.random() < hazard) {
       died = true;
-      cause = age >= maxLifespan * 0.8 ? 'old age' :
+      cause = age >= maxLifespan * 0.75 ? 'old age' :
               (Math.random() < 0.5 ? 'illness' : 'misadventure');
       break;
     }
