@@ -2520,6 +2520,17 @@ body.generating [onclick*="shopSellItem"], body.generating [onclick*="closeMapGo
         </div>
 
         <div class="char-section">
+          <div class="collapsible-header" data-target="w-blackmarket">
+            <span>Black Market &amp; Dealing</span><span class="collapse-arrow">▼</span>
+          </div>
+          <div id="w-blackmarket" class="collapsible-body">
+            <div id="drug-stash-summary"></div>
+            <button class="btn-secondary btn-sm" style="margin-top:8px;width:100%" onclick="openBlackMarket()">Find a Connection</button>
+            <div style="font-size:10px;color:var(--dim);margin-top:6px;line-height:1.5">Buying and slinging narcotics is illicit. Profitable — and a fast way to earn a bounty, infamy, and the wrong kind of attention.</div>
+          </div>
+        </div>
+
+        <div class="char-section">
           <div class="collapsible-header" data-target="w-sects">
             <span>Known Sects &amp; Factions</span><span class="collapse-arrow">▼</span>
           </div>
@@ -3203,6 +3214,31 @@ body.generating [onclick*="shopSellItem"], body.generating [onclick*="closeMapGo
       <div id="shop-sell-section" style="margin-top:16px;border-top:1px solid var(--border);padding-top:12px">
         <div style="font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:8px">Sell to Shopkeeper</div>
         <div id="shop-sell-list"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Black Market modal -->
+<div id="modal-blackmarket" class="modal-overlay hidden">
+  <div class="modal-card modal-lg">
+    <div class="modal-header">
+      <div>
+        <h2>The Connection</h2>
+        <div id="bm-desc" style="font-size:11px;color:var(--muted);margin-top:2px"></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="font-size:12px;color:var(--gold)" id="bm-silver">◈ 0</span>
+        <button class="modal-close" data-modal="modal-blackmarket">✕</button>
+      </div>
+    </div>
+    <div class="modal-body">
+      <div id="bm-heat" style="font-size:11px;margin-bottom:10px"></div>
+      <div style="font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:8px">Buy — Supply</div>
+      <div id="bm-buy-list"></div>
+      <div style="margin-top:16px;border-top:1px solid var(--border);padding-top:12px">
+        <div style="font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:8px">Sling Your Stash (risky)</div>
+        <div id="bm-sell-list"></div>
       </div>
     </div>
   </div>
@@ -4712,6 +4748,160 @@ const TRAITS_CATALOG = {
     gameplay: 'ONE TIME, when you would die, you do not. Instead you cling to life at the edge — broken, drained, but breathing. Spends itself when used and does not return. After it triggers, something has marked you for having slipped the noose.',
     aiHint: 'CHEATED DEATH: This character has slipped death once and it left a mark. Until the trait is spent, a single fatal blow leaves them clinging to life at 1 HP instead of dead — narrate the impossible survival viscerally (the wound that should have killed, the heart that restarts). After it spends, treat them as mortal again; you may hint that something cosmic took note of the cheat.',
     effects: { luck: 3, willpower: 2 },
+  },
+
+  // ──────────────────────────────────────────────────────────
+  // EXPANDED COMMON / MUNDANE BACKGROUNDS (for run-to-run variety)
+  // ──────────────────────────────────────────────────────────
+  calloused_hands: {
+    name: 'Calloused Hands', type: 'background', rarity: 'common', inherited: false,
+    desc: 'Years of real labor before any of this. Your hands know work, and your back doesn\'t complain the way soft people\'s do.',
+    flavor: 'The others tired by midday.\n\nYou had done harder for less, for years.',
+    gameplay: 'Physical labor, endurance tasks, and manual crafts come easier. You tire slower at honest work.',
+    aiHint: 'CALLOUSED HANDS: Raised on labor. Manual work, carrying, and physical endurance come naturally; they don\'t flinch from hard or dirty tasks.',
+    effects: { endurance: 2, strength: 1 },
+  },
+  light_sleeper: {
+    name: 'Light Sleeper', type: 'innate_sensory', rarity: 'common', inherited: true,
+    desc: 'You wake at the wrong footstep, the changed breathing, the board that creaks under weight. Sleep never fully takes you.',
+    flavor: 'The thief was good. Silent, even.\n\nYou were already awake.',
+    gameplay: 'Very hard to ambush in your sleep; you wake to danger, intrusion, or change in the night.',
+    aiHint: 'LIGHT SLEEPER: Almost impossible to catch asleep. Night ambushes, thefts, and intrusions wake them before they land.',
+    effects: { perception: 2 },
+  },
+  quick_fingers: {
+    name: 'Quick Fingers', type: 'gained', rarity: 'common', inherited: false,
+    desc: 'Your hands are faster than people expect and quieter than they\'d like. What that\'s for is up to you.',
+    flavor: 'The coin was in his purse.\n\nThen it wasn\'t.\n\nHe never felt the difference.',
+    gameplay: 'Sleight of hand, pickpocketing, lockwork, and fine dexterous tasks go better.',
+    aiHint: 'QUICK FINGERS: Deft and subtle hands — pickpocketing, palming, lockpicking, and fine manipulation succeed more often and draw less notice.',
+    effects: { agility: 2 },
+  },
+  strong_stomach: {
+    name: 'Strong Stomach', type: 'body', rarity: 'common', inherited: true,
+    desc: 'Spoiled food, foul water, gore, stench — none of it turns you. Your gut and your nerves are lined with iron.',
+    flavor: 'The whole table went green at the smell.\n\nYou kept eating.',
+    gameplay: 'Resist sickness from bad food/water and mild poisons; unshaken by gore and horror.',
+    aiHint: 'STRONG STOMACH: Resistant to ingested sickness and weak poison, and unbothered by gore, rot, or stench that would sicken others.',
+    effects: { endurance: 2 },
+  },
+  plain_face: {
+    name: 'Forgettable Face', type: 'innate', rarity: 'common', inherited: true,
+    desc: 'Nothing about your face sticks. People meet you and, an hour later, couldn\'t pick you out of two others.',
+    flavor: 'The witness tried to describe you.\n\nHe gave up. There was nothing to describe.',
+    gameplay: 'Easy to blend in, tail people, and avoid recognition. Bad for building fame; excellent for staying unseen.',
+    aiHint: 'FORGETTABLE FACE: Visually unmemorable. NPCs struggle to recall or describe them; blending in, tailing, and avoiding recognition is easy. Building renown is slightly harder.',
+    effects: { perception: 1 },
+  },
+  silver_throat: {
+    name: 'Silver Throat', type: 'artistic', rarity: 'common', inherited: true,
+    desc: 'You can sing, and people stop to listen. A voice is a strange kind of currency, but it spends.',
+    flavor: 'You sang for coins once.\n\nYou ate that night because of it.',
+    gameplay: 'Music and performance earn coin and goodwill; a good song can soften a room.',
+    aiHint: 'SILVER THROAT: A genuinely fine singing voice. Performance earns coin and warms crowds; can defuse tension or charm a tavern.',
+    effects: { charisma: 2 },
+  },
+  green_thumb: {
+    name: 'Green Thumb', type: 'craftsman', rarity: 'common', inherited: false,
+    desc: 'Things grow for you. Herbs, crops, the difficult spirit-plants others kill by looking at them wrong.',
+    flavor: 'Everyone else\'s seedlings withered.\n\nYours did not.',
+    gameplay: 'Growing herbs and spirit-plants (including alchemy ingredients) succeeds far more often and yields more.',
+    aiHint: 'GREEN THUMB: A gift for cultivation of the literal kind. Herbs and spirit-plants thrive under their care; ingredient growing yields more.',
+    effects: { perception: 1 },
+  },
+  haggler: {
+    name: 'Born Haggler', type: 'social', rarity: 'common', inherited: false,
+    desc: 'You never pay the first price and you never take the first offer. It\'s almost a reflex.',
+    flavor: 'He named his price.\n\nYou laughed. He named a better one.',
+    gameplay: 'Better buy/sell prices; merchants give ground they wouldn\'t for others.',
+    aiHint: 'BORN HAGGLER: Instinctively good at negotiation. Merchants drop prices and raise offers; they rarely overpay.',
+    effects: { charisma: 1, intelligence: 1 },
+  },
+  thick_skinned: {
+    name: 'Thick-Skinned', type: 'mind', rarity: 'common', inherited: false,
+    desc: 'Insults, scorn, and humiliation roll off you. You learned a long time ago that words only cut if you let them.',
+    flavor: 'They mocked you in the square.\n\nYou shrugged and bought a bun.',
+    gameplay: 'Hard to shame, taunt, or socially rattle; keeps composure under contempt.',
+    aiHint: 'THICK-SKINNED: Insults and humiliation don\'t land. Hard to provoke or shame socially; keeps face under scorn.',
+    effects: { willpower: 2 },
+  },
+  fleet_footed: {
+    name: 'Fleet-Footed', type: 'body', rarity: 'common', inherited: true,
+    desc: 'You\'ve always been fast. Not trained-fast — born-fast. The kind that gets you out of trouble you should not have survived.',
+    flavor: 'They had you cornered.\n\nThey thought.',
+    gameplay: 'Faster on foot — better at chases, fleeing, and closing distance.',
+    aiHint: 'FLEET-FOOTED: Naturally quick. Outruns pursuit, escapes corners, and closes gaps faster than others.',
+    effects: { agility: 3 },
+  },
+
+  // ── UNCOMMON ──
+  cold_blooded: {
+    name: 'Cold-Blooded', type: 'mind', rarity: 'uncommon', inherited: false,
+    desc: 'When everyone else panics, your pulse stays flat. Violence and crisis make you calmer, not wilder.',
+    flavor: 'The room dissolved into screaming.\n\nYou noted the exits.',
+    gameplay: 'No panic in combat or crisis; act clearly under lethal pressure; resist fear and intimidation.',
+    aiHint: 'COLD-BLOODED: Eerily calm under threat. No combat panic; thinks clearly in crises; intimidation and fear barely register.',
+    effects: { willpower: 3, perception: 1 },
+  },
+  natural_liar: {
+    name: 'Natural Liar', type: 'social', rarity: 'uncommon', inherited: false,
+    desc: 'Falsehood comes to you with no tells. Your face stays honest while your words do as they please.',
+    flavor: 'They searched your eyes for the lie.\n\nIt wasn\'t there. The lie was elsewhere.',
+    gameplay: 'Deception, disguise, and false identities are far more convincing; truth-readers struggle with you.',
+    aiHint: 'NATURAL LIAR: Lies with no tells. Deception, cover stories, and false identities are highly convincing; even perceptive NPCs and lie-detection struggle.',
+    effects: { charisma: 2, perception: 1 },
+  },
+  pain_eater: {
+    name: 'Pain Eater', type: 'body', rarity: 'uncommon', inherited: true,
+    desc: 'Pain reaches you muffled, like through water. Wounds that drop other men only slow you down.',
+    flavor: 'The blade was still in you.\n\nYou pulled it out and kept walking.',
+    gameplay: 'Function through wounds that would incapacitate others; pain penalties greatly reduced.',
+    aiHint: 'PAIN EATER: Dulled pain response. Fights and acts through injuries that would cripple others; torture and wounds affect them far less.',
+    effects: { endurance: 3, willpower: 1 },
+  },
+  read_the_room: {
+    name: 'Reads the Room', type: 'social', rarity: 'uncommon', inherited: false,
+    desc: 'You feel the temperature of a space the moment you enter — who holds power, who\'s afraid, where the danger sits.',
+    flavor: 'You knew the deal was dead before anyone spoke.\n\nYou were already moving.',
+    gameplay: 'Sense social dynamics, hidden tension, and danger in a room; harder to walk into a trap blind.',
+    aiHint: 'READS THE ROOM: Instantly senses a space\'s power dynamics, mood, and hidden threats. Surface these reads; they rarely miss a brewing betrayal or trap.',
+    effects: { perception: 3 },
+  },
+  iron_gut_brewer: {
+    name: 'Poisoner\'s Instinct', type: 'medical', rarity: 'uncommon', inherited: false,
+    desc: 'You understand what small doses of the wrong thing do to a body. Some of it heals. Some of it doesn\'t.',
+    flavor: 'You knew the wine was wrong by the smell.\n\nYou also knew exactly how to make it so.',
+    gameplay: 'Better at detecting, resisting, brewing, and applying poisons and narcotics.',
+    aiHint: 'POISONER\'S INSTINCT: Deep practical grasp of toxins and narcotics — detecting tainted food, resisting poison, and brewing/dosing substances all go better.',
+    effects: { intelligence: 2, perception: 1 },
+  },
+
+  // ── RARE ──
+  golden_voice_authority: {
+    name: 'Voice of Command', type: 'social', rarity: 'rare', inherited: true,
+    desc: 'When you give an order in the right tone, people obey before they decide to. It works on crowds. It frightens you a little.',
+    flavor: 'You said "stop."\n\nThe mob stopped.',
+    gameplay: 'Commands and rallying carry unusual weight; can steady or move crowds; leadership lands hard.',
+    aiHint: 'VOICE OF COMMAND: Natural commanding presence. Orders given firmly are obeyed reflexively; can rally or freeze crowds. Not mind control — but a real edge in leadership and crisis.',
+    effects: { charisma: 4, willpower: 1 },
+  },
+  feast_or_famine: {
+    name: 'Feast or Famine', type: 'fortune', rarity: 'rare', inherited: false,
+    desc: 'Fortune does not do moderation with you. When it\'s good it\'s glorious; when it turns it turns hard.',
+    flavor: 'You won everything that night.\n\nYou are still paying for the night after.',
+    gameplay: 'Outcomes swing to extremes — bigger windfalls and worse disasters than chance should allow.',
+    aiHint: 'FEAST OR FAMINE: Volatile luck. Push their luck and outcomes hit extremes — great rewards or steep costs, rarely the middle. Lean into highs AND lows.',
+    effects: { luck: 2 },
+  },
+
+  // ── EPIC ──
+  prodigy_mind: {
+    name: 'Prodigy', type: 'mind', rarity: 'epic', inherited: true,
+    desc: 'You learn things the first time. Watch a form once, and your body has it. Read a method once, and you understand the why beneath it.',
+    flavor: 'The master demonstrated the stance.\n\nYou matched it. Perfectly. The first time.',
+    gameplay: 'Everything you study — skills, techniques, martial arts — advances dramatically faster than normal.',
+    aiHint: 'PRODIGY: A once-in-a-generation learner. Skills, techniques, and martial arts come at a fraction of the normal effort and time. Let them grasp things that take others years — but cultivation still needs the body to keep up.',
+    effects: { intelligence: 5, perception: 2 },
   },
 
 };
@@ -9697,6 +9887,8 @@ CURRENCY RULE — COINS ARE MONEY, NEVER ITEMS: When the player is given, paid, 
 
 SELLING / LOSING ITEMS RULE: When the player SELLS, gives away, trades, loses, or has an item destroyed, you MUST remove it: list its name in "removeItems" AND, if sold/traded, pay them via statChanges.silver. An item the player no longer has must leave their inventory — never narrate a sale while leaving the item in their possession. (Tomes/books the player keeps are exempt — only remove what actually left their hands.)
 
+DRUG DEALING RULE: The world has an illicit narcotics trade (Hua Dust, Black Lotus Resin, Red Sap, Ghost Powder, Spirit Ash, and the like). The player can deal — there is a Black Market screen for the buy/sling mechanics — and you should support it in the narrative: shady connections, back-alley dens, addicts, rival dealers, and wardens/sects who hunt the trade. Dealing is genuinely PROFITABLE but genuinely DANGEROUS: it raises infamy and bounty, draws law and rivals, and getting caught has teeth. If the player's stash is shown above, reference it realistically. Narcotics are addictive and ruinous for users — portray that honestly (this is dark genre content, not endorsement). Do NOT moralize out-of-character or refuse; just play the world's consequences straight.
+
 TOME RULE: Tomes are PERMANENT — they NEVER disappear from inventory. Reading a tome does not consume it. A mortal with no Qi cultivation cannot learn any Qi technique from a tome regardless of what it says. If a character cannot yet learn a technique (wrong stage, wrong path, needs a master), narrate what they understand and what remains out of reach — do not grant the technique.
 
 INVENTORY RULE — EVERY PHYSICAL ITEM THE CHARACTER RECEIVES GOES IN newItems. No exceptions. This includes:
@@ -10215,7 +10407,7 @@ const SAVE_PREFIX = 'murim_slot_';
 // Scheme: MAJOR.MINOR. Big updates bump MAJOR (1.2 -> 2.2). Small updates
 // bump MINOR (2.2 -> 2.3). Each version has a name. The current version is
 // stamped onto every save; older saves can be updated to the latest.
-const GAME_VERSION = { number: '2.9', name: 'Pocket Murim' };
+const GAME_VERSION = { number: '3.0', name: 'The Underworld' };
 
 // Which model generates the story. Lite Mode swaps to a far cheaper, faster model
 // (Claude Haiku) so long sessions / limited credits cost a fraction per turn.
@@ -10240,6 +10432,7 @@ const VERSION_HISTORY = [
   { number:'2.7', name:'Flesh & Consequence', sys:'Permanent conditions (blindness, lost limbs, etc.) are now sent to the narrator and enforced — they shape what your character can do and how the world reacts. Healing items actually restore HP now. Added an in-game Update Log and a version badge in the bottom-left corner. New trait. Several smaller fixes.', note:'Conditions enforced in prompt, healing-item effects, update log + version badge, Cheated Death trait.' },
   { number:'2.8', name:'Stay In Character',   sys:'Fixed rare immersion-breaking out-of-character replies (refusals / real-world disclaimers misfiring on ordinary fantasy actions). The narrator is now firmly framed to stay in character, and any stray meta reply is auto-retried and filtered so the story keeps flowing.', note:'OOC refusal/crisis-misfire filter + auto-retry + framing rule.' },
   { number:'2.9', name:'Pocket Murim',        sys:'Mobile overhaul: the story now fills the screen on phones, with your panels (Self, Journal, World, People, Skills, Items) in a slide-up bottom sheet you open from the nav bar and dismiss with one tap. Bigger touch targets, readable text, no more zoom-on-typing, and a tightened top bar. Also added the app icon and proper home-screen/share-preview support.', note:'Responsive bottom-sheet mobile layout, touch targets, icon + PWA polish.' },
+  { number:'3.0', name:'The Underworld',      sys:'New black-market dealing system: find a connection, buy illicit supply, and sling it for profit — with real bust risk that scales with quantity, your infamy, and local heat (and drops with the right skills/traits). Big content drop: many more starting traits with rebalanced odds so runs feel distinct, plus new achievements (including the dealing path).', note:'Drug-dealing system (DRUGS, buy/sell/bust risk, black market modal), trait variety rebalance + ~19 new traits, dealing achievements.' },
 ];
 
 function cleanSaveData(gs) {
@@ -10306,6 +10499,7 @@ function migrateSave(data) {
     birthMonth:1, birthDay:1, _maxAgeReached:0,
     conditions:[], // permanent status effects: { id, label, desc, kind }
     channelsBroken:false, // true once meridians are shattered (negative-Qi breakthrough)
+    drugStash:{}, _drugProfits:0, _dealCount:0, _dealBusts:0, // illicit substances trade
     strength:10, agility:10, endurance:10, intelligence:10, perception:10, willpower:10, charisma:10, luck:10,
     injuries:[], illnesses:[], scars:[], crimes:[], grudges:[], failures:[],
     decisions:[], personalEvents:[],
@@ -11683,6 +11877,7 @@ function updateWorldTab() {
 
   // Refresh assets + net worth whenever the World tab renders
   try { updateAssetsDisplay(); } catch(e) {}
+  try { updateDrugStashSummary(); } catch(e) {}
 }
 
 // ================================================================
@@ -12195,6 +12390,7 @@ ${c.channelsBroken ? 'STATUS: CHANNELS SHATTERED — cannot cultivate, cannot ga
 ${c.prisonStatus ? 'STATUS: IMPRISONED — '+c.prisonStatus.crime+' at '+c.prisonStatus.location : ''}
 Karma: Righteous ${c.karma.righteous} | Blood ${c.karma.blood} | Demonic ${c.karma.demonic} | Chaotic ${c.karma.chaotic}
 ${c.crimes.length ? 'Crimes on record: '+c.crimes.length : ''}
+${(() => { const st = Object.entries(c.drugStash||{}).filter(([k,v])=>v>0); return st.length ? 'ILLICIT STASH (the player deals narcotics): '+st.map(([k,v])=>`${(typeof DRUGS!=='undefined'&&DRUGS[k]?DRUGS[k].name:k)} ×${v}`).join(', ')+`. Lifetime dealing profit ${c._drugProfits||0}◈${c._dealBusts?`, busted ${c._dealBusts}×`:''}.` : ''; })()}
 ${c.occupation ? 'Occupation: '+c.occupation.title+' at '+c.occupation.location : ''}
 
 Known people — full context (these are FIXED facts about each person; DO NOT contradict them):
@@ -13641,7 +13837,9 @@ function generateRandomTraits() {
   //   epic:      ~0.10% (special)
   //   legendary: ~0.03% (extraordinary)
   //   mythic:    0      (not random — earned through extraordinary events)
-  const rarityWeight = { common:400, uncommon:100, rare:40, epic:15, legendary:4, mythic:0, fable:0 };
+  // Rebalanced for variety: commons no longer dominate so hard, so uncommon/rare
+  // traits surface much more often and runs feel distinct.
+  const rarityWeight = { common:150, uncommon:85, rare:38, epic:15, legendary:5, mythic:0, fable:0 };
   const pool = Object.entries(TRAITS_CATALOG)
     .filter(([id]) => !excluded.has(id))
     .map(([id, def]) => ({ id, def, weight: rarityWeight[def.rarity] || 1 }));
@@ -14137,6 +14335,28 @@ const ACHIEVEMENTS_DEF = [
     icon:'🏘️', name:'Estate Holder',
     desc:'Own five or more properties.',
     check: gs => (gs.char.assets||[]).length >= 5 },
+
+  // ── The Trade (drug dealing) ──
+  { id:'first_deal',
+    icon:'🌫️', name:'First Taste of the Trade',
+    desc:'Make your first illicit sale.',
+    check: gs => (gs.char._dealCount||0) > 0 && (gs.char._drugProfits||0) > 0 },
+  { id:'slinger',
+    icon:'💉', name:'Slinger',
+    desc:'Earn 1,000 silver dealing narcotics.',
+    check: gs => (gs.char._drugProfits||0) >= 1000 },
+  { id:'kingpin',
+    icon:'🐉', name:'Kingpin',
+    desc:'Earn 25,000 silver from the trade.',
+    check: gs => (gs.char._drugProfits||0) >= 25000 },
+  { id:'made_man',
+    icon:'🎴', name:'Untouchable',
+    desc:'Make 20 illicit sales without getting busted.',
+    check: gs => (gs.char._dealCount||0) >= 20 && (gs.char._dealBusts||0) === 0 },
+  { id:'busted',
+    icon:'⛓️', name:'Caught in the Act',
+    desc:'Get busted dealing.',
+    check: gs => (gs.char._dealBusts||0) > 0 },
 ];
 
 // ── Track specific achievement state that can't be inferred from existing data ──
@@ -22058,6 +22278,178 @@ function sellItem(itemId) {
   c.inventory = c.inventory.filter(i => i.id !== itemId);
   updateInventoryTab();
   toast(`Sold: ${itm.name} for ${sellPrice}◈`, '', 2000);
+}
+
+// ================================================================
+// BLACK MARKET — ILLICIT SUBSTANCE DEALING
+// ================================================================
+// Buy supply cheap, sling it for profit — but every sale risks a bust:
+// bounty, infamy, and the wrong attention. Risk scales with quantity, your
+// local infamy, and the heat of the location; charisma/intelligence and the
+// Street-Learned / Natural Liar / Forgettable Face traits lower it.
+const DRUGS = {
+  hua_dust:    { name:'Hua Dust',          buy:6,   sell:16,  heat:1, addict:1, desc:'Powdered dream-lotus. Cheap, common, and everywhere in the slums. A starter\'s trade.' },
+  black_lotus: { name:'Black Lotus Resin', buy:20,  sell:55,  heat:2, addict:3, desc:'Tarry resin smoked in back-room dens. Mellow, ruinous, and reliably profitable.' },
+  red_sap:     { name:'Red Sap',           buy:45,  sell:120, heat:3, addict:4, desc:'A blood-colored stimulant that makes laborers tireless — until their hearts give out.' },
+  ghost_powder:{ name:'Ghost Powder',      buy:90,  sell:240, heat:4, addict:5, desc:'Refined and deadly. Users see the dead. Sells itself; carries a hangman\'s risk.' },
+  spirit_ash:  { name:'Spirit Ash',        buy:200, sell:520, heat:5, addict:5, desc:'Ground from tainted cultivation cores — a counterfeit high of Qi. Sects and wardens hunt this above all.' },
+};
+
+function ensureDrugStash() { if(!GS.char.drugStash) GS.char.drugStash = {}; return GS.char.drugStash; }
+
+function drugMarketModifier(locKey) {
+  // Some places run hotter (more demand, higher price) or are deadlier to deal in.
+  const rep = GS.char.reputation[locKey];
+  const infamy = rep?.infamy || 0;
+  // Higher infamy → buyers trust you, but wardens watch harder.
+  return { priceMult: 1 + Math.min(0.4, infamy/250), riskAdd: Math.min(0.25, infamy/400) };
+}
+
+// Probability a sale gets busted, given amount and the substance heat.
+function dealBustChance(drugKey, qty) {
+  const d = DRUGS[drugKey]; if(!d) return 0;
+  const c = GS.char;
+  const mod = drugMarketModifier(GS.world.location);
+  let risk = 0.04 + d.heat * 0.03 + qty * 0.015 + mod.riskAdd;
+  // Skill & traits cut risk
+  const cha = c.charisma||10, intel = c.intelligence||10;
+  risk -= Math.min(0.22, (cha + intel - 20) * 0.005);
+  const traitIds = (c.traits||[]).map(t => t.id || '');
+  if(traitIds.includes('street_learned')) risk -= 0.08;
+  if(traitIds.includes('natural_liar'))   risk -= 0.05;
+  if(traitIds.includes('plain_face') || traitIds.includes('forgettable_face')) risk -= 0.05;
+  if(traitIds.includes('cold_blooded'))   risk -= 0.03;
+  if((c.skills?.deception?.level||0) >= 3) risk -= 0.04;
+  return Math.max(0.02, Math.min(0.85, risk));
+}
+
+function buyDrug(drugKey, qty=1) {
+  const d = DRUGS[drugKey]; if(!d) return;
+  qty = Math.max(1, qty|0);
+  const mod = drugMarketModifier(GS.world.location);
+  const cost = Math.ceil(d.buy * qty * mod.priceMult);
+  const check = validateAndSpendSilver(cost, `buy ${qty}× ${d.name}`);
+  if(!check.ok) { toast(`Not enough silver — need ${formatCoins(cost)}`, 'error', 3000); return; }
+  const stash = ensureDrugStash();
+  stash[drugKey] = (stash[drugKey]||0) + qty;
+  toast(`Bought ${qty}× ${d.name} for ${formatCoins(cost)}`, '', 2500);
+  renderBlackMarket();
+  updateDrugStashSummary();
+}
+
+function sellDrug(drugKey, qty=1) {
+  const d = DRUGS[drugKey]; if(!d) return;
+  const stash = ensureDrugStash();
+  const have = stash[drugKey] || 0;
+  if(have <= 0) { toast(`You have no ${d.name} to sling.`, 'error', 2500); return; }
+  qty = Math.max(1, Math.min(qty|0, have));
+  const c = GS.char;
+  c._dealCount = (c._dealCount||0) + 1;
+
+  const bust = dealBustChance(drugKey, qty);
+  if(Math.random() < bust) {
+    // BUSTED — lose the product, gain a bounty + infamy, possible chase.
+    stash[drugKey] -= qty;
+    c._dealBusts = (c._dealBusts||0) + 1;
+    const fine = Math.ceil(d.sell * qty * 0.5);
+    c.bounty = (c.bounty||0) + fine;
+    c._bountyPeak = Math.max(c._bountyPeak||0, c.bounty);
+    if(typeof addInfamy === 'function') addInfamy(GS.world.location, 6 + d.heat*2, `Caught dealing ${d.name}`);
+    try { addChronicleEntry(`A deal went wrong slinging ${d.name} — wardens got wind of it. Bounty +${fine}.`, 'major'); } catch(e) {}
+    toast(`BUSTED slinging ${d.name}! Bounty +${fine}, infamy rising.`, 'error', 6000);
+    updateDrugStashSummary(); renderBlackMarket(); updateTopbar();
+    if(typeof sendToAI === 'function') sendToAI(`[DRUG BUST: My attempt to sell ${qty}× ${d.name} in ${LOCATIONS[GS.world.location]?.name||GS.world.location} was caught. Wardens or rivals are onto me — narrate the deal going wrong and the heat that follows. I lost the product and now carry a heavier bounty.]`);
+    return;
+  }
+  // Clean sale
+  stash[drugKey] -= qty;
+  const mod = drugMarketModifier(GS.world.location);
+  const gross = Math.ceil(d.sell * qty * mod.priceMult);
+  addSilver(gross);
+  c._drugProfits = (c._drugProfits||0) + gross;
+  if(typeof addInfamy === 'function' && Math.random() < 0.3) addInfamy(GS.world.location, 1 + d.heat, `Moving ${d.name} on the quiet`);
+  toast(`Sold ${qty}× ${d.name} for ${formatCoins(gross)}`, 'gold', 3000);
+  updateDrugStashSummary(); renderBlackMarket(); updateTopbar();
+}
+
+function updateDrugStashSummary() {
+  const el = document.getElementById('drug-stash-summary');
+  if(!el) return;
+  const stash = ensureDrugStash();
+  const held = Object.entries(stash).filter(([k,v]) => v > 0 && DRUGS[k]);
+  const profit = GS.char._drugProfits || 0;
+  let html = '';
+  if(held.length) {
+    html += `<div style="font-size:11px;color:var(--muted);margin-bottom:4px">Stash:</div>` +
+      held.map(([k,v]) => `<span class="condition-tag" style="background:rgba(120,40,90,.2);border:1px solid #803060;color:#cc77aa">${DRUGS[k].name} ×${v}</span>`).join('');
+  } else {
+    html += `<div style="font-size:11px;color:var(--dim);font-style:italic">No product on hand.</div>`;
+  }
+  if(profit > 0) html += `<div style="font-size:10px;color:var(--gold);margin-top:6px">Lifetime dealing profit: ${formatCoins(profit)}${GS.char._dealBusts?` · busts: ${GS.char._dealBusts}`:''}</div>`;
+  el.innerHTML = html;
+}
+
+function openBlackMarket() {
+  renderBlackMarket();
+  showModal('modal-blackmarket');
+}
+
+function renderBlackMarket() {
+  const locName = LOCATIONS[GS.world.location]?.name || GS.world.location;
+  const descEl = document.getElementById('bm-desc');
+  if(descEl) descEl.textContent = `A quiet contact in ${locName}. Coin changes hands; no questions, no names.`;
+  const silverEl = document.getElementById('bm-silver');
+  if(silverEl) silverEl.textContent = formatCoins(GS.char.silver);
+  const heatEl = document.getElementById('bm-heat');
+  if(heatEl) {
+    const inf = GS.char.reputation[GS.world.location]?.infamy || 0;
+    const heatTxt = inf >= 70 ? 'The wardens here know your face. Every deal is a gamble.' :
+                    inf >= 40 ? 'You\'re watched here. Move carefully.' :
+                    inf >= 15 ? 'There are eyes about, but you\'re not a marked man yet.' :
+                    'No one\'s looking your way — for now.';
+    heatEl.innerHTML = `<span style="color:${inf>=40?'var(--red)':'var(--muted)'}">⚠ ${heatTxt}</span>`;
+  }
+  const mod = drugMarketModifier(GS.world.location);
+  // Buy list
+  const buyEl = document.getElementById('bm-buy-list');
+  if(buyEl) {
+    buyEl.innerHTML = Object.entries(DRUGS).map(([k,d]) => {
+      const cost = Math.ceil(d.buy * mod.priceMult);
+      const afford = GS.char.silver >= cost;
+      return `<div style="display:flex;align-items:center;gap:8px;padding:7px 8px;background:var(--s2);border:1px solid var(--border);border-radius:5px;margin-bottom:5px">
+        <div style="flex:1">
+          <div style="font-size:12px;color:#cc77aa">${d.name} <span style="color:var(--dim);font-size:9px">heat ${d.heat}/5</span></div>
+          <div style="font-size:10px;color:var(--dim)">${d.desc}</div>
+        </div>
+        <span style="font-size:11px;color:var(--gold)">${formatCoins(cost)}</span>
+        <button class="btn-sm" style="background:var(--s4);border:1px solid var(--border2);color:${afford?'var(--text)':'var(--red)'};border-radius:4px;padding:3px 8px;font-size:11px;cursor:pointer" onclick="buyDrug('${k}',1)" ${afford?'':'disabled'}>Buy 1</button>
+        <button class="btn-sm" style="background:var(--s4);border:1px solid var(--border2);color:var(--text);border-radius:4px;padding:3px 8px;font-size:11px;cursor:pointer" onclick="buyDrug('${k}',5)">×5</button>
+      </div>`;
+    }).join('');
+  }
+  // Sell list
+  const sellEl = document.getElementById('bm-sell-list');
+  if(sellEl) {
+    const stash = ensureDrugStash();
+    const held = Object.entries(stash).filter(([k,v]) => v > 0 && DRUGS[k]);
+    if(!held.length) { sellEl.innerHTML = '<div style="font-size:11px;color:var(--dim);font-style:italic">Nothing to sling. Buy supply first.</div>'; }
+    else {
+      sellEl.innerHTML = held.map(([k,v]) => {
+        const d = DRUGS[k];
+        const unit = Math.ceil(d.sell * mod.priceMult);
+        const bust = Math.round(dealBustChance(k, 1) * 100);
+        const bust5 = Math.round(dealBustChance(k, Math.min(5,v)) * 100);
+        return `<div style="display:flex;align-items:center;gap:8px;padding:7px 8px;background:var(--s2);border:1px solid var(--border);border-radius:5px;margin-bottom:5px">
+          <div style="flex:1">
+            <div style="font-size:12px;color:#cc77aa">${d.name} ×${v}</div>
+            <div style="font-size:10px;color:var(--dim)">${formatCoins(unit)} each · bust risk ~${bust}% (×5: ~${bust5}%)</div>
+          </div>
+          <button class="btn-sm" style="background:var(--s4);border:1px solid var(--border2);color:var(--text);border-radius:4px;padding:3px 8px;font-size:11px;cursor:pointer" onclick="sellDrug('${k}',1)">Sell 1</button>
+          <button class="btn-sm" style="background:var(--s4);border:1px solid var(--border2);color:var(--text);border-radius:4px;padding:3px 8px;font-size:11px;cursor:pointer" onclick="sellDrug('${k}',${Math.min(5,v)})">×${Math.min(5,v)}</button>
+        </div>`;
+      }).join('');
+    }
+  }
 }
 
 function renderShopPanel(locKey) {
