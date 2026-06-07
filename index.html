@@ -2520,6 +2520,15 @@ body.generating [onclick*="shopSellItem"], body.generating [onclick*="closeMapGo
         </div>
 
         <div class="char-section">
+          <div class="collapsible-header" data-target="w-legal">
+            <span>Legal &amp; Court</span><span class="collapse-arrow">▼</span>
+          </div>
+          <div id="w-legal" class="collapsible-body">
+            <div id="trial-block"><div style="font-size:11px;color:var(--dim);font-style:italic">No active legal proceedings.</div></div>
+          </div>
+        </div>
+
+        <div class="char-section">
           <div class="collapsible-header" data-target="w-blackmarket">
             <span>Black Market &amp; Dealing</span><span class="collapse-arrow">▼</span>
           </div>
@@ -3128,6 +3137,7 @@ body.generating [onclick*="shopSellItem"], body.generating [onclick*="closeMapGo
         <button id="item-equip-btn" class="btn-primary btn-sm hidden">Equip</button>
         <button id="item-unequip-btn" class="btn-secondary btn-sm hidden">Unequip</button>
         <button id="item-use-btn" class="btn-secondary btn-sm hidden">Use</button>
+        <button id="item-infuse-btn" class="btn-secondary btn-sm hidden">Infuse Qi</button>
         <button id="item-drop-btn" class="btn-danger btn-sm">Drop</button>
       </div>
     </div>
@@ -4892,6 +4902,39 @@ const TRAITS_CATALOG = {
     gameplay: 'Outcomes swing to extremes — bigger windfalls and worse disasters than chance should allow.',
     aiHint: 'FEAST OR FAMINE: Volatile luck. Push their luck and outcomes hit extremes — great rewards or steep costs, rarely the middle. Lean into highs AND lows.',
     effects: { luck: 2 },
+  },
+
+  jailhouse_lawyer: {
+    name: 'Jailhouse Lawyer', type: 'scholarly', rarity: 'uncommon', inherited: false,
+    desc: 'You know the codes, the precedents, and the loopholes — where you learned them is its own story.',
+    flavor: 'The magistrate quoted the statute.\n\nYou quoted the exception to it.',
+    gameplay: 'Far better at defending yourself in court; you start with practical knowledge of law and procedure.',
+    aiHint: 'JAILHOUSE LAWYER: Versed in law and courtroom procedure. Self-defense at trial is much stronger; they spot legal angles, technicalities, and corrupt process others miss.',
+    effects: { intelligence: 3 },
+  },
+  underworld_ties: {
+    name: 'Underworld Ties', type: 'social', rarity: 'uncommon', inherited: false,
+    desc: 'You know people. The kind who move product, fence goods, and make problems quietly disappear.',
+    flavor: 'You didn\'t ask where it came from.\n\nThey didn\'t ask where it went.',
+    gameplay: 'Better prices and lower bust-risk in the black market; criminal contacts open doors and deals.',
+    aiHint: 'UNDERWORLD TIES: Real connections in the criminal world. Smugglers, fences, and dealers deal with them readily; illicit business is safer and more profitable; the underworld offers them work and protection.',
+    effects: { charisma: 2, perception: 1 },
+  },
+  alchemists_hands: {
+    name: 'Alchemist\'s Hands', type: 'craftsman', rarity: 'uncommon', inherited: true,
+    desc: 'You have an instinct for the cauldron — proportion, timing, when a mix is about to turn. Pills or poisons, it\'s all the same craft.',
+    flavor: 'The recipe said wait.\n\nYou knew, somehow, that waiting would ruin it. You were right.',
+    gameplay: 'Alchemy advances faster; better yields and fewer botched batches — whether brewing medicine or narcotics.',
+    aiHint: 'ALCHEMIST\'S HANDS: A natural at alchemy. Brewing pills, elixirs, poisons, and narcotics succeeds more often with better yield; the skill climbs quickly.',
+    effects: { intelligence: 2, perception: 1 },
+  },
+  qi_smith: {
+    name: 'Qi Smith', type: 'craftsman', rarity: 'rare', inherited: true,
+    desc: 'Your Qi takes to metal and stone. You can pour it into a blade or a band and make it hold — cleanly, deeply, the way most never manage.',
+    flavor: 'The sword drank your Qi and did not crack.\n\nThe smith had said it would. He was wrong about you.',
+    gameplay: 'Qi infusion into gear costs less and goes further — stronger bonuses per infusion.',
+    aiHint: 'QI SMITH: A rare gift for binding Qi into objects. Infused gear is markedly stronger and the binding holds where others\' would shatter. Treat their infused equipment as exceptional.',
+    effects: { intelligence: 1, willpower: 2 },
   },
 
   // ── EPIC ──
@@ -9462,6 +9505,20 @@ function openItemModal(itemId, isEquipped) {
   document.getElementById('item-equip-btn').classList.toggle('hidden', !item.slot || isEquipped);
   document.getElementById('item-unequip-btn').classList.toggle('hidden', !isEquipped);
 
+  // Qi infusion — only gear (slotted items), only for cultivators, capped by stage.
+  const infuseBtn = document.getElementById('item-infuse-btn');
+  if(infuseBtn) {
+    const infusable = !!item.slot && !item.isTome && !item.isBook && item.type !== 'consumable';
+    const canCultivate = (GS.char.qi?.stageIndex||0) >= 1 && !GS.char.channelsBroken;
+    infuseBtn.classList.toggle('hidden', !(infusable && canCultivate));
+    const lvl = item.infuseLevel || 0;
+    const maxLvl = Math.max(1, Math.ceil((GS.char.qi?.stageIndex||0) / 2) + 1);
+    infuseBtn.textContent = lvl >= maxLvl ? `Infused (Lv ${lvl}, max)` : `Infuse Qi (Lv ${lvl}→${lvl+1})`;
+    infuseBtn.disabled = lvl >= maxLvl;
+    infuseBtn.dataset.itemId = item.id;
+    infuseBtn.dataset.equipped = isEquipped ? '1' : '';
+  }
+
   const useBtn = document.getElementById('item-use-btn');
   if(useBtn) {
     const isBookItem  = item.isBook || item.type === 'book';
@@ -9904,11 +9961,13 @@ CURRENCY RULE — COINS ARE MONEY, NEVER ITEMS: When the player is given, paid, 
 
 SELLING / LOSING ITEMS RULE: When the player SELLS, gives away, trades, loses, or has an item destroyed, you MUST remove it: list its name in "removeItems" AND, if sold/traded, pay them via statChanges.silver. An item the player no longer has must leave their inventory — never narrate a sale while leaving the item in their possession. (Tomes/books the player keeps are exempt — only remove what actually left their hands.)
 
+COURT / TRIAL RULE: When the player is caught for a real crime (theft, murder, trafficking, fraud, etc.) and arrested, put them on trial via "trial": { "charges": "...", "severity": "petty|serious|grave|capital" }. The game then runs the case over real time (days for petty, up to months for capital) and the player arranges their defense — hiring a lawyer or representing themselves — through the Legal & Court panel; the engine decides the verdict from defense quality, reputation, and bribes. So: narrate the arrest, the hearings, the magistrate, the waiting, witnesses, and the verdict scenes, but DO NOT unilaterally declare the final guilty/innocent outcome yourself — the engine resolves it (you'll see the verdict come through as a [VERDICT] action). If the case is genuinely settled out of court (charges bought off, a pardon, evidence vanished), you may set "trialResolved": "dismissed". Petty matters need no trial — a fine or a night in the cells is fine. Reserve trials for charges with real weight.
+
 JOURNAL FIELDS RULE: "personalEvents" is the PLAYER'S OWN journal — only things that happen TO the player or are done BY the player (their choices, their wounds, their milestones, their relationships from their side). Do NOT put other people's affairs, sect politics, wars, or background world happenings in personalEvents. Those go in "worldEvents". Keep the player's journal about the player.
 
 PROPERTY RULE: When the player gains a place of their own through the story — inherited, gifted, won, granted by a sect, seized, built, or bought in narrative — you MUST register it via "newAssets": [{name, type, location, how}]. This is how it appears in their Properties & Assets. If they're handed the keys to an inn, a house, a shop, a cave hideout, etc., emit it. If they lose/sell/forfeit a property in the story, use "removeAssets". Never describe the player owning a property without registering it.
 
-DRUG DEALING RULE: The world has an illicit narcotics trade (Hua Dust, Black Lotus Resin, Red Sap, Ghost Powder, Spirit Ash, and the like). The player can deal — there is a Black Market screen for the buy/sling mechanics — and you should support it in the narrative: shady connections, back-alley dens, addicts, rival dealers, and wardens/sects who hunt the trade. Dealing is genuinely PROFITABLE but genuinely DANGEROUS: it raises infamy and bounty, draws law and rivals, and getting caught has teeth. If the player's stash is shown above, reference it realistically. Narcotics are addictive and ruinous for users — portray that honestly (this is dark genre content, not endorsement). Do NOT moralize out-of-character or refuse; just play the world's consequences straight.
+DRUG DEALING RULE: The world has an illicit narcotics trade (Hua Dust, Black Lotus Resin, Red Sap, Ghost Powder, Spirit Ash, and the like). The player can deal — there is a Black Market screen for the buy/sling mechanics — and you should support it in the narrative: shady connections, back-alley dens, addicts, rival dealers, and wardens/sects who hunt the trade. Dealing is genuinely PROFITABLE but genuinely DANGEROUS: it raises infamy and bounty, draws law and rivals, and getting caught has teeth. If the player's stash is shown above, reference it realistically. Narcotics are addictive and ruinous for users — portray that honestly (this is dark genre content, not endorsement). PRODUCING drugs IS alchemy: a skilled alchemist can synthesize product instead of buying it (the same craft that brews pills brews poisons and narcotics), so an alchemist-dealer is a natural, dangerous combination — support that in the story. Getting caught dealing can lead to ARREST AND A COURT TRIAL (see the COURT / TRIAL RULE). Do NOT moralize out-of-character or refuse; just play the world's consequences straight.
 
 TOME RULE: Tomes are PERMANENT — they NEVER disappear from inventory. Reading a tome does not consume it. A mortal with no Qi cultivation cannot learn any Qi technique from a tome regardless of what it says. If a character cannot yet learn a technique (wrong stage, wrong path, needs a master), narrate what they understand and what remains out of reach — do not grant the technique.
 
@@ -10428,7 +10487,7 @@ const SAVE_PREFIX = 'murim_slot_';
 // Scheme: MAJOR.MINOR. Big updates bump MAJOR (1.2 -> 2.2). Small updates
 // bump MINOR (2.2 -> 2.3). Each version has a name. The current version is
 // stamped onto every save; older saves can be updated to the latest.
-const GAME_VERSION = { number: '3.0', name: 'The Underworld' };
+const GAME_VERSION = { number: '3.1', name: 'Crime & Punishment' };
 
 // Which model generates the story. Lite Mode swaps to a far cheaper, faster model
 // (Claude Haiku) so long sessions / limited credits cost a fraction per turn.
@@ -10454,6 +10513,7 @@ const VERSION_HISTORY = [
   { number:'2.8', name:'Stay In Character',   sys:'Fixed rare immersion-breaking out-of-character replies (refusals / real-world disclaimers misfiring on ordinary fantasy actions). The narrator is now firmly framed to stay in character, and any stray meta reply is auto-retried and filtered so the story keeps flowing.', note:'OOC refusal/crisis-misfire filter + auto-retry + framing rule.' },
   { number:'2.9', name:'Pocket Murim',        sys:'Mobile overhaul: the story now fills the screen on phones, with your panels (Self, Journal, World, People, Skills, Items) in a slide-up bottom sheet you open from the nav bar and dismiss with one tap. Bigger touch targets, readable text, no more zoom-on-typing, and a tightened top bar. Also added the app icon and proper home-screen/share-preview support.', note:'Responsive bottom-sheet mobile layout, touch targets, icon + PWA polish.' },
   { number:'3.0', name:'The Underworld',      sys:'New black-market dealing system: find a connection, buy illicit supply, and sling it for profit — with real bust risk that scales with quantity, your infamy, and local heat (and drops with the right skills/traits). Big content drop: many more starting traits with rebalanced odds so runs feel distinct, plus new achievements (including the dealing path).', note:'Drug-dealing system (DRUGS, buy/sell/bust risk, black market modal), trait variety rebalance + ~19 new traits, dealing achievements.' },
+  { number:'3.1', name:'Crime & Punishment',  sys:'Systems now interlock. Properties you gain in the story (inherited, won, gifted) actually register in your assets. Court & trial system: serious crimes lead to arrest and a case that runs over days-to-months — hire a lawyer or defend yourself, with verdicts weighing your defense, reputation, and bribes. Dealing now ties into alchemy (cook your own product) with more substances, and busts can land you in court. New: infuse Qi into your gear to strengthen it. Personal Events stays about YOU now. More traits and achievements.', note:'Narrative asset registration, court/trial system, alchemy drug production + more drugs, Qi item infusion, personalEvents routing, +traits/+achievements.' },
 ];
 
 function cleanSaveData(gs) {
@@ -10521,6 +10581,7 @@ function migrateSave(data) {
     conditions:[], // permanent status effects: { id, label, desc, kind }
     channelsBroken:false, // true once meridians are shattered (negative-Qi breakthrough)
     drugStash:{}, _drugProfits:0, _dealCount:0, _dealBusts:0, // illicit substances trade
+    trial:null, // active court case: { charges, severity, daysLeft, lawyer, defenseSet, bribes, location }
     strength:10, agility:10, endurance:10, intelligence:10, perception:10, willpower:10, charisma:10, luck:10,
     injuries:[], illnesses:[], scars:[], crimes:[], grudges:[], failures:[],
     decisions:[], personalEvents:[],
@@ -11319,6 +11380,60 @@ function initModals() {
   document.getElementById('item-drop-btn').addEventListener('click', () => {
     if(selectedItemForModal && !selectedItemForModal.isEquipped) dropItem(selectedItemForModal.item.id);
   });
+  document.getElementById('item-infuse-btn').addEventListener('click', () => {
+    if(!selectedItemForModal) return;
+    infuseItemQi(selectedItemForModal.item.id, selectedItemForModal.isEquipped);
+  });
+}
+
+// ── QI INFUSION: pour your Qi into a piece of gear to strengthen it. ──
+// Each level adds slot-appropriate stat bonuses and costs Qi that scales up.
+// Capped by cultivation stage. Infusing equipped gear re-applies its effects.
+function infuseItemQi(itemId, isEquipped) {
+  const c = GS.char;
+  if((c.qi?.stageIndex||0) < 1) { toast('You have no Qi to infuse — open your meridians first.', 'error', 3000); return; }
+  if(c.channelsBroken) { toast('Your channels are shattered — you cannot channel Qi.', 'error', 3000); return; }
+  // Find the item in inventory or equipment
+  let item = c.inventory.find(i => i.id === itemId);
+  let inEquip = false, eqSlot = null;
+  if(!item) {
+    for(const [slot, e] of Object.entries(c.equipment||{})) { if(e && e.id === itemId) { item = e; inEquip = true; eqSlot = slot; break; } }
+  }
+  if(!item || !item.slot) { toast('This cannot be infused.', 'error', 2000); return; }
+
+  const lvl = item.infuseLevel || 0;
+  const maxLvl = Math.max(1, Math.ceil((c.qi.stageIndex||0) / 2) + 1);
+  if(lvl >= maxLvl) { toast(`Already infused to your limit (Lv ${lvl}). Advance your cultivation to infuse further.`, '', 3000); return; }
+
+  const cost = 30 + lvl * 25; // rising Qi cost per level
+  if((c.qi.current||0) < cost) { toast(`Not enough Qi — need ${cost}, have ${Math.floor(c.qi.current||0)}.`, 'error', 3000); return; }
+
+  // Slot → which stat the infusion strengthens
+  const SLOT_STAT = { weapon:'strength', offhand:'agility', head:'perception', body:'endurance',
+                      hands:'strength', feet:'agility', acc1:'willpower', acc2:'charisma' };
+  const stat = SLOT_STAT[item.slot] || 'strength';
+  const bonus = 2; // per level
+
+  // If equipped, peel off current effects before modifying, then re-apply.
+  if(inEquip && item.effects && Object.keys(item.effects).length) applyItemEffects(item.effects, -1);
+  item.effects = item.effects || {};
+  item.effects[stat] = (item.effects[stat] || 0) + bonus;
+  item.infuseLevel = lvl + 1;
+  if(!/qi-?infused/i.test(item.name)) item.name = 'Qi-Infused ' + item.name;
+  // Keep a single, current infusion note on the desc (strip any prior one first).
+  item.desc = (item.desc || '').replace(/\s*Qi-infused \(Lv \d+\):[^.]*\./g, '').trim()
+            + ` Qi-infused (Lv ${item.infuseLevel}): +${item.effects[stat]} ${stat}.`;
+  item.value = (item.value || 0) + 40;
+  c.qi.current = Math.max(0, c.qi.current - cost);
+
+  if(inEquip) applyItemEffects(item.effects, 1); // re-apply boosted effects live
+
+  c._infusionCount = (c._infusionCount || 0) + 1;
+  try { addChronicleEntry(`Infused Qi into ${item.name} (Lv ${item.infuseLevel}).`, 'normal'); } catch(e) {}
+  toast(`Infused ${item.name} — +${bonus} ${stat} (Lv ${item.infuseLevel}). −${cost} Qi.`, 'gold', 4000);
+  updateInventoryTab(); updateCharacterTab(); updateTopbar();
+  // Refresh the modal display
+  try { openItemModal(itemId, inEquip); } catch(e) {}
 }
 
 // ================================================================
@@ -11899,6 +12014,7 @@ function updateWorldTab() {
   // Refresh assets + net worth whenever the World tab renders
   try { updateAssetsDisplay(); } catch(e) {}
   try { updateDrugStashSummary(); } catch(e) {}
+  try { updateTrialDisplay(); } catch(e) {}
 }
 
 // ================================================================
@@ -12412,6 +12528,7 @@ ${c.prisonStatus ? 'STATUS: IMPRISONED — '+c.prisonStatus.crime+' at '+c.priso
 Karma: Righteous ${c.karma.righteous} | Blood ${c.karma.blood} | Demonic ${c.karma.demonic} | Chaotic ${c.karma.chaotic}
 ${c.crimes.length ? 'Crimes on record: '+c.crimes.length : ''}
 ${(() => { const st = Object.entries(c.drugStash||{}).filter(([k,v])=>v>0); return st.length ? 'ILLICIT STASH (the player deals narcotics): '+st.map(([k,v])=>`${(typeof DRUGS!=='undefined'&&DRUGS[k]?DRUGS[k].name:k)} ×${v}`).join(', ')+`. Lifetime dealing profit ${c._drugProfits||0}◈${c._dealBusts?`, busted ${c._dealBusts}×`:''}.` : ''; })()}
+${c.trial?.active ? `ON TRIAL: charged with "${c.trial.charges}" (${(TRIAL_SEVERITY[c.trial.severity]||{}).label||c.trial.severity}). ~${Math.max(0,c.trial.daysLeft)} days until verdict. Defense: ${c.trial.lawyer?c.trial.lawyer.name:(c.trial.defenseSet?'self-represented':'no defense arranged yet')}. The court case is ongoing — weave it into the story (hearings, the magistrate, witnesses, the wait). The player handles their defense through the Legal & Court panel.` : ''}
 ${c.occupation ? 'Occupation: '+c.occupation.title+' at '+c.occupation.location : ''}
 
 Known people — full context (these are FIXED facts about each person; DO NOT contradict them):
@@ -14380,6 +14497,44 @@ const ACHIEVEMENTS_DEF = [
     icon:'⛓️', name:'Caught in the Act',
     desc:'Get busted dealing.',
     check: gs => (gs.char._dealBusts||0) > 0 },
+  { id:'cook',
+    icon:'⚗️', name:'The Cook',
+    desc:'Synthesize narcotics with your own alchemy.',
+    check: gs => gs.char._cookedDrug === true },
+
+  // ── Law & Court ──
+  { id:'on_trial',
+    icon:'⚖️', name:'Your Day in Court',
+    desc:'Stand trial for a crime.',
+    check: gs => gs.char._everTried === true },
+  { id:'acquitted',
+    icon:'🕊️', name:'Not Guilty',
+    desc:'Be acquitted at trial.',
+    check: gs => gs.char._everAcquitted === true },
+  { id:'own_counsel',
+    icon:'📜', name:'Own Counsel',
+    desc:'Win a trial defending yourself, with no lawyer.',
+    check: gs => gs.char._wonSelfDefense === true },
+  { id:'beat_the_noose',
+    icon:'🪢', name:'Beat the Noose',
+    desc:'Face capital charges and survive.',
+    check: gs => gs.char._survivedCapital === true },
+
+  // ── Qi Infusion ──
+  { id:'first_infusion',
+    icon:'✨', name:'Qi-Forged',
+    desc:'Infuse Qi into a piece of gear.',
+    check: gs => (gs.char._infusionCount||0) > 0 },
+  { id:'master_infuser',
+    icon:'🌟', name:'Living Forge',
+    desc:'Infuse gear ten times.',
+    check: gs => (gs.char._infusionCount||0) >= 10 },
+
+  // ── Property via story ──
+  { id:'inheritor',
+    icon:'🗝️', name:'Keys to Your Name',
+    desc:'Come to own a property.',
+    check: gs => (gs.char.assets||[]).length > 0 },
 ];
 
 // ── Track specific achievement state that can't be inferred from existing data ──
@@ -14940,6 +15095,7 @@ advanceTime = function(days=0, months=0, years=0) {
 
   if(elapsed > 0) {
     passiveQiAccumulation(elapsed);
+    try { tickTrial(elapsed); } catch(e) {}
   }
 
   // Track a meaningful time skip so the AI acknowledges the gap next turn —
@@ -22311,11 +22467,16 @@ function sellItem(itemId) {
 // local infamy, and the heat of the location; charisma/intelligence and the
 // Street-Learned / Natural Liar / Forgettable Face traits lower it.
 const DRUGS = {
-  hua_dust:    { name:'Hua Dust',          buy:6,   sell:16,  heat:1, addict:1, desc:'Powdered dream-lotus. Cheap, common, and everywhere in the slums. A starter\'s trade.' },
-  black_lotus: { name:'Black Lotus Resin', buy:20,  sell:55,  heat:2, addict:3, desc:'Tarry resin smoked in back-room dens. Mellow, ruinous, and reliably profitable.' },
-  red_sap:     { name:'Red Sap',           buy:45,  sell:120, heat:3, addict:4, desc:'A blood-colored stimulant that makes laborers tireless — until their hearts give out.' },
-  ghost_powder:{ name:'Ghost Powder',      buy:90,  sell:240, heat:4, addict:5, desc:'Refined and deadly. Users see the dead. Sells itself; carries a hangman\'s risk.' },
-  spirit_ash:  { name:'Spirit Ash',        buy:200, sell:520, heat:5, addict:5, desc:'Ground from tainted cultivation cores — a counterfeit high of Qi. Sects and wardens hunt this above all.' },
+  hua_dust:    { name:'Hua Dust',          buy:6,   sell:16,  heat:1, addict:1, alch:1, ing:['spirit_herb'], desc:'Powdered dream-lotus. Cheap, common, and everywhere in the slums. A starter\'s trade.' },
+  moon_tears:  { name:'Moon Tears',        buy:12,  sell:34,  heat:1, addict:2, alch:1, ing:['moonflower'], desc:'Bittersweet drops pressed from night-blooming flowers. A gentle numbing the lonely pay well for.' },
+  black_lotus: { name:'Black Lotus Resin', buy:20,  sell:55,  heat:2, addict:3, alch:2, ing:['spirit_herb','iron_root'], desc:'Tarry resin smoked in back-room dens. Mellow, ruinous, and reliably profitable.' },
+  jade_smoke:  { name:'Jade Smoke',        buy:30,  sell:80,  heat:2, addict:3, alch:2, ing:['clear_water_vial','moonflower'], desc:'A pale green vapor favored by bored merchants and worse. Clears the head, then owns it.' },
+  red_sap:     { name:'Red Sap',           buy:45,  sell:120, heat:3, addict:4, alch:3, ing:['iron_root','beast_core_fragment'], desc:'A blood-colored stimulant that makes laborers tireless — until their hearts give out.' },
+  demon_breath:{ name:'Demon\'s Breath',   buy:70,  sell:175, heat:3, addict:4, alch:3, ing:['beast_core_fragment'], desc:'Inhaled, it strips fear and judgment alike. Useful to those who need a person compliant.' },
+  ghost_powder:{ name:'Ghost Powder',      buy:90,  sell:240, heat:4, addict:5, alch:4, ing:['beast_core_fragment','moonflower'], desc:'Refined and deadly. Users see the dead. Sells itself; carries a hangman\'s risk.' },
+  bone_white:  { name:'Bone White',        buy:130, sell:330, heat:4, addict:5, alch:4, ing:['beast_core_fragment','iron_root','clear_water_vial'], desc:'A chalky powder that deadens pain and conscience. Killers and the dying both seek it.' },
+  spirit_ash:  { name:'Spirit Ash',        buy:200, sell:520, heat:5, addict:5, alch:5, ing:['beast_core_fragment','beast_core_fragment'], desc:'Ground from tainted cultivation cores — a counterfeit high of Qi. Sects and wardens hunt this above all.' },
+  corpse_bloom:{ name:'Corpse Bloom',      buy:320, sell:820, heat:5, addict:5, alch:5, ing:['beast_core_fragment','beast_core_fragment','moonflower'], desc:'Distilled from a flower that only grows through the dead. The deadliest high in Murim — and the deadliest to be caught with.' },
 };
 
 function ensureDrugStash() { if(!GS.char.drugStash) GS.char.drugStash = {}; return GS.char.drugStash; }
@@ -22379,9 +22540,19 @@ function sellDrug(drugKey, qty=1) {
     c._bountyPeak = Math.max(c._bountyPeak||0, c.bounty);
     if(typeof addInfamy === 'function') addInfamy(GS.world.location, 6 + d.heat*2, `Caught dealing ${d.name}`);
     try { addChronicleEntry(`A deal went wrong slinging ${d.name} — wardens got wind of it. Bounty +${fine}.`, 'major'); } catch(e) {}
-    toast(`BUSTED slinging ${d.name}! Bounty +${fine}, infamy rising.`, 'error', 6000);
-    updateDrugStashSummary(); renderBlackMarket(); updateTopbar();
-    if(typeof sendToAI === 'function') sendToAI(`[DRUG BUST: My attempt to sell ${qty}× ${d.name} in ${LOCATIONS[GS.world.location]?.name||GS.world.location} was caught. Wardens or rivals are onto me — narrate the deal going wrong and the heat that follows. I lost the product and now carry a heavier bounty.]`);
+    // Caught red-handed can mean arrest + a trial. Worse drugs = graver charges.
+    const arrestChance = 0.35 + d.heat * 0.08;
+    if(!GS.char.trial?.active && Math.random() < arrestChance) {
+      const sevKey = d.heat >= 5 ? 'capital' : d.heat >= 4 ? 'grave' : d.heat >= 2 ? 'serious' : 'petty';
+      beginTrial(`Trafficking ${d.name}`, sevKey, GS.world.location);
+      try { hideModal('modal-blackmarket'); } catch(e) {}
+      toast(`BUSTED and ARRESTED for ${d.name}! You face trial.`, 'error', 7000);
+      if(typeof sendToAI === 'function') sendToAI(`[DRUG BUST + ARREST: Caught selling ${qty}× ${d.name} in ${LOCATIONS[GS.world.location]?.name||GS.world.location}. Wardens seize me. Narrate the arrest — I am now facing court on ${TRIAL_SEVERITY[sevKey].label.toLowerCase()}. I must arrange a defense.]`);
+    } else {
+      toast(`BUSTED slinging ${d.name}! Bounty +${fine}, infamy rising.`, 'error', 6000);
+      if(typeof sendToAI === 'function') sendToAI(`[DRUG BUST: My attempt to sell ${qty}× ${d.name} in ${LOCATIONS[GS.world.location]?.name||GS.world.location} was caught. Wardens or rivals are onto me — narrate the deal going wrong and the heat that follows (I got away, but barely). I lost the product and now carry a heavier bounty.]`);
+    }
+    updateDrugStashSummary(); renderBlackMarket(); updateTopbar(); updateTrialDisplay();
     return;
   }
   // Clean sale
@@ -22393,6 +22564,34 @@ function sellDrug(drugKey, qty=1) {
   if(typeof addInfamy === 'function' && Math.random() < 0.3) addInfamy(GS.world.location, 1 + d.heat, `Moving ${d.name} on the quiet`);
   toast(`Sold ${qty}× ${d.name} for ${formatCoins(gross)}`, 'gold', 3000);
   updateDrugStashSummary(); renderBlackMarket(); updateTopbar();
+}
+
+// Producing narcotics IS alchemy. With the alchemy skill you can cook product
+// for a fraction of the buy price instead of sourcing it — if your skill is high
+// enough for that substance's complexity.
+function cookDrug(drugKey, qty=1) {
+  const d = DRUGS[drugKey]; if(!d) return;
+  const c = GS.char;
+  const alch = c.skills?.alchemy?.level || 0;
+  if(alch < 1) { toast('You need the Alchemy skill to cook product.', 'error', 3500); return; }
+  const reqSkill = d.alch || 1;
+  if(alch < reqSkill) { toast(`${d.name} needs Alchemy level ${reqSkill}+ to synthesize (you have ${alch}).`, 'error', 4000); return; }
+  qty = Math.max(1, qty|0);
+  const matCost = Math.ceil(d.buy * 0.35 * qty); // raw materials
+  const check = validateAndSpendSilver(matCost, `materials for ${qty}× ${d.name}`);
+  if(!check.ok) { toast(`Need ${formatCoins(matCost)} in materials.`, 'error', 3000); return; }
+  // Small chance of a botched batch at the edge of your skill.
+  const botch = Math.max(0, (reqSkill - alch + 1)) * 0.15 + 0.03;
+  const stash = ensureDrugStash();
+  let made = 0;
+  for(let i=0;i<qty;i++){ if(Math.random() >= botch) made++; }
+  stash[drugKey] = (stash[drugKey]||0) + made;
+  if(made > 0) c._cookedDrug = true;
+  addSkill('alchemy','Alchemy','craftsman','Refining substances — medicinal and otherwise.', 2*qty);
+  if(made < qty) toast(`Cooked ${made}/${qty}× ${d.name} — a batch went bad.`, made>0?'gold':'error', 4000);
+  else toast(`Cooked ${made}× ${d.name} for ${formatCoins(matCost)} in materials.`, 'gold', 3500);
+  try { addChronicleEntry(`Synthesized ${made}× ${d.name} in a back-room lab.`, 'normal'); } catch(e) {}
+  renderBlackMarket(); updateDrugStashSummary(); updateSkillsTab && updateSkillsTab();
 }
 
 function updateDrugStashSummary() {
@@ -22439,14 +22638,21 @@ function renderBlackMarket() {
     buyEl.innerHTML = Object.entries(DRUGS).map(([k,d]) => {
       const cost = Math.ceil(d.buy * mod.priceMult);
       const afford = GS.char.silver >= cost;
+      const alch = GS.char.skills?.alchemy?.level || 0;
+      const canCook = alch >= (d.alch||1);
+      const cookCost = Math.ceil(d.buy * 0.35);
+      const cookBtn = canCook
+        ? `<button class="btn-sm" title="Synthesize with Alchemy (lvl ${d.alch}+) for ${formatCoins(cookCost)} in materials" style="background:rgba(80,150,90,.15);border:1px solid #4a7a4a;color:#8ec88e;border-radius:4px;padding:3px 8px;font-size:11px;cursor:pointer" onclick="cookDrug('${k}',1)">⚗ Cook</button>`
+        : '';
       return `<div style="display:flex;align-items:center;gap:8px;padding:7px 8px;background:var(--s2);border:1px solid var(--border);border-radius:5px;margin-bottom:5px">
         <div style="flex:1">
-          <div style="font-size:12px;color:#cc77aa">${d.name} <span style="color:var(--dim);font-size:9px">heat ${d.heat}/5</span></div>
+          <div style="font-size:12px;color:#cc77aa">${d.name} <span style="color:var(--dim);font-size:9px">heat ${d.heat}/5 · alch lv${d.alch}</span></div>
           <div style="font-size:10px;color:var(--dim)">${d.desc}</div>
         </div>
         <span style="font-size:11px;color:var(--gold)">${formatCoins(cost)}</span>
         <button class="btn-sm" style="background:var(--s4);border:1px solid var(--border2);color:${afford?'var(--text)':'var(--red)'};border-radius:4px;padding:3px 8px;font-size:11px;cursor:pointer" onclick="buyDrug('${k}',1)" ${afford?'':'disabled'}>Buy 1</button>
         <button class="btn-sm" style="background:var(--s4);border:1px solid var(--border2);color:var(--text);border-radius:4px;padding:3px 8px;font-size:11px;cursor:pointer" onclick="buyDrug('${k}',5)">×5</button>
+        ${cookBtn}
       </div>`;
     }).join('');
   }
@@ -22473,6 +22679,174 @@ function renderBlackMarket() {
       }).join('');
     }
   }
+}
+
+// ================================================================
+// COURT / TRIAL SYSTEM — getting caught has a legal aftermath
+// ================================================================
+// Severity drives how long the case drags and how dire the outcome. The player
+// hires a lawyer or defends themselves; the verdict weighs evidence/severity
+// against defense quality (lawyer skill OR their own law/charisma), reputation,
+// and any bribes. Cases run over real game-time (days to months).
+const TRIAL_SEVERITY = {
+  petty:    { label:'Petty Charges',     days:[3,10],    guiltBase:0.35, maxFine:80,    prison:[0,1],   exec:false },
+  serious:  { label:'Serious Charges',   days:[20,60],   guiltBase:0.5,  maxFine:600,   prison:[1,4],   exec:false },
+  grave:    { label:'Grave Charges',     days:[60,150],  guiltBase:0.6,  maxFine:3000,  prison:[3,12],  exec:false },
+  capital:  { label:'Capital Charges',   days:[90,240],  guiltBase:0.7,  maxFine:0,     prison:[5,25],  exec:true  },
+};
+
+function beginTrial(charges, severityKey='serious', location) {
+  const c = GS.char;
+  if(c.trial?.active) { // stack onto existing case
+    c.trial.charges += '; ' + charges;
+    return c.trial;
+  }
+  const sev = TRIAL_SEVERITY[severityKey] || TRIAL_SEVERITY.serious;
+  const days = sev.days[0] + Math.floor(Math.random() * (sev.days[1] - sev.days[0] + 1));
+  c.trial = {
+    active: true, charges: charges || 'unspecified charges',
+    severity: severityKey, daysLeft: days, totalDays: days,
+    lawyer: null, defenseSet: false, bribes: 0,
+    location: location || GS.world.location, startYear: GS.world.year,
+  };
+  c._everTried = true;
+  try { addChronicleEntry(`Arrested and charged (${sev.label}): ${charges}. A trial begins in ${LOCATIONS[c.trial.location]?.name||c.trial.location}.`, 'major'); } catch(e) {}
+  toast(`You stand accused — ${sev.label}. A trial has begun.`, 'error', 6000);
+  updateTrialDisplay();
+  return c.trial;
+}
+
+function hireLawyer(tier) {
+  const c = GS.char; if(!c.trial?.active) return;
+  const TIERS = {
+    cheap:   { name:'a struggling advocate', skill:25, cost:40 },
+    decent:  { name:'a competent advocate',  skill:50, cost:200 },
+    expert:  { name:'a renowned advocate',   skill:78, cost:1000 },
+  };
+  const t = TIERS[tier]; if(!t) return;
+  if(c.trial.lawyer) { toast('You already have counsel.', '', 2500); return; }
+  const check = validateAndSpendSilver(t.cost, `retain ${t.name}`);
+  if(!check.ok) { toast(`Can't afford ${t.name} — need ${formatCoins(t.cost)}.`, 'error', 3000); return; }
+  c.trial.lawyer = { name: t.name, skill: t.skill, tier };
+  c.trial.defenseSet = true;
+  try { addChronicleEntry(`Retained ${t.name} for the trial.`, 'normal'); } catch(e) {}
+  toast(`Retained ${t.name}.`, 'gold', 3000);
+  updateTrialDisplay();
+}
+
+function defendSelf() {
+  const c = GS.char; if(!c.trial?.active) return;
+  c.trial.lawyer = null; c.trial.defenseSet = true;
+  toast('You will argue your own case before the magistrate.', '', 3000);
+  updateTrialDisplay();
+  if(typeof sendToAI === 'function') sendToAI(`[TRIAL — SELF-DEFENSE: I will represent myself against the charges: ${c.trial.charges}. Narrate me preparing/arguing my own defense before the court. My law knowledge, intelligence, and silver tongue are what I have.]`);
+}
+
+function bribeCourt(amount) {
+  const c = GS.char; if(!c.trial?.active) return;
+  amount = Math.max(1, amount|0);
+  const check = validateAndSpendSilver(amount, 'bribe the court');
+  if(!check.ok) { toast(`Can't afford that bribe.`, 'error', 3000); return; }
+  c.trial.bribes = (c.trial.bribes||0) + amount;
+  try { addChronicleEntry(`Slipped ${formatCoins(amount)} to someone in the court.`, 'normal'); } catch(e) {}
+  toast(`Bribe paid. Some risk it backfires if discovered.`, '', 4000);
+  updateTrialDisplay();
+}
+
+// Defense strength 0..1 from lawyer OR self (law skill + INT + CHA), + reputation + bribes.
+function trialDefenseStrength() {
+  const c = GS.char; const tr = c.trial; if(!tr) return 0;
+  let def = 0;
+  if(tr.lawyer) def += tr.lawyer.skill / 100;
+  else def += Math.min(0.6, ((c.skills?.law?.level||0)*0.06) + ((c.intelligence||10)-10)*0.012 + ((c.charisma||10)-10)*0.012);
+  // Local standing helps (or, if infamous, hurts)
+  const rep = c.reputation[tr.location];
+  if(rep) def += Math.min(0.2, (rep.renown||0)/300) - Math.min(0.25, (rep.infamy||0)/250);
+  // Bribes: each 200 silver ~ +0.1, with diminishing returns
+  def += Math.min(0.3, (tr.bribes||0) / 2000);
+  return Math.max(0, Math.min(0.95, def));
+}
+
+// Advance the case as time passes; resolve when the docket runs out.
+function tickTrial(daysElapsed) {
+  const c = GS.char; const tr = c.trial;
+  if(!tr?.active || daysElapsed <= 0) return;
+  tr.daysLeft -= daysElapsed;
+  if(tr.daysLeft <= 0) resolveTrial();
+  else updateTrialDisplay();
+}
+
+function resolveTrial() {
+  const c = GS.char; const tr = c.trial; if(!tr) return;
+  const sev = TRIAL_SEVERITY[tr.severity] || TRIAL_SEVERITY.serious;
+  const defense = trialDefenseStrength();
+  const guiltChance = Math.max(0.05, Math.min(0.97, sev.guiltBase - defense + (c.bounty>1000?0.1:0)));
+  const guilty = Math.random() < guiltChance;
+  const wasCapital = !!sev.exec;
+  const selfDefended = !tr.lawyer;
+  tr.active = false;
+  c.trial = null;
+
+  if(!guilty) {
+    c._everAcquitted = true;
+    if(selfDefended) c._wonSelfDefense = true;
+    if(wasCapital) c._survivedCapital = true;
+    try { addChronicleEntry(`Acquitted of the charges (${sev.label}). Walked free.`, 'major'); } catch(e) {}
+    toast('ACQUITTED. You walk free.', 'gold', 6000);
+    if(typeof sendToAI === 'function') sendToAI(`[VERDICT — NOT GUILTY: The court has acquitted me of: ${tr.charges}. Narrate the verdict and walking free${tr.lawyer?` thanks to ${tr.lawyer.name}`:' on my own defense'}.]`);
+    updateTrialDisplay(); updateTopbar();
+    return;
+  }
+
+  // Guilty — sentence by severity.
+  if(sev.exec && Math.random() < 0.6 - defense*0.5) {
+    // Capital sentence → execution (death), unless they escape via the gravestone outs.
+    try { addChronicleEntry(`Found GUILTY of capital charges. Sentenced to death.`, 'major'); } catch(e) {}
+    if(typeof sendToAI === 'function') sendToAI(`[VERDICT — GUILTY, CAPITAL: The court has condemned me to death for: ${tr.charges}. Narrate the sentencing.]`);
+    GS.char.hp = 0;
+    handleDeath(`Executed by the court for: ${tr.charges}`);
+    return;
+  }
+  // Survived a capital case (prison instead of the block)
+  if(wasCapital) c._survivedCapital = true;
+  // Prison + fine
+  const fine = Math.round((sev.maxFine||0) * (0.4 + Math.random()*0.6) * (1 - defense*0.5));
+  const years = sev.prison[0] + Math.floor(Math.random() * (sev.prison[1] - sev.prison[0] + 1));
+  if(fine > 0) { c.silver = Math.max(0, c.silver - fine); }
+  if(years > 0) {
+    c.prisonStatus = { crime: tr.charges, location: tr.location, sentence: `${years} year(s)`, sinceYear: GS.world.year };
+    c._wasImprisoned = true;
+  } else {
+    c.bounty = Math.max(0, (c.bounty||0) - 100); // time served / fine clears some heat
+  }
+  try { addChronicleEntry(`Found guilty (${sev.label}). ${fine>0?`Fined ${formatCoins(fine)}. `:''}${years>0?`Sentenced to ${years} year(s).`:'Released with a warning.'}`, 'major'); } catch(e) {}
+  toast(`GUILTY. ${fine>0?`Fined ${formatCoins(fine)}. `:''}${years>0?`${years}yr sentence.`:'Released.'}`, 'error', 7000);
+  if(typeof sendToAI === 'function') sendToAI(`[VERDICT — GUILTY: Convicted of ${tr.charges}. ${fine>0?`Fined ${fine} silver. `:''}${years>0?`Sentenced to ${years} year(s) imprisonment.`:'Released after time served.'} Narrate the sentencing and its immediate aftermath.]`);
+  updateTrialDisplay(); updateTopbar(); updateCharacterTab();
+}
+
+function updateTrialDisplay() {
+  const el = document.getElementById('trial-block');
+  if(!el) return;
+  const tr = GS.char.trial;
+  if(!tr?.active) { el.innerHTML = '<div style="font-size:11px;color:var(--dim);font-style:italic">No active legal proceedings.</div>'; return; }
+  const sev = TRIAL_SEVERITY[tr.severity] || TRIAL_SEVERITY.serious;
+  const pct = Math.round(100 * (1 - tr.daysLeft/Math.max(1,tr.totalDays)));
+  const odds = Math.round(trialDefenseStrength()*100);
+  el.innerHTML = `
+    <div style="background:rgba(120,40,40,.12);border:1px solid #aa4444;border-radius:8px;padding:10px 12px">
+      <div style="font-size:13px;font-weight:700;color:#ee9999">⚖ On Trial — ${sev.label}</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:4px">Charges: ${tr.charges}</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:4px">Verdict in ~${Math.max(0,tr.daysLeft)} days · Court progress ${pct}%</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:2px">Defense: ${tr.lawyer?tr.lawyer.name:(tr.defenseSet?'self-represented':'NONE chosen yet')} · est. strength ${odds}%</div>
+      <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:8px">
+        ${tr.lawyer?'':`<button class="btn-secondary btn-sm" onclick="hireLawyer('cheap')">Hire (cheap ·40◈)</button>
+        <button class="btn-secondary btn-sm" onclick="hireLawyer('decent')">Hire (decent ·200◈)</button>
+        <button class="btn-secondary btn-sm" onclick="hireLawyer('expert')">Hire (renowned ·1000◈)</button>
+        <button class="btn-secondary btn-sm" onclick="defendSelf()">Defend Yourself</button>`}
+        <button class="btn-secondary btn-sm" onclick="bribeCourt(200)">Bribe (200◈)</button>
+      </div>
+    </div>`;
 }
 
 function renderShopPanel(locKey) {
@@ -26910,6 +27284,17 @@ updateCharacterTab = function() {
         GS.char.prisonStatus = res.prisonStatus;
       }
       if(res.bounty != null) { GS.char.bounty = res.bounty; GS.char._bountyPeak = Math.max(GS.char._bountyPeak||0,res.bounty); }
+      // The AI can put the player on trial for ANY crime: { charges, severity }
+      if(res.trial && res.trial.charges && !GS.char.trial?.active) {
+        beginTrial(res.trial.charges, res.trial.severity || 'serious', res.trial.location);
+      }
+      // The AI can also resolve a case narratively (a deal, a pardon, charges dropped)
+      if(res.trialResolved && GS.char.trial?.active) {
+        if(res.trialResolved === 'dismissed' || res.trialResolved === 'acquitted') {
+          GS.char.trial = null; updateTrialDisplay();
+          addChronicleEntry('The case was resolved out of the courtroom — charges cleared.', 'major');
+        }
+      }
     });
 
     // Sects / race / offspring / death
