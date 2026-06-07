@@ -5093,12 +5093,32 @@ function advanceTime(days=0, months=0, years=0) {
   w.month = newMonth;
   w.day   = newDay;
 
-  // Age character (per year boundary crossed)
-  GS.char.age = w.year - GS.char.birthYear;
+  // Age character — precise (accounts for birthday within the year) and MONOTONIC.
+  // Age only ever increases with the calendar. It never goes backward unless a
+  // technique/effect explicitly sets _allowAgeRewind (e.g. regression, time arts).
+  {
+    const c = GS.char;
+    const bM = c.birthMonth || 1, bD = c.birthDay || 1;
+    let computed = w.year - c.birthYear;
+    // If their birthday hasn't occurred yet this year, they're one year younger.
+    if(w.month < bM || (w.month === bM && w.day < bD)) computed -= 1;
+    computed = Math.max(0, computed);
+    if(c._allowAgeRewind) {
+      c.age = computed;            // explicit technique-driven change permitted
+      c._allowAgeRewind = false;
+    } else {
+      // Monotonic: never younger than they have already been
+      c._maxAgeReached = Math.max(c._maxAgeReached || 0, computed, c.age || 0);
+      c.age = c._maxAgeReached;
+    }
+  }
 
-  // Age NPCs
+  // Age NPCs (also monotonic forward)
   Object.values(w.npcRegistry).forEach(n => {
-    if(n.birthYear) n.age = w.year - n.birthYear;
+    if(n.birthYear) {
+      const na = Math.max(0, w.year - n.birthYear);
+      n.age = Math.max(n.age || 0, na);
+    }
   });
 
   // Dynamic NPC network drift (once per year)
@@ -6818,6 +6838,47 @@ function removeInjury(desc) {
   updateConditionBlock();
 }
 
+// ── PERMANENT CONDITIONS / STATUS EFFECTS ──────────────────────────
+// cnd: { id, label, desc, kind } e.g. {id:'blind_left_eye', label:'Blind (Left Eye)', kind:'permanent'}
+function addCondition(cnd) {
+  if(!GS.char.conditions) GS.char.conditions = [];
+  if(typeof cnd === 'string') cnd = { id: cnd.toLowerCase().replace(/[^a-z0-9]+/g,'_'), label: cnd, kind:'permanent' };
+  if(!cnd.id) cnd.id = (cnd.label||'condition').toLowerCase().replace(/[^a-z0-9]+/g,'_');
+  if(GS.char.conditions.find(c => c.id === cnd.id)) return; // no duplicates
+  GS.char.conditions.push({ id:cnd.id, label:cnd.label||cnd.id, desc:cnd.desc||'', kind:cnd.kind||'permanent', since:GS.world.year });
+  // Apply mechanical effects for known condition kinds
+  applyConditionEffects(cnd);
+  try { addChronicleEntry(`Condition: ${cnd.label}${cnd.desc?' — '+cnd.desc:''}`, 'major'); } catch(e) {}
+  toast(`⚠ ${cnd.label}`, 'error', 5000);
+  updateConditionBlock();
+  updateCharacterTab();
+}
+
+function removeCondition(id) {
+  if(!GS.char.conditions) return;
+  GS.char.conditions = GS.char.conditions.filter(c => c.id !== id);
+  updateConditionBlock();
+  updateCharacterTab();
+}
+
+function hasCondition(id) {
+  return !!(GS.char.conditions && GS.char.conditions.find(c => c.id === id));
+}
+
+// Stat penalties for known permanent conditions
+function applyConditionEffects(cnd) {
+  const id = (cnd.id||'').toLowerCase();
+  const c = GS.char;
+  const drop = (stat, amt) => { if(c[stat] !== undefined) c[stat] = Math.max(1, c[stat] - amt); };
+  if(/blind.*both|fully_blind|total_blind|blind$/.test(id)) { drop('perception', 8); drop('agility', 4); }
+  else if(/blind/.test(id))      drop('perception', 4);   // one eye
+  else if(/deaf/.test(id))        drop('perception', 3);
+  else if(/lost_arm|one_arm|missing_arm|severed_arm/.test(id)) { drop('strength', 5); drop('agility', 3); }
+  else if(/lost_leg|crippled_leg|missing_leg|lame/.test(id))   { drop('agility', 6); drop('endurance', 2); }
+  else if(/lost_hand|missing_hand/.test(id))                   { drop('strength', 3); drop('agility', 2); }
+  else if(/mute|tongue/.test(id)) drop('charisma', 3);
+}
+
 // ================================================================
 // JOURNAL HELPERS
 // ================================================================
@@ -7113,7 +7174,12 @@ function updateConditionBlock() {
   const inj = (c.injuries  || []).filter(i => typeof i === 'string' && i);
   const ill = (c.illnesses || []).filter(i => typeof i === 'string' && i);
   const scr = (c.scars     || []).filter(i => typeof i === 'string' && i);
-  if(ib)  ib.innerHTML  = inj.length ? inj.map(i=>`<span class="condition-tag injury">${i}</span>`).join('') : '<span class="text-muted text-xs">No injuries.</span>';
+  const cond = (c.conditions || []).filter(x => x && x.label);
+  // Permanent conditions render at the top of the injuries block, distinct styling
+  const condHtml = cond.map(x =>
+    `<span class="condition-tag" style="background:rgba(120,40,40,.25);border:1px solid #aa4444;color:#ee9999" title="${(x.desc||'').replace(/"/g,'&quot;')}">⛔ ${x.label}</span>`
+  ).join('');
+  if(ib)  ib.innerHTML  = (condHtml || '') + (inj.length ? inj.map(i=>`<span class="condition-tag injury">${i}</span>`).join('') : (condHtml ? '' : '<span class="text-muted text-xs">No injuries.</span>'));
   if(ilb) ilb.innerHTML = ill.length ? ill.map(i=>`<span class="condition-tag illness">${i}</span>`).join('') : '';
   if(sb)  sb.innerHTML  = scr.length ? scr.map(i=>`<span class="condition-tag scar">${i}</span>`).join('') : '';
   // Show offspring section if any
@@ -8802,6 +8868,9 @@ PART 2 — DATA (immediately after the narrative, on its own line):
   "illnesses": ["string only"],
   "scars": ["string only"],
   "removeInjuries": ["exact string to remove"],
+  "conditions": [{ "id":"blind_left_eye", "label":"Blind (Left Eye)", "desc":"Stabbed through the left eye — permanent.", "kind":"permanent" }],
+  "removeConditions": ["condition_id_to_clear"],
+  "ageChange": 0, "ageViaTechnique": false,
   "newRelationships": [{ "npcId": "", "name": "", "title": "", "type": "", "summary": "", "alive": true, "isLore": false, "glowColor": null }],
   "updateRelationships": [{ "npcId": "", "type": "", "summary": "", "memoryAddition": "", "trust": 0, "alive": null, "imprisoned": null, "prisonLocation": null }],
   "reputation": [{ "location": "tazar", "renown": 0, "infamy": 0, "eventDesc": "" }],
@@ -8829,6 +8898,10 @@ CRITICAL: The narrative is NEVER inside the JSON. The JSON block has NO "narrati
 CREW SYSTEM — crewUpdate: Use when the player founds, develops, or loses elements of a crew/organization (criminal gang, merchant company, pirate fleet, mercenary band, research collective, clan, smuggling ring, cult — anything). Format: { "found":true, "name":"...", "type":"criminal|merchant|pirate|mercenary|gang|cult|espionage|guild|research|clan|raiders|smugglers", "description":"...", "tier":"nascent|small|established|powerful|feared|renowned", "silverDelta":0, "influence":0, "heat":0, "operation":"what they did", "upgrade":"what they gained", "addMembers":[{"name":"...","role":"..."}], "removeMembers":[{"name":"...","reason":"..."}] }
 
 IMPRISONMENT RULE: If an NPC the player knows is arrested, jailed, captured, or imprisoned, set "imprisoned": true (and "prisonLocation": "<location key>") on that NPC in updateRelationships. An imprisoned NPC CANNOT be casually spoken to — the player cannot just message or chat with someone behind bars. To interact, the player must physically go to the prison, secure their release, or break them out. When they are freed, set "imprisoned": false. Likewise, never narrate the player chatting with an imprisoned NPC as if they were free.
+
+CONDITIONS RULE: Permanent harm produces a "conditions" entry, NOT just a scar. If the player loses an eye (stabbed, gouged, offered to a deity/entity), they are PERMANENTLY blind in that eye — add {"id":"blind_left_eye" or "blind_right_eye","label":"Blind (Left/Right Eye)","desc":"...","kind":"permanent"}. Both eyes → "fully_blind". Lost arm/hand/leg, deafness, muteness, a curse, a bargained-away sense — all permanent conditions that STAY. Once a condition exists, honor it forever: a blind character cannot see and you narrate accordingly every time. Never quietly heal a permanent condition — only an extraordinary, explicitly-narrated event can, via removeConditions.
+
+AGING RULE: The player ages forward with the calendar only — NEVER younger. Ordinary time passing already ages them automatically; do NOT send ageChange for normal time. Use ageChange ONLY for unnatural shifts (a time/cultivation art, a youth elixir, a curse of aging) and ALWAYS pair it with "ageViaTechnique": true. Negative ageChange (getting younger) is only ever valid with ageViaTechnique:true.
 
 TOME RULE: Tomes are PERMANENT — they NEVER disappear from inventory. Reading a tome does not consume it. A mortal with no Qi cultivation cannot learn any Qi technique from a tome regardless of what it says. If a character cannot yet learn a technique (wrong stage, wrong path, needs a master), narrate what they understand and what remains out of reach — do not grant the technique.
 
@@ -9346,6 +9419,8 @@ function migrateSave(data) {
     karma:{ righteous:0, blood:0, demonic:0, chaotic:0 },
     qi:{ stageIndex:0, current:0, max:100, breakthroughAt:100, breakthroughReady:false, path:null, expression:null },
     silver:0, hp:100, maxHp:100, bounty:0,
+    birthMonth:1, birthDay:1, _maxAgeReached:0,
+    conditions:[], // permanent status effects: { id, label, desc, kind }
     strength:10, agility:10, endurance:10, intelligence:10, perception:10, willpower:10, charisma:10, luck:10,
     injuries:[], illnesses:[], scars:[], crimes:[], grudges:[], failures:[],
     decisions:[], personalEvents:[],
@@ -9811,8 +9886,11 @@ function initCreation() {
     state.char.lastName  = lname;
     state.char.gender    = selectedGender;
     state.char.birthYear = year - selectedAge; // FIX: birthYear must be year MINUS age so age calc is correct
+    state.char.birthMonth = 1 + Math.floor(Math.random() * 12); // a real birthday
+    state.char.birthDay   = 1 + Math.floor(Math.random() * 30);
     state.char.birthCity = city;
     state.char.age       = selectedAge;
+    state.char._maxAgeReached = selectedAge; // monotonic aging floor
     state.world.year     = year;
     state.world.month    = 1;
     state.world.day      = 1;
@@ -11225,6 +11303,9 @@ The JSON carries ONLY state changes. There is NO "narrative" field in the JSON �
   "illnesses": ["string only"],
   "scars": ["string only"],
   "removeInjuries": ["exact string to remove"],
+  "conditions": [{ "id":"blind_left_eye", "label":"Blind (Left Eye)", "desc":"Stabbed through the left eye — permanent.", "kind":"permanent" }],
+  "removeConditions": ["condition_id_to_clear"],
+  "ageChange": 0, "ageViaTechnique": false,
   "newRelationships": [{ "npcId": "", "name": "", "title": "", "type": "", "summary": "1 sentence max", "alive": true, "isLore": false, "glowColor": null }],
   "updateRelationships": [{ "npcId": "", "type": "", "summary": "", "memoryAddition": "full prose paragraph of what happened", "trust": 0, "alive": null, "imprisoned": null, "prisonLocation": null }],
   "reputation": [{ "location": "tazar", "renown": 0, "infamy": 0, "eventDesc": "specific deed", "impact": 10, "renownTitle": null, "infamyTitle": null }],
@@ -24890,6 +24971,23 @@ updateCharacterTab = function() {
       res.illnesses?.forEach(i => addIllness(String(i)));
       res.scars?.forEach(s => addScar(String(s)));
       res.removeInjuries?.forEach(i => removeInjury(String(i)));
+    });
+
+    // Permanent conditions / status effects (blindness, lost limbs, curses, etc.)
+    safe('conditions', () => {
+      if(res.conditions?.length) res.conditions.forEach(cnd => addCondition(cnd));
+      if(res.removeConditions?.length) res.removeConditions.forEach(id => removeCondition(id));
+    });
+
+    // Age change — only honored if explicitly via a technique/effect (forward OR backward)
+    safe('age', () => {
+      if(res.ageChange && res.ageViaTechnique) {
+        GS.char._allowAgeRewind = true;
+        GS.char.birthYear -= res.ageChange; // shifting birth year changes computed age
+        GS.char._maxAgeReached = Math.max(0, (GS.char._maxAgeReached||0) + res.ageChange);
+        GS.char.age = Math.max(0, (GS.char.age||0) + res.ageChange);
+        updateCharacterTab();
+      }
     });
 
     // Relationships
