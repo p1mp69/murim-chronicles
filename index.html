@@ -1601,9 +1601,12 @@ a { color: var(--gold); text-decoration: none; }
    ============================================================ */
 #screen-death {
   background: var(--bg);
-  align-items: center; justify-content: center;
+  align-items: center;
+  justify-content: flex-start;   /* top-aligned so tall content isn't clipped */
+  overflow-y: auto;              /* gravestone page can scroll */
+  -webkit-overflow-scrolling: touch;
 }
-.death-container { max-width: 600px; padding: 40px 24px; text-align: center; }
+.death-container { max-width: 600px; width: 100%; padding: 40px 24px 60px; text-align: center; margin: auto; }
 .death-title {
   font-size: 1.4rem; color: var(--muted);
   font-style: italic; margin-bottom: 24px;
@@ -2726,7 +2729,12 @@ body.generating [onclick*="shopSellItem"], body.generating [onclick*="closeMapGo
       <button id="btn-regress" class="btn-primary hidden">Regress — Turn Back Death</button>
       <button id="btn-offspring" class="btn-primary hidden">Continue as Offspring</button>
       <button id="btn-reincarnate" class="btn-secondary hidden">Reincarnate</button>
-      <button id="btn-newgame-death" class="btn-secondary">New Life</button>
+      <button id="btn-newlife-sameworld" class="btn-secondary">New Life — Same World</button>
+      <button id="btn-newgame-death" class="btn-secondary">New Life — New World</button>
+    </div>
+    <div style="font-size:10px;color:var(--dim);margin-top:10px;max-width:520px;line-height:1.5">
+      <em>Same World</em>: be born anew into this world — the people, history, and years your last life knew carry on without them.
+      &nbsp;·&nbsp; <em>New World</em>: begin again somewhere wholly fresh.
     </div>
   </div>
 </div>
@@ -11084,7 +11092,7 @@ const SAVE_PREFIX = 'murim_slot_';
 // Scheme: MAJOR.MINOR. Big updates bump MAJOR (1.2 -> 2.2). Small updates
 // bump MINOR (2.2 -> 2.3). Each version has a name. The current version is
 // stamped onto every save; older saves can be updated to the latest.
-const GAME_VERSION = { number: '3.12', name: 'Price of the Dark' };
+const GAME_VERSION = { number: '3.13', name: 'A World That Remembers' };
 
 // Which model generates the story. Lite Mode swaps to a far cheaper, faster model
 // (Claude Haiku) so long sessions / limited credits cost a fraction per turn.
@@ -11122,6 +11130,7 @@ const VERSION_HISTORY = [
   { number:'3.10', name:'Contracts & Transcendence', sys:'Contract workers: hire crew for a fixed term — they show in the crew tab with a countdown and leave when their contract ends. Transcending your humanity into a non-human race now grows new meridian channels and reworks your organs — healing your conditions, injuries, and even shattered channels (anything owed to a bargain still stays). Fixed a nasty Qi bug where reserves could run away to absurd negatives (the "-2417/150" desync) — Qi is now properly clamped, which also stops meridians from breaking by accident. Tomes about healing/meridians are now clearly THEORY books — they teach, they don\'t cure. sorry terez ur merdian channels are fried 😹', note:'Contract workers (crew); transcension heals non-bargain conditions/injuries/broken channels; fromBargain tagging; qi.current clamped [0,max] + migrate repair; theory-tome rule; Aruwium = the only bar lēlyā lore fix.' },
   { number:'3.11', name:'The Inverted Path',   sys:'Negative Qi is real now: you CAN drive your Qi past empty into the inverted current — but a HUMAN who does it dies, no exceptions. An INHUMAN being (any non-human race) survives and opens the negative-Qi path, with the inverted current as their reserve. Routine cultivation still never runs away or kills you by accident; this only happens when you deliberately plunge in.', note:'driveQiNegative(): human=death, inhuman=negative-Qi path; qiFloor() lets the inverted path hold negative Qi; res.negativeQi field + rule; routine qi stays clamped [0,max].' },
   { number:'3.12', name:'Price of the Dark',   sys:'bar lēlyā and Nyokuro can now grant almost ANYTHING for a price that scales with the ask — mend shattered channels, cure any condition, even remake you into a different race. You can also become a SERVANT of bar lēlyā (a dark pact with real power and real strings). Added a HIDDEN way to rebuild your own shattered channels: with iron will and total mastery of meridian theory, you unlock an interactive reconstruction. Also fixed the AI mis-stating your cultivation stage as higher than it is.', note:'applyDarkGrant() (healChannels/removeConditions/healAll/raceChange/becomeServant) for both bargains, scaling-price rules; Servant of bar lēlyā trait + becomeBarLelyaServant; self-mend minigame (canSelfMendChannels gate: WIL40+ & maxed Meridian Theory) + meridian_theory tome skill; exact cultivation-stage rule.' },
+  { number:'3.13', name:'A World That Remembers', sys:'The death screen now scrolls properly. And when a life ends, you choose: start a NEW LIFE — SAME WORLD (be born again into the same world your last character lived in, its people, history, and years all carrying on) or NEW LIFE — NEW WORLD (begin somewhere wholly fresh).', note:'Fixed #screen-death scroll (overflow-y:auto, top-aligned). Same-world rebirth: preserve GS.world snapshot, new char born into the continuing timeline; _sameWorldRebirth opening hint; menu/new-world paths clear the snapshot.' },
 ];
 
 function cleanSaveData(gs) {
@@ -11788,6 +11797,27 @@ function initCreation() {
       state.selectedOrigin = selectedOrigin || _creationSelectedOrigin;
     }
 
+    // ── SAME-WORLD REBIRTH: born into the dead character's world ──
+    // Keep its people, history, factions, and timeline; only the year/birth shift
+    // so this new person is born into that continuing world.
+    if(_sameWorldSnapshot) {
+      const w = _sameWorldSnapshot;
+      // Preserve the living world; keep the new character's location choice.
+      const chosenLoc = state.world.location;
+      state.world = w;
+      state.world.location = (LOCATIONS[chosenLoc] ? chosenLoc : (w.location || chosenLoc));
+      state.world.day = 1; state.world.month = 1;
+      // The world's clock continues — this child is born into the year it has reached.
+      const worldYear = w.year || state.world.year;
+      state.world.year = worldYear;
+      state.char.birthYear = worldYear - state.char.age;
+      state.char.birthCity = state.world.location;
+      // Note the new life in the world's record.
+      try { (state.world.worldHistory = state.world.worldHistory || []).push(`Year ${worldYear}: A new life begins in a world that remembers the one before.`); } catch(e) {}
+      state._sameWorldRebirth = true;
+      _sameWorldSnapshot = null;
+    }
+
     GS = state;
     GS.settings.apiKey = localStorage.getItem('murim_apikey') || document.getElementById('set-apikey')?.value || '';
     GS.settings.mobileMode = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
@@ -12155,6 +12185,14 @@ function initSettings() {
   });
 
   document.getElementById('btn-newgame-death')?.addEventListener('click', () => {
+    _sameWorldSnapshot = null; // brand-new world
+    GS = createDefaultState();
+    fullReset(true);
+  });
+
+  document.getElementById('btn-newlife-sameworld')?.addEventListener('click', () => {
+    // Be born anew into the SAME world: preserve its people, history, and timeline.
+    try { _sameWorldSnapshot = JSON.parse(JSON.stringify(GS.world)); } catch(e) { _sameWorldSnapshot = null; }
     GS = createDefaultState();
     fullReset(true);
   });
@@ -14027,7 +14065,7 @@ ${yearCtx}
 Appearance: ${appearance || 'not yet described'}
 Background chosen: ${originDef ? originDef.name + ' — ' + originDef.desc : 'no specific background'}
 Innate traits at birth: ${innateKnowledge}
-${originGuidance ? '── ORIGIN MANDATE ──\n' + originGuidance + '\n' : ''}
+${GS._sameWorldRebirth ? '── SAME-WORLD REBIRTH ──\nThis character is a NEW person born into an ESTABLISHED, continuing world — the same world a previous life lived and died in. The world already has its history, its powers, its scars; this newborn does not know any of it personally and has no inherited relationships, but the world is old and full. Write the opening as a fresh life beginning inside a world that already turns. Do NOT reference the previous character as if this one knows them.\n' : ''}${originGuidance ? '── ORIGIN MANDATE ──\n' + originGuidance + '\n' : ''}
 ── PARENT SITUATION ──
 This has been pre-determined. Write to it exactly:
 "${rolledSituation}"
@@ -14868,6 +14906,7 @@ function generateRandomTraits(char) {
 // TOP-LEVEL buildOriginCards (so fullReset can call it properly)
 // ================================================================
 let _creationSelectedOrigin = null; // module-level so fullReset can clear it
+let _sameWorldSnapshot = null;       // preserved world for "New Life — Same World"
 
 function buildOriginCards(city, onSelect) {
   const grid = document.getElementById('origin-grid');
@@ -15599,6 +15638,7 @@ function initMainMenu() {
   if(keyInp && savedKey) keyInp.value = savedKey;
 
   document.getElementById('menu-newgame').addEventListener('click', () => {
+    _sameWorldSnapshot = null; // fresh world from the main menu
     GS = createDefaultState();
     const savedKey2 = localStorage.getItem('murim_apikey') || '';
     GS.settings.apiKey = savedKey2;
