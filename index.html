@@ -2394,6 +2394,7 @@ body.generating [onclick*="shopSellItem"], body.generating [onclick*="closeMapGo
             <span>Properties &amp; Assets</span><span class="collapse-arrow">▼</span>
           </div>
           <div id="w-assets" class="collapsible-body" style="display:none">
+            <div id="networth-summary"></div>
             <div id="w-assets-content">
               <div class="empty-state" style="padding:12px 0;font-size:12px">No properties owned. Find a place to call your own.</div>
             </div>
@@ -10840,6 +10841,9 @@ function updateWorldTab() {
   } else if(!hasLustAwareness || !w.zeret.active) {
     zs.classList.add('hidden');
   }
+
+  // Refresh assets + net worth whenever the World tab renders
+  try { updateAssetsDisplay(); } catch(e) {}
 }
 
 // ================================================================
@@ -32949,8 +32953,65 @@ advanceTime = function(days=0, months=0, years=0) {
   } catch(e) {}
 };
 
+// Compute the player's total net worth and a breakdown of holdings.
+function computeNetWorth() {
+  const c = GS.char;
+  const assets = ensureAssets();
+  const silver = c.silver || 0;
+
+  // Property value: prefer recorded value, else fall back to type base cost,
+  // adjusted by condition and upgrades.
+  let propertyValue = 0;
+  assets.forEach(a => {
+    let v = a.value || a.purchasePrice || (typeof PROPERTY_TYPES !== 'undefined' ? (PROPERTY_TYPES[a.type]?.baseCost || 0) : 0);
+    if(a.condition !== undefined) v = Math.round(v * (0.4 + 0.6 * (a.condition/100))); // condition affects resale
+    v += (a.upgrades?.length || 0) * 200; // each upgrade adds value
+    a._estValue = v;
+    propertyValue += v;
+  });
+
+  // Inventory + equipped item value
+  let itemValue = 0;
+  (c.inventory || []).forEach(i => { itemValue += (i.value || 0); });
+  Object.values(c.equipment || {}).forEach(e => { if(e) itemValue += (e.value || 0); });
+
+  // Monthly cash flow from assets
+  let monthlyIncome = 0, monthlyUpkeep = 0;
+  assets.forEach(a => { monthlyIncome += (a.incomePerMonth||0); monthlyUpkeep += (a.upkeepPerMonth||0); });
+
+  const total = silver + propertyValue + itemValue;
+  return { silver, propertyValue, itemValue, total, propertyCount: assets.length,
+           itemCount: (c.inventory||[]).length, monthlyIncome, monthlyUpkeep,
+           monthlyNet: monthlyIncome - monthlyUpkeep };
+}
+
+// Render the net-worth summary panel.
+function updateNetWorthSummary() {
+  const el = document.getElementById('networth-summary');
+  if(!el) return;
+  const nw = computeNetWorth();
+  const fc = (typeof formatCoins === 'function') ? formatCoins : (n)=>`${n} silver`;
+  const flowColor = nw.monthlyNet >= 0 ? 'var(--green)' : 'var(--red)';
+  const flowSign  = nw.monthlyNet >= 0 ? '+' : '';
+  el.innerHTML = `
+    <div style="background:rgba(196,154,48,.08);border:1px solid rgba(196,154,48,.35);border-radius:8px;padding:10px 12px;margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;align-items:baseline">
+        <span style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Net Worth</span>
+        <span style="font-size:18px;font-weight:800;color:var(--gold)">${fc(nw.total)}</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:2px 12px;margin-top:8px;font-size:11px;color:var(--muted)">
+        <div style="display:flex;justify-content:space-between"><span>💰 Silver</span><span style="color:var(--text)">${fc(nw.silver)}</span></div>
+        <div style="display:flex;justify-content:space-between"><span>🏠 Property (${nw.propertyCount})</span><span style="color:var(--text)">${fc(nw.propertyValue)}</span></div>
+        <div style="display:flex;justify-content:space-between"><span>🎒 Items (${nw.itemCount})</span><span style="color:var(--text)">${fc(nw.itemValue)}</span></div>
+        <div style="display:flex;justify-content:space-between"><span>📈 Monthly</span><span style="color:${flowColor}">${flowSign}${fc(nw.monthlyNet)}/mo</span></div>
+      </div>
+      ${nw.propertyCount===0 && nw.itemValue===0 ? '<div style="font-size:10px;color:var(--dim);margin-top:6px;font-style:italic">You own no property yet. Your wealth is what you carry.</div>' : ''}
+    </div>`;
+}
+
 // UI: Update the assets display in world tab
 function updateAssetsDisplay() {
+  updateNetWorthSummary();
   const el = document.getElementById('w-assets-content');
   if(!el) return;
 
@@ -33082,6 +33143,14 @@ buildSystemPrompt = function() {
   let prompt = _bspWithAssets();
   try {
     const assets = ensureAssets();
+
+    // Net worth is always surfaced so the AI knows the player's true wealth/holdings.
+    try {
+      const nw = computeNetWorth();
+      const nwLine = `NET WORTH: ${formatCoins(nw.total)} total — ${formatCoins(nw.silver)} silver on hand, ${formatCoins(nw.propertyValue)} in property (${nw.propertyCount} owned), ${formatCoins(nw.itemValue)} in items. Monthly cash flow: ${nw.monthlyNet>=0?'+':''}${formatCoins(nw.monthlyNet)}/mo. The character ${nw.propertyCount?'owns property':'owns no property'}. Do not let them spend or pledge more than they actually have; reference their real means.`;
+      prompt = prompt.replace('## ABSOLUTE RULES', nwLine + '\n\n## ABSOLUTE RULES');
+    } catch(e) {}
+
     if(!assets.length) return prompt;
 
     const home    = assets.find(a => a.isHome);
