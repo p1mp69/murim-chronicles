@@ -5919,6 +5919,10 @@ function spawnItem(item) {
     isBook,
     techUnlock: item.techUnlock || null,
     pillId: item.pillId || null,
+    readingDifficulty: item.readingDifficulty || null,
+    playerMade: item.playerMade || false,
+    authoredBy: item.authoredBy || null,
+    authoredYear: item.authoredYear || null,
   };
   GS.char.inventory.push(itm);
   updateInventoryTab();
@@ -6248,6 +6252,9 @@ function useTome(itemId) {
   const diffLabel = `${diff.label} (requires Lv ${diff.literacyRequired})`;
 
   let literacyContext = `LITERACY: ${litLabel} reading a ${diffLabel} text.`;
+  if(itm.playerMade) {
+    literacyContext += ` THIS IS A TEXT THE PLAYER WROTE THEMSELVES${itm.authoredYear?` in Year ${itm.authoredYear}`:''} — it is contemporary and handwritten by them. It is NOT ancient, inherited, or mysterious; do not narrate it as an old or unknown tome. They are re-reading their own work.`;
+  }
   if(literacy.literacy === diff.literacyRequired) {
     literacyContext += ' They are at the minimum threshold — they can read it but it takes effort and some nuance will be missed.';
   } else if(literacy.literacy > diff.literacyRequired + 1) {
@@ -8387,19 +8394,42 @@ function createOffshoot(id, type) {
 function createTome(id, type) {
   const item = type==='tech' ? GS.char.techniques.find(t=>t.id===id) : GS.char.martialArts.find(m=>m.id===id);
   if(!item) return;
+
+  // ── LITERACY GATE ─────────────────────────────────────────────────
+  // You cannot WRITE a text more sophisticated than you can read. A tome's
+  // reading difficulty can never exceed the author's own literacy. And a
+  // player-WRITTEN tome is brand new — it can NEVER be "ancient", "esoteric",
+  // or "sealed" (those are archaic/Qi-sealed texts, impossible for a living
+  // author to produce). The player must have at least basic literacy to write.
+  const litLevel = GS.char.skills?.literacy?.level || 0;
+  if(litLevel < 1) {
+    toast('You cannot write a tome — you are not literate. Learn to read and write first.', 'error', 4000);
+    return;
+  }
+
+  // Author-grade tiers only (none of the archaic/sealed tiers), capped at the
+  // author's literacy level.
+  const AUTHOR_TIERS = ['primer','standard','technical','scholarly']; // required 1..4
+  // Natural difficulty from rarity, but clamped to what the author can encode.
+  const naturalIdx = { common:0, uncommon:1, rare:2, epic:3, legendary:3, mythic:3, fable:3 }[item.rarity] ?? 1;
+  const capIdx     = Math.min(litLevel, 4) - 1; // literacy 1→primer ... 4+→scholarly
+  const diffKey    = AUTHOR_TIERS[Math.max(0, Math.min(naturalIdx, capIdx))];
+
   item.tomeCreated = true;
-  // Map technique rarity to reading difficulty
-  const diffMap = { common:'standard', uncommon:'technical', rare:'scholarly', epic:'ancient', legendary:'esoteric', mythic:'sealed' };
+  const authorName = `${GS.char.firstName||''} ${GS.char.lastName||''}`.trim() || 'the author';
   const tome = spawnItem({
-    name: `${item.name} — Tome`,
+    name: `${item.name} — Manual`,
     type:'tome', rarity:item.rarity,
-    desc:`A handwritten tome documenting the ${item.name} ${type==='tech'?'technique':'martial art'}. Stage ${item.stage} comprehension encoded within.`,
+    desc:`A handwritten manual you wrote yourself, documenting the ${item.name} ${type==='tech'?'technique':'martial art'} at your current understanding. The ink is fresh; the hand is your own. This is a new, contemporary text — not an ancient or inherited one.`,
     value: 50 * (Object.keys(RARITIES).indexOf(item.rarity)+1),
     isTome:true,
-    readingDifficulty: diffMap[item.rarity] || 'technical',
+    readingDifficulty: diffKey,
+    playerMade: true,
+    authoredBy: authorName,
+    authoredYear: GS.world.year,
     techUnlock:{ name:item.name, category:type==='tech'?item.category:'physical', type:type==='tech'?item.type:'utility' },
   });
-  toast(`Tome created: ${item.name}`, 'gold', 3000);
+  toast(`Manual written: ${item.name}`, 'gold', 3000);
   updateSkillsTab();
 }
 
@@ -8945,6 +8975,8 @@ TECHNIQUE BIO RULE: When you create a technique via newTechniques, the "desc" is
 TECHNIQUE COMBINATION RULE: When the player fuses/combines two techniques, the result is a NEW technique with its OWN original name and its OWN distinct function — NEVER name it "[Technique A] + [Technique B]". Invent a single new name and describe a unique combined effect that is more than the sum of its parts. Emit it as one entry in newTechniques.
 
 TOME vs BOOK RULE: There are two kinds of readable item. A "tome" teaches Qi techniques or martial arts (type:"tome"). A "book" teaches skills or conveys knowledge/lore only — never a combat technique (type:"book"). Choose the correct type. Do NOT re-list a tome or book the player already owns in newItems — it is already permanent in their inventory and re-listing it creates a duplicate. Only emit a tome/book in newItems the first time they actually acquire it.
+
+TOME AUTHORSHIP RULE: If the player WRITES or CREATES a tome/manual/book themselves, it is brand-new and contemporary — it can NEVER be described as "ancient," "esoteric," "sealed," inherited, or of unknown origin. It is their own handwriting, dated to the present. Also: a player cannot author a text more advanced than their own literacy — they cannot create a tome that requires Literacy Level 5 when their literacy is Level 2. If they try to write something beyond their literacy, narrate that the result only captures what they themselves understand and can express at their level — the deeper material doesn't make it onto the page. Do not grant a self-authored tome a reading difficulty above the player's own literacy.
 
 TOME RULE: Tomes are PERMANENT — they NEVER disappear from inventory. Reading a tome does not consume it. A mortal with no Qi cultivation cannot learn any Qi technique from a tome regardless of what it says. If a character cannot yet learn a technique (wrong stage, wrong path, needs a master), narrate what they understand and what remains out of reach — do not grant the technique.
 
