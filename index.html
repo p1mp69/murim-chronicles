@@ -5612,6 +5612,10 @@ function getQiStageIndex() { return GS.char.qi.stageIndex; }
 
 function addQi(amount) {
   const qi = GS.char.qi;
+  // Broken channels cannot hold or gather Qi.
+  if(GS.char.channelsBroken && amount > 0) {
+    return;
+  }
   qi.current = Math.min(qi.current + amount, qi.max);
   // Natural path determination from behavior
   if(!qi.path && qi.current > 20) {
@@ -5629,7 +5633,55 @@ function checkBreakthrough() {
   }
 }
 
-function setQiStage(index) {
+// ── BROKEN CHANNELS ───────────────────────────────────────────────
+// Forcing a breakthrough with NEGATIVE Qi shatters the meridian channels.
+// The character can NEVER cultivate again — and any attempt to push Qi while
+// broken risks death — until healed by a high-level expert or the Hiestler, a
+// rare plant grown only in one place.
+function breakChannels(cause) {
+  const c = GS.char;
+  if(c.channelsBroken) return;
+  c.channelsBroken = true;
+  c.qi.breakthroughReady = false;
+  c.qi.current = 0;
+  if(typeof addCondition === 'function') {
+    addCondition({
+      id: 'broken_channels',
+      label: 'Broken Channels',
+      desc: cause || 'The meridian channels are shattered — cultivation is impossible and pushing Qi risks death. Only a high-level healer or the Hiestler plant can mend them.',
+      kind: 'permanent',
+    });
+  }
+  try { addChronicleEntry(`Meridian channels shattered. ${cause||''} Cultivation is impossible until healed.`, 'major'); } catch(e) {}
+  try { addInjury('Shattered meridian channels — cultivation impossible until healed.'); } catch(e) {}
+  toast('Your channels have SHATTERED. You can no longer cultivate.', 'error', 8000);
+  updateCharacterTab();
+}
+
+function healChannels(source) {
+  const c = GS.char;
+  if(!c.channelsBroken) return;
+  c.channelsBroken = false;
+  if(typeof removeCondition === 'function') removeCondition('broken_channels');
+  try { GS.char.injuries = GS.char.injuries.filter(i => !/shattered meridian/i.test(i)); updateConditionBlock(); } catch(e) {}
+  try { addChronicleEntry(`Meridian channels mended${source?' by '+source:''}. Cultivation is possible once more.`, 'major'); } catch(e) {}
+  toast('Your channels are mended. You can cultivate again.', 'gold', 6000);
+  updateCharacterTab();
+}
+
+function setQiStage(index, force=false) {
+  const c = GS.char;
+  // GUARD: cannot break through (advance a stage) with negative Qi — it shatters
+  // the channels. Only the explicit force path (dev tools) bypasses this.
+  if(!force && index > (c.qi.stageIndex||0) && (c.qi.current || 0) < 0) {
+    breakChannels('Forced a breakthrough on a Qi deficit — the channels could not hold the surge and tore.');
+    return;
+  }
+  // GUARD: a character with broken channels cannot advance at all.
+  if(!force && c.channelsBroken && index > (c.qi.stageIndex||0)) {
+    toast('Your channels are broken — you cannot cultivate.', 'error', 4000);
+    return;
+  }
   const stage = QI_STAGES[index];
   if(!stage) return;
   const prev = QI_STAGES[GS.char.qi.stageIndex];
@@ -5863,6 +5915,18 @@ function advanceMAStage(maId) {
 // ================================================================
 // EQUIPMENT SYSTEM
 // ================================================================
+// Tomes are precious — a technique manual is worth a fortune, a legendary one
+// worth a king's ransom. This is the FLOOR value (silver) by rarity. Books
+// (skills/knowledge) are worth less than tomes (techniques) but still valuable.
+const TOME_BASE_VALUE = {
+  common: 150, uncommon: 500, rare: 1500, epic: 4000,
+  legendary: 12000, mythic: 40000, fable: 120000,
+};
+function tomeBaseValue(rarity, isBook=false) {
+  const base = TOME_BASE_VALUE[rarity] || TOME_BASE_VALUE.common;
+  return isBook ? Math.round(base * 0.4) : base;
+}
+
 function spawnItem(item) {
   // item: { name, type, slot, rarity, desc, value, effects, isTome, techUnlock, pillId, consumable }
   if(!item?.name) return null;
@@ -5907,6 +5971,12 @@ function spawnItem(item) {
   };
   const resolvedSlot = item.slot || TYPE_TO_DEFAULT_SLOT[type] || null;
 
+  // Tomes & books carry a high floor value — knowledge is precious.
+  let resolvedValue = item.value || 0;
+  if(isTome || isBook) {
+    resolvedValue = Math.max(resolvedValue, tomeBaseValue(item.rarity || 'common', isBook && !isTome));
+  }
+
   const itm = {
     id: uid(),
     name: item.name,
@@ -5914,7 +5984,7 @@ function spawnItem(item) {
     slot: resolvedSlot,
     rarity: item.rarity || 'common',
     desc: item.desc || '',
-    value: item.value || 0,
+    value: resolvedValue,
     effects: item.effects || {},
     isTome,
     isBook,
@@ -6898,6 +6968,11 @@ function addCondition(cnd) {
 function removeCondition(id) {
   if(!GS.char.conditions) return;
   GS.char.conditions = GS.char.conditions.filter(c => c.id !== id);
+  // Healing the broken-channels condition restores the ability to cultivate.
+  if(id === 'broken_channels') {
+    GS.char.channelsBroken = false;
+    try { GS.char.injuries = GS.char.injuries.filter(i => !/shattered meridian/i.test(i)); } catch(e) {}
+  }
   updateConditionBlock();
   updateCharacterTab();
 }
@@ -8422,7 +8497,7 @@ function createTome(id, type) {
     name: `${item.name} — Manual`,
     type:'tome', rarity:item.rarity,
     desc:`A handwritten manual you wrote yourself, documenting the ${item.name} ${type==='tech'?'technique':'martial art'} at your current understanding. The ink is fresh; the hand is your own. This is a new, contemporary text — not an ancient or inherited one.`,
-    value: 50 * (Object.keys(RARITIES).indexOf(item.rarity)+1),
+    value: tomeBaseValue(item.rarity, false),
     isTome:true,
     readingDifficulty: diffKey,
     playerMade: true,
@@ -8856,7 +8931,7 @@ WORLD LORE:
 CURRENT GAME STATE:
 - Character: ${c.firstName} ${c.lastName}, Age ${c.age}, Year ${w.year} Month ${w.month}
 - Location: ${loc?.name || w.location} (${KINGDOMS[loc?.kingdom]?.name || 'Unknown kingdom'})
-- Cultivation: ${stage.name}, ${c.qi.path ? c.qi.path+' Qi' : 'no Qi path yet'}, ${c.qi.current}/${c.qi.max} Qi
+- Cultivation: ${stage.name}, ${c.qi.path ? c.qi.path+' Qi' : 'no Qi path yet'}, ${c.qi.current}/${c.qi.max} Qi${c.channelsBroken ? ' — ⚠ CHANNELS SHATTERED: cannot cultivate or hold Qi; forcing Qi risks death. Needs a high-level healer or the Hiestler plant.' : ''}
 - Stats: STR${c.strength} AGI${c.agility} END${c.endurance} INT${c.intelligence} PER${c.perception} WIL${c.willpower} CHA${c.charisma} LCK${c.luck}
 - HP: ${c.hp}/${c.maxHp}
 - Silver: ${c.silver}
@@ -8966,6 +9041,8 @@ CREW SYSTEM — crewUpdate: Use when the player founds, develops, or loses eleme
 IMPRISONMENT RULE: If an NPC the player knows is arrested, jailed, captured, or imprisoned, set "imprisoned": true (and "prisonLocation": "<location key>") on that NPC in updateRelationships. An imprisoned NPC CANNOT be casually spoken to — the player cannot just message or chat with someone behind bars. To interact, the player must physically go to the prison, secure their release, or break them out. When they are freed, set "imprisoned": false. Likewise, never narrate the player chatting with an imprisoned NPC as if they were free.
 
 CONDITIONS RULE: Permanent harm produces a "conditions" entry, NOT just a scar. If the player loses an eye (stabbed, gouged, offered to a deity/entity), they are PERMANENTLY blind in that eye — add {"id":"blind_left_eye" or "blind_right_eye","label":"Blind (Left/Right Eye)","desc":"...","kind":"permanent"}. Both eyes → "fully_blind". Lost arm/hand/leg, deafness, muteness, a curse, a bargained-away sense — all permanent conditions that STAY. Once a condition exists, honor it forever: a blind character cannot see and you narrate accordingly every time. Never quietly heal a permanent condition — only an extraordinary, explicitly-narrated event can, via removeConditions.
+
+BROKEN CHANNELS RULE: Attempting a cultivation breakthrough on a Qi DEFICIT (negative Qi) shatters the meridian channels. A character with shattered channels CANNOT cultivate, cannot gather or hold Qi, and any attempt to force Qi through the ruined channels risks DEATH — narrate it that way. This is permanent and tracked as the "broken_channels" condition. It can ONLY be healed two ways: (1) a genuinely HIGH-LEVEL expert (a master healer of advanced cultivation, a sect's grand physician, or similar) painstakingly mends the channels, or (2) the player consumes the HIESTLER — a rare medicinal plant that grows in only one specific place in the world (a remote, hard-to-reach locale you may establish/keep consistent). Nothing else works — common pills, rest, or ordinary doctors will NOT fix it. When the player is genuinely healed by one of these means, emit "removeConditions":["broken_channels"]. Until then, treat them as a cripple who has lost the path. Never let them quietly cultivate again.
 
 AGING RULE: The player ages forward with the calendar only — NEVER younger. Ordinary time passing already ages them automatically; do NOT send ageChange for normal time. Use ageChange ONLY for unnatural shifts (a time/cultivation art, a youth elixir, a curse of aging) and ALWAYS pair it with "ageViaTechnique": true. Negative ageChange (getting younger) is only ever valid with ageViaTechnique:true.
 
@@ -9463,12 +9540,13 @@ const SAVE_PREFIX = 'murim_slot_';
 // Scheme: MAJOR.MINOR. Big updates bump MAJOR (1.2 -> 2.2). Small updates
 // bump MINOR (2.2 -> 2.3). Each version has a name. The current version is
 // stamped onto every save; older saves can be updated to the latest.
-const GAME_VERSION = { number: '2.0', name: 'The Stirring' };
+const GAME_VERSION = { number: '2.1', name: 'Shattered Channels' };
 const VERSION_HISTORY = [
   { number:'1.0', name:'First Breath',        note:'The base murim RPG: cultivation, NPCs, the founders.' },
   { number:'1.1', name:'The Living World',    note:'Religions, NPC networks, the chronicle, deeper world simulation.' },
   { number:'1.2', name:'Tombs & Relics',     note:'The founders\' tombs, deep-era relics, tomb-trigger figures.' },
   { number:'2.0', name:'The Stirring',        note:'The full deep timeline: Nao Rebellion, the Fracture, the ten ancient Yokai, First Contact, bar lēlyā, Nyokuro, Born From Sun, conditions, aging, versioning.' },
+  { number:'2.1', name:'Shattered Channels',  note:'Negative-Qi breakthroughs shatter the meridians (healed only by a high-level expert or the Hiestler plant); bar lēlyā has no willpower gate; tomes are worth a fortune.' },
 ];
 
 function cleanSaveData(gs) {
@@ -9534,6 +9612,7 @@ function migrateSave(data) {
     silver:0, hp:100, maxHp:100, bounty:0,
     birthMonth:1, birthDay:1, _maxAgeReached:0,
     conditions:[], // permanent status effects: { id, label, desc, kind }
+    channelsBroken:false, // true once meridians are shattered (negative-Qi breakthrough)
     strength:10, agility:10, endurance:10, intelligence:10, perception:10, willpower:10, charisma:10, luck:10,
     injuries:[], illnesses:[], scars:[], crimes:[], grudges:[], failures:[],
     decisions:[], personalEvents:[],
@@ -13636,6 +13715,15 @@ function karmaBreakthroughCheck() {
 function attemptBreakthrough() {
   const c  = GS.char;
   const qi = c.qi;
+
+  // CATASTROPHE: breaking through on a Qi deficit shatters the channels.
+  if((qi.current || 0) < 0) {
+    breakChannels('Attempted a breakthrough with negative Qi — the channels tore apart under the strain.');
+    return { success: false, reason: 'Channels shattered — you broke through on a Qi deficit.', channelsBroken: true };
+  }
+  if(c.channelsBroken) {
+    return { success: false, reason: 'Your channels are shattered. You cannot cultivate until they are healed.' };
+  }
 
   if(!qi.breakthroughReady) {
     return { success: false, reason: 'Qi has not reached the threshold.' };
@@ -26327,7 +26415,7 @@ function buildBarLelyaContext() {
 
   lines.push(`WHEN HE APPEARS — HE IS TERRIFYING. This is not a polite spirit. Make the player's heart drop. He is impossibly tall, unfolding upward into the dark further than the ceiling should allow, a body of wrong angles and a spine that looks barely held together, joints that bend a hair too far. He has NO eyes — only the smooth cold places where eyes should be, and yet the player KNOWS they are being looked at, looked INTO. The temperature crashes; breath fogs; the player's own pulse becomes audible to them. He does not move so much as he is suddenly nearer. When he speaks it is quiet, intimate, and without any warmth — he already knows what the player wants and what the player is most afraid to lose. Dread should radiate off the page. The player should feel, viscerally, that they have made a mistake by calling, even if they go through with it.`);
 
-  lines.push(`THE BARGAIN — POWER CEILING AND PRICE: Bar lēlyā can grant ANYTHING up to and including LEGENDARY tier — great power, great wealth, mastery the player never earned, a rare technique, a legendary weapon, a leap in cultivation. He CANNOT grant mythic or fable tier — that is beyond him (he is only a fragment of the dark; Nyokuro is the whole of it). If the player asks for something beyond legendary, he tells them, coldly, that what they ask is not his to give — only the deep dark itself (Nyokuro) holds that, and reaching her is another matter entirely. The price is NEVER coin. Something LEAVES the player's life forever: a relationship (someone dies, leaves, or forgets the player entirely), a memory, a part of the body, a sense, a capacity, the ability to feel a certain emotion, years of life. THE PRICE SCALES WITH WHAT IS GAINED: a small favor costs something painful; a LEGENDARY-tier gift costs something DEVASTATING — a beloved person, the player's own sight, a decade of life, the capacity to ever love again. It must HURT, be permanent, and feel proportionate. The player chooses to bargain or refuse. If they bargain, YOU decide what leaves and report it via "barLelyaBargain" in the JSON. If the price is a permanent bodily/sensory loss (sight, a limb), ALSO emit it as a "conditions" entry so it persists as a status effect.`);
+  lines.push(`THE BARGAIN — POWER CEILING AND PRICE: Bar lēlyā can grant ANYTHING up to and including LEGENDARY tier — great power, great wealth, mastery the player never earned, a rare technique, a legendary weapon, a leap in cultivation. He CANNOT grant mythic or fable tier — that is beyond him (he is only a fragment of the dark; Nyokuro is the whole of it). If the player asks for something beyond legendary, he tells them, coldly, that what they ask is not his to give — only the deep dark itself (Nyokuro) holds that, and reaching her is another matter entirely. The price is NEVER coin. Something LEAVES the player's life forever: a relationship (someone dies, leaves, or forgets the player entirely), a memory, a part of the body, a sense, a capacity, the ability to feel a certain emotion, years of life. THE PRICE SCALES WITH WHAT IS GAINED: a small favor costs something painful; a LEGENDARY-tier gift costs something DEVASTATING — a beloved person, the player's own sight, a decade of life, the capacity to ever love again. It must HURT, be permanent, and feel proportionate. The player chooses to bargain or refuse. If they bargain, YOU decide what leaves and report it via "barLelyaBargain" in the JSON. If the price is a permanent bodily/sensory loss (sight, a limb), ALSO emit it as a "conditions" entry so it persists as a status effect. NOTE: bar lēlyā bargains have NO willpower requirement and NO willpower check — anyone who calls him can bargain; the cost is always the price that leaves their life, never a test of will. (The willpower gate belongs to Nyokuro alone.)`);
 
   lines.push(`(Bar lēlyā is WEAK compared to Nyokuro, the conscious darkness that birthed the gods. In Year 1400 Yoshiro reached past him to Nyokuro herself and the night-force backed down instantly. A player who invokes what is deeper than him can unsettle him.)`);
 
