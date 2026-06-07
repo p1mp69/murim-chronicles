@@ -5853,13 +5853,16 @@ function grantSkillFromContext(skillName, category) {
 // (causing backlash / "body go kaboom"). Strip any embedded stage/mastery text.
 function sanitizeTechDesc(desc) {
   if(!desc) return '';
-  return String(desc)
-    .replace(/\bstage\s*[0-6]\s*[:\-—–]?\s*(fragmented|tentative|functional|fluent|intuitive|transcendent|conceptual)?[^.;\n]*?(comprehension|grasp|control|mastery|understanding|authority)?/gi, '')
-    .replace(/\bcurrent\s+mastery\b[^.;\n]*/gi, '')
-    .replace(/\b(fragmented|tentative|functional|fluent|intuitive|transcendent|conceptual)\s+(comprehension|grasp|control|mastery|understanding|authority)\b/gi, '')
-    .replace(/\s{2,}/g, ' ')
-    .replace(/^\s*[:\-—–.,]+\s*/, '')
-    .trim();
+  let s = String(desc);
+  // A sentence/clause is "stale stage text" if it references a numbered mastery
+  // stage, the literal "current mastery", or a named mastery-stage term. We drop
+  // only those clauses and KEEP the rest of the flavor description intact.
+  const STALE_RE = /(\bstage\s*[0-6]\b|\bcurrent\s+mastery\b|\b(fragmented\s+comprehension|tentative\s+grasp|functional\s+(grasp|understanding)|fluent\s+control|intuitive\s+(mastery|understanding)|transcendent\s+understanding|conceptual\s+authority)\b)/i;
+  // Split into sentence-ish chunks (no lookbehind, for broad browser support).
+  const chunks = s.match(/[^.!?;]+[.!?;]*/g) || [s];
+  const kept = chunks.filter(c => !STALE_RE.test(c));
+  s = kept.join(' ').replace(/\s{2,}/g, ' ').replace(/^[\s.;:,—–-]+/, '').trim();
+  return s;
 }
 
 function grantTechnique(tech) {
@@ -13561,6 +13564,8 @@ function passiveQiAccumulation(daysElapsed) {
 
   const c   = GS.char;
   const qi  = c.qi;
+  // Shattered channels cannot gather Qi at all.
+  if(c.channelsBroken) return;
   const stage = getQiStage();
 
   // Mortals with no Qi path and below stage 1 accumulate very slowly
