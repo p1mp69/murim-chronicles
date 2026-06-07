@@ -20,8 +20,13 @@
 <!-- Open Graph (for link sharing) -->
 <meta property="og:title" content="Murim Chronicles">
 <meta property="og:description" content="A cultivation life in a world that doesn't care.">
-<meta property="og:image" content="icon.png">
+<meta property="og:image" content="https://murimchronicles.com/icon.png">
+<meta property="og:url" content="https://murimchronicles.com/">
 <meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Murim Chronicles">
+<meta name="twitter:description" content="A cultivation life in a world that doesn't care.">
+<meta name="twitter:image" content="https://murimchronicles.com/icon.png">
 <style>
 /* ============================================================
    ROOT VARIABLES
@@ -1642,9 +1647,66 @@ a { color: var(--gold); text-decoration: none; }
 /* ============================================================
    MOBILE MODE
    ============================================================ */
-body.mobile-mode #main-area { flex-direction: column; }
-body.mobile-mode #narrative-panel { flex: 0 0 50%; border-right: none; border-bottom: 1px solid var(--border); }
-body.mobile-mode #side-panel { flex: 1; }
+/* Legacy mobile-mode toggle is superseded by the width-based @media below.
+   Kept as a no-op so the toggle/auto-detect doesn't fight the responsive layout. */
+
+#mobile-panel-close { display: none; }
+
+/* ============================================================
+   MOBILE — responsive layout (story-first bottom sheet)
+   ============================================================ */
+@media (max-width: 760px) {
+  /* Story fills the screen; the side panel becomes a bottom sheet. */
+  #main-area { flex-direction: column; padding-bottom: 54px; position: relative; }
+  #narrative-panel { flex: 1 1 auto; width: 100%; border-right: none; }
+  #narrative-scroll { padding: 16px 15px; }
+  .narrative-entry { font-size: 15px; line-height: 1.8; }
+  .narrative-text { font-size: 15px; }
+  .action-area { padding: 10px 12px; }
+  #action-input { font-size: 16px; min-height: 52px; } /* 16px stops iOS zoom-on-focus */
+
+  /* Topbar: tighten so it fits a phone */
+  #topbar { height: 44px; padding: 0 8px; gap: 5px; }
+  #tb-charname { font-size: 12px; }
+  #tb-date { font-size: 10px; }
+  #tb-location { display: none; }       /* shown in World tab anyway */
+  #tb-vitals { gap: 5px; }
+  .tb-vital-bar { width: 32px; }
+
+  /* The side panel: a slide-up sheet. Collapsed = just the tab bar at the bottom. */
+  #side-panel {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 60;
+    height: 54px; overflow: hidden;
+    background: var(--bg);
+    border-top: 1px solid rgba(196,154,48,.25);
+    box-shadow: 0 -10px 40px rgba(0,0,0,.55);
+    transition: height .28s ease;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  body.panel-open #side-panel { height: 82vh; }
+
+  /* Tab bar sits at the very top of the sheet (so collapsed, it's the bottom nav). */
+  #tab-buttons {
+    order: 0; height: 54px; flex-shrink: 0;
+    border-bottom: 1px solid rgba(196,154,48,.1);
+    border-top: none;
+  }
+  .tab-btn { height: 54px; min-width: 0; }
+  .tab-btn .tab-icon { font-size: 19px; }
+  .tab-btn .tab-label { font-size: 9px; }
+  .tab-content { padding: 14px 14px 28px; }
+
+  /* Close-the-sheet button (only while open). */
+  body.panel-open #mobile-panel-close {
+    display: block; position: absolute; top: 8px; right: 10px; z-index: 70;
+    background: rgba(196,154,48,.14); border: 1px solid rgba(196,154,48,.4);
+    color: var(--gold); border-radius: 14px; padding: 5px 12px;
+    font-size: 11px; font-family: inherit; letter-spacing: .08em; cursor: pointer;
+  }
+
+  /* Version badge shouldn't sit under the bottom nav */
+  #game-version-badge { bottom: 58px; }
+}
 
 /* ============================================================
    NOTIFICATIONS / TOASTS
@@ -2275,6 +2337,7 @@ body.generating [onclick*="shopSellItem"], body.generating [onclick*="closeMapGo
 
     <!-- SIDE PANEL -->
     <div id="side-panel">
+      <button id="mobile-panel-close" onclick="document.body.classList.remove('panel-open')" aria-label="Back to story">✕ Story</button>
       <div id="tab-buttons">
         <button class="tab-btn active" data-tab="character"><span class="tab-icon">⚡</span><span class="tab-label">Self</span></button>
         <button class="tab-btn" data-tab="journal"><span class="tab-icon">📖</span><span class="tab-label">Journal</span></button>
@@ -10152,7 +10215,7 @@ const SAVE_PREFIX = 'murim_slot_';
 // Scheme: MAJOR.MINOR. Big updates bump MAJOR (1.2 -> 2.2). Small updates
 // bump MINOR (2.2 -> 2.3). Each version has a name. The current version is
 // stamped onto every save; older saves can be updated to the latest.
-const GAME_VERSION = { number: '2.8', name: 'Stay In Character' };
+const GAME_VERSION = { number: '2.9', name: 'Pocket Murim' };
 
 // Which model generates the story. Lite Mode swaps to a far cheaper, faster model
 // (Claude Haiku) so long sessions / limited credits cost a fraction per turn.
@@ -10176,6 +10239,7 @@ const VERSION_HISTORY = [
   { number:'2.6', name:'The Mark of Death',   sys:'Shattered channels can no longer be cheated back to health by ordinary means. Fixed a bug that could make death silently fail to register. Death is now final, with a proper end-of-life screen; revival/regression abilities you actually own can act there. Loading a save at 0 HP now resolves correctly.', note:'Broken-channel exploit fix, Mark of Death, gravestone death, recursion fix.' },
   { number:'2.7', name:'Flesh & Consequence', sys:'Permanent conditions (blindness, lost limbs, etc.) are now sent to the narrator and enforced — they shape what your character can do and how the world reacts. Healing items actually restore HP now. Added an in-game Update Log and a version badge in the bottom-left corner. New trait. Several smaller fixes.', note:'Conditions enforced in prompt, healing-item effects, update log + version badge, Cheated Death trait.' },
   { number:'2.8', name:'Stay In Character',   sys:'Fixed rare immersion-breaking out-of-character replies (refusals / real-world disclaimers misfiring on ordinary fantasy actions). The narrator is now firmly framed to stay in character, and any stray meta reply is auto-retried and filtered so the story keeps flowing.', note:'OOC refusal/crisis-misfire filter + auto-retry + framing rule.' },
+  { number:'2.9', name:'Pocket Murim',        sys:'Mobile overhaul: the story now fills the screen on phones, with your panels (Self, Journal, World, People, Skills, Items) in a slide-up bottom sheet you open from the nav bar and dismiss with one tap. Bigger touch targets, readable text, no more zoom-on-typing, and a tightened top bar. Also added the app icon and proper home-screen/share-preview support.', note:'Responsive bottom-sheet mobile layout, touch targets, icon + PWA polish.' },
 ];
 
 function cleanSaveData(gs) {
@@ -11050,6 +11114,14 @@ function initTabs() {
     const btn = e.target.closest('.tab-btn');
     if(!btn) return;
     const tab = btn.dataset.tab;
+    // Mobile bottom-sheet behavior: tapping the active tab again closes the sheet.
+    const isMobile = window.matchMedia('(max-width: 760px)').matches;
+    if(isMobile) {
+      const alreadyActive = btn.classList.contains('active');
+      const open = document.body.classList.contains('panel-open');
+      if(alreadyActive && open) { document.body.classList.remove('panel-open'); return; }
+      document.body.classList.add('panel-open');
+    }
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active-tab'));
     btn.classList.add('active');
