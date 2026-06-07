@@ -1935,7 +1935,7 @@ body.generating [onclick*="shopSellItem"], body.generating [onclick*="closeMapGo
             <span class="menu-btn-icon">⚙</span> API Key
           </button>
         </div>
-        <div class="menu-version">Powered by Claude · murim-chronicles</div>
+        <div class="menu-version" id="menu-version">Powered by Claude · murim-chronicles</div>
       </div>
     </div>
 
@@ -9381,6 +9381,18 @@ async function sendToAI(overrideMsg) {
 const SAVE_SLOTS = 5;
 const SAVE_PREFIX = 'murim_slot_';
 
+// ── GAME VERSION ──────────────────────────────────────────────────
+// Scheme: MAJOR.MINOR. Big updates bump MAJOR (1.2 -> 2.2). Small updates
+// bump MINOR (2.2 -> 2.3). Each version has a name. The current version is
+// stamped onto every save; older saves can be updated to the latest.
+const GAME_VERSION = { number: '2.0', name: 'The Stirring' };
+const VERSION_HISTORY = [
+  { number:'1.0', name:'First Breath',        note:'The base murim RPG: cultivation, NPCs, the founders.' },
+  { number:'1.1', name:'The Living World',    note:'Religions, NPC networks, the chronicle, deeper world simulation.' },
+  { number:'1.2', name:'Tombs & Relics',     note:'The founders\' tombs, deep-era relics, tomb-trigger figures.' },
+  { number:'2.0', name:'The Stirring',        note:'The full deep timeline: Nao Rebellion, the Fracture, the ten ancient Yokai, First Contact, bar lēlyā, Nyokuro, Born From Sun, conditions, aging, versioning.' },
+];
+
 function cleanSaveData(gs) {
   const d = JSON.parse(JSON.stringify(gs)); // deep clone
   d.narrative = (d.narrative||[]).filter(n => !isErrorText(n));
@@ -9389,7 +9401,30 @@ function cleanSaveData(gs) {
   d.char.illnesses = (d.char.illnesses||[]).map(i=>String(i)).filter(i=>i&&!i.startsWith('[object'));
   d.char.scars     = (d.char.scars||[]).map(i=>String(i)).filter(i=>i&&!i.startsWith('[object'));
   d.savedAt = new Date().toISOString();
+  d.gameVersion = GAME_VERSION.number;
+  d.gameVersionName = GAME_VERSION.name;
   return d;
+}
+
+// Is a save behind the current game version?
+function saveIsOutdated(data) {
+  return !data?.gameVersion || data.gameVersion !== GAME_VERSION.number;
+}
+
+// Bring a save up to the current version (migrate fills fields; this re-stamps)
+function updateSaveToLatest(slot) {
+  try {
+    const raw = localStorage.getItem(SAVE_PREFIX + slot);
+    if(!raw) return;
+    let data = JSON.parse(raw);
+    data = migrateSave(data);
+    data.gameVersion = GAME_VERSION.number;
+    data.gameVersionName = GAME_VERSION.name;
+    localStorage.setItem(SAVE_PREFIX + slot, JSON.stringify(data));
+    toast(`Save updated to ${GAME_VERSION.number} "${GAME_VERSION.name}"`, 'gold', 4000);
+    if(typeof renderContinueSlots === 'function') renderContinueSlots();
+    if(typeof renderSaveSlots === 'function') renderSaveSlots();
+  } catch(e) { toast('Update failed.', 'error'); }
 }
 
 function saveToSlot(slot) {
@@ -9538,6 +9573,9 @@ function getSlotMeta(slot) {
       location: LOCATIONS[d.world?.location]?.name || d.world?.location || '?',
       stage: QI_STAGES[d.char?.qi?.stageIndex||0]?.name || 'Mortal',
       savedAt: d.savedAt || null,
+      version: d.gameVersion || null,
+      versionName: d.gameVersionName || null,
+      outdated: saveIsOutdated(d),
     };
   } catch(e) { return null; }
 }
@@ -13020,6 +13058,8 @@ function renderAchievements() {
 // MAIN MENU LOGIC
 // ================================================================
 function showMainMenu() {
+  const mv = document.getElementById('menu-version');
+  if(mv) mv.textContent = `v${GAME_VERSION.number} "${GAME_VERSION.name}" · Powered by Claude`;
   document.getElementById('screen-menu').classList.remove('hidden');
   document.getElementById('screen-creation').classList.add('hidden');
   document.getElementById('screen-game').classList.add('hidden');
@@ -13038,13 +13078,24 @@ function renderContinueSlots() {
     if(meta) {
       anyOccupied = true;
       const dateStr = meta.savedAt ? new Date(meta.savedAt).toLocaleDateString(undefined,{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'}) : '';
+      const verLabel = meta.version
+        ? `v${meta.version}${meta.versionName?' "'+meta.versionName+'"':''}`
+        : 'v1.0 (legacy)';
+      const verTag = meta.outdated
+        ? `<span style="color:#e0a33a">${verLabel} · outdated</span>`
+        : `<span style="color:var(--dim)">${verLabel} · latest</span>`;
+      const updateBtn = meta.outdated
+        ? `<button class="btn-secondary btn-sm" onclick="updateSaveToLatest(${i})" title="Update this save to v${GAME_VERSION.number} '${GAME_VERSION.name}'" style="padding:4px 7px">⬆ Update</button>`
+        : '';
       div.innerHTML = `
         <div style="display:flex;justify-content:space-between;align-items:center">
           <div>
             <div style="font-size:13px;font-weight:700;color:var(--text)">${meta.name}</div>
             <div style="font-size:11px;color:var(--muted);margin-top:2px">Age ${meta.age} · Year ${meta.year} · ${meta.location} · ${meta.stage}${dateStr?' · '+dateStr:''}</div>
+            <div style="font-size:10px;margin-top:3px">${verTag}</div>
           </div>
           <div style="display:flex;gap:6px">
+            ${updateBtn}
             <button class="btn-primary btn-sm" onclick="loadFromSlot(${i});document.getElementById('panel-continue').classList.add('hidden')">Load</button>
             <button class="btn-danger btn-sm" onclick="deleteSlot(${i});renderContinueSlots()" style="padding:4px 7px">✕</button>
           </div>
