@@ -5793,6 +5793,22 @@ function grantSkillFromContext(skillName, category) {
 // ================================================================
 // TECHNIQUE SYSTEM
 // ================================================================
+// A technique's stored desc must NOT bake in a mastery stage — the stage is
+// tracked live on t.stage. If the AI writes "Stage 0: Fragmented — current
+// mastery..." into the bio, it goes stale the instant the technique levels and
+// confuses the AI into thinking an Authority technique is still fragmented
+// (causing backlash / "body go kaboom"). Strip any embedded stage/mastery text.
+function sanitizeTechDesc(desc) {
+  if(!desc) return '';
+  return String(desc)
+    .replace(/\bstage\s*[0-6]\s*[:\-—–]?\s*(fragmented|tentative|functional|fluent|intuitive|transcendent|conceptual)?[^.;\n]*?(comprehension|grasp|control|mastery|understanding|authority)?/gi, '')
+    .replace(/\bcurrent\s+mastery\b[^.;\n]*/gi, '')
+    .replace(/\b(fragmented|tentative|functional|fluent|intuitive|transcendent|conceptual)\s+(comprehension|grasp|control|mastery|understanding|authority)\b/gi, '')
+    .replace(/\s{2,}/g, ' ')
+    .replace(/^\s*[:\-—–.,]+\s*/, '')
+    .trim();
+}
+
 function grantTechnique(tech) {
   // tech: { name, category, type, rarity, stage:0, desc, qiPathReq, passive }
   const existing = GS.char.techniques.find(t=>t.name.toLowerCase()===tech.name.toLowerCase());
@@ -5802,7 +5818,7 @@ function grantTechnique(tech) {
     type:tech.type||'attack', rarity:tech.rarity||'common',
     stage:tech.stage||0, passive:tech.type==='passive',
     passiveActive:false, qiPathReq:tech.qiPathReq||null,
-    desc:tech.desc||'', offshoots:[], tomeCreated:false,
+    desc:sanitizeTechDesc(tech.desc||''), offshoots:[], tomeCreated:false,
     source:tech.source||'unknown',
   };
   GS.char.techniques.push(t);
@@ -5818,7 +5834,7 @@ function grantMartialArt(ma) {
     id:uid(), name:ma.name, type:ma.type||'physical',
     rarity:ma.rarity||'common', stage:ma.stage||0,
     passive:false, passiveActive:false,
-    desc:ma.desc||'', offshoots:[], tomeCreated:false,
+    desc:sanitizeTechDesc(ma.desc||''), offshoots:[], tomeCreated:false,
     source:ma.source||'unknown',
   };
   GS.char.martialArts.push(m);
@@ -8922,6 +8938,12 @@ CONDITIONS RULE: Permanent harm produces a "conditions" entry, NOT just a scar. 
 
 AGING RULE: The player ages forward with the calendar only — NEVER younger. Ordinary time passing already ages them automatically; do NOT send ageChange for normal time. Use ageChange ONLY for unnatural shifts (a time/cultivation art, a youth elixir, a curse of aging) and ALWAYS pair it with "ageViaTechnique": true. Negative ageChange (getting younger) is only ever valid with ageViaTechnique:true.
 
+TECHNIQUE NAMING RULE: Every technique and martial art MUST have a real, evocative, in-world name — the kind a cultivator would actually call it. Names like "Plum Blossom Severing Palm," "Nine-Stage Frostwyrm Breath," "Stillwater Heart Sutra" are good. NEVER use a description as a name: "Ultimate Technique for Killing Beings with Qi," "Strong Fire Attack," "Technique 3," "Powerful Sword Move" are FORBIDDEN. If you cannot think of a good name, invent a poetic two-to-four-word one tied to its element/effect.
+
+TECHNIQUE BIO RULE: When you create a technique via newTechniques, the "desc" is a flavorful description of WHAT it does — never bake a mastery stage into it. Do NOT write "Stage 0," "Fragmented Comprehension," "current mastery," etc. into the desc. The game tracks mastery separately and tells you the real current stage in [TECHNIQUE STAGE CONTEXT]. Always trust that stage context: a technique the player has raised to Conceptual Authority is mastered and stable — do NOT make it backlash or "explode" as if it were fragmented. Backlash only when the stage context itself reports a high failure chance.
+
+TECHNIQUE COMBINATION RULE: When the player fuses/combines two techniques, the result is a NEW technique with its OWN original name and its OWN distinct function — NEVER name it "[Technique A] + [Technique B]". Invent a single new name and describe a unique combined effect that is more than the sum of its parts. Emit it as one entry in newTechniques.
+
 TOME vs BOOK RULE: There are two kinds of readable item. A "tome" teaches Qi techniques or martial arts (type:"tome"). A "book" teaches skills or conveys knowledge/lore only — never a combat technique (type:"book"). Choose the correct type. Do NOT re-list a tome or book the player already owns in newItems — it is already permanent in their inventory and re-listing it creates a duplicate. Only emit a tome/book in newItems the first time they actually acquire it.
 
 TOME RULE: Tomes are PERMANENT — they NEVER disappear from inventory. Reading a tome does not consume it. A mortal with no Qi cultivation cannot learn any Qi technique from a tome regardless of what it says. If a character cannot yet learn a technique (wrong stage, wrong path, needs a master), narrate what they understand and what remains out of reach — do not grant the technique.
@@ -9497,6 +9519,16 @@ function migrateSave(data) {
       // birthYear is same as world year — old bug, fix it
       c.birthYear = expectedBirthYear;
     }
+  }
+  // Seed monotonic-age floor and a birthday for legacy saves
+  if(!c._maxAgeReached || c._maxAgeReached < (c.age||0)) c._maxAgeReached = c.age || 0;
+  if(!c.birthMonth) c.birthMonth = 1 + Math.floor(Math.random()*12);
+  if(!c.birthDay)   c.birthDay   = 1 + Math.floor(Math.random()*30);
+
+  // Scrub stale "Stage 0 / current mastery" text baked into old technique bios
+  if(typeof sanitizeTechDesc === 'function') {
+    (c.techniques||[]).forEach(t => { if(t && t.desc) t.desc = sanitizeTechDesc(t.desc); });
+    (c.martialArts||[]).forEach(m => { if(m && m.desc) m.desc = sanitizeTechDesc(m.desc); });
   }
 
   // Ensure karma sub-fields exist
@@ -19788,7 +19820,7 @@ function createCombinedTechnique(tech1Id, tech2Id) {
 
   const combined = {
     id: uid(),
-    name: `${t1.name} + ${t2.name}`, // placeholder — AI will name it properly
+    name: generateCombinedTechName(t1, t2, compat.type), // a real name, never "A + B"
     category: newCategory,
     type: newType,
     rarity: newRarity,
@@ -19796,8 +19828,8 @@ function createCombinedTechnique(tech1Id, tech2Id) {
     practicePoints: startPracticePoints, // head start from understanding the parents
     passive: newType === 'passive',
     passiveActive: false,
-    desc: `${compat.desc}${stageNote} Derived from ${t1.name} (stage ${t1.stage}) and ${t2.name} (stage ${t2.stage}).`,
-    source: `Combined from: ${t1.name} + ${t2.name}`,
+    desc: sanitizeTechDesc(`${compat.desc} A fusion technique born of two disciplines, with its own character distinct from either parent.`),
+    source: `Fusion of ${t1.name} and ${t2.name}`,
     parents: [tech1Id, tech2Id],
     isCombination: true,
     combinationType: compat.type,
@@ -19818,9 +19850,36 @@ function createCombinedTechnique(tech1Id, tech2Id) {
   };
 
   updateSkillsTab();
-  toast(`Combined: ${t1.name} × ${t2.name} — starts at Fragmented Comprehension. Name it in your next action.`, 'gold', 5000);
+  toast(`New fusion technique: ${combined.name} — starts at Fragmented Comprehension.`, 'gold', 5000);
   addPersonalEvent(`Combined ${t1.name} (stage ${t1.stage}) and ${t2.name} (stage ${t2.stage}) into a new technique. The combination type: ${compat.type}. ${compat.desc}`);
   return combined;
+}
+
+// Generate an evocative original name for a fused technique — NEVER "A + B".
+function generateCombinedTechName(t1, t2, comboType) {
+  // Pull an evocative word from each parent's name (skip filler words)
+  const filler = /^(of|the|and|a|an|technique|art|method|palm|fist|sword|step|breath|form|style|way|path)$/i;
+  const pickWord = (name) => {
+    const words = (name||'').split(/\s+/).filter(w => w && !filler.test(w));
+    return words[Math.floor(Math.random()*words.length)] || (name||'').split(/\s+/)[0] || 'Hidden';
+  };
+  const w1 = pickWord(t1.name), w2 = pickWord(t2.name);
+  const typeWord = {
+    imbued:      ['Imbued','Woven','Infused','Bound'],
+    barrier:     ['Aegis','Bulwark','Ward','Bastion'],
+    restorative: ['Mending','Renewal','Verdant','Returning'],
+    amplified:   ['Surging','Apex','Crowned','Ascendant'],
+  }[comboType] || ['Confluent','Twin','United','Conjoined'];
+  const suffix = ['Convergence','Confluence','Synthesis','Unity','Accord','Harmony','Eclipse','Crucible','Genesis','Resonance'];
+  const tw = typeWord[Math.floor(Math.random()*typeWord.length)];
+  const sf = suffix[Math.floor(Math.random()*suffix.length)];
+  // Three patterns for variety
+  const patterns = [
+    `${tw} ${w1}-${w2} ${sf}`,
+    `${w1} ${sf} of the ${w2}`,
+    `${tw} ${sf}: ${w1} and ${w2}`,
+  ];
+  return patterns[Math.floor(Math.random()*patterns.length)];
 }
 
 // Inject combination naming request into next AI turn
