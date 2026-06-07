@@ -5664,6 +5664,7 @@ function breakChannels(cause) {
   const c = GS.char;
   if(c.channelsBroken) return;
   c.channelsBroken = true;
+  c._everBroken = true;
   c.qi.breakthroughReady = false;
   c.qi.current = 0;
   if(typeof addCondition === 'function') {
@@ -6902,6 +6903,18 @@ function tickOffspring(years) {
       try { toast(`${child.name} is looking for you.`, 'gold', 6000); } catch(e) {}
     }
   });
+}
+
+// Inject a "time passed — the world moved on" note after a significant skip.
+function buildTimeGapInjection() {
+  const w = GS.world;
+  if(!w._pendingTimeGap) return '';
+  const g = w._pendingTimeGap;
+  delete w._pendingTimeGap;
+  const span = g.days >= 360
+    ? `${Math.floor(g.days/360)} year(s)`
+    : `${Math.floor(g.days/30)} month(s)`;
+  return `[TIME GAP — ${span} has passed since the player's last scene. The world did NOT pause for them. Acknowledge the gap concretely: people they knew aged, moved, married, died, or moved on; positions they could have taken were filled; an opportunity that was open is likely gone or changed; ongoing situations advanced without them; rivals and peers who kept working are now ahead in ways the player is not. The player does NOT get to simply pick up exactly where they left off — earning back lost ground, or finding things changed, is the correct outcome. Weave this naturally into the narrative; do not list it mechanically.]`;
 }
 
 // Inject a returning-child event into the next AI turn.
@@ -9777,13 +9790,14 @@ const SAVE_PREFIX = 'murim_slot_';
 // Scheme: MAJOR.MINOR. Big updates bump MAJOR (1.2 -> 2.2). Small updates
 // bump MINOR (2.2 -> 2.3). Each version has a name. The current version is
 // stamped onto every save; older saves can be updated to the latest.
-const GAME_VERSION = { number: '2.1', name: 'Shattered Channels' };
+const GAME_VERSION = { number: '2.2', name: 'Memory & Legacy' };
 const VERSION_HISTORY = [
   { number:'1.0', name:'First Breath',        note:'The base murim RPG: cultivation, NPCs, the founders.' },
   { number:'1.1', name:'The Living World',    note:'Religions, NPC networks, the chronicle, deeper world simulation.' },
   { number:'1.2', name:'Tombs & Relics',     note:'The founders\' tombs, deep-era relics, tomb-trigger figures.' },
   { number:'2.0', name:'The Stirring',        note:'The full deep timeline: Nao Rebellion, the Fracture, the ten ancient Yokai, First Contact, bar lēlyā, Nyokuro, Born From Sun, conditions, aging, versioning.' },
   { number:'2.1', name:'Shattered Channels',  note:'Negative-Qi breakthroughs shatter the meridians (healed only by a high-level expert or the Hiestler plant); bar lēlyā has no willpower gate; tomes are worth a fortune.' },
+  { number:'2.2', name:'Memory & Legacy',     note:'Coins are real currency (not items); selling removes items; NPCs die of old age and natural causes; the AI remembers when/how you met people and how much time has passed; everyone ages; deeper romance & offspring (abandon a child and they may come find you when you are famous); time-skips make the world move on; many new achievements.' },
 ];
 
 function cleanSaveData(gs) {
@@ -13435,6 +13449,84 @@ const ACHIEVEMENTS_DEF = [
     icon:'🏯', name:'Landlord',
     desc:"Own three or more properties.",
     check: gs => (gs.char.assets || []).length >= 3 },
+
+  // ── Wealth ──
+  { id:'first_fortune',
+    icon:'💰', name:'First Fortune',
+    desc:'Accumulate 1,000 silver in net worth.',
+    check: gs => { try { return computeNetWorth().total >= 1000; } catch(e){ return (gs.char.silver||0) >= 1000; } } },
+  { id:'wealthy',
+    icon:'💎', name:'Wealthy',
+    desc:'Reach a net worth of 10,000 silver.',
+    check: gs => { try { return computeNetWorth().total >= 10000; } catch(e){ return (gs.char.silver||0) >= 10000; } } },
+  { id:'magnate',
+    icon:'👑', name:'Magnate',
+    desc:'Reach a net worth of 100,000 silver.',
+    check: gs => { try { return computeNetWorth().total >= 100000; } catch(e){ return false; } } },
+
+  // ── Longevity / Aging ──
+  { id:'elder',
+    icon:'🧓', name:'Elder',
+    desc:'Live to the age of 80.',
+    check: gs => (gs.char.age||0) >= 80 },
+  { id:'centenarian',
+    icon:'🕯️', name:'Beyond Mortal Years',
+    desc:'Live past 120 — a span no ordinary mortal reaches.',
+    check: gs => (gs.char.age||0) >= 120 },
+
+  // ── Family / Legacy ──
+  { id:'parent',
+    icon:'🍼', name:'A New Life',
+    desc:'Have your first child.',
+    check: gs => (gs.char.offspring||[]).length > 0 },
+  { id:'dynasty',
+    icon:'👨‍👩‍👧‍👦', name:'Bloodline',
+    desc:'Have three or more children.',
+    check: gs => (gs.char.offspring||[]).length >= 3 },
+  { id:'the_abandoner',
+    icon:'🚪', name:'The One Who Left',
+    desc:'Abandon a child.',
+    check: gs => (gs.char.offspring||[]).some(o => o.abandoned) },
+  { id:'reunited',
+    icon:'🤝', name:'The Child Returns',
+    desc:'Be found by a child you left behind.',
+    check: gs => (gs.char.offspring||[]).some(o => o.soughtPlayer) },
+
+  // ── Romance ──
+  { id:'in_love',
+    icon:'❤️', name:'In Love',
+    desc:'Reach a love relationship with someone.',
+    check: gs => (gs.char.relationships||[]).some(r => ['in_love','married','committed','together','engaged','spouse','lover'].includes(r.romance?.stage)) },
+  { id:'wedded',
+    icon:'💍', name:'Wedded',
+    desc:'Marry someone.',
+    check: gs => (gs.char.relationships||[]).some(r => r.romance?.stage === 'married' || r.type === 'spouse') },
+
+  // ── The Dark ──
+  { id:'bargainer',
+    icon:'🌑', name:'A Price Paid',
+    desc:'Strike a bargain with bar lēlyā.',
+    check: gs => (gs.char._barLelya?.bargains||0) > 0 },
+  { id:'touched_the_deep',
+    icon:'🕳️', name:'Touched the Deep Dark',
+    desc:'Reach Nyokuro — and live.',
+    check: gs => (gs.char._nyokuro?.bargains||0) > 0 },
+
+  // ── Cultivation peril ──
+  { id:'broken_path',
+    icon:'⛓️‍💥', name:'Shattered',
+    desc:'Have your meridian channels shatter — and keep going.',
+    check: gs => gs.char.channelsBroken === true || (gs.char.conditions||[]).some(c=>c.id==='broken_channels') },
+  { id:'mended',
+    icon:'🌿', name:'Mended',
+    desc:'Heal shattered channels and cultivate again.',
+    check: gs => gs.char._everBroken === true && !gs.char.channelsBroken },
+
+  // ── Conditions ──
+  { id:'marked_forever',
+    icon:'⛔', name:'Permanent Mark',
+    desc:'Carry a permanent condition — blindness, a lost limb, or worse.',
+    check: gs => (gs.char.conditions||[]).length > 0 },
 ];
 
 // ── Track specific achievement state that can't be inferred from existing data ──
@@ -13969,6 +14061,12 @@ advanceTime = function(days=0, months=0, years=0) {
 
   if(elapsed > 0) {
     passiveQiAccumulation(elapsed);
+  }
+
+  // Track a meaningful time skip so the AI acknowledges the gap next turn —
+  // the world did not pause while the player trained/vanished for months/years.
+  if(elapsed >= 120) { // ~4 months or more
+    GS.world._pendingTimeGap = { days: elapsed, intoYear: w.year };
   }
 };
 
@@ -25411,6 +25509,9 @@ updateCharacterTab = function() {
 
     // Abandoned/estranged offspring coming to find the player
     safeInject('offspringReturn', () => buildOffspringReturnInjection() || '');
+
+    // Significant time-skip → the world moved on; acknowledge the gap
+    safeInject('timeGap', () => buildTimeGapInjection() || '');
 
     // Bounty hunter pending
     safeInject('bountyHunter', () => buildBountyHunterInjection() || '');
