@@ -2602,6 +2602,16 @@ body.generating [onclick*="shopSellItem"], body.generating [onclick*="closeMapGo
         </label>
       </div>
       <div class="setting-row">
+        <label>Lite Mode <span style="color:var(--dim);font-size:10px">(cheaper · faster)</span></label>
+        <label class="toggle-switch">
+          <input type="checkbox" id="set-litemode">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      <div style="font-size:10px;color:var(--dim);margin:-4px 0 8px;line-height:1.4">
+        Uses a smaller, far cheaper model (Claude Haiku) for storytelling. Costs a fraction per turn — good for long play or limited credits. Prose is a little simpler; turn off any time for full quality.
+      </div>
+      <div class="setting-row">
         <label>Font Size</label>
         <div style="display:flex;align-items:center;gap:8px;flex:1">
           <input type="range" id="set-fontsize" min="12" max="18" value="14" style="flex:1;accent-color:var(--gold)">
@@ -5010,7 +5020,7 @@ function createDefaultState() {
     narrative:[],  // string[] — no error messages
     turn:0,
     admin:{ unlocked:false, bgClicks:0, lastBgClick:0 },
-    settings:{ apiKey:'', mobileMode:/Mobi|Android/i.test(navigator.userAgent), fontSize:14 },
+    settings:{ apiKey:'', mobileMode:/Mobi|Android/i.test(navigator.userAgent), fontSize:14, liteMode:false },
     selectedOrigin:null,
     pendingAppearance:{},
   };
@@ -9343,7 +9353,7 @@ async function callClaude(userMessage) {
         'anthropic-dangerous-direct-browser-access':'true',
       },
       body: JSON.stringify({
-        model:'claude-opus-4-5',
+        model: storyModel(),
         max_tokens:8192,
         system: systemPrompt,
         messages:[
@@ -9790,7 +9800,15 @@ const SAVE_PREFIX = 'murim_slot_';
 // Scheme: MAJOR.MINOR. Big updates bump MAJOR (1.2 -> 2.2). Small updates
 // bump MINOR (2.2 -> 2.3). Each version has a name. The current version is
 // stamped onto every save; older saves can be updated to the latest.
-const GAME_VERSION = { number: '2.2', name: 'Memory & Legacy' };
+const GAME_VERSION = { number: '2.3', name: 'Lite Mode' };
+
+// Which model generates the story. Lite Mode swaps to a far cheaper, faster model
+// (Claude Haiku) so long sessions / limited credits cost a fraction per turn.
+const STORY_MODEL_FULL = 'claude-opus-4-5';
+const STORY_MODEL_LITE = 'claude-haiku-4-5';
+function storyModel() {
+  return (GS && GS.settings && GS.settings.liteMode) ? STORY_MODEL_LITE : STORY_MODEL_FULL;
+}
 const VERSION_HISTORY = [
   { number:'1.0', name:'First Breath',        note:'The base murim RPG: cultivation, NPCs, the founders.' },
   { number:'1.1', name:'The Living World',    note:'Religions, NPC networks, the chronicle, deeper world simulation.' },
@@ -9798,6 +9816,7 @@ const VERSION_HISTORY = [
   { number:'2.0', name:'The Stirring',        note:'The full deep timeline: Nao Rebellion, the Fracture, the ten ancient Yokai, First Contact, bar lēlyā, Nyokuro, Born From Sun, conditions, aging, versioning.' },
   { number:'2.1', name:'Shattered Channels',  note:'Negative-Qi breakthroughs shatter the meridians (healed only by a high-level expert or the Hiestler plant); bar lēlyā has no willpower gate; tomes are worth a fortune.' },
   { number:'2.2', name:'Memory & Legacy',     note:'Coins are real currency (not items); selling removes items; NPCs die of old age and natural causes; the AI remembers when/how you met people and how much time has passed; everyone ages; deeper romance & offspring (abandon a child and they may come find you when you are famous); time-skips make the world move on; many new achievements.' },
+  { number:'2.3', name:'Lite Mode',           note:'New Lite Mode toggle in Settings — play on a smaller, far cheaper, faster model (Claude Haiku) to stretch limited API credits or play longer for less. Toggle off any time for full-quality prose.' },
 ];
 
 function cleanSaveData(gs) {
@@ -10258,6 +10277,8 @@ function startGame(isLoad=false) {
   initSubtabs();
   document.getElementById('modal-settings').querySelector('#set-apikey').value = GS.settings.apiKey || '';
   document.getElementById('modal-settings').querySelector('#set-mobile').checked = GS.settings.mobileMode;
+  const liteEl = document.getElementById('set-litemode');
+  if(liteEl) liteEl.checked = !!GS.settings.liteMode;
   document.getElementById('modal-settings').querySelector('#set-fontsize').value = GS.settings.fontSize || 14;
   document.getElementById('set-fontsize-val').textContent = (GS.settings.fontSize||14)+'px';
   document.body.style.fontSize = (GS.settings.fontSize||14)+'px';
@@ -10673,6 +10694,10 @@ function initSettings() {
     GS.settings.mobileMode = e.target.checked;
     document.body.classList.toggle('mobile-mode', e.target.checked);
   });
+  document.getElementById('set-litemode')?.addEventListener('change', e => {
+    GS.settings.liteMode = e.target.checked;
+    toast(e.target.checked ? 'Lite Mode ON — using the cheaper, faster model.' : 'Lite Mode OFF — full quality model.', 'gold', 3500);
+  });
   document.getElementById('set-fontsize').addEventListener('input', e => {
     const sz = parseInt(e.target.value);
     GS.settings.fontSize = sz;
@@ -10694,6 +10719,7 @@ function initSettings() {
     GS = createDefaultState();
     GS.settings.apiKey = document.getElementById('set-apikey')?.value?.trim() || '';
     GS.settings.mobileMode = document.getElementById('set-mobile')?.checked || false;
+    GS.settings.liteMode = document.getElementById('set-litemode')?.checked || false;
     GS.settings.fontSize = parseInt(document.getElementById('set-fontsize')?.value || 14);
     hideModal('modal-settings');
     fullReset(true);
@@ -12445,7 +12471,7 @@ Do not include JSON. Write narrative prose only.`;
         'anthropic-dangerous-direct-browser-access': 'true',
       },
       body: JSON.stringify({
-        model: 'claude-opus-4-5',
+        model: storyModel(),
         max_tokens: 2000,
         system: systemPrompt,
         messages: [{ role: 'user', content: userPrompt }],
@@ -34263,7 +34289,7 @@ Write a narrative story (800-1200 words) about this character's life so far.
       method:'POST',
       headers:{ 'x-api-key':apiKey, 'anthropic-version':'2023-06-01', 'content-type':'application/json', 'anthropic-dangerous-direct-browser-access':'true' },
       body: JSON.stringify({
-        model:'claude-opus-4-5',
+        model: storyModel(),
         max_tokens:1500,
         messages:[{ role:'user', content:prompt }]
       })
