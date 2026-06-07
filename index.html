@@ -6520,6 +6520,16 @@ function meridianFail() {
   updateCharacterTab(); updateTopbar();
 }
 
+// The AI requests a stage change via res.newQiStageIndex. This routes through here
+// so the engine's own breakthrough result (this turn) can't be reverted by a stale
+// AI echo (the "advanced to BT2, then snapped back to BT1" bug).
+function aiSetQiStage(index) {
+  if(index == null) return;
+  if(GS.char._breakthroughThisTurn) return; // engine already resolved the stage this turn
+  if(index === (GS.char.qi.stageIndex||0)) return; // no-op echo
+  setQiStage(index);
+}
+
 function setQiStage(index, force=false) {
   const c = GS.char;
   // GUARD: cannot break through (advance a stage) with negative Qi — it shatters
@@ -10947,7 +10957,7 @@ function applyAIResponse(res) {
   if(res.qiChange) addQi(res.qiChange);
   if(res.qiPath && !GS.char.qi.path) GS.char.qi.path = res.qiPath;
   if(res.qiExpression) GS.char.qi.expression = res.qiExpression;
-  if(res.newQiStageIndex != null) setQiStage(res.newQiStageIndex);
+  if(res.newQiStageIndex != null) aiSetQiStage(res.newQiStageIndex);
   // Skills
   if(res.skills?.length) {
     res.skills.forEach(s => addSkill(s.key||s.label?.toLowerCase().replace(/\s+/g,'_'), s.label||s.key, s.category||'misc', s.desc||'', s.xp||s.gain||1));
@@ -11092,7 +11102,7 @@ const SAVE_PREFIX = 'murim_slot_';
 // Scheme: MAJOR.MINOR. Big updates bump MAJOR (1.2 -> 2.2). Small updates
 // bump MINOR (2.2 -> 2.3). Each version has a name. The current version is
 // stamped onto every save; older saves can be updated to the latest.
-const GAME_VERSION = { number: '3.13', name: 'A World That Remembers' };
+const GAME_VERSION = { number: '3.14', name: 'Breakthrough Holds' };
 
 // Which model generates the story. Lite Mode swaps to a far cheaper, faster model
 // (Claude Haiku) so long sessions / limited credits cost a fraction per turn.
@@ -11131,6 +11141,7 @@ const VERSION_HISTORY = [
   { number:'3.11', name:'The Inverted Path',   sys:'Negative Qi is real now: you CAN drive your Qi past empty into the inverted current — but a HUMAN who does it dies, no exceptions. An INHUMAN being (any non-human race) survives and opens the negative-Qi path, with the inverted current as their reserve. Routine cultivation still never runs away or kills you by accident; this only happens when you deliberately plunge in.', note:'driveQiNegative(): human=death, inhuman=negative-Qi path; qiFloor() lets the inverted path hold negative Qi; res.negativeQi field + rule; routine qi stays clamped [0,max].' },
   { number:'3.12', name:'Price of the Dark',   sys:'Bargains with the deep powers of the world can now grant far more than before — but the price always scales with what you ask, and some prices are terrible. Fixed the AI sometimes treating you as a higher cultivation stage than you actually are. Various balance fixes. (Some new things are best discovered, not listed.)', note:'applyDarkGrant() (healChannels/removeConditions/healAll/raceChange/becomeServant) for both bargains, scaling-price rules; Servant of bar lēlyā trait + becomeBarLelyaServant; self-mend minigame (canSelfMendChannels gate: WIL40+ & maxed Meridian Theory) + meridian_theory tome skill; exact cultivation-stage rule.' },
   { number:'3.13', name:'A World That Remembers', sys:'The death screen now scrolls properly. And when a life ends, you choose: start a NEW LIFE — SAME WORLD (be born again into the same world your last character lived in, its people, history, and years all carrying on) or NEW LIFE — NEW WORLD (begin somewhere wholly fresh).', note:'Fixed #screen-death scroll (overflow-y:auto, top-aligned). Same-world rebirth: preserve GS.world snapshot, new char born into the continuing timeline; _sameWorldRebirth opening hint; menu/new-world paths clear the snapshot.' },
+  { number:'3.14', name:'Breakthrough Holds',  sys:'Fixed the cultivation bug where a successful breakthrough would briefly show your new stage, then snap back to the old one once the text finished. Advancements stick now.', note:'aiSetQiStage(): AI stage echoes can no longer revert an engine-resolved breakthrough (_breakthroughThisTurn lock, cleared each turn); legit AI advances/regressions on normal turns still apply.' },
 ];
 
 function cleanSaveData(gs) {
@@ -13550,7 +13561,7 @@ function applyAIResponse(res) {
   if(res.qiChange) addQi(res.qiChange);
   if(res.qiPath && !GS.char.qi.path) GS.char.qi.path = res.qiPath;
   if(res.qiExpression) GS.char.qi.expression = res.qiExpression;
-  if(res.newQiStageIndex != null) setQiStage(res.newQiStageIndex);
+  if(res.newQiStageIndex != null) aiSetQiStage(res.newQiStageIndex);
 
   // Skills
   if(res.skills?.length) res.skills.forEach(s => addSkill(s.key||s.label?.toLowerCase().replace(/\s+/g,'_'), s.label||s.key, s.category||'misc', s.desc||'', s.xp||s.gain||1));
@@ -16165,6 +16176,9 @@ function attemptBreakthrough() {
   const prevStageName = getQiStage().name;
   setQiStage(nextIdx);
   qi.breakthroughReady = false;
+  // The engine has authoritatively advanced this turn. Lock out the AI's stage
+  // echo so res.newQiStageIndex can't revert BT2 back to BT1.
+  GS.char._breakthroughThisTurn = true;
 
   // New stage threshold expands — harder each time
   const expansion = 1.25 + Math.random() * 0.25; // 1.25–1.50x
@@ -27808,6 +27822,9 @@ updateCharacterTab = function() {
     const rawMsg  = overrideMsg || inputEl?.value?.trim() || '';
     if(!rawMsg) return;
     if(!overrideMsg) inputEl.value = '';
+    // Fresh turn — clear the breakthrough lock (set during this turn if a
+    // breakthrough resolves, then read by applyAIResponse to block stage reverts).
+    if(GS.char) GS.char._breakthroughThisTurn = false;
 
     const injections = [];
     const safeInject = (name, fn) => {
@@ -28048,7 +28065,7 @@ updateCharacterTab = function() {
       }
       if(res.qiPath && !GS.char.qi.path) GS.char.qi.path = res.qiPath;
       if(res.qiExpression) GS.char.qi.expression = res.qiExpression;
-      if(res.newQiStageIndex != null) setQiStage(res.newQiStageIndex);
+      if(res.newQiStageIndex != null) aiSetQiStage(res.newQiStageIndex);
       // Deliberate inverted cultivation: the AI flags a genuine push into negative Qi.
       if(res.negativeQi) driveQiNegative(res.negativeQi.amount || res.negativeQi.depth, res.negativeQi.cause);
       // Final safety clamp — within [floor, max]. Floor is 0, or -max on the inverted path.
