@@ -5857,14 +5857,27 @@ function spawnItem(item) {
     if(/necklace|pendant|ring|amulet|bracelet|earring|brooch|jewel/i.test(nameLower)) autoType = 'accessory';
     else if(/robe|cloak|coat|jacket|shirt|dress|boots|shoes|hat|hood|gloves|clothing/i.test(nameLower)) autoType = 'clothing';
     else if(/deed|contract|certificate|document|letter|map|scroll|parchment|note/i.test(nameLower)) autoType = 'misc';
-    else if(/book|journal|diary|manual|tome|memoir|record|text/i.test(nameLower)) autoType = 'tome';
+    // TOME = grants techniques / martial arts. BOOK = grants skills / knowledge.
+    else if(/\btome\b|manual|secret.*art|technique.*(book|scroll)|cultivation.*method|martial.*manual/i.test(nameLower)) autoType = 'tome';
+    else if(/book|journal|diary|memoir|record|text|treatise|primer|codex|chronicle|annals/i.test(nameLower)) autoType = 'book';
     else if(/herb|ingredient|seed|root|flower|pill|elixir|potion|food|meal|fruit/i.test(nameLower)) autoType = 'consumable';
     else if(/sword|blade|knife|spear|bow|staff|hammer|axe|weapon/i.test(nameLower)) autoType = 'weapon';
   }
 
   const isTome = !!(item.isTome || autoType === 'tome' || item.type === 'tome');
+  const isBook = !!(autoType === 'book' || item.type === 'book');
   const isConsumable = !!(item.consumable || autoType === 'consumable' || item.type === 'consumable');
-  const type = autoType || (isTome ? 'tome' : isConsumable ? 'consumable' : item.slot ? 'equipment' : 'misc');
+  const type = autoType || (isTome ? 'tome' : isBook ? 'book' : isConsumable ? 'consumable' : item.slot ? 'equipment' : 'misc');
+
+  // ── DEDUPE: tomes, books, and unique equipment must never duplicate. ──
+  // A tester saw a tome duplicate when re-read because the AI re-listed it in
+  // newItems. Unique/permanent items with the same name are not re-added.
+  const NON_STACKABLE = new Set(['tome','book','weapon','armor','accessory','clothing','equipment']);
+  if(NON_STACKABLE.has(type) || isTome || isBook) {
+    const exists = (GS.char.inventory||[]).some(i => (i.name||'').toLowerCase() === nameLower)
+      || Object.values(GS.char.equipment||{}).some(e => e && (e.name||'').toLowerCase() === nameLower);
+    if(exists) return null; // already own it — do not duplicate
+  }
 
   // Auto-assign slot
   const TYPE_TO_DEFAULT_SLOT = {
@@ -5887,6 +5900,7 @@ function spawnItem(item) {
     value: item.value || 0,
     effects: item.effects || {},
     isTome,
+    isBook,
     techUnlock: item.techUnlock || null,
     pillId: item.pillId || null,
   };
@@ -6163,7 +6177,10 @@ function useTome(itemId) {
   const c   = GS.char;
   const itm = c.inventory.find(i => i.id === itemId);
   if(!itm) return;
-  if(!itm.isTome && itm.type !== 'tome') { toast('This is not a readable tome.', 'error', 2000); return; }
+  const isReadable = itm.isTome || itm.isBook || itm.type === 'tome' || itm.type === 'book';
+  if(!isReadable) { toast('This is not a readable text.', 'error', 2000); return; }
+  // A BOOK grants skills/knowledge only — it can never teach a Qi technique or martial art.
+  const isBookOnly = (itm.type === 'book' || itm.isBook) && !(itm.type === 'tome' || itm.isTome);
 
   // Ensure difficulty is assigned
   if(!itm.readingDifficulty) itm.readingDifficulty = assignTomeDifficulty(itm);
@@ -6171,8 +6188,8 @@ function useTome(itemId) {
   const name     = itm.name || '';
   const desc     = itm.desc || '';
   const combined = (name + ' ' + desc).toLowerCase();
-  const isCultivationTome = /\b(technique|cultivation.*method|secret.*art|qi.*method|qi.*path|breathing.*method|inner.*force)\b/i.test(combined);
-  const isMartialManual   = /\b(martial.*art|fighting.*style|combat.*form|physical.*style|body.*method|fist.*method)\b/i.test(combined) || itm.maUnlock;
+  const isCultivationTome = !isBookOnly && /\b(technique|cultivation.*method|secret.*art|qi.*method|qi.*path|breathing.*method|inner.*force)\b/i.test(combined);
+  const isMartialManual   = !isBookOnly && (/\b(martial.*art|fighting.*style|combat.*form|physical.*style|body.*method|fist.*method)\b/i.test(combined) || itm.maUnlock);
   const qiStage  = c.qi?.stageIndex ?? c.qiStageIndex ?? 0;
   const literacy = checkTomeLiteracy(itm);
   const diff     = literacy.difficulty;
@@ -6231,7 +6248,7 @@ function useTome(itemId) {
   hideModal('modal-item');
 
   // ── 1. Explicit techUnlock (hard-coded technique grant) ───────────
-  if(itm.techUnlock) {
+  if(itm.techUnlock && !isBookOnly) {
     const isMAManual = itm.techUnlock.type === 'physical' || itm.maUnlock;
     const typeLabel  = isMAManual ? 'martial arts manual' : 'technique tome';
 
@@ -8425,10 +8442,11 @@ function updateInventoryTab() {
     div.className = `inv-item ${rarityClass(itm.rarity)}`;
     const TYPE_ICONS = {
       weapon:'⚔', armor:'🛡', clothing:'👘', accessory:'💎', consumable:'💊',
-      tome:'📜', misc:'📦', supplies:'🎒', equipment:'⚙',
+      tome:'📜', book:'📖', misc:'📦', supplies:'🎒', equipment:'⚙',
     };
     const typeIcon = TYPE_ICONS[itm.type] || '◆';
-    const typeLabel = itm.isTome ? 'Tome'
+    const typeLabel = itm.type === 'book' || itm.isBook ? 'Book'
+      : itm.isTome ? 'Tome'
       : itm.type === 'accessory' ? 'Accessory'
       : itm.type === 'clothing' ? 'Clothing'
       : itm.type === 'misc' ? 'Item'
@@ -8511,7 +8529,8 @@ function openItemModal(itemId, isEquipped) {
 
   const useBtn = document.getElementById('item-use-btn');
   if(useBtn) {
-    const isTomeItem  = item.isTome || item.type === 'tome';
+    const isBookItem  = item.isBook || item.type === 'book';
+    const isTomeItem  = item.isTome || item.type === 'tome' || isBookItem;
     const showUse     = isTomeItem || item.type === 'consumable';
     const litLevel    = GS.char.skills?.literacy?.level || 0;
     const canRead     = !isTomeItem || litLevel > 0;
@@ -8883,7 +8902,7 @@ PART 2 — DATA (immediately after the narrative, on its own line):
   "scheduledEvents": [{ "year": 0, "month": 0, "day": 0, "npcId": "", "desc": "" }],
   "karma": { "righteous": 0, "blood": 0, "demonic": 0, "chaotic": 0 },
   "occupation": null,
-  "newItems": [{ "name": "", "type": "", "slot": null, "rarity": "", "desc": "", "value": 0, "effects": {}, "isTome": false }],
+  "newItems": [{ "name": "", "type": "(weapon|armor|clothing|accessory|consumable|tome|book|misc)", "slot": null, "rarity": "", "desc": "", "value": 0, "effects": {}, "isTome": false }],
   "spiritualTitles": [{ "name": "", "desc": "", "effects": {}, "knownBy": [] }],
   "socialTitles": [{ "name": "", "desc": "", "effects": {}, "knownBy": [], "groupReach": {} }],
   "prisonStatus": null,
@@ -8902,6 +8921,8 @@ IMPRISONMENT RULE: If an NPC the player knows is arrested, jailed, captured, or 
 CONDITIONS RULE: Permanent harm produces a "conditions" entry, NOT just a scar. If the player loses an eye (stabbed, gouged, offered to a deity/entity), they are PERMANENTLY blind in that eye — add {"id":"blind_left_eye" or "blind_right_eye","label":"Blind (Left/Right Eye)","desc":"...","kind":"permanent"}. Both eyes → "fully_blind". Lost arm/hand/leg, deafness, muteness, a curse, a bargained-away sense — all permanent conditions that STAY. Once a condition exists, honor it forever: a blind character cannot see and you narrate accordingly every time. Never quietly heal a permanent condition — only an extraordinary, explicitly-narrated event can, via removeConditions.
 
 AGING RULE: The player ages forward with the calendar only — NEVER younger. Ordinary time passing already ages them automatically; do NOT send ageChange for normal time. Use ageChange ONLY for unnatural shifts (a time/cultivation art, a youth elixir, a curse of aging) and ALWAYS pair it with "ageViaTechnique": true. Negative ageChange (getting younger) is only ever valid with ageViaTechnique:true.
+
+TOME vs BOOK RULE: There are two kinds of readable item. A "tome" teaches Qi techniques or martial arts (type:"tome"). A "book" teaches skills or conveys knowledge/lore only — never a combat technique (type:"book"). Choose the correct type. Do NOT re-list a tome or book the player already owns in newItems — it is already permanent in their inventory and re-listing it creates a duplicate. Only emit a tome/book in newItems the first time they actually acquire it.
 
 TOME RULE: Tomes are PERMANENT — they NEVER disappear from inventory. Reading a tome does not consume it. A mortal with no Qi cultivation cannot learn any Qi technique from a tome regardless of what it says. If a character cannot yet learn a technique (wrong stage, wrong path, needs a master), narrate what they understand and what remains out of reach — do not grant the technique.
 
@@ -10183,7 +10204,7 @@ function initModals() {
     if(item.type === 'consumable') {
       takePill(item.id);
       hideModal('modal-item');
-    } else if(item.isTome || item.type === 'tome') {
+    } else if(item.isTome || item.type === 'tome' || item.isBook || item.type === 'book') {
       useTome(item.id);
     }
   });
@@ -11356,7 +11377,7 @@ The JSON carries ONLY state changes. There is NO "narrative" field in the JSON �
   "scheduledEvents": [{ "year": 0, "month": 0, "desc": "what will happen" }],
   "karma": { "righteous": 0, "blood": 0, "demonic": 0, "chaotic": 0 },
   "occupation": null,
-  "newItems": [{ "name": "", "type": "", "slot": null, "rarity": "", "desc": "", "value": 0, "effects": {}, "isTome": false }],
+  "newItems": [{ "name": "", "type": "(weapon|armor|clothing|accessory|consumable|tome|book|misc)", "slot": null, "rarity": "", "desc": "", "value": 0, "effects": {}, "isTome": false }],
   "spiritualTitles": [{ "name": "", "desc": "", "effects": {}, "knownBy": [] }],
   "socialTitles": [{ "name": "", "desc": "", "effects": {}, "knownBy": [], "groupReach": {} }],
   "prisonStatus": null,
