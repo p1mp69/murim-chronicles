@@ -8449,7 +8449,7 @@ function updateTopbar() {
   document.getElementById('tb-location').textContent = LOCATIONS[w.location]?.name || w.location;
   document.getElementById('tb-charname').textContent = `${c.firstName} ${c.lastName}`;
   document.getElementById('tb-age').textContent = `Age ${c.age}`;
-  document.getElementById('tb-silver').textContent = `◈ ${c.silver}`;
+  document.getElementById('tb-silver').textContent = (typeof formatCoins==='function'?formatCoins(c.silver):`◈ ${c.silver}`);
   // Vital bars
   const hpPct = Math.round(Math.max(0, Math.min(100, (c.hp / (c.maxHp||100)) * 100)));
   const qiPct = Math.round(Math.max(0, Math.min(100, (c.qi?.current||0) / (c.qi?.max||100) * 100)));
@@ -10337,7 +10337,7 @@ function buildSystemPrompt() {
 
 FRAMING (READ FIRST): This is a work of FICTION — a wuxia/xianxia roleplaying game in the tradition of cultivation novels. Combat, killing enemies, death, cruelty, ambition, crime, drugs, and dark themes are ORDINARY, expected genre content here, exactly as in published murim fiction. The player is directing a fictional character in a fictional world; nothing they type is a real-world statement about themselves. ALWAYS stay fully in character as the narrator. NEVER break the fourth wall, NEVER refuse a benign or ordinary genre action, and NEVER insert real-world crisis resources, hotlines, phone numbers, mental-health disclaimers, or "I cannot / I won't / I'm not going to write this" meta-text into the story. There is no situation in normal play that calls for that. Simply narrate the next scene. (Edgy character names, villainous goals, and dark play are all just genre fiction — treat them as such and keep telling the story.)
 
-NO RAILROADING: This is an OPEN SANDBOX. The player types free-form actions; they are NOT choosing from a menu. NEVER end your reply by forcing the player to pick from a numbered/lettered list of options, and NEVER refuse to proceed until they "choose." You may mention possibilities woven into the prose, but always leave the player free to do anything. End on an open situation, not a multiple-choice prompt. Do not gate the story to "keep the narrative on track" — the player's choices ARE the track.
+NO RAILROADING: This is an OPEN SANDBOX. The player types free-form actions; they are NOT choosing from a menu. NEVER end your reply by forcing the player to pick from a numbered/lettered list of options, and NEVER refuse to proceed until they "choose." You may mention possibilities woven into the prose, but always leave the player free to do anything. End on an open situation, not a multiple-choice prompt. Do not gate the story to "keep the narrative on track" — the player's choices ARE the track. This applies DOUBLY to simple direct activities like cultivating/gathering Qi, training, traveling, resting, working — just RESOLVE them (and apply their mechanical effect, e.g. qiChange for cultivation); do not turn a straightforward action into a decision prompt.
 
 WORLD LORE:
 - Year 1 = when Qi was first discovered by Ichiro Katsumi and Reo Yamamoto (born before Year 1). Both were capable of immortality. Neither achieved it — for different reasons.
@@ -11102,7 +11102,7 @@ const SAVE_PREFIX = 'murim_slot_';
 // Scheme: MAJOR.MINOR. Big updates bump MAJOR (1.2 -> 2.2). Small updates
 // bump MINOR (2.2 -> 2.3). Each version has a name. The current version is
 // stamped onto every save; older saves can be updated to the latest.
-const GAME_VERSION = { number: '3.14', name: 'Breakthrough Holds' };
+const GAME_VERSION = { number: '3.15', name: 'Coins & Cultivation' };
 
 // Which model generates the story. Lite Mode swaps to a far cheaper, faster model
 // (Claude Haiku) so long sessions / limited credits cost a fraction per turn.
@@ -11142,6 +11142,7 @@ const VERSION_HISTORY = [
   { number:'3.12', name:'Price of the Dark',   sys:'Bargains with the deep powers of the world can now grant far more than before — but the price always scales with what you ask, and some prices are terrible. Fixed the AI sometimes treating you as a higher cultivation stage than you actually are. Various balance fixes. (Some new things are best discovered, not listed.)', note:'applyDarkGrant() (healChannels/removeConditions/healAll/raceChange/becomeServant) for both bargains, scaling-price rules; Servant of bar lēlyā trait + becomeBarLelyaServant; self-mend minigame (canSelfMendChannels gate: WIL40+ & maxed Meridian Theory) + meridian_theory tome skill; exact cultivation-stage rule.' },
   { number:'3.13', name:'A World That Remembers', sys:'The death screen now scrolls properly. And when a life ends, you choose: start a NEW LIFE — SAME WORLD (be born again into the same world your last character lived in, its people, history, and years all carrying on) or NEW LIFE — NEW WORLD (begin somewhere wholly fresh).', note:'Fixed #screen-death scroll (overflow-y:auto, top-aligned). Same-world rebirth: preserve GS.world snapshot, new char born into the continuing timeline; _sameWorldRebirth opening hint; menu/new-world paths clear the snapshot.' },
   { number:'3.14', name:'Breakthrough Holds',  sys:'Fixed the cultivation bug where a successful breakthrough would briefly show your new stage, then snap back to the old one once the text finished. Advancements stick now.', note:'aiSetQiStage(): AI stage echoes can no longer revert an engine-resolved breakthrough (_breakthroughThisTurn lock, cleared each turn); legit AI advances/regressions on normal turns still apply.' },
+  { number:'3.15', name:'Coins & Cultivation', sys:'Prices everywhere now show the proper gold/silver/copper — the schools, the court, bounties, travel, the top bar, and more no longer use the old single coin symbol. And cultivating to gather Qi works right now: the narrator no longer stalls you with a menu when you meditate, and your Qi bar always rises when you cultivate (even if the AI forgets, the engine grants the gain).', note:'Converted ${expr}◈ -> formatCoins(expr) across UI + AI prompts (schools/court/topbar/bounty/travel/price fns); cultivation: stronger HOW-TO-CULTIVATE + no-railroad rules; engine fallback grants qiChange when player cultivated and AI returned none (_lastWasCultivation).' },
 ];
 
 function cleanSaveData(gs) {
@@ -12507,7 +12508,7 @@ function updateWorldTab() {
             <div style="width:${pct}%;height:100%;background:var(--gold);border-radius:3px"></div>
           </div>
           <div style="display:flex;gap:6px">
-            <button class="btn-secondary btn-sm" onclick="studyHard('${e.institution}')">Study hard (−${Math.ceil(inst.costPerMonth * 0.5 * priceMod)}◈, +1 month progress)</button>
+            <button class="btn-secondary btn-sm" onclick="studyHard('${e.institution}')">Study hard (−${formatCoins(Math.ceil(inst.costPerMonth * 0.5 * priceMod))}, +1 month progress)</button>
             <button class="btn-danger btn-sm" onclick="dropFromSchool('${e.institution}')">Drop out</button>
           </div>
         </div>`;
@@ -12531,7 +12532,7 @@ function updateWorldTab() {
               <div class="edu-card-name">${inst.name}</div>
               <div style="font-size:9px;color:${color};text-transform:uppercase;letter-spacing:.08em;margin-top:1px">${inst.type}</div>
             </div>
-            <span class="edu-card-type">${monthlyCost}◈/mo · ${inst.durationMonths}mo</span>
+            <span class="edu-card-type">${formatCoins(monthlyCost)}/mo · ${inst.durationMonths}mo</span>
           </div>
           <div class="edu-card-desc" style="font-style:italic;color:var(--dim)">"${inst.tagline}"</div>
           <div class="edu-card-desc">${inst.desc.slice(0,140)}…</div>
@@ -13356,7 +13357,7 @@ ${c.channelsBroken ? 'STATUS: CHANNELS SHATTERED — cannot cultivate, cannot ga
 ${c.prisonStatus ? 'STATUS: IMPRISONED — '+c.prisonStatus.crime+' at '+c.prisonStatus.location : ''}
 Karma: Righteous ${c.karma.righteous} | Blood ${c.karma.blood} | Demonic ${c.karma.demonic} | Chaotic ${c.karma.chaotic}
 ${c.crimes.length ? 'Crimes on record: '+c.crimes.length : ''}
-${(() => { const st = Object.entries(c.drugStash||{}).filter(([k,v])=>v>0); return st.length ? 'ILLICIT STASH (the player deals narcotics): '+st.map(([k,v])=>`${(typeof DRUGS!=='undefined'&&DRUGS[k]?DRUGS[k].name:k)} ×${v}`).join(', ')+`. Lifetime dealing profit ${c._drugProfits||0}◈${c._dealBusts?`, busted ${c._dealBusts}×`:''}.` : ''; })()}
+${(() => { const st = Object.entries(c.drugStash||{}).filter(([k,v])=>v>0); return st.length ? 'ILLICIT STASH (the player deals narcotics): '+st.map(([k,v])=>`${(typeof DRUGS!=='undefined'&&DRUGS[k]?DRUGS[k].name:k)} ×${v}`).join(', ')+`. Lifetime dealing profit ${formatCoins(c._drugProfits||0)}${c._dealBusts?`, busted ${c._dealBusts}×`:''}.` : ''; })()}
 ${c.trial?.active ? `ON TRIAL: charged with "${c.trial.charges}" (${(TRIAL_SEVERITY[c.trial.severity]||{}).label||c.trial.severity}). ~${Math.max(0,c.trial.daysLeft)} days until verdict. Defense: ${c.trial.lawyer?c.trial.lawyer.name:(c.trial.defenseSet?'self-represented':'no defense arranged yet')}. The court case is ongoing — weave it into the story (hearings, the magistrate, witnesses, the wait). The player handles their defense through the Legal & Court panel.` : ''}
 ${c.occupation ? 'Occupation: '+c.occupation.title+' at '+c.occupation.location : ''}
 
@@ -17687,7 +17688,7 @@ function buildEconomyContext() {
   const p = (key, qty=1) => {
     const base = PRICE_BASE[key];
     if(!base || typeof base !== 'number') return '—';
-    return Math.max(1, Math.round(base * totalMod * qty)) + '◈';
+    return formatCoins(Math.max(1, Math.round(base * totalMod * qty)));
   };
 
   const locNote = locMod > 1.1 ? ` (${loc?.name} carries a ${Math.round((locMod-1)*100)}% premium)` :
@@ -17703,7 +17704,7 @@ Tomes: common ${p('tome_common')}, uncommon ${p('tome_uncommon')}, rare ${p('tom
 Services: unskilled day labor ${p('labor_day_unskilled')}, guard/day ${p('guard_hire_day')}, street info ${p('information_street')}, broker info ${p('information_broker')}, physician ${p('physician_skilled')}
 Bribes: warden (minor) ${p('bribe_warden_minor')}, warden (major) ${p('bribe_warden_major')}, official ${p('bribe_official')}
 Stolen goods sell for ~${Math.round(PRICE_BASE.stolen_goods_discount * 100)}% of base value.
-The character has ${GS.char.silver}◈ silver. Use these prices consistently — do not invent your own.`;
+The character has ${formatCoins(GS.char.silver)} silver. Use these prices consistently — do not invent your own.`;
 }
 
 // ================================================================
@@ -18040,12 +18041,12 @@ function processTravelAction(destKey) {
   let injection = `[TRAVEL MECHANICS — enforce these facts:\n`;
   injection += `Route: ${LOCATIONS[from]?.name || from} → ${dest.name}\n`;
   injection += `Distance: ${actualDays} days on foot${hasHorse ? ' (halved by horse)' : ''}${(GS.char.injuries||[]).length > 0 ? ' (slowed by injuries)' : ''}\n`;
-  injection += `Daily cost: ~${Math.ceil(calcTravelCost(1))}◈ (food + lodging minimum)\n`;
-  injection += `Total cost: ${totalCost}◈ for the full journey\n`;
-  injection += `Character has: ${GS.char.silver}◈\n`;
+  injection += `Daily cost: ~${formatCoins(Math.ceil(calcTravelCost(1)))} (food + lodging minimum)\n`;
+  injection += `Total cost: ${formatCoins(totalCost)} for the full journey\n`;
+  injection += `Character has: ${formatCoins(GS.char.silver)}\n`;
 
   if(!canAfford) {
-    injection += `CANNOT AFFORD: Short by ${silverShort}◈. The character cannot fund this journey without earning more silver or finding another way. Narrate this as a real constraint — they may have to earn silver first, beg, steal, travel in shorter legs, or take on work along the road.\n`;
+    injection += `CANNOT AFFORD: Short by ${formatCoins(silverShort)}. The character cannot fund this journey without earning more silver or finding another way. Narrate this as a real constraint — they may have to earn silver first, beg, steal, travel in shorter legs, or take on work along the road.\n`;
   } else {
     // Deduct silver now
     GS.char.silver = Math.max(0, GS.char.silver - totalCost);
@@ -18056,7 +18057,7 @@ function processTravelAction(destKey) {
     updateTopbar();
     updateCharacterTab();
 
-    injection += `Silver deducted: ${totalCost}◈. Remaining: ${GS.char.silver}◈\n`;
+    injection += `Silver deducted: ${formatCoins(totalCost)}. Remaining: ${formatCoins(GS.char.silver)}\n`;
     injection += `Time advanced: ${actualDays} days. New date already updated.\n`;
     injection += `The character is now in ${dest.name}.\n`;
 
@@ -18299,7 +18300,7 @@ function detectImplausibleDeclaration(msg) {
     { pattern: /\bi (find|discover|stumble upon) (a |the )?(legendary|mythic|fable|ancient|priceless)/i,
       reason: 'Finding legendary-grade items by chance requires extraordinary circumstances — specific locations, quests, encounters. Not random discovery.' },
     { pattern: /\bi (have|possess|already have) \d{4,}.*silver/i,
-      reason: `Character has ${GS.char.silver}◈ silver. Cannot declare possession of large amounts not earned.` },
+      reason: `Character has ${formatCoins(GS.char.silver)} silver. Cannot declare possession of large amounts not earned.` },
     { pattern: /\bi (create|invent|develop) (a new|my own|an ultimate|a powerful) technique/i,
       reason: 'Creating original techniques requires Transcendent Understanding (stage 5+) of at least one related technique, and significant mastery. This must be earned through the technique stage system, not declared.' },
     { pattern: /\bi (am|become) (immortal|invincible|unkillable|all.powerful)/i,
@@ -18554,10 +18555,10 @@ function tickBountyHunters(daysElapsed) {
     trustLevel: 0,
     alignment: 'neutral',
     personality: ['calculating', 'cautious', Math.random() > 0.5 ? 'persistent' : 'ruthless'],
-    goals: [{ type:'bounty', desc:`Capture or kill ${c.firstName} ${c.lastName} for ${c.bounty}◈`, progress:0 }],
+    goals: [{ type:'bounty', desc:`Capture or kill ${c.firstName} ${c.lastName} for ${formatCoins(c.bounty)}`, progress:0 }],
     allies: [], enemies: [],
-    rumors: [{ event:`${c.firstName} ${c.lastName} has a bounty of ${c.bounty}◈. Wanted for: ${c.crimes.slice(-2).join(', ') || 'unspecified crimes'}`, year:w.year }],
-    memoriesOfPlayer: [`Assigned to collect bounty of ${c.bounty}◈`],
+    rumors: [{ event:`${c.firstName} ${c.lastName} has a bounty of ${formatCoins(c.bounty)}. Wanted for: ${c.crimes.slice(-2).join(', ') || 'unspecified crimes'}`, year:w.year }],
+    memoriesOfPlayer: [`Assigned to collect bounty of ${formatCoins(c.bounty)}`],
     activityLog: [`Year ${w.year}: Arrived in ${LOCATIONS[w.location]?.name || w.location} hunting ${c.firstName} ${c.lastName}.`],
     isBountyHunter: true,
     bountyTarget: c.bounty,
@@ -18569,7 +18570,7 @@ function tickBountyHunters(daysElapsed) {
   w.npcRegistry[hunterId] = hunter;
 
   // Add to relationships as a hostile encounter
-  addOrUpdateRelationship(hunter, 'hostile', `${tier.label} — hunting you for ${c.bounty}◈`);
+  addOrUpdateRelationship(hunter, 'hostile', `${tier.label} — hunting you for ${formatCoins(c.bounty)}`);
 
   // Personal event + narrative injection
   const arrivalDescs = [
@@ -18583,7 +18584,7 @@ function tickBountyHunters(daysElapsed) {
 
   addPersonalEvent(
     `[BOUNTY HUNTER — Year ${w.year}]: ${hunterName} (${tier.label}) has ${arrivalDesc}. ` +
-    `Bounty: ${c.bounty}◈. ${tier.desc.charAt(0).toUpperCase() + tier.desc.slice(1)}.`
+    `Bounty: ${formatCoins(c.bounty)}. ${tier.desc.charAt(0).toUpperCase() + tier.desc.slice(1)}.`
   );
 
   // Inject into next AI turn
@@ -18597,7 +18598,7 @@ function tickBountyHunters(daysElapsed) {
   };
 
   updateRelationsTab();
-  toast(`A ${tier.label} is hunting you. ${c.bounty}◈ bounty.`, 'error', 5000);
+  toast(`A ${tier.label} is hunting you. ${formatCoins(c.bounty)} bounty.`, 'error', 5000);
 }
 
 // Build bounty hunter encounter injection if one is pending
@@ -18605,7 +18606,7 @@ function buildBountyHunterInjection() {
   const h = GS.char._pendingBountyHunter;
   if(!h) return '';
   delete GS.char._pendingBountyHunter;
-  return `[BOUNTY HUNTER ARRIVAL: ${h.name} (${h.tier}) has ${h.arrival}. Power rating ~${h.power}. Description: ${h.desc}. Bounty on the player: ${h.bounty}◈. This is not a random encounter — this person has information, has been watching, and has a professional interest in the outcome. They will attempt to capture or kill. Weave this into the scene — they don't announce themselves openly if they're smart. The player should feel the net closing before they see the face.]`;
+  return `[BOUNTY HUNTER ARRIVAL: ${h.name} (${h.tier}) has ${h.arrival}. Power rating ~${h.power}. Description: ${h.desc}. Bounty on the player: ${formatCoins(h.bounty)}. This is not a random encounter — this person has information, has been watching, and has a professional interest in the outcome. They will attempt to capture or kill. Weave this into the scene — they don't announce themselves openly if they're smart. The player should feel the net closing before they see the face.]`;
 }
 
 // Wire bounty + prison checks into advanceTime
@@ -19331,10 +19332,10 @@ function tickConsequences(daysElapsed) {
 
   // Bounty still generates pursuers, but as specific people now
   if(c.bounty >= 50 && Math.random() < 0.12) {
-    const pursuer = generateConsequenceNPC('bounty_posted', `Bounty of ${c.bounty}◈`);
+    const pursuer = generateConsequenceNPC('bounty_posted', `Bounty of ${formatCoins(c.bounty)}`);
     const scenario = pursuer.scenario;
-    addPersonalEvent(`[BOUNTY — Year ${w.year}]: ${pursuer.name} (${QI_STAGES[pursuer.qiStageIndex||0]?.name}) has taken an interest in the ${c.bounty}◈ reward. ${scenario}.${pursuer.hiredAgentName ? ' They\'ve brought '+pursuer.hiredAgentName+' to do the actual work.' : ''}`);
-    c._pendingConsequenceNPC = { name: pursuer.name, reason: `Bounty: ${c.bounty}◈`, approach: scenario, motivation: pursuer.coreMotivation, power: Math.round(getPowerRating(pursuer)), stage: QI_STAGES[pursuer.qiStageIndex||0]?.name, hiredAgent: pursuer.hiredAgentName };
+    addPersonalEvent(`[BOUNTY — Year ${w.year}]: ${pursuer.name} (${QI_STAGES[pursuer.qiStageIndex||0]?.name}) has taken an interest in the ${formatCoins(c.bounty)} reward. ${scenario}.${pursuer.hiredAgentName ? ' They\'ve brought '+pursuer.hiredAgentName+' to do the actual work.' : ''}`);
+    c._pendingConsequenceNPC = { name: pursuer.name, reason: `Bounty: ${formatCoins(c.bounty)}`, approach: scenario, motivation: pursuer.coreMotivation, power: Math.round(getPowerRating(pursuer)), stage: QI_STAGES[pursuer.qiStageIndex||0]?.name, hiredAgent: pursuer.hiredAgentName };
     toast(`${pursuer.name} is coming for the bounty.`, 'error', 4000);
     w._lastBountyHunterDay = totalDays();
   }
@@ -19744,7 +19745,7 @@ function enrollInSchool(instKey) {
   // Check can afford first month
   const firstMonth = Math.ceil(inst.costPerMonth * (LOCATION_PRICE_MOD[GS.world.location] || 1.0));
   if(GS.char.silver < firstMonth) {
-    toast(`First month costs ${firstMonth}◈. Need ${firstMonth - GS.char.silver}◈ more.`, 'error', 3000);
+    toast(`First month costs ${formatCoins(firstMonth)}. Need ${formatCoins(firstMonth - GS.char.silver)} more.`, 'error', 3000);
     return;
   }
 
@@ -19762,7 +19763,7 @@ function enrollInSchool(instKey) {
     totalDurationMonths: inst.durationMonths,
   });
 
-  addPersonalEvent(`Enrolled in ${inst.name} in Year ${GS.world.year}. First month paid: ${firstMonth}◈. Duration: ~${inst.durationMonths} months.`);
+  addPersonalEvent(`Enrolled in ${inst.name} in Year ${GS.world.year}. First month paid: ${formatCoins(firstMonth)}. Duration: ~${inst.durationMonths} months.`);
   updateCharacterTab();
   updateEducationSection();
   toast(`Enrolled in ${inst.name}.`, 'gold', 3000);
@@ -19801,7 +19802,7 @@ function tickEducation(daysElapsed) {
       if(c.silver < monthlyCost) {
         // Can't afford — dropped
         e.status = 'dropped';
-        addPersonalEvent(`Dropped from ${e.name} — could not pay the monthly fee of ${monthlyCost}◈.`);
+        addPersonalEvent(`Dropped from ${e.name} — could not pay the monthly fee of ${formatCoins(monthlyCost)}.`);
         return;
       }
       c.silver = Math.max(0, c.silver - monthlyCost);
@@ -19864,7 +19865,7 @@ function graduateFromSchool(enrollment) {
   if(grad.socialTitle) grantTitle('social',    grad.socialTitle);
   if(grad.spiritualTitle) grantTitle('spiritual', grad.spiritualTitle);
 
-  addPersonalEvent(`Graduated from ${inst.name} in Year ${GS.world.year}. Total invested: ${enrollment.silverPaid}◈. ${inst.durationMonths} months of formal study.`);
+  addPersonalEvent(`Graduated from ${inst.name} in Year ${GS.world.year}. Total invested: ${formatCoins(enrollment.silverPaid)}. ${inst.durationMonths} months of formal study.`);
   toast(`Graduated: ${inst.name}`, 'gold', 5000);
   updateCharacterTab();
   updateSkillsTab();
@@ -19897,7 +19898,7 @@ function updateEducationSection() {
           <span class="edu-card-type">${e.type}</span>
         </div>
         <div style="height:4px;background:var(--s4);border-radius:4px;margin-bottom:6px"><div style="width:${pct}%;height:100%;background:var(--gold);border-radius:4px"></div></div>
-        <div class="edu-card-meta">${Math.floor(e.monthsCompleted)}/${e.totalDurationMonths} months · ${pct}% complete · ${monthly}◈/month · Total paid: ${e.silverPaid}◈</div>
+        <div class="edu-card-meta">${Math.floor(e.monthsCompleted)}/${e.totalDurationMonths} months · ${pct}% complete · ${formatCoins(monthly)}/month · Total paid: ${formatCoins(e.silverPaid)}</div>
         <button class="btn-danger btn-sm" onclick="dropFromSchool('${e.institution}')">Drop Out</button>
       </div>`;
     });
@@ -19932,11 +19933,11 @@ function updateEducationSection() {
         </div>
         <div class="edu-card-desc">${inst.tagline}</div>
         <div class="edu-card-skills">Teaches: ${inst.teaches.slice(0,4).join(', ')}${inst.teaches.length > 4 ? '...' : ''}</div>
-        <div class="edu-card-meta">Duration: ~${inst.durationMonths} months · ${monthCost}◈/month · ~${inst.durationMonths * monthCost}◈ total</div>
+        <div class="edu-card-meta">Duration: ~${inst.durationMonths} months · ${formatCoins(monthCost)}/month · ~${formatCoins(inst.durationMonths * monthCost)} total</div>
         ${inst.prereqSkill ? `<div style="font-size:11px;color:${prereqMet?'var(--green)':'var(--red)'};margin-bottom:6px">Requires: ${inst.prereqSkill} level ${inst.prereqMin}+ ${prereqMet?'✓':' — not met'}</div>` : ''}
         ${graduated_here ? '<div style="font-size:11px;color:var(--green)">✓ Graduated</div>'
           : alreadyEnrolled ? '<div style="font-size:11px;color:var(--gold)">Currently enrolled</div>'
-          : `<button class="btn-${prereqMet && canAfford ? 'primary' : 'secondary'} btn-sm" onclick="enrollInSchool('${inst.key}')" ${!prereqMet || !canAfford ? 'disabled style="opacity:.5"':''}>Enroll (${monthCost}◈ first month)</button>`}
+          : `<button class="btn-${prereqMet && canAfford ? 'primary' : 'secondary'} btn-sm" onclick="enrollInSchool('${inst.key}')" ${!prereqMet || !canAfford ? 'disabled style="opacity:.5"':''}>Enroll (${formatCoins(monthCost)} first month)</button>`}
       </div>`;
     });
   } else {
@@ -20193,7 +20194,7 @@ enrollInSchool = function(instKey, trackId) {
   const locMod     = LOCATION_PRICE_MOD[GS.world.location] || 1.0;
   const firstMonth = Math.ceil(inst.costPerMonth * locMod);
   if(GS.char.silver < firstMonth) {
-    toast(`First month costs ${firstMonth}◈. Need ${firstMonth - GS.char.silver}◈ more.`, 'error', 3000); return;
+    toast(`First month costs ${formatCoins(firstMonth)}. Need ${formatCoins(firstMonth - GS.char.silver)} more.`, 'error', 3000); return;
   }
 
   GS.char.silver = Math.max(0, GS.char.silver - firstMonth);
@@ -20211,7 +20212,7 @@ enrollInSchool = function(instKey, trackId) {
     recentEvents: [],
   });
 
-  addPersonalEvent(`Enrolled in ${inst.name} (${track?.label||'General Track'}) — ${qual.q} quality institution. First month: ${firstMonth}◈. The school: ${qual.note}`);
+  addPersonalEvent(`Enrolled in ${inst.name} (${track?.label||'General Track'}) — ${qual.q} quality institution. First month: ${formatCoins(firstMonth)}. The school: ${qual.note}`);
   updateCharacterTab(); updateEducationSection();
   toast(`Enrolled: ${inst.name} — ${qual.q}`, 'gold', 3000);
 };
@@ -20243,7 +20244,7 @@ tickEducation = function(daysElapsed) {
       // Pay fees
       if(c.silver < monthly) {
         e.status = 'dropped';
-        addPersonalEvent(`Dropped from ${e.name} — couldn\'t pay monthly fee of ${monthly}◈.`);
+        addPersonalEvent(`Dropped from ${e.name} — couldn\'t pay monthly fee of ${formatCoins(monthly)}.`);
         return;
       }
       c.silver = Math.max(0, c.silver - monthly);
@@ -20371,7 +20372,7 @@ updateEducationSection = function() {
       <div style="font-size:11px;color:var(--dim);margin-bottom:6px;font-style:italic">${e.qualityNote||''}</div>
       <div style="font-size:12px;color:var(--teal);margin-bottom:4px">Track: ${e.trackLabel||'General'}</div>
       <div style="height:4px;background:var(--s4);border-radius:4px;margin-bottom:6px"><div style="width:${pct}%;height:100%;background:var(--gold);border-radius:4px"></div></div>
-      <div class="edu-card-meta">${Math.floor(e.monthsCompleted)}/${e.totalDurationMonths} months · ${pct}% · ${monthly}◈/month · Paid: ${e.silverPaid}◈</div>
+      <div class="edu-card-meta">${Math.floor(e.monthsCompleted)}/${e.totalDurationMonths} months · ${pct}% · ${formatCoins(monthly)}/month · Paid: ${formatCoins(e.silverPaid)}</div>
       ${nextExam > 0 ? `<div style="font-size:11px;color:var(--muted);margin-top:3px">Next exam in ~${nextExam} months</div>` : ''}
       ${lastExam ? `<div style="font-size:11px;color:${lastExam.outcome==='Distinction'?'var(--gold)':lastExam.outcome==='Expelled'?'var(--red)':'var(--muted)'};margin-top:3px">Last exam: ${lastExam.outcome} — ${lastExam.note}</div>` : ''}
       ${lastEvent ? `<div style="font-size:11px;color:var(--muted);margin-top:3px;font-style:italic">Recent: ${lastEvent.slice(0,100)}...</div>` : ''}
@@ -20400,14 +20401,14 @@ updateEducationSection = function() {
         <div class="edu-card-desc">${inst.tagline}</div>
         <div style="font-size:11px;color:var(--dim);font-style:italic;margin-bottom:6px">${qual.note}</div>
         <div class="edu-card-skills">Teaches: ${inst.teaches.slice(0,4).join(', ')}</div>
-        <div class="edu-card-meta">${monthlyCost}◈/month · ~${inst.durationMonths} months · ~${inst.durationMonths*monthlyCost}◈ total</div>
+        <div class="edu-card-meta">${formatCoins(monthlyCost)}/month · ~${inst.durationMonths} months · ~${formatCoins(inst.durationMonths*monthlyCost)} total</div>
         ${inst.prereqSkill && !prereqMet ? `<div style="font-size:11px;color:var(--red);margin-bottom:5px">Requires ${inst.prereqSkill} level ${inst.prereqMin}+</div>` : ''}
         ${graduated ? '<div style="font-size:12px;color:var(--green)">✓ Already graduated</div>'
           : alreadyIn ? '<div style="font-size:12px;color:var(--gold)">Currently enrolled</div>'
-          : !prereqMet || !canAfford ? `<button class="btn-secondary btn-sm" disabled style="opacity:.5">Enroll — ${monthlyCost}◈/month</button>`
+          : !prereqMet || !canAfford ? `<button class="btn-secondary btn-sm" disabled style="opacity:.5">Enroll — ${formatCoins(monthlyCost)}/month</button>`
           : tracks.length > 1
             ? `<div style="margin-top:6px"><div style="font-size:11px;color:var(--muted);margin-bottom:4px">Choose a track:</div>${tracks.map(t=>`<button class="btn-secondary btn-sm" style="margin:2px" onclick="enrollInSchool('${inst.key}','${t.id}')">${t.label}</button>`).join('')}</div>`
-            : `<button class="btn-primary btn-sm" onclick="enrollInSchool('${inst.key}',null)">Enroll — ${monthlyCost}◈/month</button>`}
+            : `<button class="btn-primary btn-sm" onclick="enrollInSchool('${inst.key}',null)">Enroll — ${formatCoins(monthlyCost)}/month</button>`}
       </div>`;
     });
   }
@@ -20511,7 +20512,7 @@ function tickSectBenefits(daysElapsed) {
       addSilver(gained);
       // Don't spam — only note monthly if significant time passed
       if(daysElapsed >= 25) {
-        addPersonalEvent(`${sect.name} stipend: +${gained}◈ silver as ${rank}.`);
+        addPersonalEvent(`${sect.name} stipend: +${formatCoins(gained)} silver as ${rank}.`);
       }
     }
   }
@@ -20543,7 +20544,7 @@ function getSectBenefitsForAI() {
   const { sect, rank, benefits } = sd;
   return `SECT STATUS — ${sect.name} (${sect.alignment}):
   Player rank: ${rank}
-  Monthly stipend: ${benefits.silver_per_month}◈
+  Monthly stipend: ${formatCoins(benefits.silver_per_month)}
   Qi bonus from sect spirit vein: +${Math.round(benefits.qi_pct_bonus*100)}%
   Technique access: up to ${benefits.technique_access}
   Protection score: ${benefits.protection}/100
@@ -23116,7 +23117,7 @@ function validateAndSpendSilver(amount, reason) {
   }
   // Can't afford — log the attempt
   const shortfall = amount - c.silver;
-  addPersonalEvent(`Attempted transaction (${reason||'purchase'}) for ${amount}◈ — short by ${shortfall}◈. Could not complete.`);
+  addPersonalEvent(`Attempted transaction (${reason||'purchase'}) for ${formatCoins(amount)} — short by ${formatCoins(shortfall)}. Could not complete.`);
   return { ok:false, shortfall, blocked:true };
 }
 
@@ -23130,7 +23131,7 @@ applyAIResponse = function(res) {
       // Inject a flag so the AI knows this failed
       res.statChanges.silver = 0; // don't process the failed spend
       if(!res.personalEvents) res.personalEvents = [];
-      res.personalEvents.push(`Transaction for ${cost}◈ FAILED — character only has ${GS.char.silver}◈. Silver short by ${check.shortfall}◈. If this was a purchase, the seller did not hand over the goods. Describe the refusal or the inability to complete the deal.`);
+      res.personalEvents.push(`Transaction for ${formatCoins(cost)} FAILED — character only has ${formatCoins(GS.char.silver)}. Silver short by ${formatCoins(check.shortfall)}. If this was a purchase, the seller did not hand over the goods. Describe the refusal or the inability to complete the deal.`);
     } else {
       res.statChanges.silver = 0; // already applied client-side
     }
@@ -23361,7 +23362,7 @@ function inferConsumableEffects(key='', name='') {
 function buyItem(itemKey, itemName, price, slot, isTome, rarity, isConsumable) {
   const check = validateAndSpendSilver(price, `buy ${itemName}`);
   if(!check.ok) {
-    toast(`Can't afford ${itemName} — need ${check.shortfall}◈ more`, 'error', 3000);
+    toast(`Can't afford ${itemName} — need ${formatCoins(check.shortfall)} more`, 'error', 3000);
     return;
   }
   const slotTypeMap = { weapon:'weapon', offhand:'offhand', head:'armor', body:'armor', hands:'armor', feet:'armor', acc1:'accessory', acc2:'accessory' };
@@ -23387,7 +23388,7 @@ function sellItem(itemId) {
   addSilver(sellPrice);
   c.inventory = c.inventory.filter(i => i.id !== itemId);
   updateInventoryTab();
-  toast(`Sold: ${itm.name} for ${sellPrice}◈`, '', 2000);
+  toast(`Sold: ${itm.name} for ${formatCoins(sellPrice)}`, '', 2000);
 }
 
 // ================================================================
@@ -23778,11 +23779,11 @@ function updateTrialDisplay() {
       <div style="font-size:11px;color:var(--muted);margin-top:4px">Verdict in ~${Math.max(0,tr.daysLeft)} days · Court progress ${pct}%</div>
       <div style="font-size:11px;color:var(--muted);margin-top:2px">Defense: ${tr.lawyer?tr.lawyer.name:(tr.defenseSet?'self-represented':'NONE chosen yet')} · est. strength ${odds}%</div>
       <div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:8px">
-        ${tr.lawyer?'':`<button class="btn-secondary btn-sm" onclick="hireLawyer('cheap')">Hire (cheap ·40◈)</button>
-        <button class="btn-secondary btn-sm" onclick="hireLawyer('decent')">Hire (decent ·200◈)</button>
-        <button class="btn-secondary btn-sm" onclick="hireLawyer('expert')">Hire (renowned ·1000◈)</button>
+        ${tr.lawyer?'':`<button class="btn-secondary btn-sm" onclick="hireLawyer('cheap')">Hire (cheap ·${formatCoins(40)})</button>
+        <button class="btn-secondary btn-sm" onclick="hireLawyer('decent')">Hire (decent ·${formatCoins(200)})</button>
+        <button class="btn-secondary btn-sm" onclick="hireLawyer('expert')">Hire (renowned ·${formatCoins(1000)})</button>
         <button class="btn-secondary btn-sm" onclick="defendSelf()">Defend Yourself</button>`}
-        <button class="btn-secondary btn-sm" onclick="bribeCourt(200)">Bribe (200◈)</button>
+        <button class="btn-secondary btn-sm" onclick="bribeCourt(200)">Bribe (${formatCoins(200)})</button>
       </div>
     </div>`;
 }
@@ -23814,7 +23815,7 @@ function renderShopPanel(locKey) {
       const rc = rarityColor(item.rarity||'common');
       html += `<div style="display:flex;align-items:center;gap:8px;padding:6px 8px;background:var(--s2);border:1px solid var(--border);border-radius:5px;margin-bottom:4px">
         <span style="flex:1;font-size:12px;color:${rc}">${item.name}</span>
-        <span style="font-size:12px;color:var(--gold)">${item.price}◈</span>
+        <span style="font-size:12px;color:var(--gold)">${formatCoins(item.price)}</span>
         ${!item.available ? '<span style="font-size:10px;color:var(--red)">Sold out</span>' :
           `<button class="btn-sm" style="background:var(--s4);border:1px solid var(--border2);color:${canAfford?'var(--text)':'var(--red)'};cursor:pointer;border-radius:4px;padding:3px 8px;font-size:11px"
             onclick="buyItem('${item.key}','${item.name}',${item.price},'${item.slot||''}',${!!item.isTome},'${item.rarity||'common'}',${!!item.consumable})"
@@ -23833,7 +23834,7 @@ function renderShopPanel(locKey) {
       const sellPrice = Math.floor((itm.value||5) * PRICE_BASE.stolen_goods_discount);
       html += `<div style="display:flex;align-items:center;gap:8px;padding:5px 8px;background:var(--s2);border:1px solid var(--border);border-radius:5px;margin-bottom:3px">
         <span style="flex:1;font-size:12px">${itm.name}</span>
-        <span style="font-size:11px;color:var(--muted)">${sellPrice}◈</span>
+        <span style="font-size:11px;color:var(--muted)">${formatCoins(sellPrice)}</span>
         <button class="btn-sm" style="background:var(--s4);border:1px solid var(--border2);color:var(--text);cursor:pointer;border-radius:4px;padding:3px 8px;font-size:11px"
           onclick="sellItem('${itm.id}')">Sell</button>
       </div>`;
@@ -24475,7 +24476,7 @@ function experimentAlchemy(ingredientIds) {
     });
 
     narrativeInstruction = `[ALCHEMY SUCCESS (${outcome.toUpperCase()}): ${ingredientNames} produces ${effect}. Quality: ${outcome}. The character discovers this through the experiment — they did NOT know beforehand what this combination would produce. Describe the process of discovery: what they noticed as the ingredients combined, what surprised them, and what they're now holding. Alchemy level: ${alchLevel}. This is a discovery — write it as one.]`;
-    addPersonalEvent(`Alchemy discovery: ${ingredientNames} → ${effect} (${outcome} quality, ${productValue}◈ value).`);
+    addPersonalEvent(`Alchemy discovery: ${ingredientNames} → ${effect} (${outcome} quality, ${formatCoins(productValue)} value).`);
     saveAlchemyDiscovery({ ingredients: ingKeys, result: effect, quality: outcome, discoveredYear: GS.world.year });
   }
 
@@ -24866,7 +24867,7 @@ function tickSectMissions(daysElapsed) {
         const fine = parseInt(fineMatch[1]);
         const check = validateAndSpendSilver(fine, `sect mission failure fine`);
         if(!check.ok) {
-          addPersonalEvent(`Could not pay mission fine of ${fine}◈. Sect standing affected more severely.`);
+          addPersonalEvent(`Could not pay mission fine of ${formatCoins(fine)}. Sect standing affected more severely.`);
           if(sect) sect.playerRank = SECT_RANKS[Math.max(0, SECT_RANKS.indexOf(sect.playerRank) - 1)];
         }
       }
@@ -24894,7 +24895,7 @@ function tickSectMissions(daysElapsed) {
         missions.push(mission);
         GS.world.scheduledEvents.push({
           year: w.year, month: w.month,
-          desc: `[SECT MISSION — ${sect.name}] "${mission.title}": ${mission.desc} Deadline: Month ${mission.deadline.month} Year ${mission.deadline.year}. Reward: ${mission.reward_silver}◈. Consequence if failed: ${mission.failure}.`,
+          desc: `[SECT MISSION — ${sect.name}] "${mission.title}": ${mission.desc} Deadline: Month ${mission.deadline.month} Year ${mission.deadline.year}. Reward: ${formatCoins(mission.reward_silver)}. Consequence if failed: ${mission.failure}.`,
           fired: false, voided: false,
         });
         toast(`New ${sect.name} mission: "${mission.title}"`, 'gold', 4000);
@@ -24929,7 +24930,7 @@ function buildMissionInjection() {
   if(pending) {
     delete GS.char._pendingMissionCheck;
     const daysLeft = totalDays(pending.deadline.year, pending.deadline.month, 1) - totalDays(w.year, w.month, w.day||1);
-    inject += `[SECT MISSION CONTEXT — "${pending.title}": ${pending.desc}\nStatus: ACTIVE | Days remaining: ${daysLeft} | Reward: ${pending.reward_silver}◈\nIF this action successfully completes the mission, award the silver (${pending.reward_silver}◈), mark it complete in personalEvents as "MISSION_COMPLETE:${pending.id}", and describe the completion naturally in narrative. IF the action makes progress but doesn't complete it, describe the progress. Do not force completion — judge based on whether the task was actually accomplished.]`;
+    inject += `[SECT MISSION CONTEXT — "${pending.title}": ${pending.desc}\nStatus: ACTIVE | Days remaining: ${daysLeft} | Reward: ${formatCoins(pending.reward_silver)}\nIF this action successfully completes the mission, award the silver (${formatCoins(pending.reward_silver)}), mark it complete in personalEvents as "MISSION_COMPLETE:${pending.id}", and describe the completion naturally in narrative. IF the action makes progress but doesn't complete it, describe the progress. Do not force completion — judge based on whether the task was actually accomplished.]`;
   }
 
   if(missions.length > 0) {
@@ -24953,8 +24954,8 @@ applyAIResponse = function(res) {
         if(mission && mission.status === 'active') {
           mission.status = 'completed';
           addSilver(mission.reward_silver);
-          addPersonalEvent(`Mission completed: "${mission.title}" — ${mission.reward_silver}◈ awarded.`);
-          toast(`Mission complete: "${mission.title}" +${mission.reward_silver}◈`, 'gold', 4000);
+          addPersonalEvent(`Mission completed: "${mission.title}" — ${formatCoins(mission.reward_silver)} awarded.`);
+          toast(`Mission complete: "${mission.title}" +${formatCoins(mission.reward_silver)}`, 'gold', 4000);
           // Track for achievement
           GS.char._sectMissionsCompleted = (GS.char._sectMissionsCompleted || 0) + 1;
         }
@@ -24998,7 +24999,7 @@ updateWorldTab = function() {
       const urgent = daysLeft < 7;
       return `<div style="font-size:11px;padding:4px 0;border-bottom:1px solid var(--border);color:${urgent?'var(--red)':'var(--muted)'}">
         <strong style="color:${urgent?'var(--red)':'var(--text)'}">${m.title}</strong> (${m.sectName})<br>
-        ${m.desc.slice(0,80)}... | ${daysLeft}d remaining | Reward: ${m.reward_silver}◈
+        ${m.desc.slice(0,80)}... | ${daysLeft}d remaining | Reward: ${formatCoins(m.reward_silver)}
       </div>`;
     }).join('');
   ws.appendChild(missionDiv);
@@ -25470,7 +25471,7 @@ function renderShopModal(shopType, shopName) {
 
 function shopBuyItem(key, name, price, slot, isTome, rarity, isConsumable) {
   const check = validateAndSpendSilver(price, `buy ${name}`);
-  if(!check.ok) { toast(`Can't afford ${name} — need ${check.shortfall}◈ more`, 'error', 3000); return; }
+  if(!check.ok) { toast(`Can't afford ${name} — need ${formatCoins(check.shortfall)} more`, 'error', 3000); return; }
 
   // Look up the item definition for description and type
   const allCats = Object.values(SHOP_ITEMS).flat();
@@ -25501,7 +25502,7 @@ function shopSellItem(itemId, price) {
   c.inventory = c.inventory.filter(i => i.id !== itemId);
   addSilver(price);
   document.getElementById('shop-modal-silver').textContent = `◈ ${formatCoins(c.silver)}`;
-  toast(`Sold: ${itm.name} for +${price}◈`, 'green', 2000);
+  toast(`Sold: ${itm.name} for +${formatCoins(price)}`, 'green', 2000);
   updateInventoryTab();
   // Refresh sell list
   const shopType = document.getElementById('shop-modal-name').dataset.shopType || 'general';
@@ -27824,7 +27825,12 @@ updateCharacterTab = function() {
     if(!overrideMsg) inputEl.value = '';
     // Fresh turn — clear the breakthrough lock (set during this turn if a
     // breakthrough resolves, then read by applyAIResponse to block stage reverts).
-    if(GS.char) GS.char._breakthroughThisTurn = false;
+    if(GS.char) {
+      GS.char._breakthroughThisTurn = false;
+      // Remember if this action was a cultivation attempt so the engine can
+      // guarantee a Qi gain even if the AI forgets qiChange or tries to railroad.
+      GS.char._lastWasCultivation = (typeof isCultivationAction === 'function') && isCultivationAction(rawMsg) && !isBreakthroughAttempt(rawMsg);
+    }
 
     const injections = [];
     const safeInject = (name, fn) => {
@@ -28062,7 +28068,17 @@ updateCharacterTab = function() {
       if(res.qiChange) {
         const mult = getTraitQiMult('cultivation_gain') * (GS.char._karmaQiMult||1);
         addQiWithTraits ? addQiWithTraits(res.qiChange) : addQi(Math.round(res.qiChange*mult));
+      } else if(GS.char._lastWasCultivation && !GS.char.channelsBroken) {
+        // FALLBACK: the player cultivated but the AI returned no qiChange (it tried
+        // to railroad or just forgot). Guarantee the Qi bar still moves so cultivating
+        // never feels broken. Scales lightly with the time the AI did advance.
+        const days = (res.time?.days||0) + (res.time?.months||0)*30 + (res.time?.years||0)*360;
+        const base = Math.max(10, Math.round((GS.char.qi.max||100) * 0.06));
+        const gain = days > 0 ? Math.min(base * Math.max(1, days), (GS.char.qi.max||100) * 0.6) : base;
+        addQiWithTraits ? addQiWithTraits(gain) : addQi(gain);
+        try { toast(`+${Math.round(gain)} Qi from cultivation`, '', 2000); } catch(e) {}
       }
+      GS.char._lastWasCultivation = false;
       if(res.qiPath && !GS.char.qi.path) GS.char.qi.path = res.qiPath;
       if(res.qiExpression) GS.char.qi.expression = res.qiExpression;
       if(res.newQiStageIndex != null) aiSetQiStage(res.newQiStageIndex);
@@ -28180,7 +28196,7 @@ updateCharacterTab = function() {
           const parts=e.split(':'); if(parts.length>=3) { const t=GS.char.techniques.find(t=>t.id===parts[1]); if(t&&parts[2]) { t.name=parts.slice(2).join(':').trim(); t.isCombination=false; updateSkillsTab(); toast(`Technique named: ${t.name}`,'gold',3000); } }
         } else if(typeof e==='string' && e.startsWith('MISSION_COMPLETE:')) {
           const mId=e.split(':')[1]?.trim(); const m=ensureSectMissions().find(m=>m.id===mId);
-          if(m&&m.status==='active') { m.status='completed'; addSilver(m.reward_silver); addPersonalEvent(`Mission complete: "${m.title}" +${m.reward_silver}◈`); toast(`Mission complete: "${m.title}"`,'gold',4000); }
+          if(m&&m.status==='active') { m.status='completed'; addSilver(m.reward_silver); addPersonalEvent(`Mission complete: "${m.title}" +${formatCoins(m.reward_silver)}`); toast(`Mission complete: "${m.title}"`,'gold',4000); }
         } else routePersonalEvent(e);
       });
       res.crimes?.forEach(c => addCrime(c));
@@ -28321,8 +28337,8 @@ updateCharacterTab = function() {
         if(completionContext) {
           m.status = 'completed';
           addSilver(m.reward_silver);
-          addPersonalEvent(`Mission completed: "${m.title}" — ${m.reward_silver}◈ awarded.`);
-          toast(`Mission complete: "${m.title}" +${m.reward_silver}◈`, 'gold', 4000);
+          addPersonalEvent(`Mission completed: "${m.title}" — ${formatCoins(m.reward_silver)} awarded.`);
+          toast(`Mission complete: "${m.title}" +${formatCoins(m.reward_silver)}`, 'gold', 4000);
           GS.char._sectMissionsCompleted = (GS.char._sectMissionsCompleted||0)+1;
         }
       }
@@ -35026,7 +35042,7 @@ function checkSectEvents() {
     if(evt.id === 'spirit_stone_audit' && ss.contributionPoints >= 80) {
       const award = Math.floor(ss.contributionPoints / 80) * 10;
       addSilver(award);
-      addPersonalEvent(`Resource Distribution: received ${award}◈ silver equivalent based on contribution standing.`);
+      addPersonalEvent(`Resource Distribution: received ${formatCoins(award)} silver equivalent based on contribution standing.`);
     }
   });
 }
@@ -38294,7 +38310,7 @@ applyAIResponse = function(res) {
           if(GS.char.bondStatus.debtAmount === 0) {
             freePlayer('debt cleared', null);
           } else {
-            addPersonalEvent(`Debt reduced to ${GS.char.bondStatus.debtAmount}◈. Still in bondage.`);
+            addPersonalEvent(`Debt reduced to ${formatCoins(GS.char.bondStatus.debtAmount)}. Still in bondage.`);
           }
         }
       }
@@ -38316,7 +38332,7 @@ buildSystemPrompt = function() {
     // Add player status if enslaved
     const bs = GS.char.bondStatus;
     if(bs) {
-      const debtNote = bs.debtAmount ? ` | Debt remaining: ${bs.debtAmount}◈` : '';
+      const debtNote = bs.debtAmount ? ` | Debt remaining: ${formatCoins(bs.debtAmount)}` : '';
       const termNote = bs.terms !== 'indefinite' ? ` | Terms: ${bs.terms}` : '';
       const escNote  = bs.escapeAttempts > 0 ? ` | ${bs.escapeAttempts} failed escape attempt(s)` : '';
       const bondCtx  = `\nPLAYER BONDAGE STATUS — ACTIVE:
@@ -38375,7 +38391,7 @@ updateCharacterTab = function() {
         <div style="color:#cc3322;font-weight:700;font-size:11px;letter-spacing:.06em">${bondLabels[bs.type]||bs.type.toUpperCase()}</div>
         <div style="font-size:11px;color:var(--muted);margin-top:3px">
           Holder: ${bs.ownerName || 'unknown'} · Since Year ${bs.since}
-          ${bs.debtAmount ? `<br>Debt remaining: ${bs.debtAmount}◈` : ''}
+          ${bs.debtAmount ? `<br>Debt remaining: ${formatCoins(bs.debtAmount)}` : ''}
           ${bs.terms !== 'indefinite' ? `<br>Terms: ${bs.terms}` : ''}
         </div>
         <div style="font-size:10px;color:var(--dim);margin-top:3px;font-style:italic">
@@ -38459,7 +38475,7 @@ buildSystemPrompt = function() {
     // If the player has a very large bounty AND very low silver, risk of bondage
     if(c.bounty > 200 && silver < 10 && !c.bondStatus) {
       prompt = prompt.replace('## ABSOLUTE RULES',
-        `DEBT BONDAGE RISK: This character has a significant bounty (${c.bounty}◈) and very little silver (${silver}◈). Creditors, collectors, or bounty contractors may attempt to convert this into indentured service or debt bondage. This is a realistic outcome of the economic situation. If the narrative leads there, report "bondageUpdate": {"action": "enslave", "type": "debt_bond", "debtAmount": N, ...}.\n\n## ABSOLUTE RULES`
+        `DEBT BONDAGE RISK: This character has a significant bounty (${formatCoins(c.bounty)}) and very little silver (${formatCoins(silver)}). Creditors, collectors, or bounty contractors may attempt to convert this into indentured service or debt bondage. This is a realistic outcome of the economic situation. If the narrative leads there, report "bondageUpdate": {"action": "enslave", "type": "debt_bond", "debtAmount": N, ...}.\n\n## ABSOLUTE RULES`
       );
     }
   } catch(e) {}
@@ -38973,7 +38989,7 @@ buildSystemPrompt = function() {
       const bpct = qi.breakthroughAt > 0 ? Math.round((qi.current/(qi.breakthroughAt||1))*100) : 0;
       const ready = qi.breakthroughReady ? 'READY FOR BREAKTHROUGH — the player should attempt it.' : `${bpct}% to breakthrough threshold`;
       const cultivNote = `\nQI CULTIVATION STATUS: ${QI_STAGES[qi.stageIndex||0]?.name} | ${qi.current}/${qi.max} Qi (${pct}%) | Breakthrough: ${ready}
-HOW TO CULTIVATE: Player actions involving meditation, breathing exercises, Qi circulation, or dedicated cultivation sessions should include "qiChange": N (positive number) in the response. Even small amounts accumulate. When breakthrough threshold is reached, the player can attempt advancement through a cultivation action.`;
+HOW TO CULTIVATE (MANDATORY — DO NOT RAILROAD): When the player meditates, circulates Qi, breathes, refines their core, or otherwise cultivates to GATHER QI, you MUST narrate it as a flowing scene AND return a POSITIVE "qiChange" so their Qi actually rises — every single time, no exceptions. Scale it with effort/time: a brief session 5-15, a focused hour 15-40, a full day or montage 40-150+. NEVER respond to a cultivation action by asking the player to "pick an option," presenting a numbered menu, or stalling for a choice — cultivating IS the action; just resolve it and move their Qi bar. If they have a Qi path and a safe spot, gathering Qi simply works. Only withhold gains if they are physically unable (shattered channels, etc.), and say why.`;
       prompt = prompt.replace('## ABSOLUTE RULES', cultivNote + '\n\n## ABSOLUTE RULES');
     }
   } catch(e) {}
@@ -40402,7 +40418,7 @@ buildSystemPrompt = function() {
 
     // Bounty
     if((c.bounty||0) > 100) {
-      politicalParts.push(`Bounty: ${c.bounty}◈ — wanted, political doors closed in law-abiding areas`);
+      politicalParts.push(`Bounty: ${formatCoins(c.bounty)} — wanted, political doors closed in law-abiding areas`);
     }
 
     // Properties that confer standing
