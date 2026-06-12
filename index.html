@@ -10059,10 +10059,9 @@ function updateTechPane() {
         ${t.qiPathReq ? `<div class="qi-req-note">⚠ Requires ${t.qiPathReq} Qi path</div>` : ''}
         <div style="font-size:11px;color:var(--muted);margin-bottom:8px">${stage.name}: ${stage.desc}</div>
         ${t.offshoots?.length ? `<div class="text-xs text-muted" style="margin-bottom:6px">Offshoots: ${t.offshoots.join(', ')}</div>` : ''}
+        ${t.stage<6 ? `<div class="text-xs text-muted" style="margin-bottom:6px">⟳ ${Math.max(0,(PRACTICE_TO_ADVANCE[t.stage]||0)-(t.practicePoints||0))} more uses in the story to reach ${TECH_STAGES[t.stage+1]?.short||'mastery'}${t.stage===5&&t._awaitingInsight?' — but the last step needs a revelation, not practice':''}</div>` : '<div class="text-xs" style="color:var(--gold);margin-bottom:6px">✦ Mastered — Conceptual Authority</div>'}
         <div class="tech-actions">
           <button class="btn-secondary btn-sm" onclick="practiseTech('${t.id}')">Practice</button>
-          ${t.stage<6 ? `<button class="btn-secondary btn-sm" onclick="advanceTechStage('${t.id}')">Progress Stage</button>` : ''}
-          <button class="btn-secondary btn-sm" onclick="createOffshoot('${t.id}','tech')">Create Offshoot</button>
           ${!t.tomeCreated ? `<button class="btn-secondary btn-sm" onclick="createTome('${t.id}','tech')">Write Tome</button>` : '<span class="text-xs text-muted">Tome written</span>'}
           <button class="btn-secondary btn-sm" onclick="useTechInNarrative('${t.id}')">Use in Action</button>
         </div>
@@ -10094,10 +10093,9 @@ function updateMAPane() {
         <div class="tech-desc">${m.desc || 'No description.'}</div>
         <div style="font-size:11px;color:var(--muted);margin-bottom:8px">${stage.name}: ${stage.desc}</div>
         ${m.offshoots?.length ? `<div class="text-xs text-muted" style="margin-bottom:6px">Offshoots: ${m.offshoots.join(', ')}</div>` : ''}
+        ${m.stage<7 ? `<div class="text-xs text-muted" style="margin-bottom:6px">⟳ ${Math.max(0,(MA_PRACTICE_TO_ADVANCE[m.stage]||0)-(m.practicePoints||0))} more uses in the story to reach ${MARTIAL_STAGES[m.stage+1]?.short||'mastery'}</div>` : '<div class="text-xs" style="color:var(--gold);margin-bottom:6px">✦ Mastered — Living Weapon</div>'}
         <div class="tech-actions">
           <button class="btn-secondary btn-sm" onclick="practiseMA('${m.id}')">Practice</button>
-          ${m.stage<7 ? `<button class="btn-secondary btn-sm" onclick="advanceMAStage('${m.id}')">Progress Stage</button>` : ''}
-          <button class="btn-secondary btn-sm" onclick="createOffshoot('${m.id}','ma')">Create Offshoot</button>
           ${!m.tomeCreated ? `<button class="btn-secondary btn-sm" onclick="createTome('${m.id}','ma')">Write Tome</button>` : '<span class="text-xs text-muted">Tome written</span>'}
           <button class="btn-secondary btn-sm" onclick="useMAInNarrative('${m.id}')">Use in Action</button>
         </div>
@@ -10135,71 +10133,51 @@ function practiseMA(id) {
   sendToAI(`I practice ${m.name}, going through the forms.`);
 }
 
-// ── Proper offshoot: a genuine variant, not a renamed copy ──────
-async function createOffshoot(id, type) {
-  const item = type==='tech'
-    ? GS.char.techniques.find(t=>t.id===id)
-    : GS.char.martialArts.find(m=>m.id===id);
-  if(!item) return;
+// ── Offshoots are now created by the STORY (the AI), not by a button. ──
+// When the player innovates, diverges, or breaks a technique open in the
+// narrative, the AI registers it via "newOffshoots" and the engine builds a
+// genuine variant — starting fresh at Fragmented, with the AI's own bio.
+function applyOffshootsFromAI(res) {
+  const list = res && res.newOffshoots;
+  if(!Array.isArray(list) || !list.length) return;
+  const norm = s => (s||'').toString().trim().toLowerCase();
+  list.forEach(o => {
+    if(!o || !o.name) return;
+    // Find the parent by name across techniques and martial arts.
+    const parentName = norm(o.parent);
+    let parent = GS.char.techniques.find(t => norm(t.name) === parentName);
+    let kind = 'tech';
+    if(!parent) { parent = GS.char.martialArts.find(m => norm(m.name) === parentName); kind = 'ma'; }
+    // If no parent matches, treat the AI's stated kind, else default to technique.
+    if(!parent && o.kind === 'ma') kind = 'ma';
+    if(GS.char.techniques.some(t=>norm(t.name)===norm(o.name)) || GS.char.martialArts.some(m=>norm(m.name)===norm(o.name))) return; // already exists
 
-  // Require at least Functional Understanding (stage 2) to create a real variant
-  if((item.stage||0) < 2) {
-    toast(`Need Functional Understanding (stage 2) to create a variant. Currently at ${TECH_STAGES[item.stage]?.name||'Fragmented'}.`, 'error', 3000);
-    return;
-  }
+    // A real bio: prefer the AI's description; never the old "variant of X" boilerplate.
+    const bio = sanitizeTechDesc((o.desc || '').trim()) ||
+      `An offshoot that diverged from ${parent?.name || 'an earlier art'} into something of its own.`;
+    const headStart = parent ? Math.floor((parent.stage||0) * 2.5) : 0;
 
-  const name = (await uiPrompt(`What aspect does it diverge on?`, { title:`Name Your Variant of "${item.name}"`, placeholder:'Variant name' }) || '').trim();
-  if(!name) return;
-
-  // Variant properties: same family, different emphasis based on which stage
-  // Higher stage parent = can diverge more
-  const variantType = item.type === 'attack'    ? (Math.random() < 0.4 ? 'defensive' : 'attack') :
-                      item.type === 'defensive'  ? (Math.random() < 0.4 ? 'utility'   : 'defensive') :
-                      item.type === 'passive'    ? 'passive' : item.type;
-
-  // Variant rarity: can be same or one below (specializing often sacrifices breadth)
-  const rarityOrder = ['common','uncommon','rare','epic','legendary','mythic','fable'];
-  const parentRarityIdx = rarityOrder.indexOf(item.rarity);
-  const variantRarity = Math.random() < 0.7
-    ? item.rarity // same rarity 70%
-    : rarityOrder[Math.max(0, parentRarityIdx - 1)]; // one lower 30%
-
-  // Head-start practice points from parent understanding
-  const headStart = Math.floor(item.stage * 2.5);
-
-  const variantDesc = `A variant of ${item.name} at ${TECH_STAGES[item.stage]?.name} stage. The divergence: ${name}. Derived from understanding of the parent, not a copy of it.`;
-
-  item.offshoots = item.offshoots || [];
-  item.offshoots.push(name);
-
-  let created;
-  if(type==='tech') {
-    created = grantTechnique({
-      name, category:item.category, type:variantType, rarity:variantRarity,
-      desc:variantDesc, source:`Variant of ${item.name} (stage ${item.stage})`,
-      qiPathReq: item.qiPathReq,
-    });
+    let created;
+    if(kind === 'tech') {
+      created = grantTechnique({
+        name:o.name, category:o.category || parent?.category || 'conceptual',
+        type:o.type || parent?.type || 'attack', rarity:o.rarity || parent?.rarity || 'uncommon',
+        desc:bio, source:`Offshoot of ${parent?.name || 'an earlier technique'}`,
+        qiPathReq: o.qiPathReq ?? parent?.qiPathReq ?? null,
+      });
+    } else {
+      created = grantMartialArt({
+        name:o.name, type:o.maType || parent?.type || 'physical', rarity:o.rarity || parent?.rarity || 'uncommon',
+        desc:bio, source:`Offshoot of ${parent?.name || 'an earlier martial art'}`,
+      });
+    }
     if(created) {
       created.practicePoints = headStart;
-      created.parentTechId   = item.id;
-      created.isVariant      = true;
+      created.isVariant = true;
+      if(parent) { created.parentTechId = parent.id; parent.offshoots = parent.offshoots || []; if(!parent.offshoots.includes(o.name)) parent.offshoots.push(o.name); }
     }
-  } else {
-    created = grantMartialArt({
-      name, type:item.type, rarity:variantRarity,
-      desc:variantDesc, source:`Variant of ${item.name} (stage ${item.stage})`,
-    });
-    if(created) {
-      created.practicePoints = headStart;
-      created.parentTechId   = item.id;
-      created.isVariant      = true;
-    }
-  }
-
-  // Inject into AI to describe what the variant represents
-  addPersonalEvent(`Created variant technique "${name}" from ${item.name} (${TECH_STAGES[item.stage]?.name}). The divergence focuses on: ${name}. Starts at Fragmented Comprehension with ${headStart} head-start practice points.`);
+  });
   updateSkillsTab();
-  toast(`Variant created: ${name}. Starts at Fragmented — you must learn it fresh.`, 'gold', 4000);
 }
 
 function createTome(id, type) {
@@ -11433,7 +11411,7 @@ const SAVE_PREFIX = 'murim_slot_';
 // Scheme: MAJOR.MINOR. Big updates bump MAJOR (1.2 -> 2.2). Small updates
 // bump MINOR (2.2 -> 2.3). Each version has a name. The current version is
 // stamped onto every save; older saves can be updated to the latest.
-const GAME_VERSION = { number: '3.20', name: 'The Bestiary' };
+const GAME_VERSION = { number: '3.21', name: 'Earned, Not Clicked' };
 
 // Which model generates the story. Lite Mode swaps to a far cheaper, faster model
 // (Claude Haiku) so long sessions / limited credits cost a fraction per turn.
@@ -11479,6 +11457,7 @@ const VERSION_HISTORY = [
   { number:'3.18', name:'The Architect\'s Table', sys:'Every plain browser pop-up — the give-silver and give-item dialogs, introducing people, naming a technique offshoot, confirming a delete or a new game — has been replaced with proper in-world dialogs that match the rest of the game. Lists you choose from (heirs, items, people) are now searchable instead of a wall of numbered text. For those with access to the developer panel, it has been fully rebuilt into clean tabbed sections that are far easier to navigate, and its long catalog dropdowns (traits, races, lore figures) are now fast searchable pickers.', note:'Built-in popup system: uiPopup/uiAlert/uiConfirm/uiPrompt/uiPicker (CSS .ui-popup* + .ui-pick*); replaced all native alert/confirm/prompt (give_silver, give_item, introduceNPCsPrompt, createOffshoot, deleteSlot, new-game, offspring chooser, admin war, createCombinedTechnique→async, showNPCStats→uiPopup). Admin panel rebuilt: tabbed layout (Character/Powers/Items/World/NPCs) via .admin-tabbar/.admin-tabpanel + switchAdminTab/setupAdminTabs; trait/lore/race selects → searchable pickers (ADMIN_PICKER_CFG, openAdminPickerKind, syncAdminPickerLabel, hidden inputs preserve IDs); dynamic race/ingredient/offspring/sect + qi-expression sections retargeted into tab panels.' },
   { number:'3.19', name:'Older Than People', sys:'Qi was never invented by people — long before the founders discovered it on their own, primordial creatures already wielded it, each in their own way, the way the first benders learned from animals. There are now achievements for learning the irreproducible Qi of the ten Original Qi Beasts: dragons, yokai, sakura trees, cove bears, the man-serpent children of Yuluh, giants and titans, the sanguine, the pelagic goat, the five-legged ape, and the arachnid — plus one for learning all ten. A new achievement waits for those who cross paths with a certain barefoot foreign boy and his ever-changing staff. And the storyteller now reliably honors the rules it was sometimes forgetting at the very end of long prompts.', note:'ANCIENT_QI_BEASTS catalog (10 beasts: dragon/yokai/sakura_tree/cove_bear/man_serpent/giant/sanguine/pelagic_goat/five_legged_ape/arachnid); auto-generated aqi_* achievements + aqi_all master + god_of_high_school achievement; _ancientQiBeasts[]/_metMonkeyKing char fields; ancientQiLearned AI field + trackAchievementState detection (+ Mori Jin registry/narrative flag); buildAncientQiSection()/buildLarpGodSection() text builders. KEY FIX: Larp God prompt rule (added v3.17) was being trimmed by the MAX_SYSTEM_PROMPT_CHARS length-guard because it injected pre-guard; moved both Larp + Ancient Qi injection into a LATE wrapper (_bspWithBeastsAndMask) placed after the length-guard so they survive (verified present in 37k-char prompt).' },
   { number:'3.20', name:'The Bestiary', sys:'The ten Original Qi Beasts are now fully fleshed out — each with its own stats, the place in the world it can be found, its lore and behavior, exactly how its Qi works, and how (and what it costs) to learn its art. Every beast\'s Qi is genuinely DISTINCT: learning from one grants its own unique signature technique (a dragon\'s law-like elemental dominion is nothing like the arachnid\'s cutting web-silk or the sanguine\'s blood-command), and the storyteller now runs each encounter true to that beast\'s nature. A new in-game Bestiary lets you browse every creature in full detail.', note:'Expanded ANCIENT_QI_BEASTS: per-beast stats{8}, qiStageIndex, tier, danger, location, lore, behavior, qiMechanic, howToLearn, and a DISTINCT signature{name,category,type,rarity,desc} (10 unique arts across 5 categories). buildAncientQiSection() now surfaces location/mechanic/behavior/how-to-learn/granted-art per beast + DISTINCT rule. trackAchievementState ancientQiLearned now grantTechnique(beast.signature) so each grants its own art. Bestiary viewer: showBeastBestiary()/showBeastDetail() (uiPicker→uiPopup stat+lore card) + admin NPCs-tab button.' },
+  { number:'3.21', name:'Earned, Not Clicked', sys:'Cultivation, techniques, and martial arts now progress the way they should — through the story, not a button. Understanding the THEORY of Qi (Meridian Theory, Meditation, Cultivation skills) genuinely speeds up how fast you gather Qi when you cultivate. The "Progress Stage" button is gone: techniques AND martial arts now advance only through real, repeated use in the narrative (each card shows how many more uses remain). You no longer hand-craft offshoots from a menu either — when you truly innovate on or break open one of your arts in the story, the narrator splits off a new variant for you, with its own proper description. Offshoots and fused techniques now read as real arts with their own bios, never "a variant of X" or "a fusion of X and Y".', note:'Part A: getCultivationTheoryMult() (meridian_theory*1.4+meditation*1.1+cultivation*1.0+formation_theory*0.4, +1.5%/pt cap +70%) applied in addQiWithTraits for positive gain; late _bspWithProgression prompt wrapper also nudges AI qiChange for theory-heavy chars. Part C: removed advanceTechStage/advanceMAStage buttons; added MA_PRACTICE_TO_ADVANCE + recordMartialUse + wired into detectTechniquesInMessage loop so MAs advance via narrative; cards show remaining-uses hint. Part B: removed player Create Offshoot button + function; newOffshoots AI field → applyOffshootsFromAI (story-driven variants, real bio, start Fragmented). Part D: combination naming now requests structured techDefine{id,name,desc} (was fragile personalEvents TECH_DEFINE — mangled by an outer wrapper). KEY FIX: the old applyAIResponse wrapper chain is DEAD (consolidatedApplyAIResponse rebuilt it without _prev); moved offshoot+techDefine handling into an outermost post-consolidation wrapper (wireTechAuthoring) so they actually run.' },
 ];
 
 function cleanSaveData(gs) {
@@ -13854,6 +13833,7 @@ The JSON carries ONLY state changes. There is NO "narrative" field in the JSON �
   "skills": [{ "key": "", "label": "", "category": "", "desc": "", "xp": 1 }],
   "newTechniques": [{ "name": "", "category": "", "type": "", "rarity": "", "desc": "", "source": "" }],
   "newMartialArts": [{ "name": "", "type": "physical|qi", "rarity": "", "desc": "", "source": "" }],
+  "newOffshoots": [{ "parent": "existing technique/art it diverged from", "name": "", "kind": "tech|ma", "type": "", "rarity": "", "desc": "a real bio of what this offshoot IS and does — not 'a variant of X'" }],
   "injuries": ["string only — no objects"],
   "illnesses": ["string only"],
   "scars": ["string only"],
@@ -15120,10 +15100,23 @@ function applyDamage(amount, damageType = 'generic') {
 }
 
 // Apply Qi gain with cultivation multiplier from traits
+// Skills that reflect genuine UNDERSTANDING/THEORY of Qi make you gather faster.
+// The deeper you understand the mechanism, the less Qi you waste pulling it in.
+function getCultivationTheoryMult() {
+  const sk = GS.char.skills || {};
+  const lvl = k => sk[k]?.level || 0;
+  // Meridian Theory weighs heaviest (pure inner-circulation theory), then meditation, then general cultivation.
+  const score = lvl('meridian_theory')*1.4 + lvl('meditation')*1.1 + lvl('cultivation')*1.0 + lvl('formation_theory')*0.4;
+  // ~+1.5% gathering speed per weighted point, capped at +70%.
+  return 1 + Math.min(0.70, score * 0.015);
+}
+
 function addQiWithTraits(baseAmount) {
   // Shattered channels cannot gather or hold Qi — block ALL gain, no exceptions.
   if(GS.char.channelsBroken && baseAmount > 0) return 0;
-  const mult = getTraitQiMult('cultivation_gain');
+  let mult = getTraitQiMult('cultivation_gain');
+  // Theory/understanding speeds up GATHERING (positive gain only).
+  if(baseAmount > 0) mult *= getCultivationTheoryMult();
   const actual = Math.round(baseAmount * mult);
   const qi = GS.char.qi;
   qi.current = Math.max(qiFloor(), Math.min(qi.current + actual, qi.max)); // clamped; no runaway
@@ -18065,6 +18058,17 @@ const PRACTICE_TO_ADVANCE = [
   210, // 5→6: Transcendent → Authority (a revelation is required, not just practice)
 ];
 
+// Martial arts advance through bodily repetition (8 stages, 0→7).
+const MA_PRACTICE_TO_ADVANCE = [
+  6,   // 0→1: Untrained → Raw Instinct
+  16,  // 1→2: Raw → Basic Form
+  36,  // 2→3: Basic → Trained Body
+  70,  // 3→4: Trained → Combat Capable
+  115, // 4→5: Combat → Martial Expert
+  175, // 5→6: Expert → Martial Master
+  260, // 6→7: Master → Living Weapon (the body must surpass the form)
+];
+
 // Failure rates by stage (chance the technique fails or misfires)
 const STAGE_FAILURE_RATES = [0.35, 0.15, 0.05, 0.0, 0.0, 0.0, 0.0];
 
@@ -18106,6 +18110,22 @@ function recordTechniqueUse(techId) {
     toast(`${t.name} → ${TECH_STAGES[t.stage]?.name || 'Advanced'}`, 'gold', 4000);
     updateSkillsTab();
     addPersonalEvent(`${t.name} has advanced to ${TECH_STAGES[t.stage]?.name}. ${TECH_STAGES[t.stage]?.desc || ''}`);
+  }
+}
+
+// Record a martial-art use and award practice toward its next stage (narrative practice only).
+function recordMartialUse(maId) {
+  const m = GS.char.martialArts.find(m => m.id === maId);
+  if(!m || m.stage >= 7) return;
+  m.practicePoints = (m.practicePoints || 0) + 1;
+  const needed = MA_PRACTICE_TO_ADVANCE[m.stage];
+  if(!needed) return;
+  if(m.practicePoints >= needed) {
+    m.stage = Math.min(7, m.stage + 1);
+    m.practicePoints = 0;
+    toast(`${m.name} → ${MARTIAL_STAGES[m.stage]?.name || 'Advanced'}`, 'gold', 4000);
+    updateSkillsTab();
+    addPersonalEvent(`${m.name} has advanced to ${MARTIAL_STAGES[m.stage]?.name}. ${MARTIAL_STAGES[m.stage]?.desc || ''}`);
   }
 }
 
@@ -18164,9 +18184,11 @@ buildTechCostInjection = function(msg) {
   const techniques = detectTechniquesInMessage(msg);
   if(!techniques.length) return baseCostInject;
 
-  // Record practice for used techniques
+  // Record practice for used techniques AND martial arts — narrative use is the
+  // only way to advance a stage now (no click-to-progress button).
   techniques.forEach(t => {
     if(t._isTech && t.id) recordTechniqueUse(t.id);
+    else if(t._isMA && t.id) recordMartialUse(t.id);
   });
 
   // Add detailed stage context for each technique
@@ -23150,7 +23172,9 @@ The player just combined two techniques into a new one:
   Combination type: ${pending.type} — ${pending.desc}
   ${pending.unstable ? 'Unstable: yes — attempted before full understanding.' : ''}
 
-In the narrative of this turn, name the new technique something that reflects both parents and the combination type. It should not be a direct portmanteau — it should feel like a real technique name. Then update the technique in the JSON response: include it in a "updateRelationships" entry (no — include it in "personalEvents" with format "RENAME TECHNIQUE [id:${pending.id}] to [new name]"). Actually — include it directly as a personalEvent starting with exactly "TECH_RENAME:${pending.id}:" followed by the new name. The narrator should describe what emerged from the combination and why it works (or doesn't).
+In the narrative of this turn, name the new technique something evocative that reflects both parents and the combination type (NOT a direct portmanteau — a real technique name), AND write it a proper BIO: 1–2 sentences describing what the fused technique actually IS, how it moves/feels, and what it does — NOT "a fusion of X and Y", but its own identity. Return it in the JSON response as:
+  "techDefine": { "id": "${pending.id}", "name": "<new technique name>", "desc": "<the 1-2 sentence bio>" }
+The narrator should also describe in-prose what emerged from the combination and why it works (or doesn't).
 ]`;
 }
 
@@ -23161,12 +23185,14 @@ sendToAI = async function(overrideMsg) {
   return _withCombinationSend(combInject ? overrideMsg + '\n\n' + combInject : overrideMsg);
 };
 
-// Parse tech rename from personal events
+// Parse tech naming/bio from personal events + apply AI-created offshoots
 const _withTechRenameApply = applyAIResponse;
 applyAIResponse = function(res) {
   if(res?.personalEvents?.length) {
     res.personalEvents = res.personalEvents.map(ev => {
-      if(typeof ev === 'string' && ev.startsWith('TECH_RENAME:')) {
+      if(typeof ev !== 'string') return ev;
+      // Legacy: rename only.
+      if(ev.startsWith('TECH_RENAME:')) {
         const parts = ev.split(':');
         if(parts.length >= 3) {
           const techId = parts[1];
@@ -42055,6 +42081,27 @@ buildSystemPrompt = function() {
   return prompt;
 };
 
+// ── LATE wrapper: progression, offshoots, and theory-driven cultivation speed ──
+const _bspWithProgression = buildSystemPrompt;
+buildSystemPrompt = function() {
+  let prompt = _bspWithProgression();
+  try {
+    const sk = GS.char.skills || {};
+    const lvl = k => sk[k]?.level || 0;
+    const theory = lvl('meridian_theory') + lvl('meditation') + lvl('cultivation');
+    const theoryNote = theory >= 6
+      ? ` This character has real theoretical understanding of Qi (Meridian Theory/Meditation/Cultivation), so they GATHER QI NOTICEABLY FASTER than a novice — when they cultivate, grant a larger qiChange and narrate the efficiency of someone who understands the mechanism, not just the motions.`
+      : ` Deeper UNDERSTANDING of Qi (Meridian Theory, Meditation, Cultivation skills) makes a cultivator gather Qi faster — reward characters who study the theory with larger qiChange when they cultivate.`;
+    const section = `## TECHNIQUE PROGRESSION & OFFSHOOTS\n`
+      + `Techniques and martial arts get STRONGER only through narrative PRACTICE — repeated, earned use in the story. NEVER jump a technique or martial art up multiple stages from a single action, and do not let the player simply declare mastery; mastery is shown, used, and earned over time. A stage is a real threshold of understanding.\n`
+      + `OFFSHOOTS / VARIANTS: the player does not get a button to invent variants — YOU create them. When the player genuinely innovates on, diverges from, or breaks open one of their existing techniques or martial arts IN THE STORY (improvising a new application, reforging it after an insight, splitting it toward a new purpose), register the new offshoot via "newOffshoots" with its own real BIO (what it IS and does — never "a variant of X"). An offshoot is a NEW art: it starts fresh at the lowest stage and must be practiced up from there. Do this only when the story earns it, not casually.\n`
+      + `CULTIVATION SPEED:${theoryNote}\n`;
+    if(prompt.includes('## ABSOLUTE RULES')) prompt = prompt.replace('## ABSOLUTE RULES', section + '\n## ABSOLUTE RULES');
+    else prompt = prompt + '\n' + section;
+  } catch(e) {}
+  return prompt;
+};
+
 // ================================================================
 // ── MYTHIC & FABLE TRAITS — HAND-TUNED APEX VALUES ───────────────
 // Explicit final stats + reinforced gameplay for the top two rarities,
@@ -42289,6 +42336,29 @@ buildSystemPrompt = function() {
       if(res?.narrative) trackBarLelya(res.narrative);
       if(res?.barLelyaBargain) applyBarLelyaBargain(res.barLelyaBargain);
     } catch(e) { console.error('[barLelya]', e); }
+  };
+})();
+
+// ── AI-created offshoots + fused-technique naming/bio (outermost, post-consolidation). ──
+// Placed last so it actually runs (the consolidated applyAIResponse replaced the old
+// wrapper chain, so these must sit ON TOP of it rather than inside the dead chain).
+(function wireTechAuthoring() {
+  const _applyForTechAuthoring = applyAIResponse;
+  applyAIResponse = function(res) {
+    _applyForTechAuthoring.apply(this, arguments);
+    try { applyOffshootsFromAI(res); } catch(e) { console.error('[offshoots]', e); }
+    try {
+      const td = res && res.techDefine;
+      if(td && td.id) {
+        const tech = GS.char.techniques.find(t => t.id === td.id);
+        if(tech) {
+          if(td.name) tech.name = td.name;
+          if(td.desc) tech.desc = sanitizeTechDesc(td.desc);
+          updateSkillsTab();
+          toast(`Technique defined: ${tech.name}`, 'gold', 3000);
+        }
+      }
+    } catch(e) { console.error('[techDefine]', e); }
   };
 })();
 
