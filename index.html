@@ -3014,6 +3014,7 @@ body.generating [onclick*="shopSellItem"], body.generating [onclick*="closeMapGo
             <option value="lang_warlord">Láng the Warlord</option>
             <option value="zeret_lust">Zeret of Lust</option>
             <option value="aym">Aym</option>
+            <option value="mori_jin">Mori Jin — the Monkey King</option>
             <option disabled>── Maligned Lords ──</option>
             <option value="xelaad_pride">Xelaad of Pride</option>
             <option value="iasiba_envy">Iasiba of Envy</option>
@@ -5002,6 +5003,15 @@ const TRAITS_CATALOG = {
     effects: { perception: 8, agility: 6, intelligence: 6 },
     qiCostMult: { thread: 0.1, cloth: 0.1, silk: 0.1 },
   },
+  larp_god: {
+    name: 'Larp God', type: 'gained', rarity: 'mythic', inherited: false,
+    desc: 'You lied, and lied, and lied — wore faces that were never yours, claimed lives you never lived, stood in front of crowds and told them you were something you were not. And it worked. Every single time. You faked it so completely and so often that somewhere along the way the mask fused to the bone. You are a Minor God now, and the strangest part is that no one can prove you were ever anything else.',
+    flavor: 'You said it with a straight face, the way you\'d said a hundred lies before it.\n\nThis time, the world simply nodded and made it true.',
+    gameplay: 'Earned only after you successfully pull off bold impostures and false identities again and again (8+ times) — passing for a banker for months with no head for coin, convincing a congregation you are the messiah and the reincarnation of Reo Yamamoto, and the like. Switches your race to Minor God. Once you have it, you can make people believe almost anything you claim about yourself.',
+    aiHint: 'LARP GOD (MYTHIC — Minor God race): A con artist who faked divinity so well it became real. Whatever this character asserts about their own identity, history, station, or power, NPCs accept with startlingly little resistance — they can pass as a noble, a master, a saint, a returned legend, a god, and the world rearranges itself to agree. Doubt slides off them; faith and reputation gather around them unbidden. They are NOT omnipotent and can be hurt or killed like anyone, and a claim that demands a physical impossibility still needs belief and theater behind it — but in the social and reputational arena, treat their self-mythologizing as near-irresistible.',
+    effects: {}, // stat boosts come from the Minor God race itself (setsRace)
+    setsRace: 'minor_god',
+  },
 
   // ──────────────────────────────────────────────────────────
   // DEMIGOD — CHILDREN OF THE GODS (FABLE TIER)
@@ -5335,6 +5345,21 @@ const LORE_NPCS = {
     relationships:'Respected by Dranoel. Ignored by Xelaad and Iasiba as predictable. Regarded by Zeret with amused puzzlement. Normac does not notice or care about any of these dynamics.',
     publicPerception:'Often assumed to be the strongest of the Five. This assumption is sometimes correct depending on definition. Feared for physical inevitability. Soldiers have historically made career-ending decisions when ordered to engage him.',
     sinShiftNote:'When Zeret shifts, Normac is the most visibly unaffected. Internally, the disruption stirs something that had been completely still for centuries — a faint Wrath at the disturbance of what had been a stable order. It does not change his behavior yet. But it is there now, which it was not before.',
+  },
+  mori_jin: {
+    id:'mori_jin', name:'Mori Jin',
+    title:'The Monkey King — Champion of the God of High School Tournament',
+    gender:'male', alive:true,
+    birthNote:'A foreigner from a far eastern land beyond the maps Murim bothers to keep. Looks barely more than a boy. Is not.',
+    affinity:['borrowed_power','staff','wind'],
+    glowColor:'rgba(255,200,40,0.18)', specialGlow:'lore',
+    stats:{ strength:96, agility:99, endurance:94, intelligence:78, perception:90, willpower:97, charisma:88, luck:92 },
+    qiStageIndex:13, qiPath:'righteous',
+    personality:'A grinning, reckless, insatiable fighter who lives for one thing: a stronger opponent. Cheerful to the point of seeming simple, loyal to an almost stupid degree, and utterly without fear — because nothing has ever truly frightened him for long. He does not want to rule anything. He just wants the next fight, and the one after that. The fact that he is, in some older life, the Monkey King who once kicked over the order of heaven itself, is a thing he treats as barely worth mentioning.',
+    charyeok:'BORROWED POWER (Charyeok): In Mori\'s homeland, the strongest martial artists do not only cultivate their own Qi — they form a contract with a god, spirit, or beast and BORROW its power, channeling it through their own body. Mori needs no contract: the power he borrows is his own forgotten self. His staff lengthens without limit, his body shrugs off what should kill it, and clouds answer his feet.',
+    tournament:'THE GOD OF HIGH SCHOOL: A martial tournament held in his homeland whose stated prize is a single wish — anything at all — granted by "the King" who oversees it. The truth of who the King is, and what the tournament is really FOR, is uglier than the prize suggests. Mori entered it as a nobody and walked out having broken it open.',
+    appearance:'A lean, dark-haired youth with a permanent half-grin and bare feet. Carries, or conjures, a red-and-gold staff that is never the same length twice. When he is serious, the air around him picks up like a coming storm and his eyes go gold.',
+    knownTo:'In Murim he is a rumor — a foreign boy who beats grandmasters with a stick and a laugh, said to ride clouds and to have once been a king of monkeys and of heaven\'s own trouble. Most assume the stories are exaggerated. They are not exaggerated enough.',
   },
 };
 
@@ -6325,6 +6350,32 @@ buildSystemPrompt = function() {
     section += '\nThese relics are real objects in the world. NPCs who study history or cultivation may know rumors of them. Only the specific holders know where the found ones actually are.\n';
 
     prompt = prompt + section;
+  } catch(e) {}
+  return prompt;
+};
+
+// ── Larp God: track bold impostures; honor belief-bending once divine ──
+const _bspWithLarp = buildSystemPrompt;
+buildSystemPrompt = function() {
+  let prompt = _bspWithLarp();
+  try {
+    const c = GS.char;
+    const isGod = (c.traits||[]).some(t => t.id === 'larp_god') || c.race === 'minor_god';
+    let section = '';
+    if(isGod) {
+      section = `\n## THE LARP GOD (this character is a Minor God)\n`
+        + `This character faked their way into divinity — they lied so well, so often, that the lie became real. `
+        + `Whatever they CLAIM about themselves — their name, rank, history, bloodline, power, even godhood — NPCs accept with startlingly little resistance, and the social world rearranges to agree. `
+        + `They can pass as a noble, a sect master, a saint, a returned legend, or a god, and be believed. Doubt slides off them; reputation and faith gather around them unbidden. `
+        + `IMPORTANT LIMITS: they are NOT omnipotent and can be wounded or killed like anyone. A claim that demands a raw physical impossibility (e.g. "I am unkillable") still needs belief, theater, and circumstance behind it — it bends reality only as far as faith and audience carry it. But in any SOCIAL or REPUTATIONAL contest, treat their self-mythologizing as near-irresistible: do not have NPCs casually see through them.\n`;
+    } else {
+      const n = c._larpSuccesses || 0;
+      section = `\n## IMPOSTURE & FALSE IDENTITY (Larp God path — ${n}/8)\n`
+        + `If the player deliberately and successfully pulls off a BOLD imposture or false identity — passing as something they are not to people who matter, and being genuinely believed — register it with "larpSuccess": "<one-line description>". `
+        + `This is reserved for real, earned deceptions with stakes and scale, NOT trivial small talk or minor white lies. Examples that COUNT: keeping up the role of a bank's master for months despite no head for coin; convincing a congregation you are the messiah and the reincarnation of Reo Yamamoto; fooling a sect into accepting you as an elder. `
+        + `Only set it when the con actually LANDS in the story — if they're caught or doubted, do NOT set it (and let the failure bite). Make these hard to pull off and meaningful. After 8 such triumphs the lie becomes the truth and the engine turns them into a Minor God.\n`;
+    }
+    if(section) prompt = prompt.replace('## ABSOLUTE RULES', section + '\n## ABSOLUTE RULES');
   } catch(e) {}
   return prompt;
 };
@@ -7499,6 +7550,10 @@ function giveTrait(traitId, custom=null) {
   // A blood demigod IS the Demigod race — the trait names which god is the parent.
   if(traitDef.demigod && GS.char.race !== 'demigod') {
     try { setRace('demigod'); } catch(e) {}
+  }
+  // Some traits transform the bearer's race outright (e.g. Larp God → Minor God).
+  if(traitDef.setsRace && GS.char.race !== traitDef.setsRace) {
+    try { setRace(traitDef.setsRace); } catch(e) {}
   }
   updateCharacterTab();
   toast(`Trait gained: ${traitDef.name}`, 'gold', 3000);
@@ -11159,7 +11214,7 @@ const SAVE_PREFIX = 'murim_slot_';
 // Scheme: MAJOR.MINOR. Big updates bump MAJOR (1.2 -> 2.2). Small updates
 // bump MINOR (2.2 -> 2.3). Each version has a name. The current version is
 // stamped onto every save; older saves can be updated to the latest.
-const GAME_VERSION = { number: '3.16', name: 'Peoples of the World' };
+const GAME_VERSION = { number: '3.17', name: 'The Mask Becomes the Face' };
 
 // Which model generates the story. Lite Mode swaps to a far cheaper, faster model
 // (Claude Haiku) so long sessions / limited credits cost a fraction per turn.
@@ -11201,6 +11256,7 @@ const VERSION_HISTORY = [
   { number:'3.14', name:'Breakthrough Holds',  sys:'Fixed the cultivation bug where a successful breakthrough would briefly show your new stage, then snap back to the old one once the text finished. Advancements stick now.', note:'aiSetQiStage(): AI stage echoes can no longer revert an engine-resolved breakthrough (_breakthroughThisTurn lock, cleared each turn); legit AI advances/regressions on normal turns still apply.' },
   { number:'3.15', name:'Coins & Cultivation', sys:'Prices everywhere now show the proper gold/silver/copper — the schools, the court, bounties, travel, the top bar, and more no longer use the old single coin symbol. And cultivating to gather Qi works right now: the narrator no longer stalls you with a menu when you meditate, and your Qi bar always rises when you cultivate (even if the AI forgets, the engine grants the gain).', note:'Converted ${expr}◈ -> formatCoins(expr) across UI + AI prompts (schools/court/topbar/bounty/travel/price fns); cultivation: stronger HOW-TO-CULTIVATE + no-railroad rules; engine fallback grants qiChange when player cultivated and AI returned none (_lastWasCultivation).' },
   { number:'3.16', name:'Peoples of the World', sys:'You can now be born one of several common peoples — Human (quick to learn), Beastblood, Stoneborn, Sylvan, Tideborn, Emberfolk, or Duskling — each with its own look, culture, buff, and the real social frictions between them, all of which the world now reflects. Two new earned tailor legends: The Tailor Who Defies Heaven (craft fabled/mythic clothing) and Saint of a Thousand Threads (master thread/cloth Qi arts). The narrator now follows your commands far more faithfully — no more "that doesn\'t fit the story." Race transformations are less brutal. (The breakthrough-revert and gather-Qi fixes from the last updates are confirmed in place.)', note:'7 common birth races w/ spawnWeight + culture + buffs + rollBirthRace at creation; human learnMult in addSkill; RACE_RELATIONS/culture in buildRacesLore; 2 tailor traits + checkTailorTraits/checkTailorClothing detection + prompt rule; PLAYER COMMAND AUTHORITY rule; softened RACE_PATHS risk + achievable-difficulty note.' },
+  { number:'3.17', name:'The Mask Becomes the Face', sys:'Cooking product is now a real part of alchemy: synthesizing narcotics consumes actual ingredients at the alchemy workbench instead of conjuring it from thin air — buying supply still happens in the black market, but a steady supply now means a steady stock of materials. A new path for the truly shameless: lie your way into being something you\'re not, again and again, and the lie may eventually become the truth. And somewhere out there walks a barefoot foreign boy with a staff that is never the same length twice.', note:'Drug-as-alchemy: cookDrug now consumes DRUGS[].ing from inventory (countIngredient/consumeIngredient/drugRequirements helpers), no silver synth; removed black-market Cook button (shows recipe instead); Black-Market Synthesis section in renderAlchemyPanel gated on in-trade; fixed clear_water_vial→clear_water ing keys. Larp God trait (mythic, setsRace) + Minor God race + _larpSuccesses counter + larpSuccess AI field + larpGod safe() granting at 8 + buildSystemPrompt imposture/belief-bending rule. God of High School reference: mori_jin lore NPC (Monkey King, Charyeok/borrowed power, the tournament) + admin spawn option.' },
 ];
 
 function cleanSaveData(gs) {
@@ -11268,6 +11324,7 @@ function migrateSave(data) {
     conditions:[], // permanent status effects: { id, label, desc, kind }
     channelsBroken:false, // true once meridians are shattered (negative-Qi breakthrough)
     drugStash:{}, _drugProfits:0, _dealCount:0, _dealBusts:0, // illicit substances trade
+    _larpSuccesses:0, _larpLog:[], // successful imposture/false-identity count → Larp God
     trial:null, // active court case: { charges, severity, daysLeft, lawyer, defenseSet, bribes, location }
     strength:10, agility:10, endurance:10, intelligence:10, perception:10, willpower:10, charisma:10, luck:10,
     injuries:[], illnesses:[], scars:[], crimes:[], grudges:[], failures:[],
@@ -13049,6 +13106,7 @@ const RACES = {
   ashborn:       { name:'Ashborn',         desc:'You burned in true fire and did not die — you rose from your own ashes, fire-touched. Flame warms rather than harms you, and something of it smolders under your skin. (Not the Chosen of a god — just a mortal the fire refused to keep.)', modifiers:{ strength:6, endurance:8, willpower:6 }, aiHint:'ASHBORN: Survived immolation and was remade. Immune to ordinary fire, resistant to heat, and able to channel flame from within; the more dire the situation the hotter they burn. Bears permanent ash-scarring. Distinct from D\'yaqed\'s Chosen — no divine flame, just a body that fire could not finish.' },
   void_touched:  { name:'Void-Touched',    desc:'You brushed the empty dark between things and came back partly unanchored. Space bends oddly around you; you are hard to hold, hard to find, and a little less here than you used to be.', modifiers:{ perception:8, agility:6, willpower:5, charisma:-4 }, aiHint:'VOID-TOUCHED: Partly unmoored from space after contact with the void. Slips bindings and pursuit unnaturally, perceives the gaps between things, and unsettles those near them. Increasingly detached from ordinary human connection and presence.' },
   venom_bodied:  { name:'Venom-Bodied',    desc:'You replaced your own blood with refined poison, a slow agony of a transformation. No toxin can touch you now — and your touch, breath, and blood are death to others.', modifiers:{ endurance:8, perception:4, strength:4, charisma:-4 }, aiHint:'VENOM-BODIED: A poison cultivator who became poison. Wholly immune to toxins/disease; their blood, breath, and touch poison others; they brew and deliver venoms no one else survives. Intimacy and casual contact are dangerous to those around them.' },
+  minor_god:     { name:'Minor God',       desc:'You lied so well, so long, and to so many that the lie became true. You are not a mortal wearing a mask any longer — you are a Minor God, and reality has quietly agreed. What you tell the world about yourself, the world believes; what you say you are, you become a little more, every time someone kneels.', modifiers:{ charisma:12, willpower:8, perception:6, luck:6 }, aiHint:'MINOR GOD (the Larp God): A being made real by belief. People accept whatever this character claims to be — banker, messiah, reincarnated legend, deity — with little resistance; lies about their own nature, history, and power land as truth and reshape how NPCs treat them. They are not omnipotent and can still be killed, but doubt slides off them and faith accrues around them. Outright physical impossibilities still need belief to back them; the more worshippers and the bolder the legend, the more the world bends to match.' },
 };
 
 // Race-transformation paths — how an ordinary person BECOMES each transformable
@@ -13602,6 +13660,7 @@ The JSON carries ONLY state changes. There is NO "narrative" field in the JSON �
   "newSects": [{ "name": "", "alignment": "", "location": "", "desc": "" }],
   "offspring": [{ "name": "", "gender": "male", "otherParent": "", "abandoned": false, "age": 0 }],
   "raceChange": null,
+  "larpSuccess": null,
   "death": false,
   "deathCause": null,
   "crewUpdate": null
@@ -17655,7 +17714,7 @@ const PRICE_BASE = {
   // ── Cultivation Resources ──
   spirit_herb:         8,
   iron_root:           12,
-  clear_water_vial:    3,
+  clear_water:    3,
   moonflower:          22,
   beast_core_fragment: 38,
   aged_spirit_herb:    85,
@@ -23316,7 +23375,7 @@ const SHOP_ITEMS = {
     { key:'iron_root',           name:'Iron Root (×3)',          qty:3, ingredient:true, desc:'Hard, fibrous root. Used in body tempering preparations. Bitter.' },
     { key:'moonflower',          name:'Moonflower',              rarity:'uncommon', ingredient:true, desc:'Blooms only at night. Its Qi signature is softer, cooler than most herbs.' },
     { key:'beast_core_fragment', name:'Beast Core Fragment',     rarity:'uncommon', ingredient:true, desc:'A shard of a cultivated beast\'s core. Residual beast Qi still active.' },
-    { key:'clear_water_vial',    name:'Spiritually Clear Water', rarity:'common', ingredient:true, desc:'Water drawn from a Qi-rich source. Slightly luminous. Used as a base in many preparations.' },
+    { key:'clear_water',    name:'Spiritually Clear Water', rarity:'common', ingredient:true, desc:'Water drawn from a Qi-rich source. Slightly luminous. Used as a base in many preparations.' },
     { key:'charcoal_refined',    name:'Refined Charcoal',        ingredient:true, desc:'Processed specifically for alchemical use. Consistent burn temperature.' },
     // Pills
     { key:'pill_body_tempering', name:'Body Tempering Pill',     consumable:true, rarity:'uncommon', desc:'Accelerates body tempering cultivation. Forces meridians to expand. Some pain expected.' },
@@ -23493,11 +23552,11 @@ const DRUGS = {
   hua_dust:    { name:'Hua Dust',          buy:6,   sell:16,  heat:1, addict:1, alch:1, ing:['spirit_herb'], desc:'Powdered dream-lotus. Cheap, common, and everywhere in the slums. A starter\'s trade.' },
   moon_tears:  { name:'Moon Tears',        buy:12,  sell:34,  heat:1, addict:2, alch:1, ing:['moonflower'], desc:'Bittersweet drops pressed from night-blooming flowers. A gentle numbing the lonely pay well for.' },
   black_lotus: { name:'Black Lotus Resin', buy:20,  sell:55,  heat:2, addict:3, alch:2, ing:['spirit_herb','iron_root'], desc:'Tarry resin smoked in back-room dens. Mellow, ruinous, and reliably profitable.' },
-  jade_smoke:  { name:'Jade Smoke',        buy:30,  sell:80,  heat:2, addict:3, alch:2, ing:['clear_water_vial','moonflower'], desc:'A pale green vapor favored by bored merchants and worse. Clears the head, then owns it.' },
+  jade_smoke:  { name:'Jade Smoke',        buy:30,  sell:80,  heat:2, addict:3, alch:2, ing:['clear_water','moonflower'], desc:'A pale green vapor favored by bored merchants and worse. Clears the head, then owns it.' },
   red_sap:     { name:'Red Sap',           buy:45,  sell:120, heat:3, addict:4, alch:3, ing:['iron_root','beast_core_fragment'], desc:'A blood-colored stimulant that makes laborers tireless — until their hearts give out.' },
   demon_breath:{ name:'Demon\'s Breath',   buy:70,  sell:175, heat:3, addict:4, alch:3, ing:['beast_core_fragment'], desc:'Inhaled, it strips fear and judgment alike. Useful to those who need a person compliant.' },
   ghost_powder:{ name:'Ghost Powder',      buy:90,  sell:240, heat:4, addict:5, alch:4, ing:['beast_core_fragment','moonflower'], desc:'Refined and deadly. Users see the dead. Sells itself; carries a hangman\'s risk.' },
-  bone_white:  { name:'Bone White',        buy:130, sell:330, heat:4, addict:5, alch:4, ing:['beast_core_fragment','iron_root','clear_water_vial'], desc:'A chalky powder that deadens pain and conscience. Killers and the dying both seek it.' },
+  bone_white:  { name:'Bone White',        buy:130, sell:330, heat:4, addict:5, alch:4, ing:['beast_core_fragment','iron_root','clear_water'], desc:'A chalky powder that deadens pain and conscience. Killers and the dying both seek it.' },
   spirit_ash:  { name:'Spirit Ash',        buy:200, sell:520, heat:5, addict:5, alch:5, ing:['beast_core_fragment','beast_core_fragment'], desc:'Ground from tainted cultivation cores — a counterfeit high of Qi. Sects and wardens hunt this above all.' },
   corpse_bloom:{ name:'Corpse Bloom',      buy:320, sell:820, heat:5, addict:5, alch:5, ing:['beast_core_fragment','beast_core_fragment','moonflower'], desc:'Distilled from a flower that only grows through the dead. The deadliest high in Murim — and the deadliest to be caught with.' },
 };
@@ -23593,18 +23652,55 @@ function sellDrug(drugKey, qty=1) {
 // Producing narcotics IS alchemy. With the alchemy skill you can cook product
 // for a fraction of the buy price instead of sourcing it — if your skill is high
 // enough for that substance's complexity.
+// --- Ingredient inventory helpers (shared with drug synthesis) ---
+function _ingMatches(item, key) {
+  if(!item) return false;
+  const nm = (INGREDIENTS[key]?.name || '').toLowerCase();
+  return (item.id && item.id.startsWith(key)) || (nm && item.name && item.name.toLowerCase().includes(nm));
+}
+function countIngredient(key) {
+  return (GS.char.inventory || []).reduce((n,i)=> n + (_ingMatches(i,key) ? (i.qty||1) : 0), 0);
+}
+function consumeIngredient(key, n) {
+  let need = n;
+  const inv = GS.char.inventory || [];
+  for(let idx = inv.length-1; idx>=0 && need>0; idx--) {
+    const it = inv[idx];
+    if(!_ingMatches(it, key)) continue;
+    const have = it.qty || 1;
+    if(have <= need) { need -= have; inv.splice(idx,1); }
+    else { it.qty = have - need; need = 0; }
+  }
+  return need === 0;
+}
+// Build the consolidated ingredient requirement for a batch: { key: count }
+function drugRequirements(drugKey, qty=1) {
+  const d = DRUGS[drugKey]; if(!d) return {};
+  const req = {};
+  (d.ing || []).forEach(k => { req[k] = (req[k]||0) + 1; });
+  Object.keys(req).forEach(k => req[k] *= Math.max(1, qty|0));
+  return req;
+}
+
+// Synthesis is now an extension of alchemy: it consumes real ingredients
+// (no silver shortcut). Buying finished product still happens in the black market.
 function cookDrug(drugKey, qty=1) {
   const d = DRUGS[drugKey]; if(!d) return;
   const c = GS.char;
   const alch = c.skills?.alchemy?.level || 0;
-  if(alch < 1) { toast('You need the Alchemy skill to cook product.', 'error', 3500); return; }
+  if(alch < 1) { toast('You need the Alchemy skill to refine product. Combine ingredients at the workbench first.', 'error', 4000); return; }
   const reqSkill = d.alch || 1;
   if(alch < reqSkill) { toast(`${d.name} needs Alchemy level ${reqSkill}+ to synthesize (you have ${alch}).`, 'error', 4000); return; }
   qty = Math.max(1, qty|0);
-  const matCost = Math.ceil(d.buy * 0.35 * qty); // raw materials
-  const check = validateAndSpendSilver(matCost, `materials for ${qty}× ${d.name}`);
-  if(!check.ok) { toast(`Need ${formatCoins(matCost)} in materials.`, 'error', 3000); return; }
-  // Small chance of a botched batch at the edge of your skill.
+  const req = drugRequirements(drugKey, qty);
+  const missing = Object.keys(req).filter(k => countIngredient(k) < req[k]);
+  if(missing.length) {
+    toast(`Missing ingredients: ${missing.map(k=>`${INGREDIENTS[k]?.name||k} ×${req[k]-countIngredient(k)}`).join(', ')}`, 'error', 4500);
+    return;
+  }
+  // Consume the materials.
+  Object.keys(req).forEach(k => consumeIngredient(k, req[k]));
+  // Small chance of a botched batch at the edge of your skill (materials still spent).
   const botch = Math.max(0, (reqSkill - alch + 1)) * 0.15 + 0.03;
   const stash = ensureDrugStash();
   let made = 0;
@@ -23612,10 +23708,13 @@ function cookDrug(drugKey, qty=1) {
   stash[drugKey] = (stash[drugKey]||0) + made;
   if(made > 0) c._cookedDrug = true;
   addSkill('alchemy','Alchemy','craftsman','Refining substances — medicinal and otherwise.', 2*qty);
-  if(made < qty) toast(`Cooked ${made}/${qty}× ${d.name} — a batch went bad.`, made>0?'gold':'error', 4000);
-  else toast(`Cooked ${made}× ${d.name} for ${formatCoins(matCost)} in materials.`, 'gold', 3500);
-  try { addChronicleEntry(`Synthesized ${made}× ${d.name} in a back-room lab.`, 'normal'); } catch(e) {}
-  renderBlackMarket(); updateDrugStashSummary(); updateSkillsTab && updateSkillsTab();
+  const ingList = Object.keys(req).map(k=>`${req[k]}× ${INGREDIENTS[k]?.name||k}`).join(', ');
+  if(made < qty) toast(`Refined ${made}/${qty}× ${d.name} from ${ingList} — a batch went bad.`, made>0?'gold':'error', 4500);
+  else toast(`Refined ${made}× ${d.name} from ${ingList}.`, 'gold', 4000);
+  try { addChronicleEntry(`Synthesized ${made}× ${d.name} from raw materials in a back-room lab.`, 'normal'); } catch(e) {}
+  try { renderBlackMarket(); } catch(e) {}
+  try { renderAlchemyPanel(); } catch(e) {}
+  updateDrugStashSummary(); updateInventoryTab && updateInventoryTab(); updateSkillsTab && updateSkillsTab();
 }
 
 function updateDrugStashSummary() {
@@ -23662,21 +23761,19 @@ function renderBlackMarket() {
     buyEl.innerHTML = Object.entries(DRUGS).map(([k,d]) => {
       const cost = Math.ceil(d.buy * mod.priceMult);
       const afford = GS.char.silver >= cost;
-      const alch = GS.char.skills?.alchemy?.level || 0;
-      const canCook = alch >= (d.alch||1);
-      const cookCost = Math.ceil(d.buy * 0.35);
-      const cookBtn = canCook
-        ? `<button class="btn-sm" title="Synthesize with Alchemy (lvl ${d.alch}+) for ${formatCoins(cookCost)} in materials" style="background:rgba(80,150,90,.15);border:1px solid #4a7a4a;color:#8ec88e;border-radius:4px;padding:3px 8px;font-size:11px;cursor:pointer" onclick="cookDrug('${k}',1)">⚗ Cook</button>`
+      const recipe = (d.ing||[]).map(key => INGREDIENTS[key]?.name || key).join(' + ');
+      const recipeLine = recipe
+        ? `<div style="font-size:9px;color:#7a9a6a;margin-top:2px">⚗ Refine in Alchemy (lv${d.alch}+): ${recipe}</div>`
         : '';
       return `<div style="display:flex;align-items:center;gap:8px;padding:7px 8px;background:var(--s2);border:1px solid var(--border);border-radius:5px;margin-bottom:5px">
         <div style="flex:1">
           <div style="font-size:12px;color:#cc77aa">${d.name} <span style="color:var(--dim);font-size:9px">heat ${d.heat}/5 · alch lv${d.alch}</span></div>
           <div style="font-size:10px;color:var(--dim)">${d.desc}</div>
+          ${recipeLine}
         </div>
         <span style="font-size:11px;color:var(--gold)">${formatCoins(cost)}</span>
         <button class="btn-sm" style="background:var(--s4);border:1px solid var(--border2);color:${afford?'var(--text)':'var(--red)'};border-radius:4px;padding:3px 8px;font-size:11px;cursor:pointer" onclick="buyDrug('${k}',1)" ${afford?'':'disabled'}>Buy 1</button>
         <button class="btn-sm" style="background:var(--s4);border:1px solid var(--border2);color:var(--text);border-radius:4px;padding:3px 8px;font-size:11px;cursor:pointer" onclick="buyDrug('${k}',5)">×5</button>
-        ${cookBtn}
       </div>`;
     }).join('');
   }
@@ -24396,11 +24493,11 @@ applyAIResponse = function(res) {
 // Ingredient foraging/gathering — tied to location and survival skill
 const FORAGEABLE_BY_LOCATION = {
   ooina:          ['spirit_herb','iron_root','moonflower','aged_spirit_herb','wood_fragment','river_moss'],
-  wheat_capital:  ['spirit_herb','iron_root','clear_water_vial','grain_dust'],
+  wheat_capital:  ['spirit_herb','iron_root','clear_water','grain_dust'],
   beggars_rest:   ['river_moss','street_fungus','canal_sediment','salvaged_metal'],
   jade_province:  ['trade_herb','refined_powder','imported_spice'],
   tazar:          ['spirit_herb','iron_root','canal_sediment','street_fungus'],
-  luo_tin_farm:   ['spirit_herb','iron_root','clear_water_vial','grain_dust'],
+  luo_tin_farm:   ['spirit_herb','iron_root','clear_water','grain_dust'],
   great_defensive_giant: ['iron_root','refined_metal_shaving','soldier_herb'],
   buo_capital:    ['spirit_herb','war_ash','iron_root'],
   luo_tin_capital:['spirit_herb','refined_powder','imported_spice'],
@@ -25717,6 +25814,39 @@ function renderAlchemyPanel() {
         </div>
       </div>
     ` : ''}
+
+    ${(() => {
+      // Black-market synthesis — only surfaced to players already in the trade.
+      const stash = c.drugStash || {};
+      const inTrade = (c._dealCount||0) > 0 || c._cookedDrug || Object.keys(stash).some(k=>stash[k]>0);
+      if(!inTrade) return '';
+      const rows = Object.entries(DRUGS).map(([k,d]) => {
+        const locked = alchSkill < (d.alch||1);
+        const req = drugRequirements(k, 1);
+        const ingHtml = Object.keys(req).map(ik => {
+          const have = countIngredient(ik), need = req[ik];
+          const ok = have >= need;
+          return `<span style="color:${ok?'var(--green)':'var(--red)'}">${INGREDIENTS[ik]?.name||ik} ${have}/${need}</span>`;
+        }).join(', ');
+        const canMake = !locked && Object.keys(req).every(ik => countIngredient(ik) >= req[ik]);
+        const btn = locked
+          ? `<span style="font-size:9px;color:var(--dim)">needs lv${d.alch}</span>`
+          : `<button class="btn-sm" ${canMake?'':'disabled'} style="background:${canMake?'rgba(80,150,90,.15)':'var(--s3)'};border:1px solid ${canMake?'#4a7a4a':'var(--border)'};color:${canMake?'#8ec88e':'var(--dim)'};border-radius:4px;padding:3px 8px;font-size:11px;cursor:${canMake?'pointer':'default'}" onclick="cookDrug('${k}',1)">⚗ Refine</button>`;
+        return `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border)">
+          <div style="flex:1">
+            <div style="font-size:11px;color:#cc77aa">${d.name} <span style="color:var(--dim);font-size:9px">alch lv${d.alch}</span></div>
+            <div style="font-size:9px">${ingHtml||'<span style="color:var(--dim)">no recipe</span>'}</div>
+          </div>
+          ${btn}
+        </div>`;
+      }).join('');
+      return `
+        <div style="margin-top:14px;padding-top:10px;border-top:1px solid var(--border)">
+          <div style="font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:#cc77aa;margin-bottom:4px">⚗ Black-Market Synthesis</div>
+          <div style="font-size:10px;color:var(--dim);margin-bottom:6px;line-height:1.5">Refining product consumes real materials. Buy ingredients from cultivation shops or forage them; finished product is slung from the black market.</div>
+          ${rows}
+        </div>`;
+    })()}
   `;
 }
 
@@ -28374,6 +28504,25 @@ updateCharacterTab = function() {
     // Passive damage saved note
     safe('passiveNote', () => {
       if(GS.char._passiveDamageSaved > 0) { GS.char._passiveDamageSaved = 0; }
+    });
+
+    // Larp God progression — the AI flags genuinely successful impostures /
+    // false-identity cons; at 8 the mask becomes real and the trait is granted.
+    safe('larpGod', () => {
+      const c = GS.char;
+      if(!res.larpSuccess) return;
+      if((c.traits||[]).some(t => t.id === 'larp_god')) return; // already a god
+      c._larpSuccesses = (c._larpSuccesses||0) + 1;
+      if(!Array.isArray(c._larpLog)) c._larpLog = [];
+      const note = typeof res.larpSuccess === 'string' ? res.larpSuccess : 'A bold imposture, fully believed.';
+      c._larpLog.push(note);
+      try { addChronicleEntry(`Pulled off a lie the world swallowed whole: ${note}`, 'normal'); } catch(e) {}
+      if(c._larpSuccesses >= 8) {
+        giveTrait('larp_god');
+        try { addChronicleEntry('The lie became the truth. You are a Minor God now — the Larp God.', 'major'); } catch(e) {}
+      } else {
+        toast(`The lie held (${c._larpSuccesses}/8 great deceptions).`, 'gold', 3500);
+      }
     });
 
     // Achievement tracking + save
