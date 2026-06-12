@@ -10062,6 +10062,7 @@ function updateTechPane() {
         ${t.stage<6 ? `<div class="text-xs text-muted" style="margin-bottom:6px">⟳ ${Math.max(0,(PRACTICE_TO_ADVANCE[t.stage]||0)-(t.practicePoints||0))} more uses in the story to reach ${TECH_STAGES[t.stage+1]?.short||'mastery'}${t.stage===5&&t._awaitingInsight?' — but the last step needs a revelation, not practice':''}</div>` : '<div class="text-xs" style="color:var(--gold);margin-bottom:6px">✦ Mastered — Conceptual Authority</div>'}
         <div class="tech-actions">
           <button class="btn-secondary btn-sm" onclick="practiseTech('${t.id}')">Practice</button>
+          ${(t.stage||0) >= 2 ? `<button class="btn-secondary btn-sm" onclick="requestOffshoot('${t.id}','tech')" title="Develop a variant — the story decides what it becomes">⑂ Develop Offshoot</button>` : ''}
           ${!t.tomeCreated ? `<button class="btn-secondary btn-sm" onclick="createTome('${t.id}','tech')">Write Tome</button>` : '<span class="text-xs text-muted">Tome written</span>'}
           <button class="btn-secondary btn-sm" onclick="useTechInNarrative('${t.id}')">Use in Action</button>
         </div>
@@ -10096,6 +10097,7 @@ function updateMAPane() {
         ${m.stage<7 ? `<div class="text-xs text-muted" style="margin-bottom:6px">⟳ ${Math.max(0,(MA_PRACTICE_TO_ADVANCE[m.stage]||0)-(m.practicePoints||0))} more uses in the story to reach ${MARTIAL_STAGES[m.stage+1]?.short||'mastery'}</div>` : '<div class="text-xs" style="color:var(--gold);margin-bottom:6px">✦ Mastered — Living Weapon</div>'}
         <div class="tech-actions">
           <button class="btn-secondary btn-sm" onclick="practiseMA('${m.id}')">Practice</button>
+          ${(m.stage||0) >= 3 ? `<button class="btn-secondary btn-sm" onclick="requestOffshoot('${m.id}','ma')" title="Develop a variant — the story decides what it becomes">⑂ Develop Offshoot</button>` : ''}
           ${!m.tomeCreated ? `<button class="btn-secondary btn-sm" onclick="createTome('${m.id}','ma')">Write Tome</button>` : '<span class="text-xs text-muted">Tome written</span>'}
           <button class="btn-secondary btn-sm" onclick="useMAInNarrative('${m.id}')">Use in Action</button>
         </div>
@@ -10131,6 +10133,36 @@ function practiseMA(id) {
   if(!m) return;
   addSkill('martial_training','Martial Training','martial_arts');
   sendToAI(`I practice ${m.name}, going through the forms.`);
+}
+
+// Player ASKS to develop an offshoot — but the STORY (AI) decides what it
+// becomes: its name, its bio, and what it does, drawn from the parent art and
+// the character's own cultivation. The player never names or designs it.
+function requestOffshoot(id, type) {
+  const c = GS.char;
+  const item = type === 'tech'
+    ? c.techniques.find(t => t.id === id)
+    : c.martialArts.find(m => m.id === id);
+  if(!item) return;
+  const stages = type === 'tech' ? TECH_STAGES : MARTIAL_STAGES;
+  const minStage = type === 'tech' ? 2 : 3;
+  if((item.stage||0) < minStage) {
+    toast(`You don't understand ${item.name} deeply enough yet to branch it into something new.`, 'error', 3500);
+    return;
+  }
+  const qi = c.qi || {};
+  const cultiv = `${getQiStage()?.name || 'Mortal'}${qi.path ? ', '+qi.path+' Qi' : ''}${qi.expression ? ', '+qi.expression+' expression' : ''}`;
+  const kindWord = type === 'tech' ? 'technique' : 'martial art';
+  const stageName = stages[item.stage]?.name || 'their current grasp';
+  const beasts = (c._ancientQiBeasts||[]).map(k=>ANCIENT_QI_BEASTS[k]?.name).filter(Boolean);
+  // Hand the AI everything it needs to AUTHOR the offshoot itself.
+  const msg = `I take what I understand of my ${kindWord} "${item.name}" and try to branch it — to push it in a new direction and let a variant of my own emerge from it.\n\n`
+    + `[DEVELOP OFFSHOOT — the STORY authors this, not the player. The character is deliberately working an OFFSHOOT out of their existing ${kindWord}:\n`
+    + `  Parent ${kindWord}: "${item.name}" (${item.rarity||'common'}, ${item.category||item.type||''}${type==='tech'&&item.type?'/'+item.type:''}) at ${stageName}.\n`
+    + `  Parent description: ${item.desc || 'no description'}.\n`
+    + `  The character's cultivation: ${cultiv}.${beasts.length?` They have learned beast-Qi arts: ${beasts.join(', ')}.`:''}\n`
+    + `Decide — from the parent art, the character's path/expression/level, and how this moment goes — WHETHER a real offshoot emerges (it may simply not click this time, which is fine and should be narrated as an honest dead-end), and if it does, INVENT it yourself: its NAME, a real BIO (what it is and how it feels), and what it DOES. It must genuinely diverge from the parent (a new emphasis, application, or principle), fit the character, and be plausible for their level — do NOT just rename the parent. If and only if it works, return it via "newOffshoots" as { "parent": "${item.name}", "name": "<you choose>", "kind": "${type}", "type": "<...>", "rarity": "<= parent>", "desc": "<the bio you wrote>" }. A new offshoot always starts unlearned and must be practiced up. Narrate the attempt and what came (or didn't come) of it.]`;
+  sendToAI(msg);
 }
 
 // ── Offshoots are now created by the STORY (the AI), not by a button. ──
@@ -11411,7 +11443,7 @@ const SAVE_PREFIX = 'murim_slot_';
 // Scheme: MAJOR.MINOR. Big updates bump MAJOR (1.2 -> 2.2). Small updates
 // bump MINOR (2.2 -> 2.3). Each version has a name. The current version is
 // stamped onto every save; older saves can be updated to the latest.
-const GAME_VERSION = { number: '3.21', name: 'Earned, Not Clicked' };
+const GAME_VERSION = { number: '3.22', name: 'The Story Decides' };
 
 // Which model generates the story. Lite Mode swaps to a far cheaper, faster model
 // (Claude Haiku) so long sessions / limited credits cost a fraction per turn.
@@ -11458,6 +11490,7 @@ const VERSION_HISTORY = [
   { number:'3.19', name:'Older Than People', sys:'Qi was never invented by people — long before the founders discovered it on their own, primordial creatures already wielded it, each in their own way, the way the first benders learned from animals. There are now achievements for learning the irreproducible Qi of the ten Original Qi Beasts: dragons, yokai, sakura trees, cove bears, the man-serpent children of Yuluh, giants and titans, the sanguine, the pelagic goat, the five-legged ape, and the arachnid — plus one for learning all ten. A new achievement waits for those who cross paths with a certain barefoot foreign boy and his ever-changing staff. And the storyteller now reliably honors the rules it was sometimes forgetting at the very end of long prompts.', note:'ANCIENT_QI_BEASTS catalog (10 beasts: dragon/yokai/sakura_tree/cove_bear/man_serpent/giant/sanguine/pelagic_goat/five_legged_ape/arachnid); auto-generated aqi_* achievements + aqi_all master + god_of_high_school achievement; _ancientQiBeasts[]/_metMonkeyKing char fields; ancientQiLearned AI field + trackAchievementState detection (+ Mori Jin registry/narrative flag); buildAncientQiSection()/buildLarpGodSection() text builders. KEY FIX: Larp God prompt rule (added v3.17) was being trimmed by the MAX_SYSTEM_PROMPT_CHARS length-guard because it injected pre-guard; moved both Larp + Ancient Qi injection into a LATE wrapper (_bspWithBeastsAndMask) placed after the length-guard so they survive (verified present in 37k-char prompt).' },
   { number:'3.20', name:'The Bestiary', sys:'The ten Original Qi Beasts are now fully fleshed out — each with its own stats, the place in the world it can be found, its lore and behavior, exactly how its Qi works, and how (and what it costs) to learn its art. Every beast\'s Qi is genuinely DISTINCT: learning from one grants its own unique signature technique (a dragon\'s law-like elemental dominion is nothing like the arachnid\'s cutting web-silk or the sanguine\'s blood-command), and the storyteller now runs each encounter true to that beast\'s nature. A new in-game Bestiary lets you browse every creature in full detail.', note:'Expanded ANCIENT_QI_BEASTS: per-beast stats{8}, qiStageIndex, tier, danger, location, lore, behavior, qiMechanic, howToLearn, and a DISTINCT signature{name,category,type,rarity,desc} (10 unique arts across 5 categories). buildAncientQiSection() now surfaces location/mechanic/behavior/how-to-learn/granted-art per beast + DISTINCT rule. trackAchievementState ancientQiLearned now grantTechnique(beast.signature) so each grants its own art. Bestiary viewer: showBeastBestiary()/showBeastDetail() (uiPicker→uiPopup stat+lore card) + admin NPCs-tab button.' },
   { number:'3.21', name:'Earned, Not Clicked', sys:'Cultivation, techniques, and martial arts now progress the way they should — through the story, not a button. Understanding the THEORY of Qi (Meridian Theory, Meditation, Cultivation skills) genuinely speeds up how fast you gather Qi when you cultivate. The "Progress Stage" button is gone: techniques AND martial arts now advance only through real, repeated use in the narrative (each card shows how many more uses remain). You no longer hand-craft offshoots from a menu either — when you truly innovate on or break open one of your arts in the story, the narrator splits off a new variant for you, with its own proper description. Offshoots and fused techniques now read as real arts with their own bios, never "a variant of X" or "a fusion of X and Y".', note:'Part A: getCultivationTheoryMult() (meridian_theory*1.4+meditation*1.1+cultivation*1.0+formation_theory*0.4, +1.5%/pt cap +70%) applied in addQiWithTraits for positive gain; late _bspWithProgression prompt wrapper also nudges AI qiChange for theory-heavy chars. Part C: removed advanceTechStage/advanceMAStage buttons; added MA_PRACTICE_TO_ADVANCE + recordMartialUse + wired into detectTechniquesInMessage loop so MAs advance via narrative; cards show remaining-uses hint. Part B: removed player Create Offshoot button + function; newOffshoots AI field → applyOffshootsFromAI (story-driven variants, real bio, start Fragmented). Part D: combination naming now requests structured techDefine{id,name,desc} (was fragile personalEvents TECH_DEFINE — mangled by an outer wrapper). KEY FIX: the old applyAIResponse wrapper chain is DEAD (consolidatedApplyAIResponse rebuilt it without _prev); moved offshoot+techDefine handling into an outermost post-consolidation wrapper (wireTechAuthoring) so they actually run.' },
+  { number:'3.22', name:'The Story Decides', sys:'Refined how offshoots work: you CAN deliberately set out to develop a variant of a technique or martial art you understand well (a "Develop Offshoot" button on the card) — but the STORY authors it. You never name or design it; the narrator decides whether a real offshoot even emerges this time, and if it does, invents its name, its bio, and what it does, drawn from the parent art and your own cultivation (path, expression, level, any beast-Qi you carry). It must genuinely diverge from the parent and starts unlearned, to be practiced up.', note:'Re-added a card button as requestOffshoot(id,type) (tech gated stage>=2, ma stage>=3): builds a context-rich DEVELOP OFFSHOOT injection (parent name/desc/category/type/rarity/stage + character cultivation stage/path/expression + learned beast arts) and sendToAI; AI authors name/bio/effect and returns via existing newOffshoots → applyOffshootsFromAI. Updated _bspWithProgression OFFSHOOTS rule to cover both organic and player-requested paths (AI always authors; may legitimately fail to produce one).' },
 ];
 
 function cleanSaveData(gs) {
@@ -42094,7 +42127,7 @@ buildSystemPrompt = function() {
       : ` Deeper UNDERSTANDING of Qi (Meridian Theory, Meditation, Cultivation skills) makes a cultivator gather Qi faster — reward characters who study the theory with larger qiChange when they cultivate.`;
     const section = `## TECHNIQUE PROGRESSION & OFFSHOOTS\n`
       + `Techniques and martial arts get STRONGER only through narrative PRACTICE — repeated, earned use in the story. NEVER jump a technique or martial art up multiple stages from a single action, and do not let the player simply declare mastery; mastery is shown, used, and earned over time. A stage is a real threshold of understanding.\n`
-      + `OFFSHOOTS / VARIANTS: the player does not get a button to invent variants — YOU create them. When the player genuinely innovates on, diverges from, or breaks open one of their existing techniques or martial arts IN THE STORY (improvising a new application, reforging it after an insight, splitting it toward a new purpose), register the new offshoot via "newOffshoots" with its own real BIO (what it IS and does — never "a variant of X"). An offshoot is a NEW art: it starts fresh at the lowest stage and must be practiced up from there. Do this only when the story earns it, not casually.\n`
+      + `OFFSHOOTS / VARIANTS: the player never names or designs their own variants — YOU author them. This happens two ways: (a) organically, when the player innovates on, diverges from, or breaks open one of their arts in the story; or (b) when the player deliberately sets out to develop an offshoot (a "DEVELOP OFFSHOOT" request) — in that case YOU decide whether a real offshoot actually emerges (it may honestly fail to click this time) and, if it does, YOU invent its name, its real BIO (what it IS and how it feels), and what it does — drawn from the parent art and the character's own cultivation (path, expression, level, any beast-Qi). Either way, register it via "newOffshoots" with a real bio (never "a variant of X"), it must genuinely diverge from the parent (not a rename), and it starts fresh at the lowest stage and must be practiced up. Do not hand these out casually.\n`
       + `CULTIVATION SPEED:${theoryNote}\n`;
     if(prompt.includes('## ABSOLUTE RULES')) prompt = prompt.replace('## ABSOLUTE RULES', section + '\n## ABSOLUTE RULES');
     else prompt = prompt + '\n' + section;
