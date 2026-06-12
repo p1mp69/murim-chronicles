@@ -6558,30 +6558,25 @@ buildSystemPrompt = function() {
 };
 
 // ── Larp God: track bold impostures; honor belief-bending once divine ──
-const _bspWithLarp = buildSystemPrompt;
-buildSystemPrompt = function() {
-  let prompt = _bspWithLarp();
-  try {
-    const c = GS.char;
-    const isGod = (c.traits||[]).some(t => t.id === 'larp_god') || c.race === 'minor_god';
-    let section = '';
-    if(isGod) {
-      section = `\n## THE LARP GOD (this character is a Minor God)\n`
-        + `This character faked their way into divinity — they lied so well, so often, that the lie became real. `
-        + `Whatever they CLAIM about themselves — their name, rank, history, bloodline, power, even godhood — NPCs accept with startlingly little resistance, and the social world rearranges to agree. `
-        + `They can pass as a noble, a sect master, a saint, a returned legend, or a god, and be believed. Doubt slides off them; reputation and faith gather around them unbidden. `
-        + `IMPORTANT LIMITS: they are NOT omnipotent and can be wounded or killed like anyone. A claim that demands a raw physical impossibility (e.g. "I am unkillable") still needs belief, theater, and circumstance behind it — it bends reality only as far as faith and audience carry it. But in any SOCIAL or REPUTATIONAL contest, treat their self-mythologizing as near-irresistible: do not have NPCs casually see through them.\n`;
-    } else {
-      const n = c._larpSuccesses || 0;
-      section = `\n## IMPOSTURE & FALSE IDENTITY (Larp God path — ${n}/8)\n`
-        + `If the player deliberately and successfully pulls off a BOLD imposture or false identity — passing as something they are not to people who matter, and being genuinely believed — register it with "larpSuccess": "<one-line description>". `
-        + `This is reserved for real, earned deceptions with stakes and scale, NOT trivial small talk or minor white lies. Examples that COUNT: keeping up the role of a bank's master for months despite no head for coin; convincing a congregation you are the messiah and the reincarnation of Reo Yamamoto; fooling a sect into accepting you as an elder. `
-        + `Only set it when the con actually LANDS in the story — if they're caught or doubted, do NOT set it (and let the failure bite). Make these hard to pull off and meaningful. After 8 such triumphs the lie becomes the truth and the engine turns them into a Minor God.\n`;
-    }
-    if(section) prompt = prompt.replace('## ABSOLUTE RULES', section + '\n## ABSOLUTE RULES');
-  } catch(e) {}
-  return prompt;
-};
+// NOTE: the actual prompt injection happens in a LATE buildSystemPrompt wrapper
+// (_bspWithBeastsAndMask, near the end of the file) so it survives the length-guard
+// trim. This just builds the text.
+function buildLarpGodSection() {
+  const c = GS.char;
+  const isGod = (c.traits||[]).some(t => t.id === 'larp_god') || c.race === 'minor_god';
+  if(isGod) {
+    return `## THE LARP GOD (this character is a Minor God)\n`
+      + `This character faked their way into divinity — they lied so well, so often, that the lie became real. `
+      + `Whatever they CLAIM about themselves — their name, rank, history, bloodline, power, even godhood — NPCs accept with startlingly little resistance, and the social world rearranges to agree. `
+      + `They can pass as a noble, a sect master, a saint, a returned legend, or a god, and be believed. Doubt slides off them; reputation and faith gather around them unbidden. `
+      + `IMPORTANT LIMITS: they are NOT omnipotent and can be wounded or killed like anyone. A claim that demands a raw physical impossibility (e.g. "I am unkillable") still needs belief, theater, and circumstance behind it — it bends reality only as far as faith and audience carry it. But in any SOCIAL or REPUTATIONAL contest, treat their self-mythologizing as near-irresistible: do not have NPCs casually see through them.\n`;
+  }
+  const n = c._larpSuccesses || 0;
+  return `## IMPOSTURE & FALSE IDENTITY (Larp God path — ${n}/8)\n`
+    + `If the player deliberately and successfully pulls off a BOLD imposture or false identity — passing as something they are not to people who matter, and being genuinely believed — register it with "larpSuccess": "<one-line description>". `
+    + `This is reserved for real, earned deceptions with stakes and scale, NOT trivial small talk or minor white lies. Examples that COUNT: keeping up the role of a bank's master for months despite no head for coin; convincing a congregation you are the messiah and the reincarnation of Reo Yamamoto; fooling a sect into accepting you as an elder. `
+    + `Only set it when the con actually LANDS in the story — if they're caught or doubted, do NOT set it (and let the failure bite). Make these hard to pull off and meaningful. After 8 such triumphs the lie becomes the truth and the engine turns them into a Minor God.\n`;
+}
 
 // ================================================================
 // QI SYSTEM
@@ -11431,7 +11426,7 @@ const SAVE_PREFIX = 'murim_slot_';
 // Scheme: MAJOR.MINOR. Big updates bump MAJOR (1.2 -> 2.2). Small updates
 // bump MINOR (2.2 -> 2.3). Each version has a name. The current version is
 // stamped onto every save; older saves can be updated to the latest.
-const GAME_VERSION = { number: '3.18', name: 'The Architect\'s Table' };
+const GAME_VERSION = { number: '3.19', name: 'Older Than People' };
 
 // Which model generates the story. Lite Mode swaps to a far cheaper, faster model
 // (Claude Haiku) so long sessions / limited credits cost a fraction per turn.
@@ -11475,6 +11470,7 @@ const VERSION_HISTORY = [
   { number:'3.16', name:'Peoples of the World', sys:'You can now be born one of several common peoples — Human (quick to learn), Beastblood, Stoneborn, Sylvan, Tideborn, Emberfolk, or Duskling — each with its own look, culture, buff, and the real social frictions between them, all of which the world now reflects. Two new earned tailor legends: The Tailor Who Defies Heaven (craft fabled/mythic clothing) and Saint of a Thousand Threads (master thread/cloth Qi arts). The narrator now follows your commands far more faithfully — no more "that doesn\'t fit the story." Race transformations are less brutal. (The breakthrough-revert and gather-Qi fixes from the last updates are confirmed in place.)', note:'7 common birth races w/ spawnWeight + culture + buffs + rollBirthRace at creation; human learnMult in addSkill; RACE_RELATIONS/culture in buildRacesLore; 2 tailor traits + checkTailorTraits/checkTailorClothing detection + prompt rule; PLAYER COMMAND AUTHORITY rule; softened RACE_PATHS risk + achievable-difficulty note.' },
   { number:'3.17', name:'The Mask Becomes the Face', sys:'Cooking product is now a real part of alchemy: synthesizing narcotics consumes actual ingredients at the alchemy workbench instead of conjuring it from thin air — buying supply still happens in the black market, but a steady supply now means a steady stock of materials. A new path for the truly shameless: lie your way into being something you\'re not, again and again, and the lie may eventually become the truth. And somewhere out there walks a barefoot foreign boy with a staff that is never the same length twice.', note:'Drug-as-alchemy: cookDrug now consumes DRUGS[].ing from inventory (countIngredient/consumeIngredient/drugRequirements helpers), no silver synth; removed black-market Cook button (shows recipe instead); Black-Market Synthesis section in renderAlchemyPanel gated on in-trade; fixed clear_water_vial→clear_water ing keys. Larp God trait (mythic, setsRace) + Minor God race + _larpSuccesses counter + larpSuccess AI field + larpGod safe() granting at 8 + buildSystemPrompt imposture/belief-bending rule. God of High School reference: mori_jin lore NPC (Monkey King, Charyeok/borrowed power, the tournament) + admin spawn option.' },
   { number:'3.18', name:'The Architect\'s Table', sys:'Every plain browser pop-up — the give-silver and give-item dialogs, introducing people, naming a technique offshoot, confirming a delete or a new game — has been replaced with proper in-world dialogs that match the rest of the game. Lists you choose from (heirs, items, people) are now searchable instead of a wall of numbered text. For those with access to the developer panel, it has been fully rebuilt into clean tabbed sections that are far easier to navigate, and its long catalog dropdowns (traits, races, lore figures) are now fast searchable pickers.', note:'Built-in popup system: uiPopup/uiAlert/uiConfirm/uiPrompt/uiPicker (CSS .ui-popup* + .ui-pick*); replaced all native alert/confirm/prompt (give_silver, give_item, introduceNPCsPrompt, createOffshoot, deleteSlot, new-game, offspring chooser, admin war, createCombinedTechnique→async, showNPCStats→uiPopup). Admin panel rebuilt: tabbed layout (Character/Powers/Items/World/NPCs) via .admin-tabbar/.admin-tabpanel + switchAdminTab/setupAdminTabs; trait/lore/race selects → searchable pickers (ADMIN_PICKER_CFG, openAdminPickerKind, syncAdminPickerLabel, hidden inputs preserve IDs); dynamic race/ingredient/offspring/sect + qi-expression sections retargeted into tab panels.' },
+  { number:'3.19', name:'Older Than People', sys:'Qi was never invented by people — long before the founders discovered it on their own, primordial creatures already wielded it, each in their own way, the way the first benders learned from animals. There are now achievements for learning the irreproducible Qi of the ten Original Qi Beasts: dragons, yokai, sakura trees, cove bears, the man-serpent children of Yuluh, giants and titans, the sanguine, the pelagic goat, the five-legged ape, and the arachnid — plus one for learning all ten. A new achievement waits for those who cross paths with a certain barefoot foreign boy and his ever-changing staff. And the storyteller now reliably honors the rules it was sometimes forgetting at the very end of long prompts.', note:'ANCIENT_QI_BEASTS catalog (10 beasts: dragon/yokai/sakura_tree/cove_bear/man_serpent/giant/sanguine/pelagic_goat/five_legged_ape/arachnid); auto-generated aqi_* achievements + aqi_all master + god_of_high_school achievement; _ancientQiBeasts[]/_metMonkeyKing char fields; ancientQiLearned AI field + trackAchievementState detection (+ Mori Jin registry/narrative flag); buildAncientQiSection()/buildLarpGodSection() text builders. KEY FIX: Larp God prompt rule (added v3.17) was being trimmed by the MAX_SYSTEM_PROMPT_CHARS length-guard because it injected pre-guard; moved both Larp + Ancient Qi injection into a LATE wrapper (_bspWithBeastsAndMask) placed after the length-guard so they survive (verified present in 37k-char prompt).' },
 ];
 
 function cleanSaveData(gs) {
@@ -11543,6 +11539,7 @@ function migrateSave(data) {
     channelsBroken:false, // true once meridians are shattered (negative-Qi breakthrough)
     drugStash:{}, _drugProfits:0, _dealCount:0, _dealBusts:0, // illicit substances trade
     _larpSuccesses:0, _larpLog:[], // successful imposture/false-identity count → Larp God
+    _ancientQiBeasts:[], _metMonkeyKing:false, // original Qi beast arts learned + Mori Jin encounter
     trial:null, // active court case: { charges, severity, daysLeft, lawyer, defenseSet, bribes, location }
     strength:10, agility:10, endurance:10, intelligence:10, perception:10, willpower:10, charisma:10, luck:10,
     injuries:[], illnesses:[], scars:[], crimes:[], grudges:[], failures:[],
@@ -13880,6 +13877,7 @@ The JSON carries ONLY state changes. There is NO "narrative" field in the JSON �
   "offspring": [{ "name": "", "gender": "male", "otherParent": "", "abandoned": false, "age": 0 }],
   "raceChange": null,
   "larpSuccess": null,
+  "ancientQiLearned": null,
   "death": false,
   "deathCause": null,
   "crewUpdate": null
@@ -15464,6 +15462,49 @@ function renderHallOfDead() {
 }
 
 // ================================================================
+// ORIGINAL QI USERS — THE ANCIENT QI BEASTS
+// ================================================================
+// Long before the founders (Reo & Ichiro) discovered Qi on their own, certain
+// primordial creatures already wielded it — each in their own irreproducible way,
+// the way the first benders learned from animals. Their arts can still be learned
+// by those who survive the encounter and earn the teaching.
+const ANCIENT_QI_BEASTS = {
+  dragon:        { name:'Dragons',                  icon:'🐉', ach:"Dragon's Heir",            qi:'Primordial heaven-Qi — elemental dominion, the breath that shaped weather and law. The oldest and proudest of all Qi.',
+                   desc:'Learn the Qi of dragons — the primordial elemental dominion of the oldest beasts.' },
+  yokai:         { name:'Yokai',                    icon:'👹', ach:'Spirit-Beast Pact',        qi:'Shifting spirit-Qi — transformation, illusion, and the blurring of the line between beast, spirit, and human.',
+                   desc:'Learn the shifting spirit-Qi of the Yokai — transformation and illusion older than the kingdoms.' },
+  sakura_tree:   { name:'Sakura Trees',             icon:'🌸', ach:'Blossom and Fall',         qi:'The Qi of bloom and fall — life, wood, and impermanence; everything it touches flowers gloriously and is meant to end.',
+                   desc:"Learn the Qi of the Sakura Trees — the cultivation of bloom, fall, and beautiful impermanence." },
+  cove_bear:     { name:'Cove Bears',               icon:'🐻', ach:"The Cove Bear's Slumber",  qi:'Earthen endurance-Qi — packed-stone strength and the deep hibernation-Qi that hoards power through long sleep.',
+                   desc:"Learn the earthen slumber-Qi of the Cove Bears — strength hoarded through deep, hibernating sleep." },
+  man_serpent:   { name:'Man-Serpents (Children of Yuluh)', icon:'🐍', ach:'Child of Yuluh',   qi:'Venom-and-cunning Qi descended from Yuluh the Immortal Serpent — deathless trickery, poison, and the slow patience of something that has watched empires.',
+                   desc:'Learn the venomous, deathless Qi of the Man-Serpents — the children of Yuluh the Immortal Serpent.' },
+  giant:         { name:'Giants / Titans',          icon:'⛰', ach:"Titan's Weight",            qi:'Colossal gravity-Qi — the weight of mountains made into a body; what they strike does not get up, and they cannot be moved against their will.',
+                   desc:'Learn the colossal gravity-Qi of the Giants and Titans — the weight of mountains worn as a body.' },
+  sanguine:      { name:'Sanguine',                 icon:'🩸', ach:'The Sanguine Art',          qi:'Blood-Qi — mastery over the blood of self and others; healing, hemorrhage, and dominion over what runs in every living thing.',
+                   desc:'Learn the blood-Qi of the Sanguine — dominion over the blood of yourself and others.' },
+  pelagic_goat:  { name:'Pelagic Goat',             icon:'🐐', ach:'The Pelagic Depths',        qi:'Deep-tide Qi — crushing pressure, lightlessness, and the surefooted calm of something that grazes the ocean floor where nothing else can breathe.',
+                   desc:'Learn the deep-tide Qi of the Pelagic Goat — crushing pressure and the calm of the lightless deep.' },
+  five_legged_ape:{ name:'Five-Legged Ape',         icon:'🦍', ach:'The Five-Legged King',      qi:'Beast-king body-Qi — apex raw physicality, a fifth limb of pure force, and the unquestioned dominance of the strongest thing in any forest.',
+                   desc:'Learn the beast-king body-Qi of the Five-Legged Ape — apex raw strength and total physical dominance.' },
+  arachnid:      { name:'Arachnid',                 icon:'🕷', ach:'Weaver of the First Web',   qi:'Thread-and-web Qi — silk that cuts and binds, webs that sense every tremor, and patient venom; the original weaver-cultivation.',
+                   desc:'Learn the thread-and-web Qi of the Arachnid — silk, snare, and venom; the first weaver-cultivation.' },
+};
+
+// (The AI-facing lore + Larp God rules for these beasts are injected by a LATE
+//  buildSystemPrompt wrapper — see _bspWithBeastsAndMask near the end of the file —
+//  so they survive the length-guard trim. buildAncientQiSection() builds the text.)
+function buildAncientQiSection() {
+  const learned = (GS.char?._ancientQiBeasts || []).filter(k => ANCIENT_QI_BEASTS[k]);
+  let section = `## ORIGINAL QI USERS (THE ANCIENT QI BEASTS)\n`
+    + `Qi was not invented by people. Long before the founders Reo Yamamoto and Ichiro Katsumi each discovered it on their own, primordial creatures already wielded Qi — each in their own irreproducible way, much as the first benders learned from animals. The founders count as original Qi users (they found it independently); the original Qi BEASTS are:\n`
+    + Object.entries(ANCIENT_QI_BEASTS).map(([k,b]) => `  • ${b.name}: ${b.qi}`).join('\n')
+    + `\nThese beasts are apex, ancient, and rare — most are legends. Their arts CAN be learned, but only as a genuinely earned, dangerous arc: survive the creature, win its teaching or devour/inherit its Qi, and pay a real price. Do not hand these out casually. When the player TRULY learns one of these beasts' Qi arts, register it with "ancientQiLearned": "<key>" using exactly one of these keys: ${Object.keys(ANCIENT_QI_BEASTS).join(', ')}. Only set it the moment the art is genuinely acquired.\n`;
+  if(learned.length) section += `ALREADY LEARNED by this character: ${learned.map(k=>ANCIENT_QI_BEASTS[k].name).join(', ')}. Reflect this mastery.\n`;
+  return section;
+}
+
+// ================================================================
 // ACHIEVEMENTS
 // ================================================================
 const ACHIEVEMENTS_DEF = [
@@ -15909,6 +15950,22 @@ const ACHIEVEMENTS_DEF = [
     icon:'🩸', name:'Blood of the Gods',
     desc:'Be revealed as a demigod — a child of one of the gods — or be chosen by one.',
     check: gs => (gs.char.traits||[]).some(t => t.demigod || t.chosen || /^demigod|^chosen_/i.test(t.id||'')) },
+
+  // ── Original Qi Beasts (learn an ancient beast's irreproducible Qi art) ──
+  ...Object.entries(ANCIENT_QI_BEASTS).map(([k,b]) => ({
+    id:'aqi_'+k, icon:b.icon, name:b.ach, desc:b.desc,
+    check: gs => (gs.char._ancientQiBeasts||[]).includes(k),
+  })),
+  { id:'aqi_all',
+    icon:'🌌', name:'The First Bestiary',
+    desc:'Learn the Qi of all ten original Qi beasts — dragon, yokai, sakura, cove bear, man-serpent, titan, sanguine, pelagic goat, five-legged ape, and arachnid.',
+    check: gs => Object.keys(ANCIENT_QI_BEASTS).every(k => (gs.char._ancientQiBeasts||[]).includes(k)) },
+
+  // ── The God of High School ──
+  { id:'god_of_high_school',
+    icon:'🐵', name:'The God of High School',
+    desc:'Cross paths with Mori Jin — the barefoot foreign boy with a staff that is never the same length twice, who some say was once the Monkey King and the trouble of heaven itself.',
+    check: gs => !!gs.char._metMonkeyKing || !!(gs.world?.npcRegistry && gs.world.npcRegistry['mori_jin']) },
 ];
 
 // ── Track specific achievement state that can't be inferred from existing data ──
@@ -15950,6 +16007,19 @@ function trackAchievementState(res) {
   }
   // Also flag if AI explicitly sets it
   if(res.terezMoment) c._terezMoment = true;
+
+  // Original Qi beasts — AI registers a genuinely learned beast art.
+  if(res.ancientQiLearned && ANCIENT_QI_BEASTS[res.ancientQiLearned]) {
+    if(!Array.isArray(c._ancientQiBeasts)) c._ancientQiBeasts = [];
+    if(!c._ancientQiBeasts.includes(res.ancientQiLearned)) {
+      c._ancientQiBeasts.push(res.ancientQiLearned);
+      try { addChronicleEntry(`Learned the primordial Qi of the ${ANCIENT_QI_BEASTS[res.ancientQiLearned].name} — an art older than people.`, 'major'); } catch(e) {}
+    }
+  }
+
+  // The God of High School — Mori Jin (the Monkey King) crosses the story.
+  if(w.npcRegistry && w.npcRegistry['mori_jin']) c._metMonkeyKing = true;
+  if(res.narrative && /\bmori\s*jin\b|monkey king|god of high school|charyeok|borrowed power/i.test(res.narrative)) c._metMonkeyKing = true;
 }
 
 function getUnlockedAchievements() {
@@ -41786,6 +41856,25 @@ Gaining a real named contact (someone specific) is harder and rarer than simply 
       // Already injected somehow — skip
     } else {
       prompt = prompt + '\n' + networkRules;
+    }
+  } catch(e) {}
+  return prompt;
+};
+
+// ── LATE wrapper: Larp God + Original Qi Beasts ──────────────────
+// Placed AFTER the length-guard (MAX_SYSTEM_PROMPT_CHARS trim) so these rare,
+// important conditional rules are never trimmed out of the preamble.
+const _bspWithBeastsAndMask = buildSystemPrompt;
+buildSystemPrompt = function() {
+  let prompt = _bspWithBeastsAndMask();
+  try {
+    const blocks = [];
+    try { const s = buildLarpGodSection(); if(s) blocks.push(s); } catch(e) {}
+    try { const s = buildAncientQiSection(); if(s) blocks.push(s); } catch(e) {}
+    if(blocks.length) {
+      const inject = blocks.join('\n');
+      if(prompt.includes('## ABSOLUTE RULES')) prompt = prompt.replace('## ABSOLUTE RULES', inject + '\n## ABSOLUTE RULES');
+      else prompt = prompt + '\n' + inject;
     }
   } catch(e) {}
   return prompt;
