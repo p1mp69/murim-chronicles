@@ -1573,9 +1573,81 @@ a { color: var(--gold); text-decoration: none; }
 .admin-stat-label { width: 32px; color: var(--muted); font-size: 11px; }
 .admin-stat-inp { width: 50px; text-align: center; font-size: 13px; font-weight: 700; }
 .admin-stat-btn { width: 22px; height: 22px; border: 1px solid var(--border2); background: var(--s3); color: var(--text); border-radius: 3px; cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center; padding: 0; }
-.admin-npc-list { max-height: 160px; overflow-y: auto; }
-.admin-npc-item { font-size: 11px; padding: 5px; border-bottom: 1px solid var(--border); color: var(--muted); cursor: pointer; }
-.admin-npc-item:hover { color: var(--text); }
+.admin-npc-list { max-height: 220px; overflow-y: auto; }
+.admin-npc-item { font-size: 11px; padding: 6px 8px; border-bottom: 1px solid var(--border); color: var(--muted); cursor: pointer; border-radius: 4px; }
+.admin-npc-item:hover { color: var(--text); background: var(--s3); }
+/* Admin tabs */
+.admin-tabbar {
+  display: flex; gap: 4px; flex-wrap: wrap;
+  margin-bottom: 12px; padding-bottom: 10px;
+  border-bottom: 1px solid #2a2038; position: sticky; top: 0;
+  background: var(--s1); z-index: 2;
+}
+.admin-tab {
+  flex: 1 1 auto; min-width: 76px;
+  background: var(--s2); border: 1px solid #2a2038; color: var(--muted);
+  border-radius: 7px; padding: 8px 6px; font-size: 11px; font-weight: 600;
+  cursor: pointer; text-align: center; letter-spacing: .02em;
+  transition: background .12s, color .12s, border-color .12s;
+}
+.admin-tab:hover { color: var(--text); background: var(--s3); }
+.admin-tab.active { background: linear-gradient(180deg, #2a2038, #1d1628); color: #e8c44a; border-color: #c49a30; }
+.admin-tab .at-ico { display: block; font-size: 15px; margin-bottom: 2px; }
+.admin-tabpanel { display: none; animation: admFade .18s ease; }
+.admin-tabpanel.active { display: block; }
+@keyframes admFade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+/* Searchable picker button */
+.admin-picker {
+  flex: 2; display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  background: var(--s3); border: 1px solid var(--border2); color: var(--text);
+  border-radius: 6px; padding: 7px 10px; font-size: 12px; cursor: pointer; text-align: left;
+}
+.admin-picker:hover { border-color: #c49a30; }
+.admin-picker .ap-val { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.admin-picker .ap-val.placeholder { color: var(--dim); }
+.admin-picker .ap-caret { color: var(--dim); font-size: 10px; flex-shrink: 0; }
+/* Generic built-in popup (alert / confirm / prompt / picker) */
+.ui-popup-overlay {
+  position: fixed; inset: 0; background: rgba(4,4,10,.72);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 4000; padding: 20px; backdrop-filter: blur(3px);
+  animation: admFade .14s ease;
+}
+.ui-popup {
+  background: var(--s1); border: 1px solid #2a2038; border-radius: 12px;
+  width: 100%; max-width: 440px; max-height: 84vh; display: flex; flex-direction: column;
+  box-shadow: 0 18px 60px rgba(0,0,0,.6);
+}
+.ui-popup-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 14px 16px; border-bottom: 1px solid #2a2038;
+}
+.ui-popup-head h3 { margin: 0; font-size: 14px; color: #e8c44a; font-weight: 700; }
+.ui-popup-head .ui-popup-x { background: none; border: none; color: var(--dim); font-size: 16px; cursor: pointer; padding: 2px 6px; }
+.ui-popup-head .ui-popup-x:hover { color: var(--text); }
+.ui-popup-body { padding: 16px; overflow-y: auto; font-size: 13px; color: var(--text); line-height: 1.6; }
+.ui-popup-body p { margin: 0 0 10px; color: var(--muted); }
+.ui-popup-body input[type=text], .ui-popup-body input[type=number], .ui-popup-body textarea {
+  width: 100%; background: var(--s3); border: 1px solid var(--border2); color: var(--text);
+  border-radius: 6px; padding: 9px 11px; font-size: 13px; box-sizing: border-box;
+}
+.ui-popup-foot { display: flex; gap: 8px; justify-content: flex-end; padding: 12px 16px; border-top: 1px solid #2a2038; }
+/* Picker search list */
+.ui-pick-search {
+  width: 100%; background: var(--s3); border: 1px solid var(--border2); color: var(--text);
+  border-radius: 6px; padding: 9px 11px; font-size: 13px; box-sizing: border-box; margin-bottom: 10px;
+}
+.ui-pick-list { max-height: 48vh; overflow-y: auto; display: flex; flex-direction: column; gap: 3px; }
+.ui-pick-item {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 9px 11px; border: 1px solid var(--border); border-radius: 6px;
+  background: var(--s2); cursor: pointer; transition: background .1s, border-color .1s;
+}
+.ui-pick-item:hover { background: var(--s3); border-color: #c49a30; }
+.ui-pick-item .pi-label { font-size: 12.5px; color: var(--text); }
+.ui-pick-item .pi-sub { font-size: 10px; color: var(--dim); text-transform: uppercase; letter-spacing: .04em; flex-shrink: 0; }
+.ui-pick-empty { padding: 18px; text-align: center; color: var(--dim); font-size: 12px; font-style: italic; }
+.ui-pick-group { font-size: 9px; text-transform: uppercase; letter-spacing: .12em; color: #c49a30; padding: 8px 2px 2px; }
 /* Memory modal */
 .memory-text { font-size: 13px; color: var(--muted); line-height: 1.8; white-space: pre-wrap; }
 /* Trait/Title detail */
@@ -2834,13 +2906,22 @@ body.generating [onclick*="shopSellItem"], body.generating [onclick*="closeMapGo
     </div>
     <div class="modal-body">
 
-      <!-- Stats -->
+      <div class="admin-tabbar">
+        <button class="admin-tab active" data-admtab="character"><span class="at-ico">⚔</span>Character</button>
+        <button class="admin-tab" data-admtab="powers"><span class="at-ico">✦</span>Powers</button>
+        <button class="admin-tab" data-admtab="items"><span class="at-ico">🎒</span>Items</button>
+        <button class="admin-tab" data-admtab="world"><span class="at-ico">🌍</span>World</button>
+        <button class="admin-tab" data-admtab="npcs"><span class="at-ico">👤</span>NPCs</button>
+      </div>
+
+      <!-- ============ CHARACTER ============ -->
+      <div class="admin-tabpanel active" id="admin-tab-character">
+
       <div class="admin-section">
         <div class="admin-sect-title">Modify Stats</div>
         <div class="admin-stat-grid" id="admin-stat-grid"></div>
       </div>
 
-      <!-- Silver -->
       <div class="admin-section">
         <div class="admin-sect-title">Silver</div>
         <div class="admin-row">
@@ -2850,7 +2931,6 @@ body.generating [onclick*="shopSellItem"], body.generating [onclick*="closeMapGo
         </div>
       </div>
 
-      <!-- Qi -->
       <div class="admin-section">
         <div class="admin-sect-title">Qi &amp; Cultivation</div>
         <div class="admin-row">
@@ -2875,7 +2955,59 @@ body.generating [onclick*="shopSellItem"], body.generating [onclick*="closeMapGo
         </div>
       </div>
 
-      <!-- Grant Technique -->
+      <div class="admin-section">
+        <div class="admin-sect-title">Set Reputation</div>
+        <div class="admin-row">
+          <select id="admin-rep-loc" style="flex:2"></select>
+          <select id="admin-rep-type" style="flex:1">
+            <option value="renown">Renown</option>
+            <option value="infamy">Infamy</option>
+          </select>
+        </div>
+        <div class="admin-row">
+          <input type="number" id="admin-rep-val" min="0" max="100" placeholder="0-100" style="flex:2">
+          <button id="btn-admin-set-rep" class="btn-primary btn-sm">Set</button>
+        </div>
+      </div>
+
+      <div class="admin-section">
+        <div class="admin-sect-title">Grant Title</div>
+        <div class="admin-row">
+          <input type="text" id="admin-title-name" placeholder="Title name" style="flex:2">
+          <select id="admin-title-type" style="flex:1">
+            <option value="spiritual">Spiritual</option>
+            <option value="social">Social</option>
+          </select>
+        </div>
+        <div class="admin-row">
+          <textarea id="admin-title-desc" placeholder="Description & visible effects..." rows="2" style="flex:1"></textarea>
+        </div>
+        <div class="admin-row">
+          <input type="text" id="admin-title-effects" placeholder='Stat effects e.g. {"strength":5,"qi_max":50}' style="flex:1">
+          <button id="btn-admin-grant-title" class="btn-primary btn-sm">Grant</button>
+        </div>
+      </div>
+
+      </div><!-- /character -->
+
+      <!-- ============ POWERS ============ -->
+      <div class="admin-tabpanel" id="admin-tab-powers">
+
+      <div class="admin-section">
+        <div class="admin-sect-title">Give Trait</div>
+        <div class="admin-row">
+          <button type="button" class="admin-picker" id="pick-admin-trait" onclick="openAdminTraitPicker()">
+            <span class="ap-val placeholder">Select trait...</span><span class="ap-caret">SEARCH ▾</span>
+          </button>
+          <input type="hidden" id="admin-trait-sel">
+          <button id="btn-admin-give-trait" class="btn-primary btn-sm">Give Trait</button>
+        </div>
+        <div class="admin-row">
+          <input type="text" id="admin-custom-trait" placeholder="Custom trait name..." style="flex:2">
+          <button id="btn-admin-custom-trait" class="btn-secondary btn-sm">Give Custom</button>
+        </div>
+      </div>
+
       <div class="admin-section">
         <div class="admin-sect-title">Grant Technique</div>
         <div class="admin-row">
@@ -2920,7 +3052,6 @@ body.generating [onclick*="shopSellItem"], body.generating [onclick*="closeMapGo
         <button id="btn-admin-grant-tech" class="btn-primary btn-sm">Grant Technique</button>
       </div>
 
-      <!-- Grant Martial Art -->
       <div class="admin-section">
         <div class="admin-sect-title">Grant Martial Art</div>
         <div class="admin-row">
@@ -2947,7 +3078,11 @@ body.generating [onclick*="shopSellItem"], body.generating [onclick*="closeMapGo
         <button id="btn-admin-grant-ma" class="btn-primary btn-sm">Grant Martial Art</button>
       </div>
 
-      <!-- Spawn Item -->
+      </div><!-- /powers -->
+
+      <!-- ============ ITEMS ============ -->
+      <div class="admin-tabpanel" id="admin-tab-items">
+
       <div class="admin-section">
         <div class="admin-sect-title">Spawn Item / Weapon</div>
         <div class="admin-row">
@@ -2989,82 +3124,11 @@ body.generating [onclick*="shopSellItem"], body.generating [onclick*="closeMapGo
         <button id="btn-admin-spawn-item" class="btn-primary btn-sm">Spawn Item</button>
       </div>
 
-      <!-- Give Trait -->
-      <div class="admin-section">
-        <div class="admin-sect-title">Give Trait</div>
-        <div class="admin-row">
-          <select id="admin-trait-sel" style="flex:2"></select>
-          <button id="btn-admin-give-trait" class="btn-primary btn-sm">Give Trait</button>
-        </div>
-        <div class="admin-row">
-          <input type="text" id="admin-custom-trait" placeholder="Custom trait name..." style="flex:2">
-          <button id="btn-admin-custom-trait" class="btn-secondary btn-sm">Give Custom</button>
-        </div>
-      </div>
+      </div><!-- /items -->
 
-      <!-- Spawn NPC -->
-      <div class="admin-section">
-        <div class="admin-sect-title">Spawn NPC / Character</div>
-        <div class="admin-row">
-          <select id="admin-lore-npc" style="flex:2">
-            <option value="">Lore NPC...</option>
-            <option value="reo_yamamoto">Reo Yamamoto</option>
-            <option value="ichiro_katsumi">Ichiro Katsumi</option>
-            <option value="yuluh">Yuluh the Immortal Serpent</option>
-            <option value="lang_warlord">Láng the Warlord</option>
-            <option value="zeret_lust">Zeret of Lust</option>
-            <option value="aym">Aym</option>
-            <option value="mori_jin">Mori Jin — the Monkey King</option>
-            <option disabled>── Maligned Lords ──</option>
-            <option value="xelaad_pride">Xelaad of Pride</option>
-            <option value="iasiba_envy">Iasiba of Envy</option>
-            <option value="dranoel_greed">Dranoel of Greed</option>
-            <option value="normac_sloth">Normac of Sloth</option>
-          </select>
-          <button id="btn-admin-spawn-lore" class="btn-primary btn-sm">Spawn</button>
-        </div>
-        <div class="admin-row">
-          <input type="text" id="admin-custom-npc" placeholder="Custom NPC name..." style="flex:2">
-          <button id="btn-admin-spawn-custom" class="btn-secondary btn-sm">Create NPC</button>
-        </div>
-      </div>
+      <!-- ============ WORLD ============ -->
+      <div class="admin-tabpanel" id="admin-tab-world">
 
-      <!-- Reputation -->
-      <div class="admin-section">
-        <div class="admin-sect-title">Set Reputation</div>
-        <div class="admin-row">
-          <select id="admin-rep-loc" style="flex:2"></select>
-          <select id="admin-rep-type" style="flex:1">
-            <option value="renown">Renown</option>
-            <option value="infamy">Infamy</option>
-          </select>
-        </div>
-        <div class="admin-row">
-          <input type="number" id="admin-rep-val" min="0" max="100" placeholder="0–100" style="flex:2">
-          <button id="btn-admin-set-rep" class="btn-primary btn-sm">Set</button>
-        </div>
-      </div>
-
-      <!-- Grant Title -->
-      <div class="admin-section">
-        <div class="admin-sect-title">Grant Title</div>
-        <div class="admin-row">
-          <input type="text" id="admin-title-name" placeholder="Title name" style="flex:2">
-          <select id="admin-title-type" style="flex:1">
-            <option value="spiritual">Spiritual</option>
-            <option value="social">Social</option>
-          </select>
-        </div>
-        <div class="admin-row">
-          <textarea id="admin-title-desc" placeholder="Description & visible effects..." rows="2" style="flex:1"></textarea>
-        </div>
-        <div class="admin-row">
-          <input type="text" id="admin-title-effects" placeholder='Stat effects e.g. {"strength":5,"qi_max":50}' style="flex:1">
-          <button id="btn-admin-grant-title" class="btn-primary btn-sm">Grant</button>
-        </div>
-      </div>
-
-      <!-- World Control -->
       <div class="admin-section">
         <div class="admin-sect-title">World Control</div>
         <div class="admin-row">
@@ -3089,13 +3153,34 @@ body.generating [onclick*="shopSellItem"], body.generating [onclick*="closeMapGo
         </div>
       </div>
 
-      <!-- NPC Database -->
+      </div><!-- /world -->
+
+      <!-- ============ NPCS ============ -->
+      <div class="admin-tabpanel" id="admin-tab-npcs">
+
+      <div class="admin-section">
+        <div class="admin-sect-title">Spawn NPC / Character</div>
+        <div class="admin-row">
+          <button type="button" class="admin-picker" id="pick-admin-lore" onclick="openAdminLorePicker()">
+            <span class="ap-val placeholder">Lore NPC...</span><span class="ap-caret">SEARCH ▾</span>
+          </button>
+          <input type="hidden" id="admin-lore-npc">
+          <button id="btn-admin-spawn-lore" class="btn-primary btn-sm">Spawn</button>
+        </div>
+        <div class="admin-row">
+          <input type="text" id="admin-custom-npc" placeholder="Custom NPC name..." style="flex:2">
+          <button id="btn-admin-spawn-custom" class="btn-secondary btn-sm">Create NPC</button>
+        </div>
+      </div>
+
       <div class="admin-section">
         <div class="admin-sect-title">NPC Database</div>
         <div id="admin-npc-list" class="admin-npc-list"></div>
       </div>
 
-    </div>
+      </div><!-- /npcs -->
+
+        </div>
   </div>
 </div>
 
@@ -5770,6 +5855,124 @@ function toast(msg, type='', dur=3000) {
 
 function showModal(id) { document.getElementById(id)?.classList.remove('hidden'); }
 function hideModal(id) { document.getElementById(id)?.classList.add('hidden'); }
+
+// ================================================================
+// BUILT-IN POPUPS (replace native alert/confirm/prompt) + searchable picker
+// ================================================================
+function _escHtml(s) { return String(s==null?'':s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+// Low-level: build an overlay with a card. Returns { overlay, close }.
+function uiPopup({ title='', bodyHTML='', actions=[], onClose=null, dismissable=true }) {
+  const overlay = document.createElement('div');
+  overlay.className = 'ui-popup-overlay';
+  overlay.innerHTML = `
+    <div class="ui-popup" role="dialog" aria-modal="true">
+      <div class="ui-popup-head">
+        <h3>${_escHtml(title)}</h3>
+        ${dismissable ? '<button class="ui-popup-x" aria-label="Close">✕</button>' : ''}
+      </div>
+      <div class="ui-popup-body">${bodyHTML}</div>
+      ${actions.length ? '<div class="ui-popup-foot"></div>' : ''}
+    </div>`;
+  document.body.appendChild(overlay);
+  const close = (val) => {
+    if(!overlay.parentNode) return;
+    overlay.remove();
+    document.removeEventListener('keydown', onKey);
+    if(onClose) onClose(val);
+  };
+  const onKey = (e) => { if(e.key === 'Escape' && dismissable) close(null); };
+  document.addEventListener('keydown', onKey);
+  if(dismissable) {
+    overlay.addEventListener('mousedown', (e) => { if(e.target === overlay) close(null); });
+    overlay.querySelector('.ui-popup-x')?.addEventListener('click', () => close(null));
+  }
+  const foot = overlay.querySelector('.ui-popup-foot');
+  if(foot) actions.forEach(a => {
+    const b = document.createElement('button');
+    b.className = a.class || 'btn-secondary btn-sm';
+    b.textContent = a.label;
+    b.addEventListener('click', () => a.onClick ? a.onClick(close) : close(a.value));
+    foot.appendChild(b);
+  });
+  return { overlay, close };
+}
+
+// alert → resolves when dismissed
+function uiAlert(message, title='Notice') {
+  return new Promise(res => {
+    uiPopup({ title, bodyHTML:`<p>${_escHtml(message).replace(/\n/g,'<br>')}</p>`,
+      actions:[{ label:'OK', class:'btn-primary btn-sm', onClick:(close)=>close(true) }],
+      onClose:()=>res(true) });
+  });
+}
+
+// confirm → resolves true/false. Closing/escape/cancel all resolve false.
+function uiConfirm(message, opts={}) {
+  const { title='Confirm', okLabel='Confirm', cancelLabel='Cancel', danger=false } = opts;
+  return new Promise(res => {
+    uiPopup({ title, bodyHTML:`<p>${_escHtml(message).replace(/\n/g,'<br>')}</p>`,
+      actions:[
+        { label:cancelLabel, class:'btn-secondary btn-sm', onClick:(c)=>c('no') },
+        { label:okLabel, class:(danger?'btn-danger':'btn-primary')+' btn-sm', onClick:(c)=>c('yes') },
+      ],
+      onClose:(val)=>res(val === 'yes') });
+  });
+}
+
+// prompt → resolves entered string, or null if cancelled
+function uiPrompt(message, { title='Enter', placeholder='', value='', okLabel='OK', multiline=false } = {}) {
+  return new Promise(res => {
+    const field = multiline
+      ? `<textarea id="_uiPromptInput" rows="3" placeholder="${_escHtml(placeholder)}">${_escHtml(value)}</textarea>`
+      : `<input type="text" id="_uiPromptInput" placeholder="${_escHtml(placeholder)}" value="${_escHtml(value)}">`;
+    const { close, overlay } = uiPopup({
+      title,
+      bodyHTML:`${message?`<p>${_escHtml(message).replace(/\n/g,'<br>')}</p>`:''}${field}`,
+      actions:[
+        { label:'Cancel', class:'btn-secondary btn-sm', onClick:(c)=>c(null) },
+        { label:okLabel, class:'btn-primary btn-sm', onClick:(c)=>{ c(overlay.querySelector('#_uiPromptInput').value); } },
+      ],
+      onClose:(val)=>res(val===undefined?null:val),
+    });
+    const inp = overlay.querySelector('#_uiPromptInput');
+    if(inp) { inp.focus(); inp.select?.();
+      if(!multiline) inp.addEventListener('keydown', e => { if(e.key==='Enter'){ e.preventDefault(); close(inp.value); } });
+    }
+  });
+}
+
+// Searchable picker. items: [{ value, label, sub, group }]. Resolves chosen value or null.
+function uiPicker(items, { title='Select', placeholder='Search…', emptyText='Nothing found.' } = {}) {
+  return new Promise(res => {
+    const { overlay, close } = uiPopup({
+      title,
+      bodyHTML:`<input type="text" class="ui-pick-search" placeholder="${_escHtml(placeholder)}" autocomplete="off"><div class="ui-pick-list"></div>`,
+      onClose:(val)=>res(val===undefined?null:val),
+    });
+    const search = overlay.querySelector('.ui-pick-search');
+    const list = overlay.querySelector('.ui-pick-list');
+    const render = (q) => {
+      const ql = (q||'').toLowerCase().trim();
+      const filtered = items.filter(it => !ql || (it.label+' '+(it.sub||'')+' '+(it.group||'')).toLowerCase().includes(ql));
+      if(!filtered.length) { list.innerHTML = `<div class="ui-pick-empty">${_escHtml(emptyText)}</div>`; return; }
+      let html = '', lastGroup = null;
+      filtered.forEach(it => {
+        if(it.group && it.group !== lastGroup) { html += `<div class="ui-pick-group">${_escHtml(it.group)}</div>`; lastGroup = it.group; }
+        html += `<div class="ui-pick-item" data-val="${_escHtml(it.value)}">
+          <span class="pi-label">${_escHtml(it.label)}</span>
+          ${it.sub?`<span class="pi-sub">${_escHtml(it.sub)}</span>`:''}
+        </div>`;
+      });
+      list.innerHTML = html;
+      list.querySelectorAll('.ui-pick-item').forEach(el =>
+        el.addEventListener('click', () => close(el.getAttribute('data-val'))));
+    };
+    render('');
+    search.addEventListener('input', () => render(search.value));
+    setTimeout(()=>search.focus(), 30);
+  });
+}
 
 function rarityClass(r) { return 'rarity-'+(r||'common'); }
 function rarityText(r)  { return 'text-'+(r||'common'); }
@@ -9337,14 +9540,15 @@ function sendQuickAction(npcId, actionType) {
   // ── Give silver ───────────────────────────────────────────────────
   if(actionType === 'give_silver') {
     const c = GS.char;
-    const amtStr = prompt(`Give silver to ${name}?\nYou have: ${formatCoins(c.silver)}\n\nEnter amount in silver (e.g. 5 = 5 silver, 0.25 = 5 copper):`);
-    if(!amtStr) return;
-    const amt = parseFloat(amtStr);
-    if(isNaN(amt) || amt <= 0) { toast('Invalid amount.', 'error', 2000); return; }
-    if(amt > c.silver) { toast(`You only have ${formatCoins(c.silver)}.`, 'error', 2500); return; }
-    addSilver(-amt);
-    const display = formatCoins(amt);
-    sendToAI(`I give ${name} ${display} in silver. A direct gesture — I hand the money over without making a speech about it.\n\n[GIFT OF SILVER: The character has transferred ${display} (${amt} silver equivalent) to ${name}. This was a deliberate choice. Narrate how ${name} receives it — their reaction, what it means given their situation and your relationship. Update bond/trust via updateRelationships if appropriate. The silver has already left the character's possession.]`);
+    uiPrompt(`You have ${formatCoins(c.silver)}. Enter an amount in silver (e.g. 5 = 5 silver, 0.25 = 5 copper).`, { title:`Give Silver to ${name}`, placeholder:'Amount in silver' }).then(amtStr => {
+      if(!amtStr) return;
+      const amt = parseFloat(amtStr);
+      if(isNaN(amt) || amt <= 0) { toast('Invalid amount.', 'error', 2000); return; }
+      if(amt > c.silver) { toast(`You only have ${formatCoins(c.silver)}.`, 'error', 2500); return; }
+      addSilver(-amt);
+      const display = formatCoins(amt);
+      sendToAI(`I give ${name} ${display} in silver. A direct gesture — I hand the money over without making a speech about it.\n\n[GIFT OF SILVER: The character has transferred ${display} (${amt} silver equivalent) to ${name}. This was a deliberate choice. Narrate how ${name} receives it — their reaction, what it means given their situation and your relationship. Update bond/trust via updateRelationships if appropriate. The silver has already left the character's possession.]`);
+    });
     return;
   }
 
@@ -9356,18 +9560,18 @@ function sendQuickAction(npcId, actionType) {
       return !Object.values(c.equipment).some(e => e?.id === i.id);
     });
     if(!giveable.length) { toast('Nothing to give — your inventory is empty or everything is equipped.', 'error', 3000); return; }
-    const list = giveable.map((i, idx) => `${idx + 1}. ${i.name} (${i.rarity || 'common'})${i.isTome || i.type==='tome' ? ' [Tome]' : ''}${i.type === 'consumable' ? ' [Consumable]' : ''}`).join('\n');
-    const choice = prompt(`Give an item to ${name}:\n\n${list}\n\nEnter number:`);
-    if(!choice) return;
-    const idx = parseInt(choice) - 1;
-    if(isNaN(idx) || idx < 0 || idx >= giveable.length) { toast('Invalid selection.', 'error', 2000); return; }
-    const item = giveable[idx];
-    // Remove from inventory
-    c.inventory = c.inventory.filter(i => i.id !== item.id);
-    updateInventoryTab();
-    const rarityNote = item.rarity && item.rarity !== 'common' ? ` (${item.rarity})` : '';
-    const typeNote   = item.isTome || item.type === 'tome' ? ' — a tome' : item.type === 'consumable' ? ' — a consumable' : '';
-    sendToAI(`I give ${name} "${item.name}"${rarityNote}${typeNote}. I hand it over directly.\n\n[GIFT OF ITEM: The character has given "${item.name}"${rarityNote} to ${name}. Item description: ${item.desc || 'no description'}. This item has left the character's possession permanently. Narrate how ${name} receives it — their reaction, what the gift means, whether it changes anything between you. Consider: does this NPC know what they've received? Is it something they can use? Update bond/trust via updateRelationships if appropriate. Do NOT return this item to the player — it belongs to ${name} now.]`);
+    uiPicker(giveable.map(i => ({ value:i.id, label:i.name, sub:(i.isTome||i.type==='tome')?'tome':(i.type==='consumable'?'consumable':(i.rarity||'common')) })),
+      { title:`Give an Item to ${name}`, placeholder:'Search your bag…' }).then(itemId => {
+      if(!itemId) return;
+      const item = giveable.find(i => i.id === itemId);
+      if(!item) return;
+      // Remove from inventory
+      c.inventory = c.inventory.filter(i => i.id !== item.id);
+      updateInventoryTab();
+      const rarityNote = item.rarity && item.rarity !== 'common' ? ` (${item.rarity})` : '';
+      const typeNote   = item.isTome || item.type === 'tome' ? ' — a tome' : item.type === 'consumable' ? ' — a consumable' : '';
+      sendToAI(`I give ${name} "${item.name}"${rarityNote}${typeNote}. I hand it over directly.\n\n[GIFT OF ITEM: The character has given "${item.name}"${rarityNote} to ${name}. Item description: ${item.desc || 'no description'}. This item has left the character's possession permanently. Narrate how ${name} receives it — their reaction, what the gift means, whether it changes anything between you. Consider: does this NPC know what they've received? Is it something they can use? Update bond/trust via updateRelationships if appropriate. Do NOT return this item to the player — it belongs to ${name} now.]`);
+    });
     return;
   }
 
@@ -9728,21 +9932,21 @@ function openMemory(npcId, e) {
 // Let the player introduce two NPCs to each other
 function introduceNPCsPrompt(npcId) {
   const rels = GS.char.relationships.filter(r => r.npcId !== npcId && r.alive !== false);
-  if(rels.length === 0) { alert("You don't know anyone else to introduce them to."); return; }
-  const options = rels.map((r,i) => `${i+1}. ${r.name}`).join('\n');
-  const choice  = prompt(`Introduce to:\n${options}\n\nEnter number:`);
-  const idx     = parseInt(choice) - 1;
-  if(isNaN(idx) || idx < 0 || idx >= rels.length) return;
-  const targetRel = rels[idx];
-  const npc1  = GS.world.npcRegistry[npcId];
-  const npc2  = GS.world.npcRegistry[targetRel.npcId];
-  const rel   = GS.char.relationships.find(r => r.npcId === npcId);
+  if(rels.length === 0) { uiAlert("You don't know anyone else to introduce them to.", 'No One to Introduce'); return; }
+  uiPicker(rels.map(r => ({ value:r.npcId, label:r.name })), { title:'Introduce To…', placeholder:'Search people you know…' }).then(targetId => {
+    if(!targetId) return;
+    const targetRel = rels.find(r => r.npcId === targetId);
+    if(!targetRel) return;
+    const npc1  = GS.world.npcRegistry[npcId];
+    const npc2  = GS.world.npcRegistry[targetRel.npcId];
+    const rel   = GS.char.relationships.find(r => r.npcId === npcId);
 
-  // Immediately create the connection in the network
-  introduceNPCs(npcId, targetRel.npcId);
+    // Immediately create the connection in the network
+    introduceNPCs(npcId, targetRel.npcId);
 
-  const context = `I introduce ${rel?.name || npc1?.name || 'them'} and ${targetRel.name} to each other. I bring them together and make the introduction myself.\n\n[INTRODUCTION EVENT: The player is personally introducing ${rel?.name || 'NPC A'} (${LOCATIONS[npc1?.location]?.name || 'unknown location'}) and ${targetRel.name} (${LOCATIONS[npc2?.location]?.name || 'unknown location'}) to each other for the first time. Narrate the moment of introduction — how each reacts to the other, whether there's any instant rapport or friction. This is a real first meeting. Update npcNetworkUpdate for both NPCs to confirm the new connection, using quality based on how the meeting went.]`;
-  sendToAI(context);
+    const context = `I introduce ${rel?.name || npc1?.name || 'them'} and ${targetRel.name} to each other. I bring them together and make the introduction myself.\n\n[INTRODUCTION EVENT: The player is personally introducing ${rel?.name || 'NPC A'} (${LOCATIONS[npc1?.location]?.name || 'unknown location'}) and ${targetRel.name} (${LOCATIONS[npc2?.location]?.name || 'unknown location'}) to each other for the first time. Narrate the moment of introduction — how each reacts to the other, whether there's any instant rapport or friction. This is a real first meeting. Update npcNetworkUpdate for both NPCs to confirm the new connection, using quality based on how the meeting went.]`;
+    sendToAI(context);
+  });
 }
 
 // Is this NPC reachable for conversation right now? (not imprisoned, or player is at same prison)
@@ -9930,7 +10134,7 @@ function practiseMA(id) {
 }
 
 // ── Proper offshoot: a genuine variant, not a renamed copy ──────
-function createOffshoot(id, type) {
+async function createOffshoot(id, type) {
   const item = type==='tech'
     ? GS.char.techniques.find(t=>t.id===id)
     : GS.char.martialArts.find(m=>m.id===id);
@@ -9942,7 +10146,7 @@ function createOffshoot(id, type) {
     return;
   }
 
-  const name = prompt(`Name your variant of "${item.name}" — what aspect does it diverge on?`);
+  const name = (await uiPrompt(`What aspect does it diverge on?`, { title:`Name Your Variant of "${item.name}"`, placeholder:'Variant name' }) || '').trim();
   if(!name) return;
 
   // Variant properties: same family, different emphasis based on which stage
@@ -10357,9 +10561,22 @@ function showNPCStats(npcId) {
   if(!npc) return;
   ensureNPCConnections(npc);
   const network  = getNPCNetworkSummary(npcId) || 'No network data';
-  const religion = npc.religion ? `\nReligion: ${npc.religion}${npc.formerReligion ? ` (formerly ${npc.formerReligion})` : ''}` : '';
-  const info = `${npc.name}\n${QI_STAGES[npc.qiStageIndex||0]?.name}\nSTR:${npc.strength} AGI:${npc.agility} END:${npc.endurance}\nINT:${npc.intelligence} PER:${npc.perception} WIL:${npc.willpower}\nCHA:${npc.charisma} LCK:${npc.luck}\nAlignment: ${npc.alignment}\nPersonality: ${npc.personality?.join(', ')}\nLocation: ${npc.location}${religion}\n\n=== NETWORK ===\n${network}`;
-  alert(info);
+  const stat = (l,v)=>`<div style="display:flex;justify-content:space-between;font-size:12px;padding:2px 0"><span style="color:var(--dim)">${l}</span><span style="color:var(--text);font-weight:600">${v??'—'}</span></div>`;
+  const body = `
+    <div style="font-size:11px;color:#c49a30;text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px">${_escHtml(QI_STAGES[npc.qiStageIndex||0]?.name||'')} · ${_escHtml(npc.alive===false?'Dead':'Alive')}</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 16px;margin-bottom:10px">
+      ${stat('STR',npc.strength)}${stat('AGI',npc.agility)}${stat('END',npc.endurance)}${stat('INT',npc.intelligence)}
+      ${stat('PER',npc.perception)}${stat('WIL',npc.willpower)}${stat('CHA',npc.charisma)}${stat('LCK',npc.luck)}
+    </div>
+    <div style="font-size:12px;color:var(--muted);line-height:1.7;border-top:1px solid var(--border);padding-top:8px">
+      <div><b>Alignment:</b> ${_escHtml(npc.alignment||'—')}</div>
+      <div><b>Personality:</b> ${_escHtml(npc.personality?.join(', ')||'—')}</div>
+      <div><b>Location:</b> ${_escHtml(npc.location||'—')}</div>
+      ${npc.religion?`<div><b>Religion:</b> ${_escHtml(npc.religion)}${npc.formerReligion?` (formerly ${_escHtml(npc.formerReligion)})`:''}</div>`:''}
+    </div>
+    <div style="font-size:10px;color:#c49a30;text-transform:uppercase;letter-spacing:.1em;margin:10px 0 4px">Network</div>
+    <div style="font-size:12px;color:var(--muted);line-height:1.6;white-space:pre-wrap">${_escHtml(network)}</div>`;
+  uiPopup({ title: npc.name, bodyHTML: body, actions:[{ label:'Close', class:'btn-primary btn-sm', onClick:(c)=>c() }] });
 }
 
 // ================================================================
@@ -11214,7 +11431,7 @@ const SAVE_PREFIX = 'murim_slot_';
 // Scheme: MAJOR.MINOR. Big updates bump MAJOR (1.2 -> 2.2). Small updates
 // bump MINOR (2.2 -> 2.3). Each version has a name. The current version is
 // stamped onto every save; older saves can be updated to the latest.
-const GAME_VERSION = { number: '3.17', name: 'The Mask Becomes the Face' };
+const GAME_VERSION = { number: '3.18', name: 'The Architect\'s Table' };
 
 // Which model generates the story. Lite Mode swaps to a far cheaper, faster model
 // (Claude Haiku) so long sessions / limited credits cost a fraction per turn.
@@ -11257,6 +11474,7 @@ const VERSION_HISTORY = [
   { number:'3.15', name:'Coins & Cultivation', sys:'Prices everywhere now show the proper gold/silver/copper — the schools, the court, bounties, travel, the top bar, and more no longer use the old single coin symbol. And cultivating to gather Qi works right now: the narrator no longer stalls you with a menu when you meditate, and your Qi bar always rises when you cultivate (even if the AI forgets, the engine grants the gain).', note:'Converted ${expr}◈ -> formatCoins(expr) across UI + AI prompts (schools/court/topbar/bounty/travel/price fns); cultivation: stronger HOW-TO-CULTIVATE + no-railroad rules; engine fallback grants qiChange when player cultivated and AI returned none (_lastWasCultivation).' },
   { number:'3.16', name:'Peoples of the World', sys:'You can now be born one of several common peoples — Human (quick to learn), Beastblood, Stoneborn, Sylvan, Tideborn, Emberfolk, or Duskling — each with its own look, culture, buff, and the real social frictions between them, all of which the world now reflects. Two new earned tailor legends: The Tailor Who Defies Heaven (craft fabled/mythic clothing) and Saint of a Thousand Threads (master thread/cloth Qi arts). The narrator now follows your commands far more faithfully — no more "that doesn\'t fit the story." Race transformations are less brutal. (The breakthrough-revert and gather-Qi fixes from the last updates are confirmed in place.)', note:'7 common birth races w/ spawnWeight + culture + buffs + rollBirthRace at creation; human learnMult in addSkill; RACE_RELATIONS/culture in buildRacesLore; 2 tailor traits + checkTailorTraits/checkTailorClothing detection + prompt rule; PLAYER COMMAND AUTHORITY rule; softened RACE_PATHS risk + achievable-difficulty note.' },
   { number:'3.17', name:'The Mask Becomes the Face', sys:'Cooking product is now a real part of alchemy: synthesizing narcotics consumes actual ingredients at the alchemy workbench instead of conjuring it from thin air — buying supply still happens in the black market, but a steady supply now means a steady stock of materials. A new path for the truly shameless: lie your way into being something you\'re not, again and again, and the lie may eventually become the truth. And somewhere out there walks a barefoot foreign boy with a staff that is never the same length twice.', note:'Drug-as-alchemy: cookDrug now consumes DRUGS[].ing from inventory (countIngredient/consumeIngredient/drugRequirements helpers), no silver synth; removed black-market Cook button (shows recipe instead); Black-Market Synthesis section in renderAlchemyPanel gated on in-trade; fixed clear_water_vial→clear_water ing keys. Larp God trait (mythic, setsRace) + Minor God race + _larpSuccesses counter + larpSuccess AI field + larpGod safe() granting at 8 + buildSystemPrompt imposture/belief-bending rule. God of High School reference: mori_jin lore NPC (Monkey King, Charyeok/borrowed power, the tournament) + admin spawn option.' },
+  { number:'3.18', name:'The Architect\'s Table', sys:'Every plain browser pop-up — the give-silver and give-item dialogs, introducing people, naming a technique offshoot, confirming a delete or a new game — has been replaced with proper in-world dialogs that match the rest of the game. Lists you choose from (heirs, items, people) are now searchable instead of a wall of numbered text. For those with access to the developer panel, it has been fully rebuilt into clean tabbed sections that are far easier to navigate, and its long catalog dropdowns (traits, races, lore figures) are now fast searchable pickers.', note:'Built-in popup system: uiPopup/uiAlert/uiConfirm/uiPrompt/uiPicker (CSS .ui-popup* + .ui-pick*); replaced all native alert/confirm/prompt (give_silver, give_item, introduceNPCsPrompt, createOffshoot, deleteSlot, new-game, offspring chooser, admin war, createCombinedTechnique→async, showNPCStats→uiPopup). Admin panel rebuilt: tabbed layout (Character/Powers/Items/World/NPCs) via .admin-tabbar/.admin-tabpanel + switchAdminTab/setupAdminTabs; trait/lore/race selects → searchable pickers (ADMIN_PICKER_CFG, openAdminPickerKind, syncAdminPickerLabel, hidden inputs preserve IDs); dynamic race/ingredient/offspring/sect + qi-expression sections retargeted into tab panels.' },
 ];
 
 function cleanSaveData(gs) {
@@ -11512,8 +11730,8 @@ function loadFromSlot(slot) {
   } catch(e) { toast('Load failed.', 'error'); console.error(e); }
 }
 
-function deleteSlot(slot) {
-  if(!confirm(`Delete save slot ${slot}? This cannot be undone.`)) return;
+async function deleteSlot(slot) {
+  if(!await uiConfirm(`Delete save slot ${slot}? This cannot be undone.`, { title:'Delete Save', okLabel:'Delete', danger:true })) return;
   localStorage.removeItem(SAVE_PREFIX + slot);
   toast(`Slot ${slot} deleted.`, '', 2000);
   renderSaveSlots();
@@ -11972,6 +12190,7 @@ function initCreation() {
 // ADMIN PANEL INIT & HANDLERS
 // ================================================================
 function initAdmin() {
+  setupAdminTabs();
   // Grant technique
   document.getElementById('btn-admin-grant-tech').addEventListener('click', () => {
     const name = document.getElementById('admin-tech-name').value.trim();
@@ -12109,8 +12328,8 @@ function initAdmin() {
   });
 
   // World control
-  document.getElementById('btn-admin-war').addEventListener('click', () => {
-    const warName = prompt('War name (e.g. "Azure Civil War"):');
+  document.getElementById('btn-admin-war').addEventListener('click', async () => {
+    const warName = (await uiPrompt('Name the war that breaks out.', { title:'⚔ Start War', placeholder:'e.g. Azure Civil War' }) || '').trim();
     if(!warName) return;
     GS.world.wars.push({ name:warName, startYear:GS.world.year, active:true, parties:[] });
     addWorldEvent(`${warName} has broken out in Year ${GS.world.year}.`);
@@ -12312,8 +12531,8 @@ function initSettings() {
     e.target.value = '';
   });
 
-  document.getElementById('btn-newgame').addEventListener('click', () => {
-    if(!confirm('Start a completely new game? Save first if you want to keep this character.')) return;
+  document.getElementById('btn-newgame').addEventListener('click', async () => {
+    if(!await uiConfirm('Start a completely new game? Save first if you want to keep this character.', { title:'New Game', okLabel:'Start New', danger:true })) return;
     GS = createDefaultState();
     GS.settings.apiKey = document.getElementById('set-apikey')?.value?.trim() || '';
     GS.settings.mobileMode = document.getElementById('set-mobile')?.checked || false;
@@ -13931,10 +14150,9 @@ function buildAdminStatGrid() {
   const repSel = document.getElementById('admin-rep-loc');
   if(repSel) repSel.innerHTML = '<option value="">Location...</option>' +
     Object.entries(LOCATIONS).map(([k,v]) => `<option value="${k}">${v.name}</option>`).join('');
-  // Fill trait select
-  const traitSel = document.getElementById('admin-trait-sel');
-  if(traitSel) traitSel.innerHTML = '<option value="">Select trait...</option>' +
-    Object.entries(TRAITS_CATALOG).map(([k,v]) => `<option value="${k}">${v.name} (${v.rarity})</option>`).join('');
+  // Trait/lore are now searchable pickers (hidden inputs). Reflect any current value on the buttons.
+  syncAdminPickerLabel('trait');
+  syncAdminPickerLabel('lore');
   // NPC list
   const npcList = document.getElementById('admin-npc-list');
   if(npcList) {
@@ -13944,28 +14162,44 @@ function buildAdminStatGrid() {
       : '<div style="font-size:11px;color:var(--dim);padding:6px">No NPCs generated yet.</div>';
   }
 
-  // Add race control if not already there
+  // Add race + creation controls if not already there — appended into the right tab panels.
   if(!document.getElementById('admin-race-sel')) {
-    const adminBody = document.querySelector('#modal-admin .modal-body');
-    if(adminBody) {
+    const charPanel  = document.getElementById('admin-tab-character');
+    const itemsPanel = document.getElementById('admin-tab-items');
+    const worldPanel = document.getElementById('admin-tab-world');
+    if(charPanel && itemsPanel && worldPanel) {
+      // Race / Ascension → Character tab
       const raceSection = document.createElement('div');
       raceSection.className = 'admin-section';
       raceSection.innerHTML = `
         <div class="admin-sect-title">Race / Ascension</div>
         <div class="admin-row">
-          <select id="admin-race-sel" style="flex:2">
-            ${Object.entries(RACES).map(([k,v])=>`<option value="${k}">${v.name}</option>`).join('')}
-          </select>
+          <button type="button" class="admin-picker" id="pick-admin-race" onclick="openAdminRacePicker()">
+            <span class="ap-val placeholder">Select race...</span><span class="ap-caret">SEARCH ▾</span>
+          </button>
+          <input type="hidden" id="admin-race-sel">
           <button id="btn-admin-race" class="btn-primary btn-sm">Set Race</button>
-        </div>
-        <div class="admin-sect-title" style="margin-top:10px">Spawn Ingredient</div>
+        </div>`;
+      charPanel.appendChild(raceSection);
+
+      // Spawn Ingredient → Items tab
+      const ingSection = document.createElement('div');
+      ingSection.className = 'admin-section';
+      ingSection.innerHTML = `
+        <div class="admin-sect-title">Spawn Ingredient</div>
         <div class="admin-row">
           <select id="admin-ing-sel" style="flex:2">
             ${Object.entries(INGREDIENTS).map(([k,v])=>`<option value="${k}">${v.name}</option>`).join('')}
           </select>
           <button id="btn-admin-ing" class="btn-primary btn-sm">Spawn</button>
-        </div>
-        <div class="admin-sect-title" style="margin-top:10px">Create Offspring</div>
+        </div>`;
+      itemsPanel.appendChild(ingSection);
+
+      // Create Offspring + Create Sect → World tab
+      const makeSection = document.createElement('div');
+      makeSection.className = 'admin-section';
+      makeSection.innerHTML = `
+        <div class="admin-sect-title">Create Offspring</div>
         <div class="admin-row">
           <input type="text" id="admin-offspring-name" placeholder="Child's name" style="flex:2">
           <select id="admin-offspring-gender" style="flex:1">
@@ -13985,10 +14219,13 @@ function buildAdminStatGrid() {
           </select>
           <button id="btn-admin-sect" class="btn-primary btn-sm">Create</button>
         </div>`;
-      adminBody.appendChild(raceSection);
+      worldPanel.appendChild(makeSection);
 
       document.getElementById('btn-admin-race').addEventListener('click', () => {
-        setRace(document.getElementById('admin-race-sel').value);
+        const r = document.getElementById('admin-race-sel').value;
+        if(!r) { toast('Select a race','error'); return; }
+        setRace(r);
+        toast(`Race set: ${RACES[r]?.name||r}`, 'gold', 2000);
       });
       document.getElementById('btn-admin-ing').addEventListener('click', () => {
         spawnIngredient(document.getElementById('admin-ing-sel').value);
@@ -14011,9 +14248,86 @@ function buildAdminStatGrid() {
     }
   }
 
-  // Update race select to show current
+  // Update race picker to show current
   const raceSel = document.getElementById('admin-race-sel');
-  if(raceSel) raceSel.value = GS.char.race;
+  if(raceSel && !raceSel.value) raceSel.value = GS.char.race;
+  syncAdminPickerLabel('race');
+}
+
+// ================================================================
+// ADMIN SEARCHABLE PICKERS + TAB SWITCHING
+// ================================================================
+const ADMIN_PICKER_CFG = {
+  trait: { input:'admin-trait-sel', btn:'pick-admin-trait', placeholder:'Select trait...', title:'Choose a Trait',
+    label:(v)=> v ? `${TRAITS_CATALOG[v]?.name||v}` : null,
+    items:()=>{
+      const order = ['fable','mythic','legendary','epic','rare','uncommon','common'];
+      const groupName = { fable:'Fable', mythic:'Mythic', legendary:'Legendary', epic:'Epic', rare:'Rare', uncommon:'Uncommon', common:'Common' };
+      return Object.entries(TRAITS_CATALOG)
+        .map(([k,v])=>({ value:k, label:v.name, sub:v.rarity||'common', group:groupName[v.rarity]||'Common', _o:order.indexOf(v.rarity||'common') }))
+        .sort((a,b)=> (a._o-b._o) || a.label.localeCompare(b.label));
+    } },
+  lore: { input:'admin-lore-npc', btn:'pick-admin-lore', placeholder:'Lore NPC...', title:'Spawn a Lore Figure',
+    label:(v)=> v ? (LORE_NPCS[v]?.name || v) : null,
+    items:()=>{
+      const lords = ['xelaad_pride','iasiba_envy','dranoel_greed','normac_sloth'];
+      return Object.entries(LORE_NPCS).map(([k,v])=>({
+        value:k, label:v.name, sub:(v.title||'').slice(0,22),
+        group: lords.includes(k) ? 'The Maligned Lords' : 'Figures of Legend',
+        _o: lords.includes(k) ? 1 : 0,
+      })).sort((a,b)=> (a._o-b._o) || a.label.localeCompare(b.label));
+    } },
+  race: { input:'admin-race-sel', btn:'pick-admin-race', placeholder:'Select race...', title:'Set Race',
+    label:(v)=> v ? (RACES[v]?.name || v) : null,
+    items:()=>{
+      const grp = (k,r)=> r.common ? 'Common Peoples' : (typeof RACE_PATHS!=='undefined' && RACE_PATHS[k]) ? 'Transformable' : r.born ? 'Born-Only' : 'Special';
+      const ord = { 'Common Peoples':0, 'Born-Only':1, 'Transformable':2, 'Special':3 };
+      return Object.entries(RACES).map(([k,r])=>({ value:k, label:r.name, sub:grp(k,r), group:grp(k,r), _o:ord[grp(k,r)]??9 }))
+        .sort((a,b)=> (a._o-b._o) || a.label.localeCompare(b.label));
+    } },
+};
+
+function syncAdminPickerLabel(kind) {
+  const cfg = ADMIN_PICKER_CFG[kind]; if(!cfg) return;
+  const btn = document.getElementById(cfg.btn);
+  const inp = document.getElementById(cfg.input);
+  if(!btn || !inp) return;
+  const val = inp.value;
+  const span = btn.querySelector('.ap-val');
+  if(!span) return;
+  const lbl = cfg.label(val);
+  if(lbl) { span.textContent = lbl; span.classList.remove('placeholder'); }
+  else { span.textContent = cfg.placeholder; span.classList.add('placeholder'); }
+}
+
+async function openAdminPickerKind(kind) {
+  const cfg = ADMIN_PICKER_CFG[kind]; if(!cfg) return;
+  const chosen = await uiPicker(cfg.items(), { title: cfg.title, placeholder:'Search…' });
+  if(chosen == null) return;
+  const inp = document.getElementById(cfg.input);
+  if(inp) inp.value = chosen;
+  syncAdminPickerLabel(kind);
+}
+function openAdminTraitPicker() { openAdminPickerKind('trait'); }
+function openAdminLorePicker()  { openAdminPickerKind('lore'); }
+function openAdminRacePicker()  { openAdminPickerKind('race'); }
+
+function switchAdminTab(key) {
+  document.querySelectorAll('#modal-admin .admin-tab').forEach(t =>
+    t.classList.toggle('active', t.getAttribute('data-admtab') === key));
+  document.querySelectorAll('#modal-admin .admin-tabpanel').forEach(p =>
+    p.classList.toggle('active', p.id === 'admin-tab-' + key));
+  const body = document.querySelector('#modal-admin .modal-body');
+  if(body) body.scrollTop = 0;
+}
+function setupAdminTabs() {
+  const bar = document.querySelector('#modal-admin .admin-tabbar');
+  if(!bar || bar._wired) return;
+  bar._wired = true;
+  bar.addEventListener('click', (e) => {
+    const tab = e.target.closest('.admin-tab');
+    if(tab) switchAdminTab(tab.getAttribute('data-admtab'));
+  });
 }
 
 // ================================================================
@@ -14025,10 +14339,9 @@ document.getElementById('btn-offspring').addEventListener('click', () => {
   if(offspring.length === 1) {
     continueAsOffspring(offspring[0].id);
   } else {
-    // Show selection (basic)
-    const choice = prompt(`Choose offspring:\n${offspring.map((o,i)=>`${i+1}. ${o.name} (age ${o.age})`).join('\n')}\n\nEnter number:`);
-    const idx = parseInt(choice) - 1;
-    if(idx >= 0 && idx < offspring.length) continueAsOffspring(offspring[idx].id);
+    uiPicker(offspring.map(o => ({ value:o.id, label:o.name, sub:`age ${o.age}` })),
+      { title:'Continue As…', placeholder:'Search your heirs…' })
+      .then(id => { if(id) continueAsOffspring(id); });
   }
 });
 
@@ -21455,7 +21768,7 @@ buildSystemPrompt = function() {
 
 // Add expression selector to admin panel
 document.addEventListener('DOMContentLoaded', () => {
-  const adminBody = document.querySelector('#modal-admin .modal-body');
+  const adminBody = document.getElementById('admin-tab-powers') || document.querySelector('#modal-admin .modal-body');
   if(adminBody && !document.getElementById('admin-expr-sel')) {
     // Build grouped optgroup selector
     const families = { elemental:'Elemental', weapon:'Weapon', artistic:'Artistic', conceptual:'Conceptual', utility:'Utility' };
@@ -22469,7 +22782,7 @@ function getComboRarity(r1, r2) {
   return order[Math.min(order.length-1, base + (Math.random() < 0.3 ? 1 : 0))];
 }
 
-function createCombinedTechnique(tech1Id, tech2Id) {
+async function createCombinedTechnique(tech1Id, tech2Id) {
   const t1 = GS.char.techniques.find(t=>t.id===tech1Id);
   const t2 = GS.char.techniques.find(t=>t.id===tech2Id);
   if(!t1||!t2) { toast('Technique not found.','error'); return null; }
@@ -22479,7 +22792,7 @@ function createCombinedTechnique(tech1Id, tech2Id) {
 
   if(!compat.ok) {
     // Unstable combination — risk of failure
-    const forceAnyway = confirm(`Incompatible: ${compat.reason}\n\nAttempt anyway? High risk of Qi deviation and technique destruction.`);
+    const forceAnyway = await uiConfirm(`Incompatible: ${compat.reason}\n\nAttempt anyway? High risk of Qi deviation and technique destruction.`, { title:'Force Combination', okLabel:'Attempt Anyway', danger:true });
     if(!forceAnyway) return null;
     // Force attempt — can destroy both techniques
     if(Math.random() < 0.6) {
