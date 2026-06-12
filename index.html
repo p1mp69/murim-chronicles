@@ -3178,6 +3178,13 @@ body.generating [onclick*="shopSellItem"], body.generating [onclick*="closeMapGo
         <div id="admin-npc-list" class="admin-npc-list"></div>
       </div>
 
+      <div class="admin-section">
+        <div class="admin-sect-title">Bestiary — Original Qi Beasts</div>
+        <div class="admin-row">
+          <button class="btn-secondary btn-sm" style="flex:1" onclick="showBeastBestiary()">📖 Open Bestiary</button>
+        </div>
+      </div>
+
       </div><!-- /npcs -->
 
         </div>
@@ -11426,7 +11433,7 @@ const SAVE_PREFIX = 'murim_slot_';
 // Scheme: MAJOR.MINOR. Big updates bump MAJOR (1.2 -> 2.2). Small updates
 // bump MINOR (2.2 -> 2.3). Each version has a name. The current version is
 // stamped onto every save; older saves can be updated to the latest.
-const GAME_VERSION = { number: '3.19', name: 'Older Than People' };
+const GAME_VERSION = { number: '3.20', name: 'The Bestiary' };
 
 // Which model generates the story. Lite Mode swaps to a far cheaper, faster model
 // (Claude Haiku) so long sessions / limited credits cost a fraction per turn.
@@ -11471,6 +11478,7 @@ const VERSION_HISTORY = [
   { number:'3.17', name:'The Mask Becomes the Face', sys:'Cooking product is now a real part of alchemy: synthesizing narcotics consumes actual ingredients at the alchemy workbench instead of conjuring it from thin air — buying supply still happens in the black market, but a steady supply now means a steady stock of materials. A new path for the truly shameless: lie your way into being something you\'re not, again and again, and the lie may eventually become the truth. And somewhere out there walks a barefoot foreign boy with a staff that is never the same length twice.', note:'Drug-as-alchemy: cookDrug now consumes DRUGS[].ing from inventory (countIngredient/consumeIngredient/drugRequirements helpers), no silver synth; removed black-market Cook button (shows recipe instead); Black-Market Synthesis section in renderAlchemyPanel gated on in-trade; fixed clear_water_vial→clear_water ing keys. Larp God trait (mythic, setsRace) + Minor God race + _larpSuccesses counter + larpSuccess AI field + larpGod safe() granting at 8 + buildSystemPrompt imposture/belief-bending rule. God of High School reference: mori_jin lore NPC (Monkey King, Charyeok/borrowed power, the tournament) + admin spawn option.' },
   { number:'3.18', name:'The Architect\'s Table', sys:'Every plain browser pop-up — the give-silver and give-item dialogs, introducing people, naming a technique offshoot, confirming a delete or a new game — has been replaced with proper in-world dialogs that match the rest of the game. Lists you choose from (heirs, items, people) are now searchable instead of a wall of numbered text. For those with access to the developer panel, it has been fully rebuilt into clean tabbed sections that are far easier to navigate, and its long catalog dropdowns (traits, races, lore figures) are now fast searchable pickers.', note:'Built-in popup system: uiPopup/uiAlert/uiConfirm/uiPrompt/uiPicker (CSS .ui-popup* + .ui-pick*); replaced all native alert/confirm/prompt (give_silver, give_item, introduceNPCsPrompt, createOffshoot, deleteSlot, new-game, offspring chooser, admin war, createCombinedTechnique→async, showNPCStats→uiPopup). Admin panel rebuilt: tabbed layout (Character/Powers/Items/World/NPCs) via .admin-tabbar/.admin-tabpanel + switchAdminTab/setupAdminTabs; trait/lore/race selects → searchable pickers (ADMIN_PICKER_CFG, openAdminPickerKind, syncAdminPickerLabel, hidden inputs preserve IDs); dynamic race/ingredient/offspring/sect + qi-expression sections retargeted into tab panels.' },
   { number:'3.19', name:'Older Than People', sys:'Qi was never invented by people — long before the founders discovered it on their own, primordial creatures already wielded it, each in their own way, the way the first benders learned from animals. There are now achievements for learning the irreproducible Qi of the ten Original Qi Beasts: dragons, yokai, sakura trees, cove bears, the man-serpent children of Yuluh, giants and titans, the sanguine, the pelagic goat, the five-legged ape, and the arachnid — plus one for learning all ten. A new achievement waits for those who cross paths with a certain barefoot foreign boy and his ever-changing staff. And the storyteller now reliably honors the rules it was sometimes forgetting at the very end of long prompts.', note:'ANCIENT_QI_BEASTS catalog (10 beasts: dragon/yokai/sakura_tree/cove_bear/man_serpent/giant/sanguine/pelagic_goat/five_legged_ape/arachnid); auto-generated aqi_* achievements + aqi_all master + god_of_high_school achievement; _ancientQiBeasts[]/_metMonkeyKing char fields; ancientQiLearned AI field + trackAchievementState detection (+ Mori Jin registry/narrative flag); buildAncientQiSection()/buildLarpGodSection() text builders. KEY FIX: Larp God prompt rule (added v3.17) was being trimmed by the MAX_SYSTEM_PROMPT_CHARS length-guard because it injected pre-guard; moved both Larp + Ancient Qi injection into a LATE wrapper (_bspWithBeastsAndMask) placed after the length-guard so they survive (verified present in 37k-char prompt).' },
+  { number:'3.20', name:'The Bestiary', sys:'The ten Original Qi Beasts are now fully fleshed out — each with its own stats, the place in the world it can be found, its lore and behavior, exactly how its Qi works, and how (and what it costs) to learn its art. Every beast\'s Qi is genuinely DISTINCT: learning from one grants its own unique signature technique (a dragon\'s law-like elemental dominion is nothing like the arachnid\'s cutting web-silk or the sanguine\'s blood-command), and the storyteller now runs each encounter true to that beast\'s nature. A new in-game Bestiary lets you browse every creature in full detail.', note:'Expanded ANCIENT_QI_BEASTS: per-beast stats{8}, qiStageIndex, tier, danger, location, lore, behavior, qiMechanic, howToLearn, and a DISTINCT signature{name,category,type,rarity,desc} (10 unique arts across 5 categories). buildAncientQiSection() now surfaces location/mechanic/behavior/how-to-learn/granted-art per beast + DISTINCT rule. trackAchievementState ancientQiLearned now grantTechnique(beast.signature) so each grants its own art. Bestiary viewer: showBeastBestiary()/showBeastDetail() (uiPicker→uiPopup stat+lore card) + admin NPCs-tab button.' },
 ];
 
 function cleanSaveData(gs) {
@@ -15469,26 +15477,146 @@ function renderHallOfDead() {
 // the way the first benders learned from animals. Their arts can still be learned
 // by those who survive the encounter and earn the teaching.
 const ANCIENT_QI_BEASTS = {
-  dragon:        { name:'Dragons',                  icon:'🐉', ach:"Dragon's Heir",            qi:'Primordial heaven-Qi — elemental dominion, the breath that shaped weather and law. The oldest and proudest of all Qi.',
-                   desc:'Learn the Qi of dragons — the primordial elemental dominion of the oldest beasts.' },
-  yokai:         { name:'Yokai',                    icon:'👹', ach:'Spirit-Beast Pact',        qi:'Shifting spirit-Qi — transformation, illusion, and the blurring of the line between beast, spirit, and human.',
-                   desc:'Learn the shifting spirit-Qi of the Yokai — transformation and illusion older than the kingdoms.' },
-  sakura_tree:   { name:'Sakura Trees',             icon:'🌸', ach:'Blossom and Fall',         qi:'The Qi of bloom and fall — life, wood, and impermanence; everything it touches flowers gloriously and is meant to end.',
-                   desc:"Learn the Qi of the Sakura Trees — the cultivation of bloom, fall, and beautiful impermanence." },
-  cove_bear:     { name:'Cove Bears',               icon:'🐻', ach:"The Cove Bear's Slumber",  qi:'Earthen endurance-Qi — packed-stone strength and the deep hibernation-Qi that hoards power through long sleep.',
-                   desc:"Learn the earthen slumber-Qi of the Cove Bears — strength hoarded through deep, hibernating sleep." },
-  man_serpent:   { name:'Man-Serpents (Children of Yuluh)', icon:'🐍', ach:'Child of Yuluh',   qi:'Venom-and-cunning Qi descended from Yuluh the Immortal Serpent — deathless trickery, poison, and the slow patience of something that has watched empires.',
-                   desc:'Learn the venomous, deathless Qi of the Man-Serpents — the children of Yuluh the Immortal Serpent.' },
-  giant:         { name:'Giants / Titans',          icon:'⛰', ach:"Titan's Weight",            qi:'Colossal gravity-Qi — the weight of mountains made into a body; what they strike does not get up, and they cannot be moved against their will.',
-                   desc:'Learn the colossal gravity-Qi of the Giants and Titans — the weight of mountains worn as a body.' },
-  sanguine:      { name:'Sanguine',                 icon:'🩸', ach:'The Sanguine Art',          qi:'Blood-Qi — mastery over the blood of self and others; healing, hemorrhage, and dominion over what runs in every living thing.',
-                   desc:'Learn the blood-Qi of the Sanguine — dominion over the blood of yourself and others.' },
-  pelagic_goat:  { name:'Pelagic Goat',             icon:'🐐', ach:'The Pelagic Depths',        qi:'Deep-tide Qi — crushing pressure, lightlessness, and the surefooted calm of something that grazes the ocean floor where nothing else can breathe.',
-                   desc:'Learn the deep-tide Qi of the Pelagic Goat — crushing pressure and the calm of the lightless deep.' },
-  five_legged_ape:{ name:'Five-Legged Ape',         icon:'🦍', ach:'The Five-Legged King',      qi:'Beast-king body-Qi — apex raw physicality, a fifth limb of pure force, and the unquestioned dominance of the strongest thing in any forest.',
-                   desc:'Learn the beast-king body-Qi of the Five-Legged Ape — apex raw strength and total physical dominance.' },
-  arachnid:      { name:'Arachnid',                 icon:'🕷', ach:'Weaver of the First Web',   qi:'Thread-and-web Qi — silk that cuts and binds, webs that sense every tremor, and patient venom; the original weaver-cultivation.',
-                   desc:'Learn the thread-and-web Qi of the Arachnid — silk, snare, and venom; the first weaver-cultivation.' },
+  dragon: {
+    name:'Dragons', icon:'🐉', ach:"Dragon's Heir", tier:'Apex (peak-stage — founder-class)',
+    qiStageIndex:13, danger:'Catastrophic',
+    stats:{ strength:95, agility:88, endurance:98, intelligence:96, perception:94, willpower:99, charisma:92, luck:85 },
+    desc:'Learn the Qi of dragons — the primordial elemental dominion of the oldest beasts.',
+    qi:'Sovereign Qi (heaven-Qi) — the eldest Qi of all.',
+    location:'The heaven-piercing peaks beyond the edge of the maps, sky-roosts above the cloud sea, and deep ley-vaults where the oldest ones sleep out the centuries. Almost never seen low.',
+    lore:'The first wielders of Qi — they did not learn it, they were born of it. Legend says the first dragon\'s exhale set the seasons turning and taught the heavens to keep order. Most withdrew from the world an age ago, too proud and too vast to share it with the small.',
+    behavior:'Imperious, patient, and proud beyond measure. A dragon rarely fights what it does not respect; it judges. It will sooner ignore or incinerate a supplicant than duel one. Those it deems worthy of its bloodline\'s pride, it may teach — once.',
+    qiMechanic:'A dragon does not circulate Qi through meridians; its entire body is one vast Qi-organ. Its Qi commands the elements as LAW rather than forcing them as technique — weather bends, fire kneels, the air acknowledges rank. Dominion, not effort.',
+    howToLearn:'Survive a dragon\'s notice and earn its acknowledgment, inherit the core of a dying dragon, or bathe in dragon blood and not be unmade by it. None of these are survivable by the unworthy.',
+    signature:{ name:"Sovereign Dragon's Breath", category:'conceptual', type:'attack', rarity:'fable',
+      desc:'Your Qi no longer forces the elements — it commands them as law. Flame, storm, and pressure answer your intent the way subjects answer a king. The breath itself carries the weight of a dragon\'s authority.' },
+  },
+  yokai: {
+    name:'Yokai', icon:'👹', ach:'Spirit-Beast Pact', tier:'High (mid-to-upper stage; the eldest far higher)',
+    qiStageIndex:11, danger:'Severe',
+    stats:{ strength:70, agility:88, endurance:75, intelligence:85, perception:90, willpower:84, charisma:78, luck:80 },
+    desc:'Learn the shifting spirit-Qi of the Yokai — transformation and illusion older than the kingdoms.',
+    qi:'Borrowed-Shape Qi — power worn as forms and stories.',
+    location:'Liminal places: old roadside shrines, fog-bound passes, abandoned temples, and the spirit-thick groves at the deep edge of Ooina forest. They wake at dusk and rule the night-roads.',
+    lore:'Spirit-beasts that earned Qi by accumulating years and belief rather than cultivation; the oldest predate the kingdoms. The more a Yokai is feared, named, and told-of, the more real and powerful it becomes — they are made partly of the stories people tell.',
+    behavior:'Capricious, clever, and bound by their own strange rules and bargains. They test travelers with riddles, favors, and tricks; honor a deal to the letter and twist its spirit. Cruel and kind by turns, rarely by halves.',
+    qiMechanic:'Qi stored in transformation and reputation. A Yokai wears Qi as shapes — beast, human, monster, object — and can pour it into illusion the senses cannot easily pierce. Belief is fuel: the better-known the legend, the deeper the well.',
+    howToLearn:'Strike a true pact with an old Yokai — offer it something it actually wants (a name, a memory, a years-long service) — or defeat one and take the remnant of its shape-Qi.',
+    signature:{ name:'Hundred-Faces Veil', category:'conceptual', type:'utility', rarity:'legendary',
+      desc:'You wear Qi as the Yokai do — borrowing shapes and weaving illusion the senses struggle to pierce. Faces, voices, even the shape of a beast become yours to don; the more a lie is believed, the more solid it holds.' },
+  },
+  sakura_tree: {
+    name:'Sakura Trees', icon:'🌸', ach:'Blossom and Fall', tier:'Ancient (immense Qi, rooted — cannot pursue)',
+    qiStageIndex:12, danger:'High (only to those who come to it)',
+    stats:{ strength:40, agility:18, endurance:100, intelligence:80, perception:96, willpower:96, charisma:70, luck:75 },
+    desc:'Learn the Qi of the Sakura Trees — the cultivation of bloom, fall, and beautiful impermanence.',
+    qi:'Cycle Qi — bloom and fall; impermanence as power.',
+    location:'A handful of hidden groves and one fabled tree atop a mist-wrapped mountain in the far interior. They bloom in full perhaps once a century; the rest is patience.',
+    lore:'The oldest living things still rooted to one spot. They cultivated Qi through pure time and stillness, watching ten thousand springs come and go. A grove like this has outlasted every kingdom that ever claimed the land beneath it.',
+    behavior:'Utterly still and utterly aware. A sakura-grove does not chase, threaten, or speak — it waits, and lets what enters its petals be carried through its life faster than it should. It judges by patience, and gives only to those who can sit as long as it can.',
+    qiMechanic:'Its petals carry Qi, and what falls beneath them is hurried through the cycle of life: wounds knit or rot in moments, the green age, the dying are let gently down. It rules growth and decay both. It cannot come to you — you must come, and stay.',
+    howToLearn:'Sit beneath the grove through an entire bloom — a feat of patience few can bear — or be gifted a single petal by the tree itself, which it gives perhaps once in a lifetime.',
+    signature:{ name:'Blossom-and-Fall Cycle', category:'healing', type:'utility', rarity:'legendary',
+      desc:'You hold the Qi of bloom and fall. With it you accelerate the cycle of life in flesh — knitting wounds and forcing growth, or hurrying rot and age into a foe. Everything you touch flowers gloriously and is meant, in time, to end.' },
+  },
+  cove_bear: {
+    name:'Cove Bears', icon:'🐻', ach:"The Cove Bear's Slumber", tier:'Upper-mid (slow, then catastrophic)',
+    qiStageIndex:10, danger:'Severe',
+    stats:{ strength:90, agility:55, endurance:95, intelligence:62, perception:70, willpower:82, charisma:50, luck:65 },
+    desc:'Learn the earthen slumber-Qi of the Cove Bears — strength hoarded through deep, hibernating sleep.',
+    qi:'Hoarded Qi — banked through long sleep, spent in bursts.',
+    location:'The cold northern sea-coves, glacier caves, and fjord-mouths. They den deep and hibernate for years; a woken cove bear is a rare and very bad omen for whatever woke it.',
+    lore:'Vast bears of the frozen coves that learned to hoard Qi the way they hoard fat — through deep, patient hibernation, each waking stronger than the last. The eldest have slept through whole dynasties and risen with the weight of them.',
+    behavior:'Slow to rouse, slower to anger, and immovably territorial. It will give long warning before it acts. But once it commits, it does not stop, and the Qi of a dozen winters comes out all at once.',
+    qiMechanic:'It banks Qi during long sleep instead of spending it, releasing the hoard in devastating bursts of earthen, cold-edged force. Between bursts it is nigh-immovable: rooted, dense, and impossibly durable.',
+    howToLearn:'Survive a winter in its territory, or rouse and best (or earn the grudging respect of) a waking cove bear — which means weathering the hoard of a dozen years released at once.',
+    signature:{ name:'Glacier-Hoard Slumber', category:'defensive', type:'passive', rarity:'epic',
+      desc:'You learn to bank Qi as the cove bears do — storing it while you rest and at rest, far past a normal cultivator\'s reserve, then loosing the whole hoard in one earthen, cold-edged burst. Immovable between blows; catastrophic in them.' },
+  },
+  man_serpent: {
+    name:'Man-Serpents (Children of Yuluh)', icon:'🐍', ach:'Child of Yuluh', tier:'High (kin of Yuluh — deathless-leaning)',
+    qiStageIndex:12, danger:'Severe',
+    stats:{ strength:78, agility:90, endurance:88, intelligence:88, perception:92, willpower:88, charisma:80, luck:82 },
+    desc:'Learn the venomous, deathless Qi of the Man-Serpents — the children of Yuluh the Immortal Serpent.',
+    qi:'Venom-and-Vow Qi — poison, oaths, and refusal of death.',
+    location:'The deep, wet places: swamps, drowned ruins, river-deeps, and the dark roots beneath the great cedar where Yuluh\'s domain begins. They move easily between the worlds of human and beast.',
+    lore:'Half-human, half-serpent spawn of Yuluh the Immortal Serpent — the trickster that feeds on human misery and can grant immortality. They carry a sliver of their parent\'s deathlessness and all of its love of a clever bargain.',
+    behavior:'Silken, patient, and contractual to the bone. A man-serpent would always rather make a deal than a fight — and its deals, like Yuluh\'s, are honest in word and ruinous in result. Cross one and its venom is the kindest thing it has for you.',
+    qiMechanic:'Qi that poisons, binds, and refuses to die. Their venom carries Qi-weight; their sworn word carries binding force; and their bodies knit back from wounds that would end anything mortal. Patience is their deadliest organ.',
+    howToLearn:'Strike a bargain with a man-serpent (they adore a good deal), survive a dose of its Qi-venom, or descend toward Yuluh\'s domain and impress what waits there.',
+    signature:{ name:"Immortal Serpent's Coil", category:'assassination', type:'attack', rarity:'legendary',
+      desc:'You carry a sliver of Yuluh\'s deathless venom-Qi. Your strikes poison body and Qi alike, your wounds close where another\'s would kill, and a sworn word can bind like a coil. Slow, patient, and very hard to truly put down.' },
+  },
+  giant: {
+    name:'Giants / Titans', icon:'⛰', ach:"Titan's Weight", tier:'Apex (colossal — some are mountains)',
+    qiStageIndex:12, danger:'Catastrophic',
+    stats:{ strength:100, agility:40, endurance:100, intelligence:70, perception:72, willpower:90, charisma:62, luck:60 },
+    desc:'Learn the colossal gravity-Qi of the Giants and Titans — the weight of mountains worn as a body.',
+    qi:'Weight Qi — mass and gravity made obedient.',
+    location:'Remote mountain ranges, deep frontier highlands, and beneath the earth itself — some titans have slept so long the mountains grew over them, and a few peaks ARE sleeping titans.',
+    lore:'Colossal beings from before the kingdoms, from before most things with names. They wield Qi not as fire or water but as sheer weight, and the world arranges itself around their slow, enormous certainty.',
+    behavior:'Profoundly slow and profoundly hard to move — in body and in mind. A titan does not notice the small and does not hurry for anything. When one finally acts, mountains have been known to move out of the way too late.',
+    qiMechanic:'Its Qi governs mass and gravity. What it strikes is crushed flat; what it stands on cannot move it; its mere presence bends the ground and drags the air down. Weight as a weapon, weight as a wall.',
+    howToLearn:'A titan must choose to teach, and most never notice you long enough to. Pass its slow test of endurance and worth, or inherit the Qi of a dying one as the weight goes out of it.',
+    signature:{ name:'Mountain-Weight Dominion', category:'conceptual', type:'utility', rarity:'fable',
+      desc:'You wear the weight of mountains. Your Qi governs mass and gravity — crushing what you strike, anchoring you past any force that would move you, and dragging the very air down around a foe until standing is a labor.' },
+  },
+  sanguine: {
+    name:'Sanguine', icon:'🩸', ach:'The Sanguine Art', tier:'High (elegant apex predator)',
+    qiStageIndex:11, danger:'Severe',
+    stats:{ strength:80, agility:88, endurance:84, intelligence:86, perception:85, willpower:82, charisma:88, luck:78 },
+    desc:'Learn the blood-Qi of the Sanguine — dominion over the blood of yourself and others.',
+    qi:'Blood Qi — dominion over what runs in every living thing.',
+    location:'Old noble ruins, blood-soaked battlefields, and hidden courts in the great cities. They walk unseen among people, dressed well, drawn always toward where blood will be spilled.',
+    lore:'Ancient blood-drinking beings that cultivate through blood — their own and everyone else\'s. Elegant, predatory, and very old, they have sat at the edge of human power for longer than the kingdoms have kept records.',
+    behavior:'Refined, seductive, and unhurried. A Sanguine hunts like a courtier — charm, patience, and a single decisive moment. It values beauty and bloodline and finds open brutality vulgar; it would rather you offer your blood than take it.',
+    qiMechanic:'It reads and commands blood. It draws Qi and vitality through blood, heals itself with it, senses every living thing by the pulse of it, and can puppeteer flesh through the blood inside it. To bleed near a Sanguine is to hand it a leash.',
+    howToLearn:'Be fed upon and survive — or turn the draw back on it. Win a blood-pact, or defeat a Sanguine and take into yourself what it had become.',
+    signature:{ name:'Crimson Tide', category:'assassination', type:'attack', rarity:'legendary',
+      desc:'You command blood — your own and your enemy\'s. Draw vitality through a wound, heal by it, sense every living thing by its pulse, and seize a bleeding foe by the very blood in their veins. Open brutality is for those who lack the art.' },
+  },
+  pelagic_goat: {
+    name:'Pelagic Goat', icon:'🐐', ach:'The Pelagic Depths', tier:'Upper-mid (master of the crushing deep)',
+    qiStageIndex:10, danger:'High',
+    stats:{ strength:72, agility:70, endurance:95, intelligence:74, perception:88, willpower:90, charisma:58, luck:66 },
+    desc:'Learn the deep-tide Qi of the Pelagic Goat — crushing pressure and the calm of the lightless deep.',
+    qi:'Abyssal Qi — crushing pressure and lightless calm.',
+    location:'The deepest ocean trenches, the undersea cliffs, and the lightless abyss where nothing should breathe. It surfaces rarely, onto remote sea-stacks no ship visits.',
+    lore:'A strange, surefooted creature that grazes the floor of the world in dark cold that would crush a whale flat. It cultivated Qi from pressure and patience in the one place almost nothing else can survive.',
+    behavior:'Unshakeably calm and entirely unbothered. It does not panic, hurry, or posture; it simply continues, and lets the deep do its killing for it. Those who follow it down rarely follow it back up.',
+    qiMechanic:'Its Qi is dense, heavy, and serene. It thrives under pressure that would kill others and can project that crushing deep-pressure outward — folding the air around a foe into something thick and lightless and very hard to breathe.',
+    howToLearn:'Dive to its depth and survive the pressure, or follow it to the floor of the world and earn the calm it carries. The pressure alone has killed more aspirants than the goat ever has.',
+    signature:{ name:'Abyssal Pressure', category:'conceptual', type:'utility', rarity:'epic',
+      desc:'You carry the calm and weight of the lightless deep. Project crushing abyssal pressure that folds the air thick and heavy around a foe, move unbothered through forces that would flatten others, and keep an unshakeable stillness no chaos can crack.' },
+  },
+  five_legged_ape: {
+    name:'Five-Legged Ape', icon:'🦍', ach:'The Five-Legged King', tier:'High (apex of raw physical power)',
+    qiStageIndex:11, danger:'Severe',
+    stats:{ strength:100, agility:92, endurance:95, intelligence:60, perception:78, willpower:80, charisma:64, luck:62 },
+    desc:'Learn the beast-king body-Qi of the Five-Legged Ape — apex raw strength and total physical dominance.',
+    qi:'Beast-King Qi — pure body, no elements, total dominance.',
+    location:'The deep primeval jungles and lost mountain-forests no road reaches. Each rules its forest absolutely; two are never found in one.',
+    lore:'An apex beast-king with a fifth limb of solid muscle sprouting from its back or trunk. It cultivates no element and no finesse — only raw physical Qi, refined to a degree that makes it the undisputed master of everything that lives under its canopy.',
+    behavior:'Direct, dominant, and contemptuous of weakness. It respects exactly one thing — strength — and tests for it with its fists. Show none and it will not bother with you; show enough and it may, grudgingly, let you live and learn.',
+    qiMechanic:'Pure body-Qi: overwhelming strength, speed, and durability with no elemental crutch, plus the extra leverage of a fifth limb. It radiates a dominance-pressure that makes lesser beasts cringe and submit before a blow is ever thrown.',
+    howToLearn:'Beat it in a contest of pure physical strength — it acknowledges nothing else — or survive its forest long enough that it chooses to recognize you as something other than prey.',
+    signature:{ name:'The Fifth Limb', category:'arts', type:'attack', rarity:'legendary',
+      desc:'Your body-Qi reaches the beast-king\'s apex — overwhelming strength, speed, and toughness with no element behind it, plus a fifth Qi-forged limb of pure force. You radiate a dominance that makes lesser foes flinch before you move.' },
+  },
+  arachnid: {
+    name:'Arachnid', icon:'🕷', ach:'Weaver of the First Web', tier:'High (the original weaver-cultivator)',
+    qiStageIndex:10, danger:'Severe',
+    stats:{ strength:68, agility:90, endurance:74, intelligence:85, perception:95, willpower:80, charisma:55, luck:70 },
+    desc:'Learn the thread-and-web Qi of the Arachnid — silk, snare, and venom; the first weaver-cultivation.',
+    qi:'Weave Qi — silk that cuts, webs that sense, patient venom.',
+    location:'Vast cave-webs, the hollow insides of ruined towers, and the under-canopy of old forests where a single web can span a whole valley.',
+    lore:'The original weaver. Ancient spider-beings whose webs feel every tremor in the world for miles, and whose silk-Qi is the source-art that thread- and cloth-cultivators have only ever distantly echoed. Patient, brilliant, and very, very old.',
+    behavior:'Patient and coldly intelligent. It does not rush; it lets the web do the work and arrives only when the prey is already caught. It bargains in silence and tests intruders by how they handle being trapped.',
+    qiMechanic:'Qi spun into thread — silk fine enough to cut and strong enough to bind, webs that read every vibration across miles, snares laid across whole battlefields, and a slow venom in the strands. The first and purest thread-cultivation.',
+    howToLearn:'Be caught in its web and earn passage rather than panic, defeat it at the center of its own weave, or be taught the source-art directly — a thing it has granted only a handful of times in all its long life.',
+    signature:{ name:'Weave of the First Web', category:'conceptual', type:'utility', rarity:'legendary',
+      desc:'You spin Qi into thread as the first weaver did — silk that cuts and binds, a web that feels every tremor for a great distance, snares laid across a whole field, and venom in the strands. The source-art every thread-cultivator only echoes.' },
+  },
 };
 
 // (The AI-facing lore + Larp God rules for these beasts are injected by a LATE
@@ -15497,11 +15625,52 @@ const ANCIENT_QI_BEASTS = {
 function buildAncientQiSection() {
   const learned = (GS.char?._ancientQiBeasts || []).filter(k => ANCIENT_QI_BEASTS[k]);
   let section = `## ORIGINAL QI USERS (THE ANCIENT QI BEASTS)\n`
-    + `Qi was not invented by people. Long before the founders Reo Yamamoto and Ichiro Katsumi each discovered it on their own, primordial creatures already wielded Qi — each in their own irreproducible way, much as the first benders learned from animals. The founders count as original Qi users (they found it independently); the original Qi BEASTS are:\n`
-    + Object.entries(ANCIENT_QI_BEASTS).map(([k,b]) => `  • ${b.name}: ${b.qi}`).join('\n')
-    + `\nThese beasts are apex, ancient, and rare — most are legends. Their arts CAN be learned, but only as a genuinely earned, dangerous arc: survive the creature, win its teaching or devour/inherit its Qi, and pay a real price. Do not hand these out casually. When the player TRULY learns one of these beasts' Qi arts, register it with "ancientQiLearned": "<key>" using exactly one of these keys: ${Object.keys(ANCIENT_QI_BEASTS).join(', ')}. Only set it the moment the art is genuinely acquired.\n`;
-  if(learned.length) section += `ALREADY LEARNED by this character: ${learned.map(k=>ANCIENT_QI_BEASTS[k].name).join(', ')}. Reflect this mastery.\n`;
+    + `Qi was not invented by people. Long before the founders Reo Yamamoto and Ichiro Katsumi each discovered it on their own, primordial creatures already wielded Qi — each in their own irreproducible way, much as the first benders learned from animals. The founders count as original Qi users (they found it independently). Each beast's Qi and the art learned from it is DISTINCT — never interchangeable. The original Qi BEASTS:\n`
+    + Object.entries(ANCIENT_QI_BEASTS).map(([k,b]) =>
+        `  • ${b.name} [${k}] — Tier: ${b.tier}. Where: ${b.location} HOW ITS QI WORKS: ${b.qiMechanic} Behavior: ${b.behavior} To learn: ${b.howToLearn} Learning grants the art "${b.signature.name}" (${b.signature.rarity}).`
+      ).join('\n')
+    + `\nThese beasts are apex, ancient, and rare — most are legends, and an unprepared encounter is usually lethal. Run them faithfully to the stats/behavior above. Their arts CAN be learned, but ONLY as a genuinely earned, dangerous arc fitting that specific beast's "to learn" path — survive it, win its teaching or inherit/devour its Qi, and pay a real price. Never hand these out casually, and keep each beast's Qi mechanically and stylistically DISTINCT from the others. When the player TRULY learns one beast's Qi art, register it with "ancientQiLearned": "<key>" using exactly one of: ${Object.keys(ANCIENT_QI_BEASTS).join(', ')}. The engine will grant that beast's signature technique; weave it into the narrative. Only set it the moment the art is genuinely acquired.\n`;
+  if(learned.length) {
+    section += `ALREADY LEARNED by this character (reflect this mastery, and keep each style distinct):\n`
+      + learned.map(k => { const b = ANCIENT_QI_BEASTS[k]; return `  • ${b.name}: wields "${b.signature.name}" — ${b.qiMechanic}`; }).join('\n') + '\n';
+  }
   return section;
+}
+
+// In-game Bestiary — browse the Original Qi Beasts in full detail.
+function showBeastDetail(key) {
+  const b = ANCIENT_QI_BEASTS[key]; if(!b) return;
+  const learned = (GS.char?._ancientQiBeasts || []).includes(key);
+  const stat = (l,v)=>`<div style="display:flex;justify-content:space-between;font-size:12px;padding:1px 0"><span style="color:var(--dim)">${l}</span><span style="color:var(--text);font-weight:600">${v}</span></div>`;
+  const s = b.stats;
+  const row = (label, txt)=>`<div style="margin-bottom:8px"><div style="font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:#c49a30;margin-bottom:2px">${label}</div><div style="font-size:12.5px;color:var(--muted);line-height:1.6">${_escHtml(txt)}</div></div>`;
+  const body = `
+    <div style="font-size:11px;color:#c49a30;text-transform:uppercase;letter-spacing:.08em;margin-bottom:2px">${_escHtml(b.tier)}</div>
+    <div style="font-size:11px;color:var(--dim);margin-bottom:10px">Cultivation peak: ${QI_STAGES[b.qiStageIndex]?.name||'—'} · Danger: ${_escHtml(b.danger)}${learned?' · <span style="color:var(--green)">ART LEARNED</span>':''}</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 16px;background:var(--s2);border:1px solid var(--border);border-radius:6px;padding:8px 10px;margin-bottom:12px">
+      ${stat('STR',s.strength)}${stat('AGI',s.agility)}${stat('END',s.endurance)}${stat('INT',s.intelligence)}
+      ${stat('PER',s.perception)}${stat('WIL',s.willpower)}${stat('CHA',s.charisma)}${stat('LCK',s.luck)}
+    </div>
+    ${row('Where Found', b.location)}
+    ${row('Lore', b.lore)}
+    ${row('Behavior', b.behavior)}
+    ${row('How Its Qi Works', b.qiMechanic)}
+    ${row('How to Learn It', b.howToLearn)}
+    <div style="margin-top:6px;padding:8px 10px;background:rgba(196,154,48,.08);border:1px solid #4a3a18;border-radius:6px">
+      <div style="font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:#c49a30;margin-bottom:2px">Signature Art Granted — ${_escHtml(b.signature.rarity)}</div>
+      <div style="font-size:13px;color:var(--gold);font-weight:600">${_escHtml(b.signature.name)}</div>
+      <div style="font-size:12px;color:var(--muted);line-height:1.6;margin-top:3px">${_escHtml(b.signature.desc)}</div>
+    </div>`;
+  uiPopup({ title:`${b.icon} ${b.name}`, bodyHTML:body,
+    actions:[{ label:'← Bestiary', class:'btn-secondary btn-sm', onClick:(c)=>{ c(); showBeastBestiary(); } },
+             { label:'Close', class:'btn-primary btn-sm', onClick:(c)=>c() }] });
+}
+function showBeastBestiary() {
+  const learnedSet = new Set(GS.char?._ancientQiBeasts || []);
+  uiPicker(Object.entries(ANCIENT_QI_BEASTS).map(([k,b]) => ({
+      value:k, label:`${b.icon} ${b.name}`, sub: learnedSet.has(k) ? 'learned' : (b.danger||'').toLowerCase(),
+    })), { title:'Bestiary — Original Qi Beasts', placeholder:'Search the ancient beasts…' })
+    .then(k => { if(k) showBeastDetail(k); });
 }
 
 // ================================================================
@@ -16012,8 +16181,14 @@ function trackAchievementState(res) {
   if(res.ancientQiLearned && ANCIENT_QI_BEASTS[res.ancientQiLearned]) {
     if(!Array.isArray(c._ancientQiBeasts)) c._ancientQiBeasts = [];
     if(!c._ancientQiBeasts.includes(res.ancientQiLearned)) {
+      const b = ANCIENT_QI_BEASTS[res.ancientQiLearned];
       c._ancientQiBeasts.push(res.ancientQiLearned);
-      try { addChronicleEntry(`Learned the primordial Qi of the ${ANCIENT_QI_BEASTS[res.ancientQiLearned].name} — an art older than people.`, 'major'); } catch(e) {}
+      // Each beast grants its OWN distinct signature art — never interchangeable.
+      try {
+        grantTechnique({ name:b.signature.name, category:b.signature.category, type:b.signature.type,
+          rarity:b.signature.rarity, desc:b.signature.desc, source:`The ${b.name}` });
+      } catch(e) {}
+      try { addChronicleEntry(`Learned the primordial Qi of the ${b.name} — an art older than people. Gained "${b.signature.name}".`, 'major'); } catch(e) {}
     }
   }
 
