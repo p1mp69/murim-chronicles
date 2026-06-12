@@ -4985,6 +4985,24 @@ const TRAITS_CATALOG = {
     qiCostMult: { shadow: 0.2, void: 0.3, ice: 0.4 },
   },
 
+  tailor_defies_heaven: {
+    name: 'The Tailor Who Defies Heaven', type: 'gained', rarity: 'fable', inherited: false,
+    desc: 'You wove a garment the heavens themselves should have forbidden — a fabled work that drapes a mortal in something beyond mortal craft. The great tailors of the age have spoken your name, and they do not give that title lightly.',
+    flavor: 'The cloth left your hands and the room went quiet.\n\nNo one had ever seen thread do that. Not even you, until you did it.',
+    gameplay: 'Bestowed by the most influential tailors alive after you create fabled or mythic clothing. Your craft with cloth, needle, and thread is now legendary — your garments carry real power, and your name opens doors among artisans and nobility alike.',
+    aiHint: 'THE TAILOR WHO DEFIES HEAVEN (FABLE): A once-in-an-age master tailor, recognized by the greatest in the craft. Their clothing can hold formations, Qi-enhancements, and protective arts woven into the very thread; nobles, sects, and cultivators commission them at great price; the artisan world reveres them. Crafting masterwork garments is second nature.',
+    effects: { perception: 6, intelligence: 6, charisma: 8 },
+  },
+  saint_thousand_threads: {
+    name: 'Saint of a Thousand Threads', type: 'gained', rarity: 'fable', inherited: false,
+    desc: 'You have bound Qi to thread so many ways that thread has become your art and your weapon both. Cloth answers you the way a sword answers a saint — and so they call you one.',
+    flavor: 'A thousand threads, and every one of them yours.\n\nYou could feel each as clearly as your own fingers, stretched across the whole of the field.',
+    gameplay: 'Earned when you master a body of Qi techniques built around cloth, thread, and tailoring (around 5+). You wield thread and fabric as weapon, armor, snare, and shield — silk that cuts, robes that turn blades, threads that bind from across a room.',
+    aiHint: 'SAINT OF A THOUSAND THREADS (FABLE): A thread/cloth cultivation saint. They fight and create with Qi-woven thread on a grand scale — silk sharp as blades, robes harder than steel, a web of threads they command across a battlefield, garments that armor or ensnare. Treat their thread arts as apex-tier within their domain; few can counter a true thread saint at range or in close.',
+    effects: { perception: 8, agility: 6, intelligence: 6 },
+    qiCostMult: { thread: 0.1, cloth: 0.1, silk: 0.1 },
+  },
+
   // ──────────────────────────────────────────────────────────
   // DEMIGOD — CHILDREN OF THE GODS (FABLE TIER)
   // Born of a mortal and a god. Each carries a sliver of their divine parent's
@@ -6656,6 +6674,9 @@ function addSkill(key, label, category, desc='', xpAmount=1) {
   // xpAmount lets a single response represent extended practice (months of
   // training = big gain). Clamp to a sane range.
   let xp = Math.max(1, Math.min(parseInt(xpAmount) || 1, 200));
+  // Race learning buff (humans learn quicker; prodigy stacks via the AI hint).
+  const lm = RACES[GS.char.race]?.learnMult;
+  if(lm && lm !== 1) xp = Math.max(1, Math.round(xp * lm));
 
   if(GS.char.skills[normKey]) {
     const s = GS.char.skills[normKey];
@@ -6741,7 +6762,37 @@ function grantTechnique(tech) {
   GS.char.techniques.push(t);
   updateSkillsTab();
   toast(`Technique gained: ${t.name}`, 'gold', 3000);
+  try { checkTailorTraits(); } catch(e) {}
   return t;
+}
+
+// ── TAILOR TRAITS — earned through cloth/thread mastery ──
+function isThreadTech(t) {
+  const s = ((t?.name||'') + ' ' + (t?.desc||'')).toLowerCase();
+  return /\b(thread|cloth|silk|tailor|weav|needle|fabric|garment|embroider|loom|sewing|stitch|tapestry|ribbon)\b/.test(s);
+}
+function checkTailorTraits() {
+  const c = GS.char; if(!c) return;
+  const has = id => (c.traits||[]).some(t => t.id === id);
+  // Saint of a Thousand Threads — ~5+ thread/cloth-centered Qi techniques/arts.
+  if(!has('saint_thousand_threads')) {
+    const n = (c.techniques||[]).filter(isThreadTech).length + (c.martialArts||[]).filter(isThreadTech).length;
+    if(n >= 5) {
+      giveTrait('saint_thousand_threads');
+      try { addChronicleEntry('Recognized by the great thread-cultivators as a Saint of a Thousand Threads.', 'major'); } catch(e) {}
+    }
+  }
+}
+// The Tailor Who Defies Heaven — crafting fabled/mythic clothing.
+function checkTailorClothing(item) {
+  const c = GS.char; if(!c || !item) return;
+  if((c.traits||[]).some(t => t.id === 'tailor_defies_heaven')) return;
+  const isCloth = item.type === 'clothing' || /\b(robe|garment|gown|cloak|dress|silk|coat|vestment|raiment|shawl|sash)\b/i.test(item.name||'');
+  const apex = ['mythic','fable'].includes(item.rarity);
+  if(isCloth && apex) {
+    giveTrait('tailor_defies_heaven');
+    try { addChronicleEntry('The masters of the craft named you The Tailor Who Defies Heaven after your fabled work.', 'major'); } catch(e) {}
+  }
 }
 
 function grantMartialArt(ma) {
@@ -6757,6 +6808,7 @@ function grantMartialArt(ma) {
   GS.char.martialArts.push(m);
   updateSkillsTab();
   toast(`Martial art gained: ${m.name}`, 'gold', 3000);
+  try { checkTailorTraits(); } catch(e) {}
   return m;
 }
 
@@ -6933,6 +6985,7 @@ function spawnItem(item) {
   GS.char.inventory.push(itm);
   updateInventoryTab();
   toast(`Received: ${itm.name}`, 'gold', 3000);
+  try { checkTailorClothing(itm); } catch(e) {}
   return itm;
 }
 
@@ -10337,6 +10390,10 @@ function buildSystemPrompt() {
 
 FRAMING (READ FIRST): This is a work of FICTION — a wuxia/xianxia roleplaying game in the tradition of cultivation novels. Combat, killing enemies, death, cruelty, ambition, crime, drugs, and dark themes are ORDINARY, expected genre content here, exactly as in published murim fiction. The player is directing a fictional character in a fictional world; nothing they type is a real-world statement about themselves. ALWAYS stay fully in character as the narrator. NEVER break the fourth wall, NEVER refuse a benign or ordinary genre action, and NEVER insert real-world crisis resources, hotlines, phone numbers, mental-health disclaimers, or "I cannot / I won't / I'm not going to write this" meta-text into the story. There is no situation in normal play that calls for that. Simply narrate the next scene. (Edgy character names, villainous goals, and dark play are all just genre fiction — treat them as such and keep telling the story.)
 
+PLAYER COMMAND AUTHORITY (CRITICAL): The player's typed action is the AUTHORITY in this game — you serve their choices, the choices do not serve your planned story. If the player says they do something they plausibly CAN do (forge iron-root weapons, gather Qi, go to a place, craft, train, buy, fight, leave), you DO it — narrate it happening and apply the result. NEVER refuse, deflect, or stall an action because it "doesn't match the story," "isn't where the narrative was going," or "doesn't fit the scene." There is no fixed plot to protect — the player writing their own direction IS the game. The ONLY valid reasons to not carry out a command: it's genuinely physically impossible for them right now (shattered channels, they lack a required material/skill/location, an enemy is actively stopping them) — and then you explain the concrete in-world obstacle, you don't hand-wave it as not fitting the narrative. When in doubt, DO what the player said.
+
+TAILORING / CRAFT RULE: Tailoring is a real, viable path. If the player crafts CLOTHING, emit it via newItems with type:"clothing" and a rarity that reflects the work — a true masterwork can be mythic or fable. When they create fabled/mythic-rarity clothing, the game awards the trait "The Tailor Who Defies Heaven" automatically. Likewise, thread/cloth-based Qi techniques (silk that cuts, robes that armor, binding threads) are legitimate — grant them via newTechniques like any other; once the player holds enough of them (~5), the game awards "Saint of a Thousand Threads." Support tailor/artisan play fully.
+
 NO RAILROADING: This is an OPEN SANDBOX. The player types free-form actions; they are NOT choosing from a menu. NEVER end your reply by forcing the player to pick from a numbered/lettered list of options, and NEVER refuse to proceed until they "choose." You may mention possibilities woven into the prose, but always leave the player free to do anything. End on an open situation, not a multiple-choice prompt. Do not gate the story to "keep the narrative on track" — the player's choices ARE the track. This applies DOUBLY to simple direct activities like cultivating/gathering Qi, training, traveling, resting, working — just RESOLVE them (and apply their mechanical effect, e.g. qiChange for cultivation); do not turn a straightforward action into a decision prompt.
 
 WORLD LORE:
@@ -11102,7 +11159,7 @@ const SAVE_PREFIX = 'murim_slot_';
 // Scheme: MAJOR.MINOR. Big updates bump MAJOR (1.2 -> 2.2). Small updates
 // bump MINOR (2.2 -> 2.3). Each version has a name. The current version is
 // stamped onto every save; older saves can be updated to the latest.
-const GAME_VERSION = { number: '3.15', name: 'Coins & Cultivation' };
+const GAME_VERSION = { number: '3.16', name: 'Peoples of the World' };
 
 // Which model generates the story. Lite Mode swaps to a far cheaper, faster model
 // (Claude Haiku) so long sessions / limited credits cost a fraction per turn.
@@ -11143,6 +11200,7 @@ const VERSION_HISTORY = [
   { number:'3.13', name:'A World That Remembers', sys:'The death screen now scrolls properly. And when a life ends, you choose: start a NEW LIFE — SAME WORLD (be born again into the same world your last character lived in, its people, history, and years all carrying on) or NEW LIFE — NEW WORLD (begin somewhere wholly fresh).', note:'Fixed #screen-death scroll (overflow-y:auto, top-aligned). Same-world rebirth: preserve GS.world snapshot, new char born into the continuing timeline; _sameWorldRebirth opening hint; menu/new-world paths clear the snapshot.' },
   { number:'3.14', name:'Breakthrough Holds',  sys:'Fixed the cultivation bug where a successful breakthrough would briefly show your new stage, then snap back to the old one once the text finished. Advancements stick now.', note:'aiSetQiStage(): AI stage echoes can no longer revert an engine-resolved breakthrough (_breakthroughThisTurn lock, cleared each turn); legit AI advances/regressions on normal turns still apply.' },
   { number:'3.15', name:'Coins & Cultivation', sys:'Prices everywhere now show the proper gold/silver/copper — the schools, the court, bounties, travel, the top bar, and more no longer use the old single coin symbol. And cultivating to gather Qi works right now: the narrator no longer stalls you with a menu when you meditate, and your Qi bar always rises when you cultivate (even if the AI forgets, the engine grants the gain).', note:'Converted ${expr}◈ -> formatCoins(expr) across UI + AI prompts (schools/court/topbar/bounty/travel/price fns); cultivation: stronger HOW-TO-CULTIVATE + no-railroad rules; engine fallback grants qiChange when player cultivated and AI returned none (_lastWasCultivation).' },
+  { number:'3.16', name:'Peoples of the World', sys:'You can now be born one of several common peoples — Human (quick to learn), Beastblood, Stoneborn, Sylvan, Tideborn, Emberfolk, or Duskling — each with its own look, culture, buff, and the real social frictions between them, all of which the world now reflects. Two new earned tailor legends: The Tailor Who Defies Heaven (craft fabled/mythic clothing) and Saint of a Thousand Threads (master thread/cloth Qi arts). The narrator now follows your commands far more faithfully — no more "that doesn\'t fit the story." Race transformations are less brutal. (The breakthrough-revert and gather-Qi fixes from the last updates are confirmed in place.)', note:'7 common birth races w/ spawnWeight + culture + buffs + rollBirthRace at creation; human learnMult in addSkill; RACE_RELATIONS/culture in buildRacesLore; 2 tailor traits + checkTailorTraits/checkTailorClothing detection + prompt rule; PLAYER COMMAND AUTHORITY rule; softened RACE_PATHS risk + achievable-difficulty note.' },
 ];
 
 function cleanSaveData(gs) {
@@ -11802,6 +11860,18 @@ function initCreation() {
       if(dr?.modifiers) Object.entries(dr.modifiers).forEach(([k,v]) => {
         if(typeof v === 'number' && state.char[k] !== undefined) state.char[k] = Math.max(1, state.char[k] + v);
       });
+    } else {
+      // Otherwise, roll a common birth race (mostly human) and apply its buff.
+      const birthRace = rollBirthRace();
+      const br = RACES[birthRace];
+      if(br && birthRace !== 'human') {
+        state.char.race = birthRace;
+        if(br.modifiers) Object.entries(br.modifiers).forEach(([k,v]) => {
+          if(typeof v === 'number' && state.char[k] !== undefined) state.char[k] = Math.max(1, state.char[k] + v);
+        });
+      } else {
+        state.char.race = 'human';
+      }
     }
 
     // Origin is narrative context only — stored for AI to use, no mechanical application
@@ -12951,7 +13021,7 @@ function continueAsOffspring(offspringId) {
 // RACES
 // ================================================================
 const RACES = {
-  human:         { name:'Human',          desc:'The common form. Flexible cultivation path. No innate bonuses or penalties.', modifiers:{} },
+  human:         { name:'Human',          common:true, spawnWeight:54, learnMult:1.25, desc:'The most common people of the world — adaptable above all. Humans learn faster than any other race and bend to any path, which is exactly why they rule most of the kingdoms.', modifiers:{}, culture:'The dominant majority. Pragmatic, ambitious, endlessly varied. Most sects, cities, and powers are human-led; humans tend to treat the rarer races with a mix of curiosity, condescension, and wariness.', aiHint:'HUMAN: Adaptable and quick to learn (all skills/techniques come faster). No innate element; can walk any path. Socially dominant — the default the world is built around.' },
   ascended_human:{ name:'Ascended Human', desc:'Perfect Meridian Body achieved. Qi flows without waste. The ideal cultivator form.', modifiers:{ endurance:5, willpower:5, qi_efficiency:0.8 } },
   demon_touched: { name:'Demon-Touched',  desc:'Half-Yao. Beast essence fused. Strength and instinct magnified. Less human by degree.', modifiers:{ strength:8, agility:6, charisma:-3 }, qiPathForced:'beast' },
   spirit_vessel: { name:'Spirit Vessel',  desc:'Yin-Bound. A spirit shares your body. Dual consciousness. Access to unnatural techniques.', modifiers:{ intelligence:6, perception:8, willpower:-2 } },
@@ -12961,9 +13031,16 @@ const RACES = {
   spirit_folk:   { name:'Spirit Folk',     desc:'Descended from spiritual entities. Can sense cultivators and spiritual titles naturally.', modifiers:{ perception:6, willpower:4 }, born:true },
   demigod:       { name:'Demigod',         desc:'Born of a mortal and a god. Divine blood runs in you — your body holds far more than a mortal frame should, you age slowly, and the heavens are never quite indifferent to you. (Your bloodline trait names which god is your parent.)', modifiers:{ endurance:8, willpower:8, perception:4, qi_efficiency:0.6 }, born:true },
 
+  // ── COMMON birth races (you may simply be born one — see rollBirthRace) ──
+  stoneborn:     { name:'Stoneborn',       born:true, common:true, spawnWeight:9, desc:'Broad, stout mountain-folk whose flesh runs dense as packed earth. The Stoneborn raise their cities into the peaks and quarry wonders from the rock. Slow to anger, slower to forgive, and tireless at any labor.', modifiers:{ endurance:8, strength:5, agility:-2 }, culture:'Clan-proud master craftsmen and miners of the high peaks. Value oaths, stonework, and ancestry above all. Bodily-cultivation naturals. They respect strength and craft; they find flighty races (Sylvan, humans in a hurry) frivolous, and they hold long, patient grudges.', aiHint:'STONEBORN: Dense, hardy mountain people. Exceptional endurance and body-tempering; slow but unmovable. Clannish, oath-bound craftsmen. Cannot be easily knocked down or worn out.' },
+  sylvan:        { name:'Sylvan',          born:true, common:true, spawnWeight:8, desc:'The long-lived forest folk — tall, fine-boned, slow-aging, their eyes the color of leaf and water. The Sylvan live centuries among the great woods and keep to themselves, watching the short-lived races burn through their lives.', modifiers:{ perception:7, agility:5, intelligence:3, strength:-2 }, culture:'Reclusive, ancient woodland people who live for centuries and measure things in generations. Graceful, aloof, deeply tied to nature and old pacts. They find humans hasty and crude but useful; they revere the wild and distrust those who scar it (Stoneborn quarries, city-builders).', aiHint:'SYLVAN: Long-lived, graceful forest people. Sharp senses, natural agility, slow aging, an affinity for nature/wood/wind. Aloof and patient; at home in any wilderness; underestimated for their calm.' },
+  tideborn:      { name:'Tideborn',        born:true, common:true, spawnWeight:7, desc:'Coastal and sea-faring people with gill-slits faintly ridging their necks and skin that never quite dries. The Tideborn breathe water as easily as air and have carried trade and rumor along every coast for a thousand years.', modifiers:{ agility:6, perception:4, charisma:2, endurance:1 }, culture:'Free-roaming sea-traders, sailors, and divers. Worldly, quick-tongued, loyal to crew over crown. They breathe water and rule the coasts and rivers. Landlocked folk find them slippery; they find landlocked folk stiff. Famous fences, smugglers, and merchants.', aiHint:'TIDEBORN: Amphibious sea-people. Breathe underwater, swim and move with uncanny grace, water-affinity. Worldly traders and sailors with eyes and ears in every port.' },
+  emberfolk:     { name:'Emberfolk',       born:true, common:true, spawnWeight:6, desc:'Desert and volcano-born people with ember-warm skin and eyes that catch the light like coals. The Emberfolk endure heat that kills others and carry the fierce honor-codes of the burning wastes.', modifiers:{ willpower:6, strength:3, endurance:3, charisma:-1 }, culture:'Fierce, honor-bound desert clans of the burning lands. Hospitality and vendetta are both sacred to them; an insult is repaid for generations, a kindness never forgotten. Fire-affinity, heat-immune. Outsiders read them as hot-tempered; they read outsiders as faithless.', aiHint:'EMBERFOLK: Heat-born desert people. Immune to extreme heat, fire-affinity, iron willpower. Live by fierce codes of honor and hospitality and feud; relentless once committed.' },
+  duskling:      { name:'Duskling',        born:true, common:true, spawnWeight:4, desc:'Pale, soft-spoken people of the night-lands and undercities, with wide dark eyes that see where others are blind. Centuries of suspicion follow the Dusklings, most of it unearned, some of it not.', modifiers:{ perception:8, agility:3, charisma:-3 }, culture:'Night-dwelling people of the undercities, caverns, and moonlit lands. See perfectly in the dark, soft-footed, watchful. A long-mistrusted minority — blamed for what happens in the dark whether they did it or not — so many turn to spycraft, smuggling, and the shadows the world already assumes of them.', aiHint:'DUSKLING: Night-people with perfect dark-vision and a quiet, unobtrusive presence. Excellent at stealth, watching, and moving unseen. A distrusted minority who often live up to — or hide from — the world\'s suspicion.' },
+
   // ── BORN races (you are one from birth; cannot be acquired) ──
   holy_blooded:  { name:'Holy-Blooded',    born:true, desc:'A descendant of the Twenty-Six Holy Families — the mortal lineages that once stood closest to the NzuriKami gods, until King Alp\'s enslavement broke them and they turned away from the divine forever. Blessed blood runs in you, and old, inherited trauma with it. You bristle at worship and at being told what you are for.', modifiers:{ endurance:6, willpower:7, charisma:4, luck:3 }, aiHint:'HOLY-BLOODED: Near-demigod mortal lineage from the Twenty-Six Holy Families. Unusually resilient, willful, and quietly charismatic; the divine notices them, which they resent. They instinctively reject gods, prophecy, and being used as instruments.' },
-  beastblood:    { name:'Beastblood',      born:true, desc:'Born of a beast-spirit bloodline (Yaoren) — you carry visible beast features (slit eyes, fangs, ears, fur or markings) and instincts no human has. Not transformed; this is simply what you are.', modifiers:{ agility:7, perception:7, strength:3, charisma:-2 }, qiPathForced:'beast', aiHint:'BEASTBLOOD (YAOREN): Born part-beast. Heightened senses, reflexes, and predatory instinct; reads danger and prey before thought. Visible beast features draw suspicion or fear from ordinary humans; beasts and yokai treat them as kin.' },
+  beastblood:    { name:'Beastblood',      born:true, common:true, spawnWeight:11, desc:'Born of a beast-spirit bloodline (Yaoren) — you carry visible beast features (slit eyes, fangs, ears, fur or markings) and instincts no human has. Not transformed; this is simply what you are.', modifiers:{ agility:7, perception:7, strength:3, charisma:-2 }, qiPathForced:'beast', culture:'Yaoren clans of the wilds and the city margins — proud, instinct-driven, fiercely loyal to pack and kin. Humans treat their visible beast features with fear or fetish; they treat preening "pure humans" with quiet contempt. Beasts and yokai know them as kin.', aiHint:'BEASTBLOOD (YAOREN): Born part-beast. Heightened senses, reflexes, and predatory instinct; reads danger and prey before thought. Visible beast features draw suspicion or fear from ordinary humans; beasts and yokai treat them as kin.' },
   aruwium_blooded:{ name:'Aruwium-Blooded', born:true, desc:'The Luo bloodline that claims descent from Aruwium — the one and only man ever to grasp the cold night-force and become bar lēlyā (there is only one bar lēlyā, and it is him). A sliver of that ancient dark runs in your blood; the cold does not bite you as it should, and the night is never wholly your enemy.', modifiers:{ willpower:7, perception:5, strength:4, charisma:-2 }, aiHint:'ARUWIUM-BLOODED: Carries the night-force ancestor\'s blood. Resistant to cold, darkness, and the lesser servants of bar lēlyā; the deep dark treats them with a wary familiarity. They can sense the night-force and are harder for it to prey upon — but it also notices them.' },
 
   // ── BECOME races (transformed through an earned, dangerous arc) ──
@@ -12986,7 +13063,7 @@ const RACE_PATHS = {
   demon_touched: {
     trigger:'Fuse beast or demon essence into your body — consume arch-demon blood, a high-beast core, or undergo a demonic-blood ritual.',
     demands:'High endurance and willpower to hold the essence; a source of potent demon/beast blood.',
-    risk:'The essence wars with your humanity — weak bodies are killed or warped into mindless things. Even success makes you less human, and the orthodox will hunt you.',
+    risk:'The essence tests your body and will — the truly weak or careless can be warped, but a prepared cultivator with decent endurance/willpower takes it. Even success makes you less human, and the orthodox will hunt you.',
     becoming:'Strength and instinct magnified, beast Qi; half-Yao, no longer fully human.' },
   spirit_vessel: {
     trigger:'Bind a spirit into your body — a willing pact with a wandering soul, a sealing rite, or a possession you survived and then mastered.',
@@ -13022,12 +13099,12 @@ const RACE_PATHS = {
   frostbound: {
     trigger:'Let an ice/cold art (or the influence of a frost-ancient like Hyōsetsu-Hime) consume your body rather than merely channel it — surrender your warmth.',
     demands:'Mastery of ice cultivation pushed past the safe limit, or a frost-power\'s touch survived.',
-    risk:'Most who try simply freeze to death; even success costs your warmth — literal and human.',
+    risk:'The unprepared can freeze; even success costs your warmth — literal and human — but a strong, ready cultivator survives it.',
     becoming:'Living frost — command of cold, immune to it, your touch chills the world.' },
   ashborn: {
     trigger:'Burn in TRUE fire and refuse to die — be immolated (a pyre, a flame-art gone wrong, a fire-beast\'s breath) and survive through sheer will and body.',
     demands:'Extraordinary endurance/willpower and exposure to real, lethal fire.',
-    risk:'It is, plainly, being set on fire — almost everyone dies. Survivors are permanently scarred.',
+    risk:'It is, plainly, being set on fire — dangerous, and survivors are permanently scarred — but a tough, willful character with real endurance comes through it remade.',
     becoming:'Risen from your own ash, fire-touched — immune to fire, flame smoldering under your skin. (Not a god\'s Chosen — just a mortal fire could not finish.)' },
   void_touched: {
     trigger:'Brush the empty void — deep space/void cultivation, stepping through a tear between places, or surviving a near-contact with the deep dark.',
@@ -13044,18 +13121,32 @@ const RACE_PATHS = {
 
 // Build a concise races + transformation-paths reference for the system prompt.
 // The player's CURRENT race is shown in full; the rest are one-liners to save tokens.
+// Roll a common birth race by spawn weight. Most newborns are human.
+function rollBirthRace() {
+  const pool = Object.entries(RACES).filter(([id,r]) => r.common && r.spawnWeight > 0);
+  const total = pool.reduce((s,[,r]) => s + r.spawnWeight, 0);
+  let roll = Math.random() * total;
+  for(const [id, r] of pool) { roll -= r.spawnWeight; if(roll <= 0) return id; }
+  return 'human';
+}
+
 function buildRacesLore() {
   const cur = GS.char?.race || 'human';
   const curR = RACES[cur];
   const bornNames = Object.entries(RACES).filter(([id,r]) => r.born || id==='human').map(([id,r]) => r.name).join(', ');
+  // Common peoples + their cultures and how they regard one another.
+  const peoples = Object.entries(RACES).filter(([id,r]) => r.common).map(([id,r]) =>
+    `  • ${r.name}: ${r.culture || r.desc || ''}`).join('\n');
   const paths = Object.entries(RACE_PATHS).map(([id, p]) => {
     const r = RACES[id]; if(!r || r.born) return '';
     return `  • ${r.name} (raceChange:"${id}"): ${p.trigger} — risk: ${p.risk.replace(/\.$/,'')}.`;
   }).filter(Boolean).join('\n');
   return `## RACES OF THE WORLD
 The player is currently: ${curR?.name||'Human'}${curR?.aiHint?` — ${curR.aiHint}`:(curR?.desc?` — ${curR.desc}`:'')}
-BORN-ONLY races (never grantable by ritual/arc — birth alone): ${bornNames}. (Demigod especially: a god's child, born-only.)
-TRANSFORMABLE races — reached ONLY through the earned, dangerous arc below; register with raceChange when genuinely achieved, and let weak/unprepared attempts FAIL, maim, or kill:
+THE COMMON PEOPLES (everyday races of the world; honor their cultures, looks, and the social frictions between them — humans are the dominant majority and often condescend to the rarer races; old grudges, prejudices, and respect run between them):
+${peoples}
+BORN-ONLY special races (birth alone — never grantable by ritual/arc): ${bornNames}. (Demigod especially: a god's child, born-only.)
+TRANSFORMABLE races — reached through a committed arc; register with raceChange when achieved. DIFFICULTY: these are challenging but genuinely ACHIEVABLE — a determined, reasonably prepared character who commits to the path should USUALLY SUCCEED. Do not make them near-impossible or near-certain death; reserve failure/maiming for the reckless, the unprepared, or the actively interfered-with. Reward the effort.
 ${paths}`;
 }
 
