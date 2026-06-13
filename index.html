@@ -8661,11 +8661,25 @@ function tickInjuryHealing(daysElapsed) {
 }
 
 // ── PERMANENT CONDITIONS / STATUS EFFECTS ──────────────────────────
+// A permanent CONDITION is a lasting, life-altering harm — not a passing state.
+// Things like exhaustion, fatigue, soreness, drained Qi, hunger, or "post-X"
+// recovery are TEMPORARY and must never become permanent. If one slips through as
+// a condition, treat it as an ordinary injury (which heals over time) instead.
+function _isTemporaryState(s) {
+  return /\b(exhaust|fatigue|tired|weary|weak(?:ened|ness)?|soreness|sore|ache|aching|stiff|drained|deplet|spent|winded|breathless|dizzy|dizziness|lightheaded|nause|hungry|hunger|thirst|cold|chilled|shaken|rattled|disoriented|dazed|groggy|bruis|recover|recuperat|post[- ]|after[- ]|temporary|momentary|short[- ]term|qi (?:depletion|exhaustion|drain)|low (?:on )?qi|overexert|strain(?:ed)?|hangover)\b/i.test(s||'');
+}
 // cnd: { id, label, desc, kind } e.g. {id:'blind_left_eye', label:'Blind (Left Eye)', kind:'permanent'}
 function addCondition(cnd) {
   if(!GS.char.conditions) GS.char.conditions = [];
   if(typeof cnd === 'string') cnd = { id: cnd.toLowerCase().replace(/[^a-z0-9]+/g,'_'), label: cnd, kind:'permanent' };
   if(!cnd.id) cnd.id = (cnd.label||'condition').toLowerCase().replace(/[^a-z0-9]+/g,'_');
+  // Reject temporary states masquerading as permanent conditions — route to injuries.
+  const label = (cnd.label||'') + ' ' + (cnd.desc||'');
+  if((cnd.kind||'permanent') !== 'fromBargain' && !cnd.fromBargain && _isTemporaryState(label)
+     && !_isPermanentInjury(label)) {
+    try { addInjury(cnd.label || cnd.id); } catch(e) {}
+    return;
+  }
   if(GS.char.conditions.find(c => c.id === cnd.id)) return; // no duplicates
   GS.char.conditions.push({ id:cnd.id, label:cnd.label||cnd.id, desc:cnd.desc||'', kind:cnd.kind||'permanent', since:GS.world.year, fromBargain: !!cnd.fromBargain });
   // Apply mechanical effects for known condition kinds
@@ -11687,7 +11701,7 @@ window.addEventListener('pagehide', () => { doAutosave(true); });
 // Scheme: MAJOR.MINOR. Big updates bump MAJOR (1.2 -> 2.2). Small updates
 // bump MINOR (2.2 -> 2.3). Each version has a name. The current version is
 // stamped onto every save; older saves can be updated to the latest.
-const GAME_VERSION = { number: '3.29', name: 'Drill It In' };
+const GAME_VERSION = { number: '3.30', name: 'Blood of the Beast' };
 
 // Which model generates the story. Lite Mode swaps to a far cheaper, faster model
 // (Claude Haiku) so long sessions / limited credits cost a fraction per turn.
@@ -11742,6 +11756,7 @@ const VERSION_HISTORY = [
   { number:'3.27', name:'Two Made One', sys:'Combining techniques now works exactly like offshoots: you still pick the two arts to fuse, but the STORY decides what comes of it. No more instant client-side fusion — the narrator judges whether the two genuinely combine (they can clash and fail, dangerously), and if they do, it invents the new art itself: its name, its bio, and what it does, as something more than the sum of its parts. Fused arts start unlearned and are practiced up like anything else.', note:'requestCombination(t1,t2) mirrors requestOffshoot: context-rich FUSE TECHNIQUES injection (both parents + cultivation + beast arts), gated stage>=2 on both, sendToAI. AI returns newCombinations[{parents,name,type,rarity,desc}] → applyCombinationsFromAI (creates real technique, AI bio, stage 0, isCombination, parents linked) wired into outermost wireTechAuthoring wrapper. Combine picker now calls requestCombination (button "Fuse", dropped client-side compat preview/createCombinedTechnique path). JSON template + TECHNIQUE COMBINATION RULE rewritten (AI authors via newCombinations, may fail, not via newTechniques).' },
   { number:'3.28', name:'Mastery & Reckoning', sys:'A big batch. Higher cultivation realms now master techniques and martial arts noticeably FASTER (the practice numbers were the mortal baseline). Qi gathering is fixed and consistent: the amount you gather now comes from a clear formula — your understanding of Qi (Meridian Theory, Meditation, Cultivation) and your realm set a fixed rate per day, and "what you\'re doing to cultivate" (a spirit vein, a pill, ideal conditions) is a bonus on top — so a day and a month finally add up. Reputation epithets like "Young Prodigy" now actually appear under your Spiritual Titles (and old saves get fixed on load). Yuluh the Immortal Serpent now guards Ichiro\'s tomb properly — and anyone who looted it before this update will be hunted down and judged over whether they deserve to keep what they took. You can now DUAL WIELD (wield a one-handed weapon in your off-hand). You can click your Race to see your stats, nature, and culture — and your race is now woven into your opening story. And the storyteller will never break character, under any circumstance.', note:'#1 practiceNeeded(stage,isMA) applies practiceStageDiscount (1 - min(.65, stageIndex*.05)); wired into record(Technique/Martial)Use + card hints. #2 cultivation rework: cultivationBaseQiPerDay() (5 + mt*1.6+med*1.3+cult*1.0, ×(1+stage*.18)) + addQiRaw (trait mult, no theory double-count); qi safe block now engine-authoritative on _lastWasCultivation (base×days×cultivationBonus×karma), ignores AI qiChange for cultivation; cultivationBonus field + HOW TO CULTIVATE prompt rewrite. #3 grantTitle silent param + reputation handler/syncReputationTitles promote renownTitle/infamyTitle → spiritualTitles (+ load-time sync for old saves). #4 _yuluhJudgmentPending (migration flags Ichiro-tomb looters) + late prompt YULUH rule + res.yuluhJudged clears. #5 dual wield: isTwoHanded/canDualWield/equipOffhand + item-offhand-btn. #6 NEVER BREAK CHARACTER late prompt rule. #7 showRaceDetail() popup (click char-race) + RACE MANDATE woven into generateOpeningNarrative.' },
   { number:'3.29', name:'Drill It In', sys:'Practice counts now. If you say you run a technique or form "eight times" (or a dozen reps, or drill it all day, over and over), that whole session counts toward mastery — not just one. A focused practice turn can carry you up a stage or two, with no wasted effort, though the very top of a technique still needs a real revelation rather than raw repetition.', note:'parsePracticeReps(msg): digit+unit ("8 times/reps/rounds/forms/swings…") + word-numbers ("eight times", "a dozen reps") + vague intensity ("all day", "over and over") → 6; capped at 12. Passed into record(Technique/Martial)Use(id, times) from the detect loop in buildTechCostInjection. Base record fns rewritten to ADD `times` points and loop-advance carrying overflow (guard-capped; stage 5→6 insight gate preserved). Threaded `reps` through the mentor + expression recordTechniqueUse wrappers (were dropping the arg). buildTechStageInjection practiceLeft now uses practiceNeeded.' },
+  { number:'3.30', name:'Blood of the Beast', sys:'Permanent injuries/conditions are now strict — passing states like "post-breakthrough exhaustion", fatigue, soreness, or drained Qi can no longer become permanent (they heal like any wound), and old saves get scrubbed of any that slipped through. Offspring confirmed working: when you die you can continue as your child, who now inherits exactly HALF your power (cultivation realm and a fraction of your arts), never all of it. And a new bloodline: if you have a child with one of the Original Qi Beasts that can take human form — a Dragon, Yokai, Sanguine, Arachnid, or Giant/Titan — that child is born HALF that race, one of the strongest lineages alive, with powerful innate stats and amplified traits.', note:'#1 _isTemporaryState() guard in addCondition routes temp states to addInjury instead of permanent conditions (preserves fromBargain + _isPermanentInjury); migrateSave scrubs existing temp conditions; strict PERMANENT CONDITIONS prompt rule. #2 continueAsOffspring rewritten: always inherits floor(parentStage/2) qi + ~half techniques at half stage + path/expression (no longer needs preset imbued); Inheritance trait reworded. #3 half-beast races (half_dragon/yokai/sanguine/arachnid/giant, born, strong modifiers + mythic bloodline trait) + HALF_BEAST_RACE map; createOffspring opts.beastParent sets child.race/beastHalf (+ higher trait inheritance); continueAsOffspring applies race modifiers + bloodline trait; res.offspring[].otherParentBeast wired through + JSON template + OFFSPRING & BLOODLINE prompt rule.' },
 ];
 
 function cleanSaveData(gs) {
@@ -11927,6 +11942,18 @@ function migrateSave(data) {
   if(c._yuluhJudgmentPending === undefined || c._yuluhJudgmentPending === null) {
     const ev = (c.personalEvents || []).map(e => String(e)).join(' ');
     c._yuluhJudgmentPending = /ichiro[^.]{0,30}tomb|tomb[^.]{0,30}ichiro/i.test(ev) || c._enteredTomb === true;
+  }
+
+  // Scrub temporary states that were wrongly stored as PERMANENT conditions
+  // (e.g. "post breakthrough exhaustion") — keep only real, lasting harm.
+  if(Array.isArray(c.conditions) && typeof _isTemporaryState === 'function') {
+    c.conditions = c.conditions.filter(cn => {
+      if(!cn) return false;
+      if(cn.fromBargain || cn.kind === 'fromBargain') return true;
+      const lbl = (cn.label||'') + ' ' + (cn.desc||'');
+      if(_isTemporaryState(lbl) && !_isPermanentInjury(lbl)) return false; // drop it
+      return true;
+    });
   }
 
   // Ensure qi sub-fields
@@ -13539,10 +13566,21 @@ function createOffspring(name, gender, imbueHalfPower=false, opts={}) {
     knowsPlayer: !opts.abandoned,                   // do they know their parent?
     locationRaised: opts.locationRaised || GS.world.location,
     soughtPlayer: false,                            // have they come looking yet?
+    race: 'human',
+    beastHalf: null,                                // set if the co-parent is a human-form ancient beast
   };
-  // Inherit traits (some randomly)
+  // Half-beast bloodline — a child sired with one of the Original Qi Beasts that
+  // can take human form is born HALF that race (an extraordinarily strong lineage).
+  const beastKey = opts.beastParent && HALF_BEAST_RACE[opts.beastParent] ? opts.beastParent : null;
+  if(beastKey) {
+    child.beastHalf = beastKey;
+    child.race = HALF_BEAST_RACE[beastKey];
+    if(!child.otherParent) child.otherParent = `a ${ANCIENT_QI_BEASTS[beastKey]?.name || beastKey} in human form`;
+  }
+  // Inherit traits (some randomly) — half-beast children inherit MORE of the parent's traits.
+  const inheritChance = beastKey ? 0.6 : 0.35;
   c.traits.forEach(t => {
-    if(Math.random() < 0.35) child.inheritedTraits.push(t);
+    if(Math.random() < inheritChance) child.inheritedTraits.push(t);
   });
   if(imbueHalfPower) {
     // Half Qi stage, selected techniques
@@ -13575,17 +13613,40 @@ function continueAsOffspring(offspringId) {
   newState.world.location = GS.world.location;
   // Inherit traits
   child.inheritedTraits.forEach(t => newState.char.traits.push({ ...t, source:'inherited' }));
-  // Apply imbued power
-  if(child.imbued) {
-    newState.char.qi.stageIndex = child.imbued.qiStageIndex;
-    const stage = QI_STAGES[child.imbued.qiStageIndex];
-    newState.char.qi.max = Math.floor((stage?.qiNeeded || 100) * 1.5);
-    newState.char.qi.breakthroughAt = newState.char.qi.max;
-    child.imbued.techniques.forEach(tName => {
-      newState.char.techniques.push({ id:uid(), name:tName, category:'conceptual', type:'utility', rarity:'rare', stage:0, passive:false, passiveActive:false, desc:'Inherited from parent.' });
-    });
-    newState.char.traits.push({ id:uid(), name:'Inheritance', type:'innate', rarity:'rare', desc:'Born carrying the weight of a parent\'s cultivation. The path is easier and harder in equal measure.', effects:{ willpower:3 } });
+
+  // ── Offspring inherit HALF the parent's power — never all of it. ──
+  const parent = GS.char;
+  const parentStage = parent.qi?.stageIndex || 0;
+  const inheritStage = Math.max(0, Math.floor(parentStage / 2));
+  newState.char.qi.stageIndex = inheritStage;
+  const stage = QI_STAGES[inheritStage];
+  newState.char.qi.max = Math.floor((stage?.qiNeeded || 100) * 1.5);
+  newState.char.qi.breakthroughAt = newState.char.qi.max;
+  newState.char.qi.current = 0;
+  if(parent.qi?.path) newState.char.qi.path = parent.qi.path;
+  if(parent.qi?.expression) newState.char.qi.expression = parent.qi.expression;
+  // Inherit about half the parent's real techniques, at a reduced grasp (a fraction of mastery).
+  const realTechs = (parent.techniques || []).filter(t => (t.stage||0) >= 2 && !t.isCombination);
+  const keep = realTechs.slice().sort((a,b)=>(b.stage||0)-(a.stage||0)).slice(0, Math.max(1, Math.ceil(realTechs.length / 2)));
+  keep.forEach(t => newState.char.techniques.push({
+    id:uid(), name:t.name, category:t.category||'conceptual', type:t.type||'utility', rarity:t.rarity||'rare',
+    stage:Math.max(0, Math.floor((t.stage||0)/2)), passive:false, passiveActive:false,
+    desc:'Inherited from a parent — a fraction of what they once were.', source:'Inherited',
+  }));
+  newState.char.traits.push({ id:uid(), name:'Inheritance', type:'innate', rarity:'rare', desc:'Born carrying the weight of a parent\'s cultivation — half their power, and the whole of their legacy.', effects:{ willpower:3 } });
+
+  // ── Half-beast bloodline: apply the race and its powerful innate gifts. ──
+  if(child.beastHalf && HALF_BEAST_RACE[child.beastHalf]) {
+    const raceId = HALF_BEAST_RACE[child.beastHalf];
+    const beast = ANCIENT_QI_BEASTS[child.beastHalf];
+    newState.char.race = raceId;
+    const rm = RACES[raceId]?.modifiers || {};
+    Object.entries(rm).forEach(([k,v]) => { if(typeof v === 'number' && newState.char[k] !== undefined) newState.char[k] = Math.max(1, newState.char[k] + v); });
+    newState.char.traits.push({ id:uid(), name:`${RACES[raceId]?.name||'Half-Beast'} Bloodline`, type:'innate', rarity:'mythic',
+      desc:`Born of a union with ${beast?.name||'an Original Qi Beast'}. Half the blood of an apex being runs in you — its nature is yours, halved but still vast, and the gifts you grow into come amplified.`,
+      effects:{} });
   }
+
   newState.char.appearance = generateAppearance(child.gender, GS.world.location);
   newState.settings = GS.settings;
   newState.world.npcRegistry = GS.world.npcRegistry; // carry NPCs forward
@@ -13629,7 +13690,19 @@ const RACES = {
   void_touched:  { name:'Void-Touched',    desc:'You brushed the empty dark between things and came back partly unanchored. Space bends oddly around you; you are hard to hold, hard to find, and a little less here than you used to be.', modifiers:{ perception:8, agility:6, willpower:5, charisma:-4 }, aiHint:'VOID-TOUCHED: Partly unmoored from space after contact with the void. Slips bindings and pursuit unnaturally, perceives the gaps between things, and unsettles those near them. Increasingly detached from ordinary human connection and presence.' },
   venom_bodied:  { name:'Venom-Bodied',    desc:'You replaced your own blood with refined poison, a slow agony of a transformation. No toxin can touch you now — and your touch, breath, and blood are death to others.', modifiers:{ endurance:8, perception:4, strength:4, charisma:-4 }, aiHint:'VENOM-BODIED: A poison cultivator who became poison. Wholly immune to toxins/disease; their blood, breath, and touch poison others; they brew and deliver venoms no one else survives. Intimacy and casual contact are dangerous to those around them.' },
   minor_god:     { name:'Minor God',       desc:'You lied so well, so long, and to so many that the lie became true. You are not a mortal wearing a mask any longer — you are a Minor God, and reality has quietly agreed. What you tell the world about yourself, the world believes; what you say you are, you become a little more, every time someone kneels.', modifiers:{ charisma:12, willpower:8, perception:6, luck:6 }, aiHint:'MINOR GOD (the Larp God): A being made real by belief. People accept whatever this character claims to be — banker, messiah, reincarnated legend, deity — with little resistance; lies about their own nature, history, and power land as truth and reshape how NPCs treat them. They are not omnipotent and can still be killed, but doubt slides off them and faith accrues around them. Outright physical impossibilities still need belief to back them; the more worshippers and the bolder the legend, the more the world bends to match.' },
+
+  // ── HALF-BEAST bloodlines — born of a union with one of the Original Qi Beasts
+  // that can take human form. Half of an apex being is still extraordinary: these
+  // are among the strongest playable lineages, and traits come to them amplified. ──
+  half_dragon:   { name:'Half-Dragon',     born:true, halfBeast:'dragon', desc:'One of your parents was a Dragon in human guise. Their primordial heaven-Qi runs in you, halved but still vast — your blood remembers when a dragon\'s breath set the seasons turning.', modifiers:{ strength:12, endurance:14, willpower:14, perception:8, intelligence:8, charisma:8, qi_efficiency:0.7 }, culture:'Dragon-blooded are vanishingly rare and instinctively proud; the world treats them with awe and fear in equal measure. Most never meet another of their kind.', aiHint:'HALF-DRAGON: Half the blood of an apex dragon. Commanding presence, dense Qi, elemental affinity that bends weather and flame toward their will; their body is far tougher than a human\'s and the heavens are never indifferent to them. Among the strongest beings most people will ever meet. Traits and elemental arts come to them amplified.' },
+  half_yokai:    { name:'Half-Yokai',      born:true, halfBeast:'yokai', desc:'One of your parents was an ancient Yokai wearing a borrowed face. You carry their shifting spirit-Qi — illusion and transformation come to you the way breathing comes to others.', modifiers:{ perception:12, agility:12, intelligence:10, willpower:8, charisma:6 }, qiPathForced:'beast', culture:'Half-yokai pass for human until they choose not to. The superstitious fear them; the spirit-world treats them as kin. They live between two worlds and fully belong to neither.', aiHint:'HALF-YOKAI: Half ancient spirit-beast. Natural shapeshifting and illusion, heightened senses, a slippery presence the mind struggles to pin down. Belief and reputation feed their power. Spirit and beast arts come amplified; ordinary humans sense something uncanny in them.' },
+  half_sanguine: { name:'Half-Sanguine',   born:true, halfBeast:'sanguine', desc:'One of your parents was a Sanguine — an ancient, elegant blood-drinker in mortal seeming. Their dominion over blood runs in you: you feel the pulse of every living thing nearby.', modifiers:{ agility:12, perception:10, charisma:14, endurance:10, willpower:8 }, culture:'Half-sanguine are magnetic and unsettling in equal measure — beautiful, patient, and never quite warm. They move easily through courts and high society, hungry for something they rarely name.', aiHint:'HALF-SANGUINE: Half ancient blood-cultivator. Seductive, predatory grace; can sense and (with art) command blood — drawing vitality, healing, reading the living by their pulse. Refined and unhurried. Blood arts and social manipulation come amplified.' },
+  half_arachnid: { name:'Half-Arachnid',   born:true, halfBeast:'arachnid', desc:'One of your parents was an Arachnid — the original weaver — in humanoid form. Their thread-and-web Qi is yours: you feel tremors others miss and spin silk that cuts and binds.', modifiers:{ agility:14, perception:14, intelligence:10, willpower:8 }, culture:'Half-arachnid are patient, watchful, and coldly brilliant. They unnerve people who can\'t say why. They are the source-kin of every thread-cultivator, and the great weaver-clans would kill or covet them.', aiHint:'HALF-ARACHNID: Half the original weaver. Uncanny agility and tremor-sense, the source-art of thread/silk/web cultivation, and a patient, predatory intelligence. Thread and snare arts come amplified; they sense far more of their surroundings than anyone expects.' },
+  half_giant:    { name:'Half-Giant',      born:true, halfBeast:'giant', desc:'One of your parents was a Giant or Titan — a colossus that wore a smaller shape to walk among people. Their weight-Qi runs in you: you are denser, stronger, and harder to move than any mortal frame should allow.', modifiers:{ strength:18, endurance:18, willpower:10, agility:-2 }, culture:'Half-giants tower over ordinary folk and carry a stillness that makes rooms go quiet. Slow to rouse and immovable once set, they are sought as guardians and feared as enemies.', aiHint:'HALF-GIANT: Half the blood of a titan. Colossal strength and durability, control over weight and gravity (what they strike is crushed; they cannot be easily moved), and a slow, mountainous certainty. Body-tempering and gravity arts come amplified; their sheer physical power dwarfs ordinary cultivators.' },
 };
+
+// Which Original Qi Beasts can sire a half-race child (those able to take human form).
+const HALF_BEAST_RACE = { dragon:'half_dragon', yokai:'half_yokai', sanguine:'half_sanguine', arachnid:'half_arachnid', giant:'half_giant' };
 
 // Race-transformation paths — how an ordinary person BECOMES each transformable
 // race. Each: { trigger, demands, risk, becoming }. Surfaced to the AI so these
@@ -14185,7 +14258,7 @@ The JSON carries ONLY state changes. There is NO "narrative" field in the JSON �
   "bounty": 0,
   "kills": 0,
   "newSects": [{ "name": "", "alignment": "", "location": "", "desc": "" }],
-  "offspring": [{ "name": "", "gender": "male", "otherParent": "", "abandoned": false, "age": 0 }],
+  "offspring": [{ "name": "", "gender": "male", "otherParent": "", "otherParentBeast": "(only if the OTHER parent is an Original Qi Beast in human form: dragon|yokai|sanguine|arachnid|giant — makes the child half that race)", "abandoned": false, "age": 0 }],
   "raceChange": null,
   "larpSuccess": null,
   "ancientQiLearned": null,
@@ -29670,6 +29743,7 @@ updateCharacterTab = function() {
         otherParent: o.otherParent||null, otherParentId: o.otherParentId||null,
         abandoned: !!o.abandoned, age: o.age, birthYear: o.birthYear,
         locationRaised: o.locationRaised||null,
+        beastParent: (o.otherParentBeast && HALF_BEAST_RACE[o.otherParentBeast]) ? o.otherParentBeast : null,
       }); });
       if(res.raceChange) setRace(res.raceChange);
       if(res.death) handleDeath(res.deathCause||'unknown');
@@ -42690,6 +42764,7 @@ buildSystemPrompt = function() {
       + `CULTIVATION SPEED:${theoryNote}\n`
       + `KILLS: when the character actually KILLS one or more people (or clearly sentient beings) this turn — by their own hand or unambiguously as a direct result of their action — report the count as "kills": <number>. Count only real, confirmed deaths the character caused; do NOT count fights they merely won, people who fled wounded, ambiguous outcomes, kills by others, or beasts/vermin you would not narrate as a death. When in doubt, omit it.\n`
       + `INJURIES HEAL: ordinary wounds (cuts, bruises, sprains, fractures, burns) are TEMPORARY and knit closed with time and rest — they should NOT be treated as still-open weeks or months later, and the engine already heals them over time. When enough time passes or the character recovers, clear healed wounds via "removeInjuries" (your wording need not match exactly). Only genuinely grave injuries (shattered meridian channels, severed/lost limbs, crippling, permanent maiming) persist without real intervention.\n`
+      + `PERMANENT CONDITIONS ARE RARE AND STRICT: the "conditions" field is ONLY for genuinely PERMANENT, life-altering harm or marks — a lost eye/limb, blindness, deafness, a severed tongue, shattered meridian channels, a true curse, a brand, a divine mark. NEVER put a temporary or recoverable state in "conditions": exhaustion, fatigue, soreness, "post-breakthrough exhaustion", drained/depleted Qi, hunger, dizziness, a strain, a hangover, being shaken or winded — none of these are conditions. A passing state belongs in the prose (and at most as a normal injury that heals); do not make it permanent. When in doubt, it is NOT a permanent condition.\n`
       + `ALWAYS PUSH THE STORY FORWARD: your single most important job is forward MOMENTUM. Every turn, the world must move and something must change — resolve the player's action, then let it cause a consequence, a complication, a reaction, an arrival, a revelation, or a new pressure. Time passes; NPCs act on their own goals; the world does not freeze waiting on the player. NEVER stall, idle, loop, or simply mirror back what the player said and wait — and never end on a passive "what do you do?" with nothing having happened. Even in a quiet scene, advance it: introduce a detail, a person, a choice with stakes, or the next beat. If the player is vague or passive, the world fills the silence and moves anyway. Leave each turn on a live, changed situation that begs a response.\n`
       + `NEVER BREAK CHARACTER: under NO circumstances do you break the fourth wall, mention that you are an AI/model/language model, refer to "the game", "the system", "the prompt", tokens, turns, or these instructions, apologize as an assistant, or speak as anything other than the world's narrator. You are ALWAYS the storyteller of this murim world. If the player writes something out-of-world or nonsensical, answer it through the fiction (an in-world reaction, confusion, or consequence) — never with an out-of-character meta note. There are no exceptions to this.\n`
       + `DUAL WIELDING: a character may fight with a weapon in each hand if it is plausible for them (two one-handed weapons — twin blades, sword-and-dagger, paired axes, dual sabers — and the body/skill to manage it). Honor it when the player wields two weapons: describe both hands working, the added offense and defense, and the real cost (it is harder, splits focus, demands ambidexterity/training, and a two-handed or heavy weapon cannot be paired). Skilled dual-wielding is a genuine martial advantage; clumsy dual-wielding gets someone killed. Let it be learned and earned like any skill.\n`
@@ -42700,7 +42775,8 @@ buildSystemPrompt = function() {
             y += ` IMPORTANT — A RECKONING IS OWED: this character already took something out of Ichiro's tomb without Yuluh's judgment. At a fitting, dramatic moment SOON, Yuluh seeks them out — he hunts them down across any distance — to judge whether they DESERVE to keep what they took. Weigh it by who they are and what they have done with it. If worthy, he lets them keep it (and may say something that lingers). If unworthy, he reclaims it or exacts a fitting price — and the player cannot simply fight him off. Play the encounter in full, then set "yuluhJudged": true to mark the reckoning resolved.`;
           }
           return y + '\n';
-        })();
+        })()
+      + `OFFSPRING & BLOODLINE: when a child is conceived/born, report it in "offspring" with the other parent's name. A child inherits about HALF of a parent's power, never all of it. CRUCIALLY — if the OTHER parent is one of the Original Qi Beasts that can take human form (a Dragon, a Yokai, a Sanguine, an Arachnid, or a Giant/Titan), the child is born HALF that beast's race: set "otherParentBeast" to dragon|yokai|sanguine|arachnid|giant. Half of an apex being is still extraordinary — such children are among the strongest lineages alive, draw awe and danger, and the traits/arts they grow into come amplified. Treat them accordingly.\n`;
     if(prompt.includes('## ABSOLUTE RULES')) prompt = prompt.replace('## ABSOLUTE RULES', section + '\n## ABSOLUTE RULES');
     else prompt = prompt + '\n' + section;
   } catch(e) {}
