@@ -2656,6 +2656,15 @@ body.generating [onclick*="shopSellItem"], body.generating [onclick*="closeMapGo
           </div>
         </div>
 
+        <div class="char-section hidden" id="followers-section">
+          <div class="collapsible-header" data-target="w-followers">
+            <span id="followers-section-label">Disciples &amp; Bound</span><span class="collapse-arrow">▼</span>
+          </div>
+          <div id="w-followers" class="collapsible-body">
+            <div id="w-followers-content"></div>
+          </div>
+        </div>
+
         <div class="char-section hidden" id="zeret-section">
           <div class="sect-label" style="color:var(--pink)">Maligned Presence</div>
           <div id="zeret-block" class="zeret-presence"></div>
@@ -5805,6 +5814,8 @@ function createDefaultState() {
       education:[],    // [{ institution, subject, mentor, status, since }]
       mentors:[],      // [{ npcId, name, subject }]
       offspring:[],    // [{ name, age, alive, traits }]
+      disciples:[],    // [{ id, name, since, study, talent, cultivation, loyalty, notes, alive }]
+      slaves:[],       // [{ id, name, since, role, origin, spirit, notes, alive }] — bound/owned people
       assets:[],       // [{ id, name, type, subtype, location, acquired, condition, upkeepPerMonth, upgrades, staff, incomePerMonth, isHome, isHideout, notes }]
       race:'human', ascensionPath:null,
       prisonStatus:null, // { location, sentence, crime, since, execYear }
@@ -9283,8 +9294,9 @@ function updateWorldTab() {
     ? w.discoveredSects.map(s=>`<div class="journal-entry"><strong>${s.name}</strong> · ${s.status||'Unknown standing'}</div>`).join('')
     : '<span class="text-muted italic text-xs">No sects or factions discovered.</span>';
 
-  // Crew
+  // Crew + followers
   updateCrewDisplay();
+  try { updateFollowersDisplay(); } catch(e) {}
 }
 
 // ================================================================
@@ -9600,6 +9612,160 @@ function applyCrewUpdate(update) {
   // Final auto-tier check after all updates
   if(!update.tier) autoUpdateCrewTier(crew);
   updateCrewDisplay();
+}
+
+// ================================================================
+// DISCIPLES & SLAVES (people under you, beyond a crew)
+// ================================================================
+const DISCIPLE_TALENTS = {
+  poor:     { label:'Poor',          color:'#888' },
+  average:  { label:'Average',       color:'#aab' },
+  gifted:   { label:'Gifted',        color:'#88aacc' },
+  prodigy:  { label:'Prodigy',       color:'#c49a30' },
+  genius:   { label:'Heaven-Sent',   color:'#aa88ff' },
+};
+const SLAVE_SPIRITS = {
+  broken:   { label:'Broken',    color:'#888' },
+  compliant:{ label:'Compliant', color:'#aab' },
+  loyal:    { label:'Loyal',     color:'#88aacc' },
+  defiant:  { label:'Defiant',   color:'#cc6644' },
+  plotting: { label:'Plotting',  color:'#cc4444' },
+};
+function _findByNameOrId(list, ref) {
+  const r = (ref||'').toString().toLowerCase();
+  return (list||[]).find(x => x.id === ref || (x.name||'').toLowerCase() === r);
+}
+function ensureFollowerArrays() {
+  if(!Array.isArray(GS.char.disciples)) GS.char.disciples = [];
+  if(!Array.isArray(GS.char.slaves)) GS.char.slaves = [];
+}
+
+function addDisciple(d) {
+  ensureFollowerArrays();
+  const name = (d.name||'').trim();
+  if(!name) return null;
+  const existing = _findByNameOrId(GS.char.disciples, name);
+  if(existing) return existing;
+  const disc = {
+    id: uid(), name, since: GS.world.year, alive: true,
+    study: d.study || d.discipline || 'your arts',
+    talent: DISCIPLE_TALENTS[d.talent] ? d.talent : 'average',
+    cultivation: d.cultivation || 'Mortal',
+    loyalty: clamp(d.loyalty != null ? d.loyalty : 65, 0, 100),
+    notes: d.notes || '',
+  };
+  GS.char.disciples.push(disc);
+  try { addPersonalEvent(`Took ${name} as a disciple (studying ${disc.study}). Year ${GS.world.year}.`); } catch(e) {}
+  toast(`New disciple: ${name}`, 'gold', 3500);
+  updateFollowersDisplay(); updateCharacterTab();
+  return disc;
+}
+function addSlave(s) {
+  ensureFollowerArrays();
+  const name = (s.name||'').trim();
+  if(!name) return null;
+  const existing = _findByNameOrId(GS.char.slaves, name);
+  if(existing) return existing;
+  const sl = {
+    id: uid(), name, since: GS.world.year, alive: true, freed: false,
+    role: s.role || 'servant',
+    origin: s.origin || 'unknown',
+    spirit: SLAVE_SPIRITS[s.spirit] ? s.spirit : 'compliant',
+    notes: s.notes || '',
+  };
+  GS.char.slaves.push(sl);
+  try { addPersonalEvent(`${name} is now bound to you as a ${sl.role}${sl.origin&&sl.origin!=='unknown'?' ('+sl.origin+')':''}. Year ${GS.world.year}.`); } catch(e) {}
+  toast(`Bound: ${name}`, '', 3500);
+  updateFollowersDisplay(); updateCharacterTab();
+  return sl;
+}
+// AI-driven updates: res.disciples / res.slaves — each entry add/updates/removes.
+function applyDisciplesUpdate(list) {
+  if(!Array.isArray(list)) return;
+  ensureFollowerArrays();
+  list.forEach(d => {
+    if(!d || !d.name) return;
+    const act = (d.action||'').toLowerCase();
+    const existing = _findByNameOrId(GS.char.disciples, d.id || d.name);
+    if(act === 'remove' || act === 'left' || act === 'died' || act === 'expelled' || act === 'betrayed' || d.reason) {
+      if(existing) {
+        existing.alive = !(act === 'died');
+        GS.char.disciples = GS.char.disciples.filter(x => x.id !== existing.id);
+        try { addPersonalEvent(`Disciple ${existing.name} ${act==='died'?'died':act==='betrayed'?'betrayed you and left':act==='expelled'?'was cast out':'left your tutelage'}.${d.reason?' '+d.reason:''}`); } catch(e) {}
+      }
+      return;
+    }
+    if(existing) {
+      if(d.study) existing.study = d.study;
+      if(d.cultivation) existing.cultivation = d.cultivation;
+      if(d.talent && DISCIPLE_TALENTS[d.talent]) existing.talent = d.talent;
+      if(d.loyaltyDelta) existing.loyalty = clamp((existing.loyalty||65) + d.loyaltyDelta, 0, 100);
+      if(d.loyalty != null) existing.loyalty = clamp(d.loyalty, 0, 100);
+      if(d.notes) existing.notes = d.notes;
+    } else {
+      addDisciple(d);
+    }
+  });
+  updateFollowersDisplay();
+}
+function applySlavesUpdate(list) {
+  if(!Array.isArray(list)) return;
+  ensureFollowerArrays();
+  list.forEach(s => {
+    if(!s || !s.name) return;
+    const act = (s.action||'').toLowerCase();
+    const existing = _findByNameOrId(GS.char.slaves, s.id || s.name);
+    if(act === 'free' || act === 'freed' || act === 'release' || act === 'remove' || act === 'died' || act === 'escaped' || act === 'sold') {
+      if(existing) {
+        GS.char.slaves = GS.char.slaves.filter(x => x.id !== existing.id);
+        const verb = { free:'freed', freed:'freed', release:'freed', died:'died', escaped:'escaped', sold:'was sold off', remove:'is gone' }[act] || 'is no longer bound to you';
+        try { addPersonalEvent(`${existing.name} ${verb}.${s.reason?' '+s.reason:''}`); } catch(e) {}
+      }
+      return;
+    }
+    if(existing) {
+      if(s.role) existing.role = s.role;
+      if(s.origin) existing.origin = s.origin;
+      if(s.spirit && SLAVE_SPIRITS[s.spirit]) existing.spirit = s.spirit;
+      if(s.notes) existing.notes = s.notes;
+    } else {
+      addSlave(s);
+    }
+  });
+  updateFollowersDisplay();
+}
+
+function updateFollowersDisplay() {
+  ensureFollowerArrays();
+  const el = document.getElementById('w-followers-content');
+  const section = document.getElementById('followers-section');
+  const lbl = document.getElementById('followers-section-label');
+  if(!el) return;
+  const disc = GS.char.disciples.filter(d => d.alive !== false);
+  const slaves = GS.char.slaves.filter(s => s.alive !== false);
+  if(section) section.classList.toggle('hidden', disc.length === 0 && slaves.length === 0);
+  if(lbl) lbl.textContent = `Disciples & Bound (${disc.length + slaves.length})`;
+
+  const discRows = disc.map(d => {
+    const tal = DISCIPLE_TALENTS[d.talent] || DISCIPLE_TALENTS.average;
+    const loy = d.loyalty >= 80 ? '★★★' : d.loyalty >= 50 ? '★★☆' : '★☆☆';
+    return `<div style="display:flex;justify-content:space-between;font-size:11px;padding:3px 0;border-bottom:1px solid #1a1020" title="${(d.notes||'').replace(/"/g,'&quot;')}">
+      <span style="color:var(--text)">${d.name} <span style="font-size:9px;color:var(--dim)">· ${d.cultivation}</span></span>
+      <span style="color:var(--dim)"><span style="color:${tal.color}">${tal.label}</span> · ${loy}</span>
+    </div>`;
+  }).join('');
+  const slaveRows = slaves.map(s => {
+    const sp = SLAVE_SPIRITS[s.spirit] || SLAVE_SPIRITS.compliant;
+    return `<div style="display:flex;justify-content:space-between;font-size:11px;padding:3px 0;border-bottom:1px solid #1a1020" title="${((s.origin?'Origin: '+s.origin+'. ':'')+(s.notes||'')).replace(/"/g,'&quot;')}">
+      <span style="color:var(--text)">${s.name} <span style="font-size:9px;color:var(--dim)">· ${s.role}</span></span>
+      <span style="color:${sp.color}">${sp.label}</span>
+    </div>`;
+  }).join('');
+
+  el.innerHTML =
+    (disc.length ? `<div style="font-size:10px;color:#88aacc;text-transform:uppercase;letter-spacing:.08em;margin:2px 0 4px">Disciples (${disc.length})</div>${discRows}` : '') +
+    (slaves.length ? `<div style="font-size:10px;color:#aa8866;text-transform:uppercase;letter-spacing:.08em;margin:${disc.length?'10px':'2px'} 0 4px">Bound (${slaves.length})</div>${slaveRows}` : '') +
+    ((disc.length||slaves.length) ? `<button class="btn-secondary btn-sm" style="margin-top:8px;width:100%" onclick="sendToAI('I check on my disciples and those bound to me — how are they faring, what have they been doing, and is anything brewing among them?')">Check In</button>` : '');
 }
 
 // ================================================================
@@ -11031,7 +11197,9 @@ PART 2 — DATA (immediately after the narrative, on its own line):
   "bounty": 0,
   "death": false,
   "deathCause": null,
-  "crewUpdate": null
+  "crewUpdate": null,
+  "disciples": [{ "name": "", "action": "add|update|remove|left|died|betrayed|expelled", "study": "what you teach them", "talent": "poor|average|gifted|prodigy|genius", "cultivation": "their stage/level", "loyaltyDelta": 0, "notes": "", "reason": "" }],
+  "slaves": [{ "name": "", "action": "add|update|free|sold|escaped|died", "role": "laborer|bodyguard|concubine|scribe|servant|...", "origin": "captured|bought|debt|conquered|spared", "spirit": "broken|compliant|loyal|defiant|plotting", "notes": "", "reason": "" }]
 }
 \`\`\`
 CRITICAL: The narrative is NEVER inside the JSON. The JSON block has NO "narrative" field — the prose above is the narrative. Only include JSON fields that actually changed. Omit unchanged/zero/empty fields entirely.
@@ -11701,7 +11869,7 @@ window.addEventListener('pagehide', () => { doAutosave(true); });
 // Scheme: MAJOR.MINOR. Big updates bump MAJOR (1.2 -> 2.2). Small updates
 // bump MINOR (2.2 -> 2.3). Each version has a name. The current version is
 // stamped onto every save; older saves can be updated to the latest.
-const GAME_VERSION = { number: '3.30', name: 'Blood of the Beast' };
+const GAME_VERSION = { number: '3.31', name: 'Disciples & the Bound' };
 
 // Which model generates the story. Lite Mode swaps to a far cheaper, faster model
 // (Claude Haiku) so long sessions / limited credits cost a fraction per turn.
@@ -11757,6 +11925,7 @@ const VERSION_HISTORY = [
   { number:'3.28', name:'Mastery & Reckoning', sys:'A big batch. Higher cultivation realms now master techniques and martial arts noticeably FASTER (the practice numbers were the mortal baseline). Qi gathering is fixed and consistent: the amount you gather now comes from a clear formula — your understanding of Qi (Meridian Theory, Meditation, Cultivation) and your realm set a fixed rate per day, and "what you\'re doing to cultivate" (a spirit vein, a pill, ideal conditions) is a bonus on top — so a day and a month finally add up. Reputation epithets like "Young Prodigy" now actually appear under your Spiritual Titles (and old saves get fixed on load). Yuluh the Immortal Serpent now guards Ichiro\'s tomb properly — and anyone who looted it before this update will be hunted down and judged over whether they deserve to keep what they took. You can now DUAL WIELD (wield a one-handed weapon in your off-hand). You can click your Race to see your stats, nature, and culture — and your race is now woven into your opening story. And the storyteller will never break character, under any circumstance.', note:'#1 practiceNeeded(stage,isMA) applies practiceStageDiscount (1 - min(.65, stageIndex*.05)); wired into record(Technique/Martial)Use + card hints. #2 cultivation rework: cultivationBaseQiPerDay() (5 + mt*1.6+med*1.3+cult*1.0, ×(1+stage*.18)) + addQiRaw (trait mult, no theory double-count); qi safe block now engine-authoritative on _lastWasCultivation (base×days×cultivationBonus×karma), ignores AI qiChange for cultivation; cultivationBonus field + HOW TO CULTIVATE prompt rewrite. #3 grantTitle silent param + reputation handler/syncReputationTitles promote renownTitle/infamyTitle → spiritualTitles (+ load-time sync for old saves). #4 _yuluhJudgmentPending (migration flags Ichiro-tomb looters) + late prompt YULUH rule + res.yuluhJudged clears. #5 dual wield: isTwoHanded/canDualWield/equipOffhand + item-offhand-btn. #6 NEVER BREAK CHARACTER late prompt rule. #7 showRaceDetail() popup (click char-race) + RACE MANDATE woven into generateOpeningNarrative.' },
   { number:'3.29', name:'Drill It In', sys:'Practice counts now. If you say you run a technique or form "eight times" (or a dozen reps, or drill it all day, over and over), that whole session counts toward mastery — not just one. A focused practice turn can carry you up a stage or two, with no wasted effort, though the very top of a technique still needs a real revelation rather than raw repetition.', note:'parsePracticeReps(msg): digit+unit ("8 times/reps/rounds/forms/swings…") + word-numbers ("eight times", "a dozen reps") + vague intensity ("all day", "over and over") → 6; capped at 12. Passed into record(Technique/Martial)Use(id, times) from the detect loop in buildTechCostInjection. Base record fns rewritten to ADD `times` points and loop-advance carrying overflow (guard-capped; stage 5→6 insight gate preserved). Threaded `reps` through the mentor + expression recordTechniqueUse wrappers (were dropping the arg). buildTechStageInjection practiceLeft now uses practiceNeeded.' },
   { number:'3.30', name:'Blood of the Beast', sys:'Permanent injuries/conditions are now strict — passing states like "post-breakthrough exhaustion", fatigue, soreness, or drained Qi can no longer become permanent (they heal like any wound), and old saves get scrubbed of any that slipped through. Offspring confirmed working: when you die you can continue as your child, who now inherits exactly HALF your power (cultivation realm and a fraction of your arts), never all of it. And a new bloodline: if you have a child with one of the Original Qi Beasts that can take human form — a Dragon, Yokai, Sanguine, Arachnid, or Giant/Titan — that child is born HALF that race, one of the strongest lineages alive, with powerful innate stats and amplified traits.', note:'#1 _isTemporaryState() guard in addCondition routes temp states to addInjury instead of permanent conditions (preserves fromBargain + _isPermanentInjury); migrateSave scrubs existing temp conditions; strict PERMANENT CONDITIONS prompt rule. #2 continueAsOffspring rewritten: always inherits floor(parentStage/2) qi + ~half techniques at half stage + path/expression (no longer needs preset imbued); Inheritance trait reworded. #3 half-beast races (half_dragon/yokai/sanguine/arachnid/giant, born, strong modifiers + mythic bloodline trait) + HALF_BEAST_RACE map; createOffspring opts.beastParent sets child.race/beastHalf (+ higher trait inheritance); continueAsOffspring applies race modifiers + bloodline trait; res.offspring[].otherParentBeast wired through + JSON template + OFFSPRING & BLOODLINE prompt rule.' },
+  { number:'3.31', name:'Disciples & the Bound', sys:'The people-under-you system is expanded beyond crews. You can now take DISCIPLES — students you personally teach, who grow in cultivation and devotion (or resentment) over time — and hold the BOUND: people owned or bound to you (captured, bought, taken by debt or conquest), whose spirit ranges from broken to loyal to plotting. Both appear in a new "Disciples & Bound" panel on your character sheet, and the storyteller tracks them as real people with their own arcs. (This also quietly fixes the crew system, whose AI updates had stopped registering.)', note:'New char.disciples/char.slaves arrays (+ createDefaultState + migrate). DISCIPLE_TALENTS/SLAVE_SPIRITS catalogs; addDisciple/addSlave, applyDisciplesUpdate/applySlavesUpdate (add/update/remove|free by name/id + action verbs); updateFollowersDisplay() renders #followers-section (hidden when empty) wired into world-tab refresh. AI fields res.disciples/res.slaves + JSON template + DISCIPLES & THE BOUND prompt rule (late wrapper). FIX: res.crewUpdate handler was orphaned by the consolidated applyAIResponse rewrite (verified not firing); added outermost wirePeopleUpdates wrapper that runs applyCrewUpdate + disciples + slaves so all three actually register.' },
 ];
 
 function cleanSaveData(gs) {
@@ -11817,6 +11986,7 @@ function migrateSave(data) {
     equipment:{ head:null,body:null,hands:null,feet:null,weapon:null,offhand:null,acc1:null,acc2:null },
     reputation:{}, relationships:[], education:[], missions:[],
     mentors:[], offspring:[], assets:[], goals:[], crew:null,
+    disciples:[], slaves:[], // students you teach; people bound/owned by you
     karma:{ righteous:0, blood:0, demonic:0, chaotic:0 },
     qi:{ stageIndex:0, current:0, max:100, breakthroughAt:100, breakthroughReady:false, path:null, expression:null },
     silver:0, hp:100, maxHp:100, bounty:0,
@@ -14264,7 +14434,9 @@ The JSON carries ONLY state changes. There is NO "narrative" field in the JSON �
   "ancientQiLearned": null,
   "death": false,
   "deathCause": null,
-  "crewUpdate": null
+  "crewUpdate": null,
+  "disciples": [{ "name": "", "action": "add|update|remove|left|died|betrayed|expelled", "study": "what you teach them", "talent": "poor|average|gifted|prodigy|genius", "cultivation": "their stage/level", "loyaltyDelta": 0, "notes": "", "reason": "" }],
+  "slaves": [{ "name": "", "action": "add|update|free|sold|escaped|died", "role": "laborer|bodyguard|concubine|scribe|servant|...", "origin": "captured|bought|debt|conquered|spared", "spirit": "broken|compliant|loyal|defiant|plotting", "notes": "", "reason": "" }]
 }
 \`\`\`
 Omit any field that doesn't change. Zero values and empty arrays are noise — leave them out. NEVER put the narrative inside the JSON.
@@ -42776,7 +42948,8 @@ buildSystemPrompt = function() {
           }
           return y + '\n';
         })()
-      + `OFFSPRING & BLOODLINE: when a child is conceived/born, report it in "offspring" with the other parent's name. A child inherits about HALF of a parent's power, never all of it. CRUCIALLY — if the OTHER parent is one of the Original Qi Beasts that can take human form (a Dragon, a Yokai, a Sanguine, an Arachnid, or a Giant/Titan), the child is born HALF that beast's race: set "otherParentBeast" to dragon|yokai|sanguine|arachnid|giant. Half of an apex being is still extraordinary — such children are among the strongest lineages alive, draw awe and danger, and the traits/arts they grow into come amplified. Treat them accordingly.\n`;
+      + `OFFSPRING & BLOODLINE: when a child is conceived/born, report it in "offspring" with the other parent's name. A child inherits about HALF of a parent's power, never all of it. CRUCIALLY — if the OTHER parent is one of the Original Qi Beasts that can take human form (a Dragon, a Yokai, a Sanguine, an Arachnid, or a Giant/Titan), the child is born HALF that beast's race: set "otherParentBeast" to dragon|yokai|sanguine|arachnid|giant. Half of an apex being is still extraordinary — such children are among the strongest lineages alive, draw awe and danger, and the traits/arts they grow into come amplified. Treat them accordingly.\n`
+      + `DISCIPLES & THE BOUND: the player can gather people under them beyond a crew. DISCIPLES are students they personally teach (cultivation, martial arts, a craft) — register one via "disciples": [{ "name", "action":"add", "study", "talent", "cultivation" }] the moment the player takes someone on as a disciple, and update their cultivation/loyalty over time (loyaltyDelta), or remove them with action "left|died|betrayed|expelled" and a reason. A disciple grows with time and teaching, can become powerful and devoted — or resentful and treacherous. SLAVES / THE BOUND are people the player owns or has bound to them (captured, bought, taken in conquest, held by debt) — register via "slaves": [{ "name", "action":"add", "role", "origin", "spirit" }] and update their spirit (broken|compliant|loyal|defiant|plotting) as the relationship develops; free/lose them with action "free|sold|escaped|died". Play both honestly and with consequence: disciples carry your name and your sins; the bound resent, scheme, break, or in rare cases come to genuine loyalty — and the orthodox world judges a slaver. Only register these when they actually happen in the story.\n`;
     if(prompt.includes('## ABSOLUTE RULES')) prompt = prompt.replace('## ABSOLUTE RULES', section + '\n## ABSOLUTE RULES');
     else prompt = prompt + '\n' + section;
   } catch(e) {}
@@ -43041,6 +43214,18 @@ buildSystemPrompt = function() {
         }
       }
     } catch(e) { console.error('[techDefine]', e); }
+  };
+})();
+
+// ── People under you: crew, disciples, and the bound. Outermost so it actually
+//    runs (the consolidated applyAIResponse never picked up these fields). ──
+(function wirePeopleUpdates() {
+  const _applyForPeople = applyAIResponse;
+  applyAIResponse = function(res) {
+    _applyForPeople.apply(this, arguments);
+    try { if(res && res.crewUpdate) applyCrewUpdate(res.crewUpdate); } catch(e) { console.error('[crew]', e); }
+    try { if(res && res.disciples) applyDisciplesUpdate(res.disciples); } catch(e) { console.error('[disciples]', e); }
+    try { if(res && res.slaves) applySlavesUpdate(res.slaves); } catch(e) { console.error('[slaves]', e); }
   };
 })();
 
