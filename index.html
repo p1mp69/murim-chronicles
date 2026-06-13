@@ -11589,7 +11589,7 @@ window.addEventListener('pagehide', () => { doAutosave(true); });
 // Scheme: MAJOR.MINOR. Big updates bump MAJOR (1.2 -> 2.2). Small updates
 // bump MINOR (2.2 -> 2.3). Each version has a name. The current version is
 // stamped onto every save; older saves can be updated to the latest.
-const GAME_VERSION = { number: '3.24', name: 'Never Lose a Run' };
+const GAME_VERSION = { number: '3.25', name: 'Forward Momentum' };
 
 // Which model generates the story. Lite Mode swaps to a far cheaper, faster model
 // (Claude Haiku) so long sessions / limited credits cost a fraction per turn.
@@ -11639,6 +11639,7 @@ const VERSION_HISTORY = [
   { number:'3.22', name:'The Story Decides', sys:'Refined how offshoots work: you CAN deliberately set out to develop a variant of a technique or martial art you understand well (a "Develop Offshoot" button on the card) — but the STORY authors it. You never name or design it; the narrator decides whether a real offshoot even emerges this time, and if it does, invents its name, its bio, and what it does, drawn from the parent art and your own cultivation (path, expression, level, any beast-Qi you carry). It must genuinely diverge from the parent and starts unlearned, to be practiced up.', note:'Re-added a card button as requestOffshoot(id,type) (tech gated stage>=2, ma stage>=3): builds a context-rich DEVELOP OFFSHOOT injection (parent name/desc/category/type/rarity/stage + character cultivation stage/path/expression + learned beast arts) and sendToAI; AI authors name/bio/effect and returns via existing newOffshoots → applyOffshootsFromAI. Updated _bspWithProgression OFFSHOOTS rule to cover both organic and player-requested paths (AI always authors; may legitimately fail to produce one).' },
   { number:'3.23', name:'Blood & Healing', sys:'Your character now has a KILL COUNTER (shown on the character sheet), with new achievements at 1, 10, 50, and 100 lives taken. Ordinary wounds finally HEAL: cuts, bruises, sprains, fractures and the like now knit closed with time and rest (faster if you\'re tough or have healing arts), and the storyteller\'s heal-text now actually clears the matching wound even when the wording differs — only grave injuries (shattered channels, lost limbs) still linger. And several achievements that used to pop when they hadn\'t really happened (the God of High School one on a stray phrase, the tomb and public-affection ones on a mere mention) now only fire on the real thing.', note:'KILLS: char.kills + migration; res.kills AI field + safe(kills) increment + JSON template + prompt rule (confirmed deaths only); char-kills display; first_kill now uses kills (not blood karma) + killer_ten/fifty/hundred achievements. INJURY HEALING: addInjury timestamps (_injuryDays); tickInjuryHealing in passive tick (scaled by severity regex, endurance, healing passives, medicine; _isPermanentInjury excluded); removeInjury made fuzzy (exact→normalized containment→canonicalized keyword overlap via _INJURY_SYN wound/body-part synonyms). ACHIEVEMENT FALSE-POSITIVES: god_of_high_school narrative now requires literal "Mori Jin" (dropped borrowed power/monkey king/charyeok); _enteredTomb requires founder-tomb + entry verb (not mere mention); _terezMoment relies only on explicit res.terezMoment AND a partner relationship (removed the fragile crowd-scene regex).' },
   { number:'3.24', name:'Never Lose a Run', sys:'Real autosave so an accidental tab close never wipes a run again. The game now saves automatically after every turn AND the moment you close, switch, or background the tab — and your most recent run shows up as a one-click "Resume" at the top of the Continue list (and on the main-menu Continue button itself). No more losing a Qi Condensation character to a stray click.', note:'AUTOSAVE_KEY=murim_autosave; doAutosave(force) (guards: real char + turn>=1 + game screen, 1.5s throttle) replaces the old every-10-turns gate — now runs every applyAIResponse + on beforeunload/visibilitychange(hidden)/pagehide. getAutosaveMeta(); loadAutosave()+loadGameFromRaw() refactor (loadFromSlot reuses it). renderContinueSlots prepends a gold autosave entry with Resume; showMainMenu updates #menu-continue label to "Resume — <name>, <stage>" when an autosave exists.' },
+  { number:'3.25', name:'Forward Momentum', sys:'Advancing a technique or martial art no longer takes forever — the practice needed per stage is dramatically lower (early stages are just a few uses in the story now). Renown and infamy now push against each other: building a glowing reputation buries some of your notoriety, and a notorious turn tarnishes your good name (you can still be both famous and feared, but they pull in opposite directions). And the storyteller is now told, plainly, that its first job every turn is to push the story forward — no stalling, idling, or ending on a passive "what do you do?" with nothing having happened.', note:'PRACTICE_TO_ADVANCE 8/20/45/85/140/210 → 3/5/8/12/18/26; MA_PRACTICE_TO_ADVANCE 6/16/36/70/115/175/260 → 3/5/8/12/17/24/34. Renown/Infamy cross-erosion: active addRenown/addInfamy (12916/12930) now reduce the opposite stat by REP_CROSS(0.5)×gain on positive gains only (applies through the dynamic/domain wrappers + AI res.reputation path). Late _bspWithProgression prompt: added ALWAYS PUSH THE STORY FORWARD rule (momentum, consequences, world acts, never stall/idle/loop/passive-prompt).' },
 ];
 
 function cleanSaveData(gs) {
@@ -12909,9 +12910,14 @@ function deriveTitleFromEvents(events, isInfamy) {
 
 // Override addRenown / addInfamy to also store event data
 const _origAddRenown = addRenown;
+// Renown and infamy push against each other: a glowing reputation buries some of
+// your notoriety, and a bad turn tarnishes your good name. Partial (you can still
+// be both famous AND feared), and only on gains.
+const REP_CROSS = 0.5;
 function addRenown(locKey, amount, eventDesc, impact) {
   const r = getRep(locKey);
   r.renown = clamp(r.renown + amount, 0, 100);
+  if(amount > 0 && r.infamy > 0) r.infamy = clamp(r.infamy - Math.round(amount * REP_CROSS), 0, 100);
   if(eventDesc) {
     if(!r.events) r.events = [];
     r.events.push({ type:'renown', amount, desc:eventDesc, year:GS.world.year });
@@ -12925,6 +12931,7 @@ const _origAddInfamy = addInfamy;
 function addInfamy(locKey, amount, eventDesc, impact) {
   const r = getRep(locKey);
   r.infamy = clamp(r.infamy + amount, 0, 100);
+  if(amount > 0 && r.renown > 0) r.renown = clamp(r.renown - Math.round(amount * REP_CROSS), 0, 100);
   if(eventDesc) {
     if(!r.events) r.events = [];
     r.events.push({ type:'infamy', amount, desc:eventDesc, year:GS.world.year });
@@ -18294,23 +18301,23 @@ function buildKarmaContextForAI() {
 
 // Practice points needed to advance from stage N to N+1
 const PRACTICE_TO_ADVANCE = [
-  8,   // 0→1: Fragmented → Imitative (8 uses)
-  20,  // 1→2: Imitative → Functional
-  45,  // 2→3: Functional → Refined
-  85,  // 3→4: Refined → Intent (wisdom required)
-  140, // 4→5: Intent → Transcendent (deep understanding)
-  210, // 5→6: Transcendent → Authority (a revelation is required, not just practice)
+  3,   // 0→1: Fragmented → Imitative
+  5,   // 1→2: Imitative → Functional
+  8,   // 2→3: Functional → Refined
+  12,  // 3→4: Refined → Intent (wisdom required)
+  18,  // 4→5: Intent → Transcendent (deep understanding)
+  26,  // 5→6: Transcendent → Authority (a revelation is required, not just practice)
 ];
 
 // Martial arts advance through bodily repetition (8 stages, 0→7).
 const MA_PRACTICE_TO_ADVANCE = [
-  6,   // 0→1: Untrained → Raw Instinct
-  16,  // 1→2: Raw → Basic Form
-  36,  // 2→3: Basic → Trained Body
-  70,  // 3→4: Trained → Combat Capable
-  115, // 4→5: Combat → Martial Expert
-  175, // 5→6: Expert → Martial Master
-  260, // 6→7: Master → Living Weapon (the body must surpass the form)
+  3,   // 0→1: Untrained → Raw Instinct
+  5,   // 1→2: Raw → Basic Form
+  8,   // 2→3: Basic → Trained Body
+  12,  // 3→4: Trained → Combat Capable
+  17,  // 4→5: Combat → Martial Expert
+  24,  // 5→6: Expert → Martial Master
+  34,  // 6→7: Master → Living Weapon (the body must surpass the form)
 ];
 
 // Failure rates by stage (chance the technique fails or misfires)
@@ -42343,7 +42350,8 @@ buildSystemPrompt = function() {
       + `OFFSHOOTS / VARIANTS: the player never names or designs their own variants — YOU author them. This happens two ways: (a) organically, when the player innovates on, diverges from, or breaks open one of their arts in the story; or (b) when the player deliberately sets out to develop an offshoot (a "DEVELOP OFFSHOOT" request) — in that case YOU decide whether a real offshoot actually emerges (it may honestly fail to click this time) and, if it does, YOU invent its name, its real BIO (what it IS and how it feels), and what it does — drawn from the parent art and the character's own cultivation (path, expression, level, any beast-Qi). Either way, register it via "newOffshoots" with a real bio (never "a variant of X"), it must genuinely diverge from the parent (not a rename), and it starts fresh at the lowest stage and must be practiced up. Do not hand these out casually.\n`
       + `CULTIVATION SPEED:${theoryNote}\n`
       + `KILLS: when the character actually KILLS one or more people (or clearly sentient beings) this turn — by their own hand or unambiguously as a direct result of their action — report the count as "kills": <number>. Count only real, confirmed deaths the character caused; do NOT count fights they merely won, people who fled wounded, ambiguous outcomes, kills by others, or beasts/vermin you would not narrate as a death. When in doubt, omit it.\n`
-      + `INJURIES HEAL: ordinary wounds (cuts, bruises, sprains, fractures, burns) are TEMPORARY and knit closed with time and rest — they should NOT be treated as still-open weeks or months later, and the engine already heals them over time. When enough time passes or the character recovers, clear healed wounds via "removeInjuries" (your wording need not match exactly). Only genuinely grave injuries (shattered meridian channels, severed/lost limbs, crippling, permanent maiming) persist without real intervention.\n`;
+      + `INJURIES HEAL: ordinary wounds (cuts, bruises, sprains, fractures, burns) are TEMPORARY and knit closed with time and rest — they should NOT be treated as still-open weeks or months later, and the engine already heals them over time. When enough time passes or the character recovers, clear healed wounds via "removeInjuries" (your wording need not match exactly). Only genuinely grave injuries (shattered meridian channels, severed/lost limbs, crippling, permanent maiming) persist without real intervention.\n`
+      + `ALWAYS PUSH THE STORY FORWARD: your single most important job is forward MOMENTUM. Every turn, the world must move and something must change — resolve the player's action, then let it cause a consequence, a complication, a reaction, an arrival, a revelation, or a new pressure. Time passes; NPCs act on their own goals; the world does not freeze waiting on the player. NEVER stall, idle, loop, or simply mirror back what the player said and wait — and never end on a passive "what do you do?" with nothing having happened. Even in a quiet scene, advance it: introduce a detail, a person, a choice with stakes, or the next beat. If the player is vague or passive, the world fills the silence and moves anyway. Leave each turn on a live, changed situation that begs a response.\n`;
     if(prompt.includes('## ABSOLUTE RULES')) prompt = prompt.replace('## ABSOLUTE RULES', section + '\n## ABSOLUTE RULES');
     else prompt = prompt + '\n' + section;
   } catch(e) {}
