@@ -3242,6 +3242,7 @@ body.generating [onclick*="shopSellItem"], body.generating [onclick*="closeMapGo
       <div id="item-modal-content" class="item-modal-body"></div>
       <div class="item-modal-actions">
         <button id="item-equip-btn" class="btn-primary btn-sm hidden">Equip</button>
+        <button id="item-offhand-btn" class="btn-secondary btn-sm hidden">⚔ Wield Off-hand</button>
         <button id="item-unequip-btn" class="btn-secondary btn-sm hidden">Unequip</button>
         <button id="item-use-btn" class="btn-secondary btn-sm hidden">Use</button>
         <button id="item-infuse-btn" class="btn-secondary btn-sm hidden">Infuse Qi</button>
@@ -7300,6 +7301,33 @@ function equipItem(itemId) {
   toast(`Equipped: ${itm.name}`, 'gold', 2000);
 }
 
+// A two-handed weapon cannot be paired for dual-wielding.
+function isTwoHanded(item) {
+  return /\b(greatsword|great sword|longbow|crossbow|\bbow\b|spear|lance|pike|halberd|glaive|polearm|pole-?arm|staff|quarterstaff|maul|warhammer|war hammer|greataxe|great axe|battleaxe|two-?handed|zweihander|naginata|guandao|odachi|nodachi|scythe|trident)\b/i.test((item?.name||'') + ' ' + (item?.desc||''));
+}
+function canDualWield(item) {
+  return item && (item.slot === 'weapon' || item.type === 'weapon') && !isTwoHanded(item);
+}
+
+// Dual-wield: put a one-handed weapon in the OFF-HAND slot.
+function equipOffhand(itemId) {
+  const c = GS.char;
+  const itm = c.inventory.find(i => i.id === itemId);
+  if(!itm) { toast('Item not found', 'error'); return; }
+  if(!canDualWield(itm)) { toast(`${itm.name} can't be wielded in the off-hand.`, 'error', 3000); return; }
+  if(!itm.id) itm.id = uid();
+  // Return whatever is in the off-hand.
+  const current = c.equipment.offhand;
+  if(current) { if(current.effects) applyItemEffects(current.effects, -1); c.inventory.push({ ...current }); }
+  c.equipment.offhand = { ...itm, slot: 'offhand', _dualWieldWeapon: true };
+  c.inventory = c.inventory.filter(i => i.id !== itemId);
+  if(itm.effects && Object.keys(itm.effects).length) applyItemEffects(itm.effects, 1);
+  hideModal('modal-item');
+  updateInventoryTab(); updateCharacterTab();
+  const mainHand = c.equipment.weapon?.name;
+  toast(mainHand ? `Dual-wielding: ${mainHand} + ${itm.name}` : `Off-hand: ${itm.name}`, 'gold', 3000);
+}
+
 function unequipItem(slot) {
   const c = GS.char;
   const itm = c.equipment[slot];
@@ -7946,7 +7974,7 @@ function renderTraitPowers() {
 // ================================================================
 // TITLE SYSTEM
 // ================================================================
-function grantTitle(type, title) {
+function grantTitle(type, title, silent=false) {
   // title: { name, desc, effects:{}, knownBy:[] }
   if(!title || !title.name || !String(title.name).trim()) return; // ignore empty schema stubs
   const list = type==='spiritual' ? GS.char.spiritualTitles : GS.char.socialTitles;
@@ -7955,7 +7983,21 @@ function grantTitle(type, title) {
   // Apply effects
   if(title.effects) Object.entries(title.effects).forEach(([k,v])=>{ if(GS.char[k]!==undefined) GS.char[k]+=v; });
   updateCharacterTab();
-  toast(`${type==='spiritual'?'Spiritual':'Social'} title: ${title.name}`, 'gold', 4000);
+  if(!silent) toast(`${type==='spiritual'?'Spiritual':'Social'} title: ${title.name}`, 'gold', 4000);
+}
+
+// Promote any reputation-bar epithets (renownTitle/infamyTitle) that aren't yet in
+// the Titles section — fixes older saves where a "Young Prodigy" style title showed
+// on the renown bar but never appeared under Spiritual Titles.
+function syncReputationTitles(silent=true) {
+  try {
+    const reps = GS.char.reputation || {};
+    Object.entries(reps).forEach(([loc, rep]) => {
+      const locName = LOCATIONS[loc]?.name || loc;
+      if(rep?.renownTitle && String(rep.renownTitle).trim()) grantTitle('spiritual', { name:String(rep.renownTitle).trim(), desc:`Renowned in ${locName}.` }, silent);
+      if(rep?.infamyTitle && String(rep.infamyTitle).trim()) grantTitle('spiritual', { name:String(rep.infamyTitle).trim(), desc:`Notorious in ${locName}.` }, silent);
+    });
+  } catch(e) {}
 }
 
 // ================================================================
@@ -9040,11 +9082,11 @@ function updateCharacterTab() {
     setHTML('occupation-block', html);
   }
 
-  // --- Race ---
+  // --- Race --- (clickable for full detail)
   const raceEl = document.getElementById('char-race');
   if(raceEl) {
     const race = RACES[c.race || 'human'];
-    raceEl.textContent = race ? race.name : 'Human';
+    raceEl.innerHTML = `<span style="cursor:pointer;border-bottom:1px dashed var(--border2)" onclick="showRaceDetail()" title="See what makes you different">${race ? race.name : 'Human'} <span style="font-size:10px;color:var(--dim)">ⓘ</span></span>`;
   }
 
   // --- Offspring ---
@@ -10167,7 +10209,7 @@ function updateTechPane() {
         ${t.qiPathReq ? `<div class="qi-req-note">⚠ Requires ${t.qiPathReq} Qi path</div>` : ''}
         <div style="font-size:11px;color:var(--muted);margin-bottom:8px">${stage.name}: ${stage.desc}</div>
         ${t.offshoots?.length ? `<div class="text-xs text-muted" style="margin-bottom:6px">Offshoots: ${t.offshoots.join(', ')}</div>` : ''}
-        ${t.stage<6 ? `<div class="text-xs text-muted" style="margin-bottom:6px">⟳ ${Math.max(0,(PRACTICE_TO_ADVANCE[t.stage]||0)-(t.practicePoints||0))} more uses in the story to reach ${TECH_STAGES[t.stage+1]?.short||'mastery'}${t.stage===5&&t._awaitingInsight?' — but the last step needs a revelation, not practice':''}</div>` : '<div class="text-xs" style="color:var(--gold);margin-bottom:6px">✦ Mastered — Conceptual Authority</div>'}
+        ${t.stage<6 ? `<div class="text-xs text-muted" style="margin-bottom:6px">⟳ ${Math.max(0,(practiceNeeded(t.stage,false)||0)-(t.practicePoints||0))} more uses in the story to reach ${TECH_STAGES[t.stage+1]?.short||'mastery'}${t.stage===5&&t._awaitingInsight?' — but the last step needs a revelation, not practice':''}</div>` : '<div class="text-xs" style="color:var(--gold);margin-bottom:6px">✦ Mastered — Conceptual Authority</div>'}
         <div class="tech-actions">
           <button class="btn-secondary btn-sm" onclick="practiseTech('${t.id}')">Practice</button>
           ${(t.stage||0) >= 2 ? `<button class="btn-secondary btn-sm" onclick="requestOffshoot('${t.id}','tech')" title="Develop a variant — the story decides what it becomes">⑂ Develop Offshoot</button>` : ''}
@@ -10202,7 +10244,7 @@ function updateMAPane() {
         <div class="tech-desc">${m.desc || 'No description.'}</div>
         <div style="font-size:11px;color:var(--muted);margin-bottom:8px">${stage.name}: ${stage.desc}</div>
         ${m.offshoots?.length ? `<div class="text-xs text-muted" style="margin-bottom:6px">Offshoots: ${m.offshoots.join(', ')}</div>` : ''}
-        ${m.stage<7 ? `<div class="text-xs text-muted" style="margin-bottom:6px">⟳ ${Math.max(0,(MA_PRACTICE_TO_ADVANCE[m.stage]||0)-(m.practicePoints||0))} more uses in the story to reach ${MARTIAL_STAGES[m.stage+1]?.short||'mastery'}</div>` : '<div class="text-xs" style="color:var(--gold);margin-bottom:6px">✦ Mastered — Living Weapon</div>'}
+        ${m.stage<7 ? `<div class="text-xs text-muted" style="margin-bottom:6px">⟳ ${Math.max(0,(practiceNeeded(m.stage,true)||0)-(m.practicePoints||0))} more uses in the story to reach ${MARTIAL_STAGES[m.stage+1]?.short||'mastery'}</div>` : '<div class="text-xs" style="color:var(--gold);margin-bottom:6px">✦ Mastered — Living Weapon</div>'}
         <div class="tech-actions">
           <button class="btn-secondary btn-sm" onclick="practiseMA('${m.id}')">Practice</button>
           ${(m.stage||0) >= 3 ? `<button class="btn-secondary btn-sm" onclick="requestOffshoot('${m.id}','ma')" title="Develop a variant — the story decides what it becomes">⑂ Develop Offshoot</button>` : ''}
@@ -10548,6 +10590,9 @@ function openItemModal(itemId, isEquipped) {
   // Buttons — visibility driven by item state, not onclick
   document.getElementById('item-equip-btn').classList.toggle('hidden', !item.slot || isEquipped);
   document.getElementById('item-unequip-btn').classList.toggle('hidden', !isEquipped);
+  // Off-hand (dual wield): a one-handed weapon, not currently equipped.
+  const offBtn = document.getElementById('item-offhand-btn');
+  if(offBtn) offBtn.classList.toggle('hidden', isEquipped || !canDualWield(item));
 
   // Qi infusion — only gear (slotted items), only for cultivators, capped by stage.
   const infuseBtn = document.getElementById('item-infuse-btn');
@@ -10934,6 +10979,7 @@ PART 2 — DATA (immediately after the narrative, on its own line):
   "time": { "days": 1, "months": 0, "years": 0 },
   "statChanges": { "hp": 0, "strength": 0, "agility": 0, "endurance": 0, "intelligence": 0, "perception": 0, "willpower": 0, "charisma": 0, "luck": 0, "silver": 0 },
   "qiChange": 0,
+  "cultivationBonus": 1,
   "negativeQi": null,
   "qiPath": null,
   "qiExpression": null,
@@ -11641,7 +11687,7 @@ window.addEventListener('pagehide', () => { doAutosave(true); });
 // Scheme: MAJOR.MINOR. Big updates bump MAJOR (1.2 -> 2.2). Small updates
 // bump MINOR (2.2 -> 2.3). Each version has a name. The current version is
 // stamped onto every save; older saves can be updated to the latest.
-const GAME_VERSION = { number: '3.27', name: 'Two Made One' };
+const GAME_VERSION = { number: '3.28', name: 'Mastery & Reckoning' };
 
 // Which model generates the story. Lite Mode swaps to a far cheaper, faster model
 // (Claude Haiku) so long sessions / limited credits cost a fraction per turn.
@@ -11694,6 +11740,7 @@ const VERSION_HISTORY = [
   { number:'3.25', name:'Forward Momentum', sys:'Advancing a technique or martial art no longer takes forever — the practice needed per stage is dramatically lower (early stages are just a few uses in the story now). Renown and infamy now push against each other: building a glowing reputation buries some of your notoriety, and a notorious turn tarnishes your good name (you can still be both famous and feared, but they pull in opposite directions). And the storyteller is now told, plainly, that its first job every turn is to push the story forward — no stalling, idling, or ending on a passive "what do you do?" with nothing having happened.', note:'PRACTICE_TO_ADVANCE 8/20/45/85/140/210 → 3/5/8/12/18/26; MA_PRACTICE_TO_ADVANCE 6/16/36/70/115/175/260 → 3/5/8/12/17/24/34. Renown/Infamy cross-erosion: active addRenown/addInfamy (12916/12930) now reduce the opposite stat by REP_CROSS(0.5)×gain on positive gains only (applies through the dynamic/domain wrappers + AI res.reputation path). Late _bspWithProgression prompt: added ALWAYS PUSH THE STORY FORWARD rule (momentum, consequences, world acts, never stall/idle/loop/passive-prompt).' },
   { number:'3.26', name:'An Honest Wage', sys:'Jobs finally stick — and they pay. When you get hired, apprenticed, or taken on (like training under a blacksmith), the occupation now actually registers, shows on your character sheet, and earns you a monthly WAGE automatically as time passes. If the storyteller narrates a hire but forgets to log it, the game now catches it and records the job for you. Informal training and apprenticeships also show up under Education now, not just formal schools.', note:'Occupation income: occupation.income (silver/month) + estimateOccupationIncome(title) fallback; tickOccupationIncome in time tick (accrues via _occIncomeAccrual, addSilver, no pay in prison). detectOccupationFromNarrative fallback when res.occupation lacks a title (hiring-verb + title/trade capture, only when no current job; spawns matching apprenticeship education). addInformalEducation + applyEducationFromAI (newEducation field) so apprenticeship/tutelage registers in Education (institution:null). JSON template: occupation now an object w/ income + newEducation[]; strengthened occupation prompt rule (MUST set field on hire, pick a wage). Char-tab occupation block shows Wage + informal education renders. Migration via estimate for old saves.' },
   { number:'3.27', name:'Two Made One', sys:'Combining techniques now works exactly like offshoots: you still pick the two arts to fuse, but the STORY decides what comes of it. No more instant client-side fusion — the narrator judges whether the two genuinely combine (they can clash and fail, dangerously), and if they do, it invents the new art itself: its name, its bio, and what it does, as something more than the sum of its parts. Fused arts start unlearned and are practiced up like anything else.', note:'requestCombination(t1,t2) mirrors requestOffshoot: context-rich FUSE TECHNIQUES injection (both parents + cultivation + beast arts), gated stage>=2 on both, sendToAI. AI returns newCombinations[{parents,name,type,rarity,desc}] → applyCombinationsFromAI (creates real technique, AI bio, stage 0, isCombination, parents linked) wired into outermost wireTechAuthoring wrapper. Combine picker now calls requestCombination (button "Fuse", dropped client-side compat preview/createCombinedTechnique path). JSON template + TECHNIQUE COMBINATION RULE rewritten (AI authors via newCombinations, may fail, not via newTechniques).' },
+  { number:'3.28', name:'Mastery & Reckoning', sys:'A big batch. Higher cultivation realms now master techniques and martial arts noticeably FASTER (the practice numbers were the mortal baseline). Qi gathering is fixed and consistent: the amount you gather now comes from a clear formula — your understanding of Qi (Meridian Theory, Meditation, Cultivation) and your realm set a fixed rate per day, and "what you\'re doing to cultivate" (a spirit vein, a pill, ideal conditions) is a bonus on top — so a day and a month finally add up. Reputation epithets like "Young Prodigy" now actually appear under your Spiritual Titles (and old saves get fixed on load). Yuluh the Immortal Serpent now guards Ichiro\'s tomb properly — and anyone who looted it before this update will be hunted down and judged over whether they deserve to keep what they took. You can now DUAL WIELD (wield a one-handed weapon in your off-hand). You can click your Race to see your stats, nature, and culture — and your race is now woven into your opening story. And the storyteller will never break character, under any circumstance.', note:'#1 practiceNeeded(stage,isMA) applies practiceStageDiscount (1 - min(.65, stageIndex*.05)); wired into record(Technique/Martial)Use + card hints. #2 cultivation rework: cultivationBaseQiPerDay() (5 + mt*1.6+med*1.3+cult*1.0, ×(1+stage*.18)) + addQiRaw (trait mult, no theory double-count); qi safe block now engine-authoritative on _lastWasCultivation (base×days×cultivationBonus×karma), ignores AI qiChange for cultivation; cultivationBonus field + HOW TO CULTIVATE prompt rewrite. #3 grantTitle silent param + reputation handler/syncReputationTitles promote renownTitle/infamyTitle → spiritualTitles (+ load-time sync for old saves). #4 _yuluhJudgmentPending (migration flags Ichiro-tomb looters) + late prompt YULUH rule + res.yuluhJudged clears. #5 dual wield: isTwoHanded/canDualWield/equipOffhand + item-offhand-btn. #6 NEVER BREAK CHARACTER late prompt rule. #7 showRaceDetail() popup (click char-race) + RACE MANDATE woven into generateOpeningNarrative.' },
 ];
 
 function cleanSaveData(gs) {
@@ -11763,6 +11810,7 @@ function migrateSave(data) {
     drugStash:{}, _drugProfits:0, _dealCount:0, _dealBusts:0, // illicit substances trade
     _larpSuccesses:0, _larpLog:[], // successful imposture/false-identity count → Larp God
     kills:0, _injuryDays:{}, // lives taken by the character; injury timestamps for natural healing
+    _yuluhJudgmentPending:false, // owes Yuluh a reckoning for what was taken from Ichiro's tomb
     _ancientQiBeasts:[], _metMonkeyKing:false, // original Qi beast arts learned + Mori Jin encounter
     trial:null, // active court case: { charges, severity, daysLeft, lawyer, defenseSet, bribes, location }
     strength:10, agility:10, endurance:10, intelligence:10, perception:10, willpower:10, charisma:10, luck:10,
@@ -11873,6 +11921,13 @@ function migrateSave(data) {
   if(typeof c.kills !== 'number') c.kills = 0;
   if(!c._injuryDays || typeof c._injuryDays !== 'object') c._injuryDays = {};
 
+  // Retroactive Yuluh reckoning: anyone who entered/looted Ichiro's tomb before
+  // this update owes the serpent a judgment over what they took.
+  if(c._yuluhJudgmentPending === undefined || c._yuluhJudgmentPending === null) {
+    const ev = (c.personalEvents || []).map(e => String(e)).join(' ');
+    c._yuluhJudgmentPending = /ichiro[^.]{0,30}tomb|tomb[^.]{0,30}ichiro/i.test(ev) || c._enteredTomb === true;
+  }
+
   // Ensure qi sub-fields
   if(!c.qi || typeof c.qi !== 'object') c.qi = dc.qi;
   c.qi.stageIndex      = c.qi.stageIndex      ?? 0;
@@ -11954,6 +12009,8 @@ function loadGameFromRaw(raw) {
     startGame(true);
     // Silently initialise achievement state for loaded saves (no toasts)
     try { checkAndSaveAchievements(true); } catch(e) {}
+    // Promote any rep-bar epithets into the Titles section (fixes older saves).
+    try { syncReputationTitles(true); } catch(e) {}
     toast(`${GS.char.firstName} ${GS.char.lastName} — loaded.`, 'success', 3000);
     // HP at zero on load = death. Honor it (e.g., a save updated after the rule
     // change, or a save left at 0 HP). The gravestone rises.
@@ -12624,6 +12681,9 @@ function initModals() {
   // Item modal actions
   document.getElementById('item-equip-btn').addEventListener('click', () => {
     if(selectedItemForModal) equipItem(selectedItemForModal.item.id);
+  });
+  document.getElementById('item-offhand-btn').addEventListener('click', () => {
+    if(selectedItemForModal) equipOffhand(selectedItemForModal.item.id);
   });
   document.getElementById('item-unequip-btn').addEventListener('click', () => {
     if(selectedItemForModal) {
@@ -14084,6 +14144,7 @@ The JSON carries ONLY state changes. There is NO "narrative" field in the JSON �
   "time": { "days": 1, "months": 0, "years": 0 },
   "statChanges": { "hp": 0, "strength": 0, "agility": 0, "endurance": 0, "intelligence": 0, "perception": 0, "willpower": 0, "charisma": 0, "luck": 0, "silver": 0 },
   "qiChange": 0,
+  "cultivationBonus": 1,
   "negativeQi": null,
   "qiPath": null,
   "qiExpression": null,
@@ -14777,14 +14838,19 @@ The opening should feel like the character is already alive when we arrive. Not 
     locationAgeNote = `Tazar is still young — a few decades old at most. Not yet ancient. Some original settlers may still be alive.`;
   }
 
+  const _raceDef = RACES[c.race] || RACES.human;
+  const _raceMandate = (c.race && c.race !== 'human' && _raceDef)
+    ? `\n── RACE MANDATE (WEAVE THIS IN) ──\nThis character is NOT human — they are ${_raceDef.name}. ${_raceDef.desc} ${_raceDef.culture||''} Their nature MUST be present in the opening: their visible features, how their kind lives, and how the human-dominated world around them treats one of them. Do not info-dump it — show it through a detail, a moment, a reaction. This is part of who they are from the first line.\n`
+    : '';
   const userPrompt = `CHARACTER TO WRITE FOR:
 Name: ${c.firstName} ${c.lastName}
 Age: ${c.age}
 Gender: ${c.gender}
+Race: ${_raceDef.name}${(c.race && c.race!=='human') ? ' (not human — see RACE MANDATE)' : ''}
 City: ${loc?.name || c.birthCity}${locationAgeNote ? '\n!! ' + locationAgeNote : ''}
 Kingdom: ${kingdom}
 ${yearCtx}
-Appearance: ${appearance || 'not yet described'}
+Appearance: ${appearance || 'not yet described'}${_raceMandate}
 Background chosen: ${originDef ? originDef.name + ' — ' + originDef.desc : 'no specific background'}
 Innate traits at birth: ${innateKnowledge}
 ${GS._sameWorldRebirth ? '── SAME-WORLD REBIRTH ──\nThis character is a NEW person born into an ESTABLISHED, continuing world — the same world a previous life lived and died in. The world already has its history, its powers, its scars; this newborn does not know any of it personally and has no inherited relationships, but the world is old and full. Write the opening as a fresh life beginning inside a world that already turns. Do NOT reference the previous character as if this one knows them.\n' : ''}${originGuidance ? '── ORIGIN MANDATE ──\n' + originGuidance + '\n' : ''}
@@ -15386,6 +15452,48 @@ function addQiWithTraits(baseAmount) {
   return actual;
 }
 
+// Apply trait Qi multiplier + clamp WITHOUT the theory multiplier — used by the
+// active-cultivation formula, where theory is already baked into the base rate
+// (so it isn't double-counted).
+function addQiRaw(baseAmount) {
+  if(GS.char.channelsBroken && baseAmount > 0) return 0;
+  const mult = getTraitQiMult('cultivation_gain');
+  const actual = Math.round(baseAmount * mult);
+  const qi = GS.char.qi;
+  qi.current = Math.max(qiFloor(), Math.min(qi.current + actual, qi.max));
+  if(qi.current >= qi.breakthroughAt) qi.breakthroughReady = true;
+  updateCharacterTab();
+  return actual;
+}
+
+// Active cultivation gathers a FIXED amount of Qi PER DAY, set by your
+// UNDERSTANDING of Qi (the three theory skills) and your realm. "What you're
+// doing to cultivate" is a separate BONUS multiplier on top (res.cultivationBonus).
+// This makes gathering consistent: N days always gives N × the one-day rate.
+function cultivationBaseQiPerDay() {
+  const sk = GS.char.skills || {};
+  const lvl = k => sk[k]?.level || 0;
+  // FIXED base from understanding — meridian theory weighs most, then meditation, then cultivation.
+  let perDay = 5 + lvl('meridian_theory')*1.6 + lvl('meditation')*1.3 + lvl('cultivation')*1.0;
+  // Higher realms move more Qi per day (the breakthrough threshold grows too).
+  const stage = GS.char.qi?.stageIndex || 0;
+  perDay *= (1 + stage * 0.18);
+  return perDay;
+}
+
+// Practice needed to advance a technique/MA stage — the table values are the
+// MORTAL-level base; higher cultivation realms master arts faster (less practice).
+function practiceStageDiscount() {
+  const s = GS.char.qi?.stageIndex || 0;
+  return 1 - Math.min(0.65, s * 0.05); // base at Mortal; up to -65% at the highest realms
+}
+function practiceNeeded(stage, isMA) {
+  const table = isMA ? MA_PRACTICE_TO_ADVANCE : PRACTICE_TO_ADVANCE;
+  const base = table[stage];
+  if(base == null) return null;
+  return Math.max(1, Math.round(base * practiceStageDiscount()));
+}
+
 // Build a skill summary for the system prompt
 // This tells the AI what the character is actually good at
 function buildSkillSummary() {
@@ -15919,6 +16027,33 @@ function showBeastDetail(key) {
     actions:[{ label:'← Bestiary', class:'btn-secondary btn-sm', onClick:(c)=>{ c(); showBeastBestiary(); } },
              { label:'Close', class:'btn-primary btn-sm', onClick:(c)=>c() }] });
 }
+
+// What makes your race different — stats, culture, traits, transformation path.
+function showRaceDetail() {
+  const id = GS.char.race || 'human';
+  const r = RACES[id];
+  if(!r) return;
+  const mods = r.modifiers || {};
+  const statRow = (sd) => {
+    const v = mods[sd.key];
+    if(v == null && sd.key !== 'qi_efficiency') return '';
+    return `<div style="display:flex;justify-content:space-between;font-size:12px;padding:2px 0"><span style="color:${sd.color}">${sd.label}</span><span style="color:${v>0?'var(--green)':v<0?'var(--red)':'var(--muted)'};font-weight:600">${v>0?'+':''}${v}</span></div>`;
+  };
+  const statHtml = STAT_DEFS.map(statRow).filter(Boolean).join('');
+  const extraMods = Object.entries(mods).filter(([k]) => !STAT_DEFS.some(s=>s.key===k)).map(([k,v]) =>
+    `<div style="display:flex;justify-content:space-between;font-size:12px;padding:2px 0"><span style="color:var(--dim)">${k.replace(/_/g,' ')}</span><span style="color:var(--text);font-weight:600">${v}</span></div>`).join('');
+  const kind = r.common ? 'A common people of the world' : r.born ? 'A born lineage (only by birth)' : (typeof RACE_PATHS!=='undefined' && RACE_PATHS[id]) ? 'A transformed race (earned through a dangerous arc)' : 'A rare bloodline';
+  const row = (label, txt) => txt ? `<div style="margin-bottom:8px"><div style="font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:#c49a30;margin-bottom:2px">${label}</div><div style="font-size:12.5px;color:var(--muted);line-height:1.6">${_escHtml(txt)}</div></div>` : '';
+  const body = `
+    <div style="font-size:11px;color:#c49a30;text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">${_escHtml(kind)}${r.learnMult?` · learns ×${r.learnMult}`:''}${r.qiPathForced?` · ${r.qiPathForced}-path Qi`:''}</div>
+    ${row('What You Are', r.desc)}
+    ${(statHtml||extraMods) ? `<div style="font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:#c49a30;margin-bottom:2px">Bodily Differences</div><div style="background:var(--s2);border:1px solid var(--border);border-radius:6px;padding:8px 10px;margin-bottom:10px">${statHtml}${extraMods}${statHtml||extraMods?'':'<div style="font-size:12px;color:var(--dim)">No raw stat modifiers — your difference is in kind, not numbers.</div>'}</div>` : ''}
+    ${row('Your Nature & Edge', r.aiHint)}
+    ${row('Culture & How Others See You', r.culture)}
+    ${(typeof RACE_PATHS!=='undefined' && RACE_PATHS[id]) ? row('How One Becomes This', `${RACE_PATHS[id].trigger} ${RACE_PATHS[id].becoming||''}`) : ''}`;
+  uiPopup({ title:`${r.name}`, bodyHTML:body, actions:[{ label:'Close', class:'btn-primary btn-sm', onClick:(c)=>c() }] });
+}
+
 function showBeastBestiary() {
   const learnedSet = new Set(GS.char?._ancientQiBeasts || []);
   uiPicker(Object.entries(ANCIENT_QI_BEASTS).map(([k,b]) => ({
@@ -18399,7 +18534,7 @@ function recordTechniqueUse(techId) {
   if(!t || t.stage >= 6) return;
 
   t.practicePoints = (t.practicePoints || 0) + 1;
-  const needed = PRACTICE_TO_ADVANCE[t.stage];
+  const needed = practiceNeeded(t.stage, false);
   if(!needed) return;
 
   // Stage 5→6 requires a special insight event, not just practice
@@ -18425,7 +18560,7 @@ function recordMartialUse(maId) {
   const m = GS.char.martialArts.find(m => m.id === maId);
   if(!m || m.stage >= 7) return;
   m.practicePoints = (m.practicePoints || 0) + 1;
-  const needed = MA_PRACTICE_TO_ADVANCE[m.stage];
+  const needed = practiceNeeded(m.stage, true);
   if(!needed) return;
   if(m.practicePoints >= needed) {
     m.stage = Math.min(7, m.stage + 1);
@@ -29273,18 +29408,22 @@ updateCharacterTab = function() {
 
     // Qi changes
     safe('qi', () => {
-      if(res.qiChange) {
+      if(GS.char._lastWasCultivation && !GS.char.channelsBroken) {
+        // ENGINE-AUTHORITATIVE cultivation: a FIXED Qi/day from understanding (theory
+        // skills) + realm, × the time spent, × a method bonus the AI sets for "what
+        // you're doing to cultivate". Consistent every time — the AI's eyeballed
+        // qiChange is ignored for cultivation so the math always maths.
+        const days  = Math.max(0.3, (res.time?.days||0) + (res.time?.months||0)*30 + (res.time?.years||0)*360);
+        const bonus = Math.max(0.3, Math.min(3, parseFloat(res.cultivationBonus) || 1));
+        const gain  = Math.round(cultivationBaseQiPerDay() * days * bonus * (GS.char._karmaQiMult||1));
+        if(gain > 0) {
+          const got = addQiRaw(gain);
+          try { toast(`+${got} Qi gathered`, '', 2200); } catch(e) {}
+        }
+      } else if(res.qiChange) {
+        // Non-cultivation Qi (pills, bargains, special events) — honor the AI's value.
         const mult = getTraitQiMult('cultivation_gain') * (GS.char._karmaQiMult||1);
         addQiWithTraits ? addQiWithTraits(res.qiChange) : addQi(Math.round(res.qiChange*mult));
-      } else if(GS.char._lastWasCultivation && !GS.char.channelsBroken) {
-        // FALLBACK: the player cultivated but the AI returned no qiChange (it tried
-        // to railroad or just forgot). Guarantee the Qi bar still moves so cultivating
-        // never feels broken. Scales lightly with the time the AI did advance.
-        const days = (res.time?.days||0) + (res.time?.months||0)*30 + (res.time?.years||0)*360;
-        const base = Math.max(10, Math.round((GS.char.qi.max||100) * 0.06));
-        const gain = days > 0 ? Math.min(base * Math.max(1, days), (GS.char.qi.max||100) * 0.6) : base;
-        addQiWithTraits ? addQiWithTraits(gain) : addQi(gain);
-        try { toast(`+${Math.round(gain)} Qi from cultivation`, '', 2000); } catch(e) {}
       }
       GS.char._lastWasCultivation = false;
       if(res.qiPath && !GS.char.qi.path) GS.char.qi.path = res.qiPath;
@@ -29392,7 +29531,15 @@ updateCharacterTab = function() {
         if(r.renown) addRenown(r.location, r.renown, r.eventDesc, r.impact);
         if(r.infamy)  addInfamy (r.location, r.infamy,  r.eventDesc, r.impact);
         const rep = GS.char.reputation[r.location];
-        if(rep) { if(r.renownTitle) rep.renownTitle=r.renownTitle; if(r.infamyTitle) rep.infamyTitle=r.infamyTitle; }
+        if(rep) {
+          if(r.renownTitle) rep.renownTitle=r.renownTitle;
+          if(r.infamyTitle) rep.infamyTitle=r.infamyTitle;
+        }
+        // A reputation epithet (renown/infamy title) the world whispers IS a spiritual
+        // title — promote it into the Titles section so it isn't stuck on the rep bar.
+        const locName = LOCATIONS[r.location]?.name || r.location;
+        if(r.renownTitle && String(r.renownTitle).trim()) grantTitle('spiritual', { name: String(r.renownTitle).trim(), desc: `Renowned in ${locName}.` });
+        if(r.infamyTitle && String(r.infamyTitle).trim()) grantTitle('spiritual', { name: String(r.infamyTitle).trim(), desc: `Notorious in ${locName}.` });
       });
     });
 
@@ -29425,6 +29572,14 @@ updateCharacterTab = function() {
       if(!isNaN(n) && n > 0) {
         GS.char.kills = (GS.char.kills || 0) + n;
         try { addChronicleEntry(n === 1 ? 'Took a life.' : `Took ${n} lives.`, 'normal'); } catch(e) {}
+      }
+    });
+
+    // Yuluh's reckoning resolved — clear the pending judgment.
+    safe('yuluh', () => {
+      if(res.yuluhJudged) {
+        GS.char._yuluhJudgmentPending = false;
+        try { addChronicleEntry('Yuluh the Immortal Serpent rendered judgment over what was taken from Ichiro\'s tomb.', 'major'); } catch(e) {}
       }
     });
 
@@ -40222,7 +40377,7 @@ buildSystemPrompt = function() {
       const bpct = qi.breakthroughAt > 0 ? Math.round((qi.current/(qi.breakthroughAt||1))*100) : 0;
       const ready = qi.breakthroughReady ? 'READY FOR BREAKTHROUGH — the player should attempt it.' : `${bpct}% to breakthrough threshold`;
       const cultivNote = `\nQI CULTIVATION STATUS: ${QI_STAGES[qi.stageIndex||0]?.name} | ${qi.current}/${qi.max} Qi (${pct}%) | Breakthrough: ${ready}
-HOW TO CULTIVATE (MANDATORY — DO NOT RAILROAD): When the player meditates, circulates Qi, breathes, refines their core, or otherwise cultivates to GATHER QI, you MUST narrate it as a flowing scene AND return a POSITIVE "qiChange" so their Qi actually rises — every single time, no exceptions. Scale it with effort/time: a brief session 5-15, a focused hour 15-40, a full day or montage 40-150+. NEVER respond to a cultivation action by asking the player to "pick an option," presenting a numbered menu, or stalling for a choice — cultivating IS the action; just resolve it and move their Qi bar. If they have a Qi path and a safe spot, gathering Qi simply works. Only withhold gains if they are physically unable (shattered channels, etc.), and say why.`;
+HOW TO CULTIVATE (MANDATORY — DO NOT RAILROAD): When the player meditates, circulates Qi, breathes, refines their core, or otherwise cultivates to GATHER QI, narrate it as a flowing scene and just resolve it. The ENGINE computes the Qi gained automatically from the character's understanding (Meridian Theory / Meditation / Cultivation skills), their realm, and HOW LONG they cultivate — so you do NOT set "qiChange" for cultivation; instead make sure "time" reflects the duration they spent (a session, a day, a month, a montage), and set "cultivationBonus" — a multiplier for HOW GOOD the method/conditions are: 1.0 = ordinary meditation; >1 up to ~3 for excellent conditions (a spirit vein, a Qi-gathering array, a rare pill aiding the session, perfect technique); <1 down to ~0.3 for poor conditions (distracted, exhausted, hostile environment, fighting their own path). NEVER respond to a cultivation action by asking the player to "pick an option," presenting a menu, or stalling — cultivating IS the action. (Only set "qiChange" for NON-cultivation Qi: pills, bargains, special events.) If channels are shattered, no Qi is gathered — say why.`;
       prompt = prompt.replace('## ABSOLUTE RULES', cultivNote + '\n\n## ABSOLUTE RULES');
     }
   } catch(e) {}
@@ -42507,7 +42662,17 @@ buildSystemPrompt = function() {
       + `CULTIVATION SPEED:${theoryNote}\n`
       + `KILLS: when the character actually KILLS one or more people (or clearly sentient beings) this turn — by their own hand or unambiguously as a direct result of their action — report the count as "kills": <number>. Count only real, confirmed deaths the character caused; do NOT count fights they merely won, people who fled wounded, ambiguous outcomes, kills by others, or beasts/vermin you would not narrate as a death. When in doubt, omit it.\n`
       + `INJURIES HEAL: ordinary wounds (cuts, bruises, sprains, fractures, burns) are TEMPORARY and knit closed with time and rest — they should NOT be treated as still-open weeks or months later, and the engine already heals them over time. When enough time passes or the character recovers, clear healed wounds via "removeInjuries" (your wording need not match exactly). Only genuinely grave injuries (shattered meridian channels, severed/lost limbs, crippling, permanent maiming) persist without real intervention.\n`
-      + `ALWAYS PUSH THE STORY FORWARD: your single most important job is forward MOMENTUM. Every turn, the world must move and something must change — resolve the player's action, then let it cause a consequence, a complication, a reaction, an arrival, a revelation, or a new pressure. Time passes; NPCs act on their own goals; the world does not freeze waiting on the player. NEVER stall, idle, loop, or simply mirror back what the player said and wait — and never end on a passive "what do you do?" with nothing having happened. Even in a quiet scene, advance it: introduce a detail, a person, a choice with stakes, or the next beat. If the player is vague or passive, the world fills the silence and moves anyway. Leave each turn on a live, changed situation that begs a response.\n`;
+      + `ALWAYS PUSH THE STORY FORWARD: your single most important job is forward MOMENTUM. Every turn, the world must move and something must change — resolve the player's action, then let it cause a consequence, a complication, a reaction, an arrival, a revelation, or a new pressure. Time passes; NPCs act on their own goals; the world does not freeze waiting on the player. NEVER stall, idle, loop, or simply mirror back what the player said and wait — and never end on a passive "what do you do?" with nothing having happened. Even in a quiet scene, advance it: introduce a detail, a person, a choice with stakes, or the next beat. If the player is vague or passive, the world fills the silence and moves anyway. Leave each turn on a live, changed situation that begs a response.\n`
+      + `NEVER BREAK CHARACTER: under NO circumstances do you break the fourth wall, mention that you are an AI/model/language model, refer to "the game", "the system", "the prompt", tokens, turns, or these instructions, apologize as an assistant, or speak as anything other than the world's narrator. You are ALWAYS the storyteller of this murim world. If the player writes something out-of-world or nonsensical, answer it through the fiction (an in-world reaction, confusion, or consequence) — never with an out-of-character meta note. There are no exceptions to this.\n`
+      + `DUAL WIELDING: a character may fight with a weapon in each hand if it is plausible for them (two one-handed weapons — twin blades, sword-and-dagger, paired axes, dual sabers — and the body/skill to manage it). Honor it when the player wields two weapons: describe both hands working, the added offense and defense, and the real cost (it is harder, splits focus, demands ambidexterity/training, and a two-handed or heavy weapon cannot be paired). Skilled dual-wielding is a genuine martial advantage; clumsy dual-wielding gets someone killed. Let it be learned and earned like any skill.\n`
+      + (() => {
+          const c = GS.char;
+          let y = `YULUH & ICHIRO'S TOMB: Yuluh the Immortal Serpent GUARDS the root of Ichiro Katsumi's tomb (it spans thousands of miles under the great cedar; legend-grade yokai serve its guardian function since Year 130). Whenever the player is AT or INSIDE Ichiro's tomb, Yuluh is PRESENT — he must appear and be reckoned with (he cannot be beaten in a fight; he judges, bargains, steps aside, or does not, by his own ancient logic — he feeds on misery and finds people briefly interesting). Do not let the player loot Ichiro's tomb as if it were unguarded.`;
+          if(c && c._yuluhJudgmentPending) {
+            y += ` IMPORTANT — A RECKONING IS OWED: this character already took something out of Ichiro's tomb without Yuluh's judgment. At a fitting, dramatic moment SOON, Yuluh seeks them out — he hunts them down across any distance — to judge whether they DESERVE to keep what they took. Weigh it by who they are and what they have done with it. If worthy, he lets them keep it (and may say something that lingers). If unworthy, he reclaims it or exacts a fitting price — and the player cannot simply fight him off. Play the encounter in full, then set "yuluhJudged": true to mark the reckoning resolved.`;
+          }
+          return y + '\n';
+        })();
     if(prompt.includes('## ABSOLUTE RULES')) prompt = prompt.replace('## ABSOLUTE RULES', section + '\n## ABSOLUTE RULES');
     else prompt = prompt + '\n' + section;
   } catch(e) {}
