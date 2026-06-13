@@ -11687,7 +11687,7 @@ window.addEventListener('pagehide', () => { doAutosave(true); });
 // Scheme: MAJOR.MINOR. Big updates bump MAJOR (1.2 -> 2.2). Small updates
 // bump MINOR (2.2 -> 2.3). Each version has a name. The current version is
 // stamped onto every save; older saves can be updated to the latest.
-const GAME_VERSION = { number: '3.28', name: 'Mastery & Reckoning' };
+const GAME_VERSION = { number: '3.29', name: 'Drill It In' };
 
 // Which model generates the story. Lite Mode swaps to a far cheaper, faster model
 // (Claude Haiku) so long sessions / limited credits cost a fraction per turn.
@@ -11741,6 +11741,7 @@ const VERSION_HISTORY = [
   { number:'3.26', name:'An Honest Wage', sys:'Jobs finally stick — and they pay. When you get hired, apprenticed, or taken on (like training under a blacksmith), the occupation now actually registers, shows on your character sheet, and earns you a monthly WAGE automatically as time passes. If the storyteller narrates a hire but forgets to log it, the game now catches it and records the job for you. Informal training and apprenticeships also show up under Education now, not just formal schools.', note:'Occupation income: occupation.income (silver/month) + estimateOccupationIncome(title) fallback; tickOccupationIncome in time tick (accrues via _occIncomeAccrual, addSilver, no pay in prison). detectOccupationFromNarrative fallback when res.occupation lacks a title (hiring-verb + title/trade capture, only when no current job; spawns matching apprenticeship education). addInformalEducation + applyEducationFromAI (newEducation field) so apprenticeship/tutelage registers in Education (institution:null). JSON template: occupation now an object w/ income + newEducation[]; strengthened occupation prompt rule (MUST set field on hire, pick a wage). Char-tab occupation block shows Wage + informal education renders. Migration via estimate for old saves.' },
   { number:'3.27', name:'Two Made One', sys:'Combining techniques now works exactly like offshoots: you still pick the two arts to fuse, but the STORY decides what comes of it. No more instant client-side fusion — the narrator judges whether the two genuinely combine (they can clash and fail, dangerously), and if they do, it invents the new art itself: its name, its bio, and what it does, as something more than the sum of its parts. Fused arts start unlearned and are practiced up like anything else.', note:'requestCombination(t1,t2) mirrors requestOffshoot: context-rich FUSE TECHNIQUES injection (both parents + cultivation + beast arts), gated stage>=2 on both, sendToAI. AI returns newCombinations[{parents,name,type,rarity,desc}] → applyCombinationsFromAI (creates real technique, AI bio, stage 0, isCombination, parents linked) wired into outermost wireTechAuthoring wrapper. Combine picker now calls requestCombination (button "Fuse", dropped client-side compat preview/createCombinedTechnique path). JSON template + TECHNIQUE COMBINATION RULE rewritten (AI authors via newCombinations, may fail, not via newTechniques).' },
   { number:'3.28', name:'Mastery & Reckoning', sys:'A big batch. Higher cultivation realms now master techniques and martial arts noticeably FASTER (the practice numbers were the mortal baseline). Qi gathering is fixed and consistent: the amount you gather now comes from a clear formula — your understanding of Qi (Meridian Theory, Meditation, Cultivation) and your realm set a fixed rate per day, and "what you\'re doing to cultivate" (a spirit vein, a pill, ideal conditions) is a bonus on top — so a day and a month finally add up. Reputation epithets like "Young Prodigy" now actually appear under your Spiritual Titles (and old saves get fixed on load). Yuluh the Immortal Serpent now guards Ichiro\'s tomb properly — and anyone who looted it before this update will be hunted down and judged over whether they deserve to keep what they took. You can now DUAL WIELD (wield a one-handed weapon in your off-hand). You can click your Race to see your stats, nature, and culture — and your race is now woven into your opening story. And the storyteller will never break character, under any circumstance.', note:'#1 practiceNeeded(stage,isMA) applies practiceStageDiscount (1 - min(.65, stageIndex*.05)); wired into record(Technique/Martial)Use + card hints. #2 cultivation rework: cultivationBaseQiPerDay() (5 + mt*1.6+med*1.3+cult*1.0, ×(1+stage*.18)) + addQiRaw (trait mult, no theory double-count); qi safe block now engine-authoritative on _lastWasCultivation (base×days×cultivationBonus×karma), ignores AI qiChange for cultivation; cultivationBonus field + HOW TO CULTIVATE prompt rewrite. #3 grantTitle silent param + reputation handler/syncReputationTitles promote renownTitle/infamyTitle → spiritualTitles (+ load-time sync for old saves). #4 _yuluhJudgmentPending (migration flags Ichiro-tomb looters) + late prompt YULUH rule + res.yuluhJudged clears. #5 dual wield: isTwoHanded/canDualWield/equipOffhand + item-offhand-btn. #6 NEVER BREAK CHARACTER late prompt rule. #7 showRaceDetail() popup (click char-race) + RACE MANDATE woven into generateOpeningNarrative.' },
+  { number:'3.29', name:'Drill It In', sys:'Practice counts now. If you say you run a technique or form "eight times" (or a dozen reps, or drill it all day, over and over), that whole session counts toward mastery — not just one. A focused practice turn can carry you up a stage or two, with no wasted effort, though the very top of a technique still needs a real revelation rather than raw repetition.', note:'parsePracticeReps(msg): digit+unit ("8 times/reps/rounds/forms/swings…") + word-numbers ("eight times", "a dozen reps") + vague intensity ("all day", "over and over") → 6; capped at 12. Passed into record(Technique/Martial)Use(id, times) from the detect loop in buildTechCostInjection. Base record fns rewritten to ADD `times` points and loop-advance carrying overflow (guard-capped; stage 5→6 insight gate preserved). Threaded `reps` through the mentor + expression recordTechniqueUse wrappers (were dropping the arg). buildTechStageInjection practiceLeft now uses practiceNeeded.' },
 ];
 
 function cleanSaveData(gs) {
@@ -18529,26 +18530,53 @@ const STAGE_CAPABILITIES = [
 ];
 
 // Record a technique use and award practice points
-function recordTechniqueUse(techId) {
+// How many practice repetitions the player declared this turn. "I run the form
+// eight times" should count as eight toward mastery (capped so one turn can't max
+// an art, but a focused session genuinely moves it).
+const _WORD_NUM = { a:1, an:1, one:1, two:2, three:3, four:4, five:5, six:6, seven:7, eight:8, nine:9, ten:10,
+  eleven:11, twelve:12, dozen:12, fifteen:15, twenty:20, thirty:30, fifty:50, hundred:100, thousand:1000 };
+function parsePracticeReps(msg) {
+  const REP_CAP = 12;
+  if(!msg || typeof msg !== 'string') return 1;
+  const m = msg.toLowerCase();
+  // "<number> times/reps/rounds/forms/sets/passes/cycles/strikes/swings"
+  const unit = '(?:times?|reps?|repetitions?|rounds?|sets?|passes|cycles?|forms?|strikes?|swings?|cuts?|drills?|iterations?)';
+  let best = 0;
+  let re = new RegExp('(\\d{1,4})\\s*' + unit, 'g'), x;
+  while((x = re.exec(m))) best = Math.max(best, parseInt(x[1]) || 0);
+  // word-number + unit, e.g. "eight times", "a dozen reps", "a hundred swings"
+  const wn = '(?:a|an|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|dozen|fifteen|twenty|thirty|fifty|hundred|thousand)';
+  re = new RegExp('\\b' + wn + '\\s*(?:hundred|thousand)?\\s*' + unit, 'g');
+  while((x = re.exec(m))) {
+    const words = x[0].split(/\s+/).slice(0, -1);
+    let val = 0; words.forEach(w => { if(_WORD_NUM[w]) val = val ? val * (_WORD_NUM[w] >= 100 ? _WORD_NUM[w] : 1) + (_WORD_NUM[w] < 100 ? _WORD_NUM[w] : 0) : _WORD_NUM[w]; });
+    best = Math.max(best, val);
+  }
+  // vague intensity / long sessions → a solid bonus
+  if(best <= 1 && /\b(all day|all night|for hours|hour after hour|again and again|over and over|countless|endlessly|tirelessly|relentlessly|without (?:rest|stopping)|until (?:exhaustion|i collaps|dawn|dusk|nightfall)|hundreds?|thousands?|dozens?|repeatedly|drilled? it (?:hard|relentlessly)|deep into the night)\b/.test(m)) best = 6;
+  return Math.max(1, Math.min(REP_CAP, best || 1));
+}
+
+function recordTechniqueUse(techId, times=1) {
   const t = GS.char.techniques.find(t => t.id === techId);
   if(!t || t.stage >= 6) return;
 
-  t.practicePoints = (t.practicePoints || 0) + 1;
-  const needed = practiceNeeded(t.stage, false);
-  if(!needed) return;
-
-  // Stage 5→6 requires a special insight event, not just practice
-  if(t.stage === 5 && t.practicePoints >= needed) {
-    if(!t._awaitingInsight) {
-      t._awaitingInsight = true;
-      addPersonalEvent(`You feel that your mastery of ${t.name} is pressing against a ceiling. The practice is done — something else is required now. A realization. A moment.`);
+  t.practicePoints = (t.practicePoints || 0) + Math.max(1, times|0);
+  // A focused session (many reps in one turn) can carry overflow into the next
+  // stage — no practice is wasted — but the stage 5→6 ceiling still needs a real insight.
+  let guard = 0;
+  while(t.stage < 6 && guard++ < 6) {
+    const needed = practiceNeeded(t.stage, false);
+    if(!needed || t.practicePoints < needed) break;
+    if(t.stage === 5) { // insight gate — practice alone won't cross it
+      if(!t._awaitingInsight) {
+        t._awaitingInsight = true;
+        addPersonalEvent(`You feel that your mastery of ${t.name} is pressing against a ceiling. The practice is done — something else is required now. A realization. A moment.`);
+      }
+      break;
     }
-    return;
-  }
-
-  if(t.practicePoints >= needed) {
+    t.practicePoints -= needed;
     t.stage = Math.min(6, t.stage + 1);
-    t.practicePoints = 0;
     toast(`${t.name} → ${TECH_STAGES[t.stage]?.name || 'Advanced'}`, 'gold', 4000);
     updateSkillsTab();
     addPersonalEvent(`${t.name} has advanced to ${TECH_STAGES[t.stage]?.name}. ${TECH_STAGES[t.stage]?.desc || ''}`);
@@ -18556,15 +18584,16 @@ function recordTechniqueUse(techId) {
 }
 
 // Record a martial-art use and award practice toward its next stage (narrative practice only).
-function recordMartialUse(maId) {
+function recordMartialUse(maId, times=1) {
   const m = GS.char.martialArts.find(m => m.id === maId);
   if(!m || m.stage >= 7) return;
-  m.practicePoints = (m.practicePoints || 0) + 1;
-  const needed = practiceNeeded(m.stage, true);
-  if(!needed) return;
-  if(m.practicePoints >= needed) {
+  m.practicePoints = (m.practicePoints || 0) + Math.max(1, times|0);
+  let guard = 0;
+  while(m.stage < 7 && guard++ < 7) {
+    const needed = practiceNeeded(m.stage, true);
+    if(!needed || m.practicePoints < needed) break;
+    m.practicePoints -= needed;
     m.stage = Math.min(7, m.stage + 1);
-    m.practicePoints = 0;
     toast(`${m.name} → ${MARTIAL_STAGES[m.stage]?.name || 'Advanced'}`, 'gold', 4000);
     updateSkillsTab();
     addPersonalEvent(`${m.name} has advanced to ${MARTIAL_STAGES[m.stage]?.name}. ${MARTIAL_STAGES[m.stage]?.desc || ''}`);
@@ -18577,7 +18606,7 @@ function buildTechStageInjection(tech, isMA=false) {
   const caps = STAGE_CAPABILITIES[Math.min(tech.stage || 0, 6)];
   const failRate = STAGE_FAILURE_RATES[Math.min(tech.stage || 0, 6)];
   const partialRate = STAGE_PARTIAL_RATES[Math.min(tech.stage || 0, 6)];
-  const practiceLeft = tech.stage < 6 ? (PRACTICE_TO_ADVANCE[tech.stage] || 0) - (tech.practicePoints || 0) : 0;
+  const practiceLeft = tech.stage < 6 ? (practiceNeeded(tech.stage, isMA) || 0) - (tech.practicePoints || 0) : 0;
 
   const lines = [`${tech.name} — Stage ${tech.stage}: ${stage.name}`];
   lines.push(stage.desc);
@@ -18627,10 +18656,12 @@ buildTechCostInjection = function(msg) {
   if(!techniques.length) return baseCostInject;
 
   // Record practice for used techniques AND martial arts — narrative use is the
-  // only way to advance a stage now (no click-to-progress button).
+  // only way to advance a stage now (no click-to-progress button). If the player
+  // states a count ("I practice it 8 times", "a hundred reps", "all day"), honor it.
+  const reps = parsePracticeReps(msg);
   techniques.forEach(t => {
-    if(t._isTech && t.id) recordTechniqueUse(t.id);
-    else if(t._isMA && t.id) recordMartialUse(t.id);
+    if(t._isTech && t.id) recordTechniqueUse(t.id, reps);
+    else if(t._isMA && t.id) recordMartialUse(t.id, reps);
   });
 
   // Add detailed stage context for each technique
@@ -21195,7 +21226,7 @@ function getMentorBonuses() {
 
 // Apply mentor bonus to practice tracking
 const _recordWithMentor = recordTechniqueUse;
-recordTechniqueUse = function(techId) {
+recordTechniqueUse = function(techId, reps=1) {
   const t = GS.char.techniques.find(t => t.id === techId);
   if(!t || t.stage >= 6) return;
 
@@ -21203,9 +21234,9 @@ recordTechniqueUse = function(techId) {
   const isMentorSubject = bonuses.categories.has(t.category) || bonuses.techniqueNames.includes(t.name);
   const mult     = isMentorSubject ? bonuses.practiceMultiplier : 1.0;
 
-  // Apply multiple practice points if mentor covers this area
-  const times = Math.round(mult);
-  for(let i = 0; i < times; i++) _recordWithMentor(techId);
+  // Thread the declared repetition count through, scaled by any mentor bonus.
+  const total = Math.max(1, Math.round((reps|0||1) * mult));
+  _recordWithMentor(techId, total);
 };
 
 // Build mentor context for AI
@@ -22448,17 +22479,14 @@ calcTechQiCost = function(tech) {
 
 // Patch recordTechniqueUse to use expression learn bonus
 const _exprPatchedRecord = recordTechniqueUse;
-recordTechniqueUse = function(techId) {
+recordTechniqueUse = function(techId, reps=1) {
   const t = GS.char.techniques.find(t => t.id === techId);
   if(!t || t.stage >= 6) return;
+  const base = Math.max(1, reps|0);
   const learnBonus = getExpressionLearnBonus(t.category || '');
-  if(learnBonus > 0) {
-    // Apply extra practice points from expression alignment
-    const extra = Math.round(learnBonus * 3);
-    for(let i = 0; i < extra; i++) _exprPatchedRecord(techId);
-  } else {
-    _exprPatchedRecord(techId);
-  }
+  // Expression alignment gives a percentage boost on top of the declared reps.
+  const total = learnBonus > 0 ? Math.max(base, Math.round(base * (1 + learnBonus))) : base;
+  _exprPatchedRecord(techId, total);
 };
 
 // Add expression and sect to system prompt
