@@ -10320,6 +10320,52 @@ function applyOffshootsFromAI(res) {
   updateSkillsTab();
 }
 
+// Combining works exactly like offshoots: the player picks two techniques to fuse,
+// but the STORY (AI) decides whether they actually combine and authors the result.
+function requestCombination(t1Id, t2Id) {
+  const c = GS.char;
+  const t1 = c.techniques.find(t => t.id === t1Id);
+  const t2 = c.techniques.find(t => t.id === t2Id);
+  if(!t1 || !t2 || t1.id === t2.id) return;
+  if((t1.stage||0) < 2 || (t2.stage||0) < 2) {
+    toast(`You need a firmer grasp of both ${t1.name} and ${t2.name} before you can try to fuse them.`, 'error', 4000);
+    return;
+  }
+  const qi = c.qi || {};
+  const cultiv = `${getQiStage()?.name || 'Mortal'}${qi.path ? ', '+qi.path+' Qi' : ''}${qi.expression ? ', '+qi.expression+' expression' : ''}`;
+  const desc = t => `"${t.name}" (${t.rarity||'common'}, ${t.category||''}${t.type?'/'+t.type:''}) at ${TECH_STAGES[t.stage]?.name||'?'} — ${t.desc || 'no description'}`;
+  const beasts = (c._ancientQiBeasts||[]).map(k=>ANCIENT_QI_BEASTS[k]?.name).filter(Boolean);
+  const msg = `I try to fuse my two techniques "${t1.name}" and "${t2.name}" — weaving them together into a single new art.\n\n`
+    + `[FUSE TECHNIQUES — the STORY authors this, not the player. The character is deliberately trying to combine two of their own techniques into one new art:\n`
+    + `  Parent 1: ${desc(t1)}.\n`
+    + `  Parent 2: ${desc(t2)}.\n`
+    + `  The character's cultivation: ${cultiv}.${beasts.length?` Beast-Qi arts learned: ${beasts.join(', ')}.`:''}\n`
+    + `Decide — from the two parents, the character's path/expression/level, and how this moment goes — WHETHER the two genuinely fuse into something new. They MAY clash and fail (a dangerous mismatch — narrate the misfire, Qi deviation, or wasted effort, and produce nothing). If and ONLY if it works, INVENT the fused art yourself: its NAME, a real BIO (what it is and how it feels), and what it DOES — it must be MORE than the sum of its parts and distinct from BOTH parents, never "[A] + [B]". Return it via "newCombinations" as { "parents": ["${t1.name}","${t2.name}"], "name": "<you choose>", "type": "<...>", "rarity": "<= the higher parent>", "desc": "<the bio you wrote>" }. A fused art starts unlearned and must be practiced up. Narrate the attempt and what came (or didn't come) of it.]`;
+  sendToAI(msg);
+}
+
+function applyCombinationsFromAI(res) {
+  const list = res && res.newCombinations;
+  if(!Array.isArray(list) || !list.length) return;
+  const norm = s => (s||'').toString().trim().toLowerCase();
+  list.forEach(o => {
+    if(!o || !o.name) return;
+    if(GS.char.techniques.some(t => norm(t.name) === norm(o.name))) return; // already exists
+    const parents = (o.parents || []).map(p => GS.char.techniques.find(t => norm(t.name) === norm(p))).filter(Boolean);
+    const p1 = parents[0];
+    const bio = sanitizeTechDesc((o.desc || '').trim()) || 'A fused art with its own character, born of two disciplines.';
+    const headStart = parents.length ? Math.floor(parents.reduce((s,p)=>s+(p.stage||0),0) * 1.5) : 0;
+    const created = grantTechnique({
+      name: o.name, category: o.category || p1?.category || 'conceptual',
+      type: o.type || p1?.type || 'attack', rarity: o.rarity || p1?.rarity || 'rare',
+      desc: bio, source: `Fusion of ${parents.map(p=>p.name).join(' and ') || 'two arts'}`,
+      qiPathReq: o.qiPathReq ?? (p1?.qiPathReq && parents[1]?.qiPathReq === p1.qiPathReq ? p1.qiPathReq : null),
+    });
+    if(created) { created.practicePoints = headStart; created.isCombination = true; created.parents = parents.map(p=>p.id); }
+  });
+  updateSkillsTab();
+}
+
 function createTome(id, type) {
   const item = type==='tech' ? GS.char.techniques.find(t=>t.id===id) : GS.char.martialArts.find(m=>m.id===id);
   if(!item) return;
@@ -10985,7 +11031,7 @@ TECHNIQUE NAMING RULE: Every technique and martial art MUST have a real, evocati
 
 TECHNIQUE BIO RULE: When you create a technique via newTechniques, the "desc" is a flavorful description of WHAT it does — never bake a mastery stage into it. Do NOT write "Stage 0," "Fragmented Comprehension," "current mastery," etc. into the desc. The game tracks mastery separately and tells you the real current stage in [TECHNIQUE STAGE CONTEXT]. Always trust that stage context: a technique the player has raised to Conceptual Authority is mastered and stable — do NOT make it backlash or "explode" as if it were fragmented. Backlash only when the stage context itself reports a high failure chance.
 
-TECHNIQUE COMBINATION RULE: When the player fuses/combines two techniques, the result is a NEW technique with its OWN original name and its OWN distinct function — NEVER name it "[Technique A] + [Technique B]". Invent a single new name and describe a unique combined effect that is more than the sum of its parts. Emit it as one entry in newTechniques.
+TECHNIQUE COMBINATION RULE: Combining works exactly like offshoots — the player chooses two techniques to fuse, but YOU author the result. When the player fuses two techniques (a "FUSE TECHNIQUES" request, or organically in the story), YOU decide whether they genuinely combine — they MAY clash and fail (narrate the misfire / Qi deviation / wasted effort and produce nothing). If and ONLY if it works, invent a single NEW technique with its OWN original name and OWN distinct function — MORE than the sum of its parts, distinct from both parents, NEVER "[Technique A] + [Technique B]" — and return it via "newCombinations": { "parents": ["A","B"], "name": "...", "type": "...", "rarity": "<= the higher parent", "desc": "a real bio" }. A fused art starts unlearned and is practiced up. (Do NOT emit fusions via newTechniques.)
 
 TOME vs BOOK RULE: There are two kinds of readable item. A "tome" teaches Qi techniques or martial arts (type:"tome"). A "book" teaches skills or conveys knowledge/lore only — never a combat technique (type:"book"). Choose the correct type. Do NOT re-list a tome or book the player already owns in newItems — it is already permanent in their inventory and re-listing it creates a duplicate. Only emit a tome/book in newItems the first time they actually acquire it.
 
@@ -11595,7 +11641,7 @@ window.addEventListener('pagehide', () => { doAutosave(true); });
 // Scheme: MAJOR.MINOR. Big updates bump MAJOR (1.2 -> 2.2). Small updates
 // bump MINOR (2.2 -> 2.3). Each version has a name. The current version is
 // stamped onto every save; older saves can be updated to the latest.
-const GAME_VERSION = { number: '3.26', name: 'An Honest Wage' };
+const GAME_VERSION = { number: '3.27', name: 'Two Made One' };
 
 // Which model generates the story. Lite Mode swaps to a far cheaper, faster model
 // (Claude Haiku) so long sessions / limited credits cost a fraction per turn.
@@ -11647,6 +11693,7 @@ const VERSION_HISTORY = [
   { number:'3.24', name:'Never Lose a Run', sys:'Real autosave so an accidental tab close never wipes a run again. The game now saves automatically after every turn AND the moment you close, switch, or background the tab — and your most recent run shows up as a one-click "Resume" at the top of the Continue list (and on the main-menu Continue button itself). No more losing a Qi Condensation character to a stray click.', note:'AUTOSAVE_KEY=murim_autosave; doAutosave(force) (guards: real char + turn>=1 + game screen, 1.5s throttle) replaces the old every-10-turns gate — now runs every applyAIResponse + on beforeunload/visibilitychange(hidden)/pagehide. getAutosaveMeta(); loadAutosave()+loadGameFromRaw() refactor (loadFromSlot reuses it). renderContinueSlots prepends a gold autosave entry with Resume; showMainMenu updates #menu-continue label to "Resume — <name>, <stage>" when an autosave exists.' },
   { number:'3.25', name:'Forward Momentum', sys:'Advancing a technique or martial art no longer takes forever — the practice needed per stage is dramatically lower (early stages are just a few uses in the story now). Renown and infamy now push against each other: building a glowing reputation buries some of your notoriety, and a notorious turn tarnishes your good name (you can still be both famous and feared, but they pull in opposite directions). And the storyteller is now told, plainly, that its first job every turn is to push the story forward — no stalling, idling, or ending on a passive "what do you do?" with nothing having happened.', note:'PRACTICE_TO_ADVANCE 8/20/45/85/140/210 → 3/5/8/12/18/26; MA_PRACTICE_TO_ADVANCE 6/16/36/70/115/175/260 → 3/5/8/12/17/24/34. Renown/Infamy cross-erosion: active addRenown/addInfamy (12916/12930) now reduce the opposite stat by REP_CROSS(0.5)×gain on positive gains only (applies through the dynamic/domain wrappers + AI res.reputation path). Late _bspWithProgression prompt: added ALWAYS PUSH THE STORY FORWARD rule (momentum, consequences, world acts, never stall/idle/loop/passive-prompt).' },
   { number:'3.26', name:'An Honest Wage', sys:'Jobs finally stick — and they pay. When you get hired, apprenticed, or taken on (like training under a blacksmith), the occupation now actually registers, shows on your character sheet, and earns you a monthly WAGE automatically as time passes. If the storyteller narrates a hire but forgets to log it, the game now catches it and records the job for you. Informal training and apprenticeships also show up under Education now, not just formal schools.', note:'Occupation income: occupation.income (silver/month) + estimateOccupationIncome(title) fallback; tickOccupationIncome in time tick (accrues via _occIncomeAccrual, addSilver, no pay in prison). detectOccupationFromNarrative fallback when res.occupation lacks a title (hiring-verb + title/trade capture, only when no current job; spawns matching apprenticeship education). addInformalEducation + applyEducationFromAI (newEducation field) so apprenticeship/tutelage registers in Education (institution:null). JSON template: occupation now an object w/ income + newEducation[]; strengthened occupation prompt rule (MUST set field on hire, pick a wage). Char-tab occupation block shows Wage + informal education renders. Migration via estimate for old saves.' },
+  { number:'3.27', name:'Two Made One', sys:'Combining techniques now works exactly like offshoots: you still pick the two arts to fuse, but the STORY decides what comes of it. No more instant client-side fusion — the narrator judges whether the two genuinely combine (they can clash and fail, dangerously), and if they do, it invents the new art itself: its name, its bio, and what it does, as something more than the sum of its parts. Fused arts start unlearned and are practiced up like anything else.', note:'requestCombination(t1,t2) mirrors requestOffshoot: context-rich FUSE TECHNIQUES injection (both parents + cultivation + beast arts), gated stage>=2 on both, sendToAI. AI returns newCombinations[{parents,name,type,rarity,desc}] → applyCombinationsFromAI (creates real technique, AI bio, stage 0, isCombination, parents linked) wired into outermost wireTechAuthoring wrapper. Combine picker now calls requestCombination (button "Fuse", dropped client-side compat preview/createCombinedTechnique path). JSON template + TECHNIQUE COMBINATION RULE rewritten (AI authors via newCombinations, may fail, not via newTechniques).' },
 ];
 
 function cleanSaveData(gs) {
@@ -14045,6 +14092,7 @@ The JSON carries ONLY state changes. There is NO "narrative" field in the JSON �
   "newTechniques": [{ "name": "", "category": "", "type": "", "rarity": "", "desc": "", "source": "" }],
   "newMartialArts": [{ "name": "", "type": "physical|qi", "rarity": "", "desc": "", "source": "" }],
   "newOffshoots": [{ "parent": "existing technique/art it diverged from", "name": "", "kind": "tech|ma", "type": "", "rarity": "", "desc": "a real bio of what this offshoot IS and does — not 'a variant of X'" }],
+  "newCombinations": [{ "parents": ["technique A", "technique B"], "name": "", "type": "", "rarity": "", "desc": "a real bio of the fused art — more than the sum of its parts, never 'A + B'" }],
   "injuries": ["string only — no objects"],
   "illnesses": ["string only"],
   "scars": ["string only"],
@@ -23506,16 +23554,13 @@ function openCombineModal(sourceTechId) {
   picker = document.createElement('div');
   picker.className = 'combo-picker';
   picker.style.cssText = 'margin-top:10px;padding:10px;background:var(--s3);border:1px solid var(--border2);border-radius:6px;';
-  picker.innerHTML = `<div style="font-size:11px;color:var(--muted);margin-bottom:8px">Choose a technique to combine with <strong>${source.name}</strong>:</div>` +
+  picker.innerHTML = `<div style="font-size:11px;color:var(--muted);margin-bottom:8px">Pick a technique to try fusing with <strong>${source.name}</strong>. The result — and whether it works at all — is up to the story.</div>` +
     others.map(t => {
-      const compat = assessTechniqueCompatibility(source, t);
-      const compatColor = compat.ok && !compat.unstable ? 'var(--green)' : compat.ok ? 'var(--gold)' : 'var(--red)';
-      const compatLabel = compat.ok && !compat.unstable ? '✓ Compatible' : compat.ok ? '△ Unstable' : '✗ Incompatible';
+      const ready = (source.stage||0) >= 2 && (t.stage||0) >= 2;
       return `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border)">
         <span style="flex:1;font-size:12px">${t.name} <span style="color:var(--dim)">[${TECH_STAGES[t.stage]?.short}]</span></span>
-        <span style="font-size:10px;color:${compatColor}">${compatLabel}</span>
-        <button class="btn-sm" style="background:var(--s4);border:1px solid var(--border2);color:var(--text);cursor:pointer;padding:3px 8px;font-size:11px;border-radius:4px"
-          onclick="createCombinedTechnique('${sourceTechId}','${t.id}');this.closest('.combo-picker').remove()">Combine</button>
+        <button class="btn-sm" ${ready?'':'disabled'} style="background:var(--s4);border:1px solid var(--border2);color:${ready?'var(--text)':'var(--dim)'};cursor:${ready?'pointer':'default'};padding:3px 8px;font-size:11px;border-radius:4px"
+          onclick="requestCombination('${sourceTechId}','${t.id}');this.closest('.combo-picker').remove()" title="${ready?'':'Both techniques need at least Functional Understanding'}">Fuse</button>
       </div>`;
     }).join('');
   body.appendChild(picker);
@@ -42714,6 +42759,7 @@ buildSystemPrompt = function() {
   applyAIResponse = function(res) {
     _applyForTechAuthoring.apply(this, arguments);
     try { applyOffshootsFromAI(res); } catch(e) { console.error('[offshoots]', e); }
+    try { applyCombinationsFromAI(res); } catch(e) { console.error('[combinations]', e); }
     try {
       const td = res && res.techDefine;
       if(td && td.id) {
