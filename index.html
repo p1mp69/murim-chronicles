@@ -9028,9 +9028,14 @@ function updateCharacterTab() {
     setHTML('occupation-block', '<span class="text-muted italic text-xs">None.</span>');
   } else {
     let html = '';
-    if(occ) html += `<div style="font-size:13px"><span style="color:var(--gold)">${occ.title}</span> <span style="color:var(--muted)">· ${occ.location || ''}</span></div>`;
-    edu.forEach(e => {
-      html += `<div style="font-size:11px;color:var(--muted);margin-top:3px">Studying <em>${e.subject}</em> at ${e.institution} — ${e.status || 'ongoing'}</div>`;
+    if(occ) {
+      const wage = (occ.income != null && occ.income !== '') ? ` <span style="color:var(--green)">· ${formatCoins(occ.income)}/mo</span>` : '';
+      html += `<div style="font-size:13px"><span style="color:var(--gold)">${occ.title}</span> <span style="color:var(--muted)">${occ.location?'· '+occ.location:''}</span>${wage}</div>`;
+    }
+    edu.filter(e => e.status === 'enrolled' || e.status === 'graduated').forEach(e => {
+      const where = e.institution ? ('at ' + (EDUCATION_INSTITUTIONS[e.institution]?.name || e.name || e.institution))
+                  : (e.mentor ? ('under ' + e.mentor) : (e.name || 'private study'));
+      html += `<div style="font-size:11px;color:var(--muted);margin-top:3px">Studying <em>${e.subject || e.name || 'a trade'}</em> ${where} — ${e.status || 'ongoing'}</div>`;
     });
     setHTML('occupation-block', html);
   }
@@ -10908,7 +10913,8 @@ PART 2 — DATA (immediately after the narrative, on its own line):
   "worldEvents": ["narrative text — only real world-scale events"],
   "scheduledEvents": [{ "year": 0, "month": 0, "day": 0, "npcId": "", "desc": "" }],
   "karma": { "righteous": 0, "blood": 0, "demonic": 0, "chaotic": 0 },
-  "occupation": null,
+  "occupation": { "title": "", "location": "", "employer": "", "legal": true, "income": 0, "desc": "how they got the job — SET THIS whenever the player is hired, apprenticed, or given a position" },
+  "newEducation": [{ "name": "what the training is called", "subject": "what is being learned", "mentor": "who teaches them (or null)", "type": "apprenticeship|tutelage|study" }],
   "newItems": [{ "name": "", "type": "(weapon|armor|clothing|accessory|consumable|tome|book|misc)", "slot": null, "rarity": "", "desc": "", "value": 0, "effects": {}, "isTome": false }],
   "removeItems": ["name or id of an item the player sold, gave away, lost, or used up"],
   "newAssets": [{ "name":"", "type":"house|inn|shop|estate|workshop|clinic|hideout|...", "location":null, "how":"inherited|gifted|won|seized|built|bought", "incomePerMonth":0 }],
@@ -11589,7 +11595,7 @@ window.addEventListener('pagehide', () => { doAutosave(true); });
 // Scheme: MAJOR.MINOR. Big updates bump MAJOR (1.2 -> 2.2). Small updates
 // bump MINOR (2.2 -> 2.3). Each version has a name. The current version is
 // stamped onto every save; older saves can be updated to the latest.
-const GAME_VERSION = { number: '3.25', name: 'Forward Momentum' };
+const GAME_VERSION = { number: '3.26', name: 'An Honest Wage' };
 
 // Which model generates the story. Lite Mode swaps to a far cheaper, faster model
 // (Claude Haiku) so long sessions / limited credits cost a fraction per turn.
@@ -11640,6 +11646,7 @@ const VERSION_HISTORY = [
   { number:'3.23', name:'Blood & Healing', sys:'Your character now has a KILL COUNTER (shown on the character sheet), with new achievements at 1, 10, 50, and 100 lives taken. Ordinary wounds finally HEAL: cuts, bruises, sprains, fractures and the like now knit closed with time and rest (faster if you\'re tough or have healing arts), and the storyteller\'s heal-text now actually clears the matching wound even when the wording differs — only grave injuries (shattered channels, lost limbs) still linger. And several achievements that used to pop when they hadn\'t really happened (the God of High School one on a stray phrase, the tomb and public-affection ones on a mere mention) now only fire on the real thing.', note:'KILLS: char.kills + migration; res.kills AI field + safe(kills) increment + JSON template + prompt rule (confirmed deaths only); char-kills display; first_kill now uses kills (not blood karma) + killer_ten/fifty/hundred achievements. INJURY HEALING: addInjury timestamps (_injuryDays); tickInjuryHealing in passive tick (scaled by severity regex, endurance, healing passives, medicine; _isPermanentInjury excluded); removeInjury made fuzzy (exact→normalized containment→canonicalized keyword overlap via _INJURY_SYN wound/body-part synonyms). ACHIEVEMENT FALSE-POSITIVES: god_of_high_school narrative now requires literal "Mori Jin" (dropped borrowed power/monkey king/charyeok); _enteredTomb requires founder-tomb + entry verb (not mere mention); _terezMoment relies only on explicit res.terezMoment AND a partner relationship (removed the fragile crowd-scene regex).' },
   { number:'3.24', name:'Never Lose a Run', sys:'Real autosave so an accidental tab close never wipes a run again. The game now saves automatically after every turn AND the moment you close, switch, or background the tab — and your most recent run shows up as a one-click "Resume" at the top of the Continue list (and on the main-menu Continue button itself). No more losing a Qi Condensation character to a stray click.', note:'AUTOSAVE_KEY=murim_autosave; doAutosave(force) (guards: real char + turn>=1 + game screen, 1.5s throttle) replaces the old every-10-turns gate — now runs every applyAIResponse + on beforeunload/visibilitychange(hidden)/pagehide. getAutosaveMeta(); loadAutosave()+loadGameFromRaw() refactor (loadFromSlot reuses it). renderContinueSlots prepends a gold autosave entry with Resume; showMainMenu updates #menu-continue label to "Resume — <name>, <stage>" when an autosave exists.' },
   { number:'3.25', name:'Forward Momentum', sys:'Advancing a technique or martial art no longer takes forever — the practice needed per stage is dramatically lower (early stages are just a few uses in the story now). Renown and infamy now push against each other: building a glowing reputation buries some of your notoriety, and a notorious turn tarnishes your good name (you can still be both famous and feared, but they pull in opposite directions). And the storyteller is now told, plainly, that its first job every turn is to push the story forward — no stalling, idling, or ending on a passive "what do you do?" with nothing having happened.', note:'PRACTICE_TO_ADVANCE 8/20/45/85/140/210 → 3/5/8/12/18/26; MA_PRACTICE_TO_ADVANCE 6/16/36/70/115/175/260 → 3/5/8/12/17/24/34. Renown/Infamy cross-erosion: active addRenown/addInfamy (12916/12930) now reduce the opposite stat by REP_CROSS(0.5)×gain on positive gains only (applies through the dynamic/domain wrappers + AI res.reputation path). Late _bspWithProgression prompt: added ALWAYS PUSH THE STORY FORWARD rule (momentum, consequences, world acts, never stall/idle/loop/passive-prompt).' },
+  { number:'3.26', name:'An Honest Wage', sys:'Jobs finally stick — and they pay. When you get hired, apprenticed, or taken on (like training under a blacksmith), the occupation now actually registers, shows on your character sheet, and earns you a monthly WAGE automatically as time passes. If the storyteller narrates a hire but forgets to log it, the game now catches it and records the job for you. Informal training and apprenticeships also show up under Education now, not just formal schools.', note:'Occupation income: occupation.income (silver/month) + estimateOccupationIncome(title) fallback; tickOccupationIncome in time tick (accrues via _occIncomeAccrual, addSilver, no pay in prison). detectOccupationFromNarrative fallback when res.occupation lacks a title (hiring-verb + title/trade capture, only when no current job; spawns matching apprenticeship education). addInformalEducation + applyEducationFromAI (newEducation field) so apprenticeship/tutelage registers in Education (institution:null). JSON template: occupation now an object w/ income + newEducation[]; strengthened occupation prompt rule (MUST set field on hire, pick a wage). Char-tab occupation block shows Wage + informal education renders. Migration via estimate for old saves.' },
 ];
 
 function cleanSaveData(gs) {
@@ -14056,7 +14063,8 @@ The JSON carries ONLY state changes. There is NO "narrative" field in the JSON �
   "worldEvents": ["only genuine world-scale events, not player-specific"],
   "scheduledEvents": [{ "year": 0, "month": 0, "desc": "what will happen" }],
   "karma": { "righteous": 0, "blood": 0, "demonic": 0, "chaotic": 0 },
-  "occupation": null,
+  "occupation": { "title": "", "location": "", "employer": "", "legal": true, "income": 0, "desc": "how they got the job — SET THIS whenever the player is hired, apprenticed, or given a position" },
+  "newEducation": [{ "name": "what the training is called", "subject": "what is being learned", "mentor": "who teaches them (or null)", "type": "apprenticeship|tutelage|study" }],
   "newItems": [{ "name": "", "type": "(weapon|armor|clothing|accessory|consumable|tome|book|misc)", "slot": null, "rarity": "", "desc": "", "value": 0, "effects": {}, "isTome": false }],
   "removeItems": ["name or id of an item the player sold, gave away, lost, or used up"],
   "newAssets": [{ "name":"", "type":"house|inn|shop|estate|workshop|clinic|hideout|...", "location":null, "how":"inherited|gifted|won|seized|built|bought", "incomePerMonth":0 }],
@@ -28557,6 +28565,19 @@ extractParentsFromOpening = function(text) {
 // ── OCCUPATION: Prominent display + AI control ────────────────────
 
 // Occupation history for tracking career progression
+// Estimate a fair monthly wage (in silver) from a job title when the AI doesn't
+// give one. Modest by genre standards — a wage, not a windfall.
+function estimateOccupationIncome(occ) {
+  const t = ((occ?.title||'') + ' ' + (occ?.desc||'')).toLowerCase();
+  let base = 8;
+  if(/apprentice|trainee|servant|laborer|labourer|farmhand|porter|stable|errand|beggar|scullery|page|disciple|student/.test(t)) base = 4;
+  else if(/guard|clerk|scribe|cook|hunter|courier|miner|fisher|smith|carpenter|tailor|brewer|waiter|barkeep|sailor|caravan|escort|mercenary|bouncer/.test(t)) base = 12;
+  else if(/merchant|physician|doctor|healer|teacher|tutor|manager|foreman|officer|alchemist|enchanter|appraiser|broker|captain|artisan|journeyman/.test(t)) base = 28;
+  else if(/master|grand|head |chief|lord|noble|magistrate|official|director|guildmaster|elder|warden|general|abbot|high /.test(t)) base = 70;
+  if(occ?.legal === false) base = Math.round(base * 1.6); // illicit work pays more (and risks more)
+  return base;
+}
+
 function addOccupationToHistory(occupation) {
   if(!GS.char.occupationHistory) GS.char.occupationHistory = [];
   const current = GS.char.occupation;
@@ -28567,15 +28588,97 @@ function addOccupationToHistory(occupation) {
     addPersonalEvent(`Left: ${current.title}${current.location ? ' at ' + current.location : ''}. Year ${GS.world.year}.`);
   }
 
-  GS.char.occupation = { ...occupation, since: occupation.since || GS.world.year };
+  // Give every job a monthly wage so an occupation actually pays.
+  let income = parseInt(occupation.income);
+  if(isNaN(income) || income < 0) income = estimateOccupationIncome(occupation);
+  GS.char.occupation = { ...occupation, income, since: occupation.since || GS.world.year };
+  GS.char._occIncomeAccrual = 0;
 
   // Log the new occupation
   const legal = occupation.legal === false ? ' (unlicensed)' : occupation.legal === true ? '' : '';
   const employer = occupation.employer ? `, working for ${occupation.employer}` : '';
   const loc = occupation.location ? ` in ${occupation.location}` : '';
-  addPersonalEvent(`New occupation: ${occupation.title}${legal}${loc}${employer}. Year ${GS.world.year}.`);
+  addPersonalEvent(`New occupation: ${occupation.title}${legal}${loc}${employer} — pays ${formatCoins(income)}/month. Year ${GS.world.year}.`);
+  toast(`New occupation: ${occupation.title} · ${formatCoins(income)}/mo`, 'gold', 4000);
 
   updateCharacterTab();
+}
+
+// Pay the character's wage over elapsed time (passive income from a job).
+function tickOccupationIncome(daysElapsed) {
+  const c = GS.char;
+  const occ = c.occupation;
+  if(!occ || !occ.title || daysElapsed <= 0) return;
+  if(c.prisonStatus) return; // no wages behind bars
+  let income = parseInt(occ.income);
+  if(isNaN(income) || income <= 0) { income = estimateOccupationIncome(occ); occ.income = income; }
+  c._occIncomeAccrual = (c._occIncomeAccrual || 0) + income * (daysElapsed / 30);
+  const pay = Math.floor(c._occIncomeAccrual);
+  if(pay > 0) {
+    c._occIncomeAccrual -= pay;
+    addSilver(pay);
+    try { addPersonalEvent(`Earned ${formatCoins(pay)} from work as ${occ.title}.`); } catch(e) {}
+  }
+}
+
+// Fallback: the AI narrated the player getting hired/apprenticed but forgot the
+// "occupation" field. Detect it and register a best-effort occupation so jobs
+// actually stick (this is exactly the "blacksmith gave me a job but it never
+// showed up" case).
+function detectOccupationFromNarrative(res) {
+  const n = res?.narrative; if(!n) return;
+  // Only auto-detect when they have NO job yet — never overwrite an established
+  // occupation from a stray sentence. A real career change comes from the AI field.
+  if(GS.char.occupation?.title) return;
+  const hired = /(hires?\b|hired\b|takes?\s+you\s+on|taking\s+you\s+on|gives?\s+you\s+(?:a\s+)?(?:job|position|work|place|trade)|offers?\s+you\s+(?:a\s+)?(?:job|position|work|apprenticeship|place)|puts?\s+you\s+to\s+work|you(?:'re| are)\s+(?:now\s+)?(?:hired|employed|apprenticed|taken on)|agree[sd]?\s+to\s+(?:take\s+you\s+on|hire\s+you|employ\s+you|apprentice\s+you|train\s+you)|hire\s+you\b|employ\s+you\b|apprentice\s+you\b|take\s+you\s+as|train\s+you\s+as|take\s+you\s+on\s+as)/i.test(n);
+  if(!hired) return;
+  const grab = re => { const m = n.match(re); return m && m[1] ? m[1].replace(/\s+/g,' ').trim() : null; };
+  let title = null, isApprentice = false, trade = null;
+  // "as a/an/the <title>"
+  title = grab(/\b(?:as|to be)\s+(?:an?|the)\s+([a-z][\w' -]{2,28}?)(?=[.,;!?]|\s+(?:in|at|of|and|who|to|for|under|here|—|-)|$)/i);
+  // "apprentice (to/under) the <trade>"
+  if(!title) { trade = grab(/\bapprentice(?:d)?(?:\s+(?:to|under))?\s+(?:the\s+)?([a-z][\w' -]{2,24}?)(?=[.,;!?]|\s+(?:in|at|of|and|who|to|for|—|-)|$)/i); if(trade) { title = 'Apprentice '+trade; isApprentice = true; } }
+  // "job/work/position as a <title>"
+  if(!title) title = grab(/\b(?:job|work|position|apprenticeship)\s+as\s+(?:an?|the)\s+([a-z][\w' -]{2,28}?)(?=[.,;!?]|\s|$)/i);
+  // "the <trade> hires/gives you a job" → an apprentice of that trade
+  if(!title) { trade = grab(/\bthe\s+([a-z][\w' -]{2,20}?)\s+(?:hires?|gives?\s+you|takes?\s+you|offers?\s+you|agree[sd]?\s+to|will\s+train|takes\s+you\s+on)/i);
+    if(trade && !/\b(man|woman|guard|stranger|old|young|elder|master|lady|lord|merchant who)\b/i.test(trade)) { title = trade + ' Apprentice'; isApprentice = true; } }
+  if(!title || title.length < 3) return;
+  // If we only got a bare "Apprentice"/"Trainee", name the actual trade from nearby text.
+  if(/^(apprentice|trainee|hand|worker|assistant)$/i.test(title)) {
+    const tr = grab(/\b(blacksmith|smith|carpenter|tailor|alchemist|merchant|apothecary|cook|baker|brewer|tanner|mason|jeweler|fletcher|cobbler|physician|scholar|herbalist|butcher|weaver|potter|miner|farmer|fisherman|hunter|scribe|painter|innkeeper|barkeep|armorer|bowyer)\b/i);
+    if(tr) { title = tr.replace(/\b\w/, c=>c.toUpperCase()) + ' Apprentice'; isApprentice = true; if(!trade) trade = tr; }
+  }
+  title = title.replace(/\b\w/g, ch => ch.toUpperCase());
+  const cur = GS.char.occupation;
+  if(cur?.title && cur.title.toLowerCase() === title.toLowerCase()) return;
+  addOccupationToHistory({ title, location: LOCATIONS[GS.world.location]?.name || GS.world.location, desc: 'Taken on through the story.' });
+  if(isApprentice || /apprentice|trainee/i.test(title)) {
+    addInformalEducation({ name: title, subject: (trade || title.replace(/apprentice/i,'').trim() || 'a trade'), mentor: null, type: 'apprenticeship' });
+  }
+}
+
+// Register informal learning (apprenticeship, tutelage, private training) so it
+// shows up in Education alongside formal schooling.
+function addInformalEducation({ name, subject, mentor, type, desc } = {}) {
+  if(!GS.char.education) GS.char.education = [];
+  subject = (subject || name || 'a trade').toString().trim();
+  name = (name || (mentor ? `Training under ${mentor}` : 'Apprenticeship')).toString().trim();
+  if(GS.char.education.some(e => e.status === 'enrolled' && (e.name||'').toLowerCase() === name.toLowerCase())) return;
+  GS.char.education.push({
+    institution: null, informal: true, name, type: type || 'apprenticeship',
+    subject, mentor: mentor || null, status: 'enrolled', since: GS.world.year,
+    monthsCompleted: 0, desc: desc || '',
+  });
+  addPersonalEvent(`Began ${name}${mentor ? ' under ' + mentor : ''} — learning ${subject}. Year ${GS.world.year}.`);
+  updateCharacterTab();
+  try { updateEducationSection(); } catch(e) {}
+}
+
+function applyEducationFromAI(res) {
+  const list = res?.newEducation;
+  if(!Array.isArray(list) || !list.length) return;
+  list.forEach(e => { if(e && (e.name || e.subject)) addInformalEducation(e); });
 }
 
 // Patch applyAIResponse to track occupation history
@@ -28592,7 +28695,7 @@ applyAIResponse = function(res) {
 function buildOccupationContextForAI() {
   const c = GS.char;
   const occ = c.occupation;
-  if(!occ?.title) return `CHARACTER OCCUPATION: Currently none. The character has no formal or recognized occupation. If they earn one through narrative, include it in the response as "occupation": { "title": "...", "location": "...", "employer": "...", "legal": true/false, "desc": "how they got here" }.`;
+  if(!occ?.title) return `CHARACTER OCCUPATION: Currently none. The MOMENT the player is hired, apprenticed, taken on, or given a job/position/role in the story — even an informal one like training under a craftsman — you MUST register it in the JSON as "occupation": { "title": "...", "location": "...", "employer": "...", "legal": true/false, "income": <silver per MONTH this job pays>, "desc": "how they got it" }. Do not just describe it in prose and move on — if it isn't in the "occupation" field, the game never records the job and the player gets no wages. Pick a sensible monthly wage for the work (an apprentice/laborer a few silver, a skilled tradesman/clerk ~10-15, a merchant/physician ~25-40, a master ~70+). If it's also genuine training, ALSO add it under "newEducation".`;
 
   const legalNote = occ.legal === false ? '(UNLICENSED / ILLEGAL)' : occ.legal === true ? '(licensed)' : '(status unclear)';
   const history   = (c.occupationHistory || []).slice(-2).map(h => `${h.title} at ${h.location||'?'} until Year ${h.ended}`).join('; ');
@@ -28600,6 +28703,7 @@ function buildOccupationContextForAI() {
   return `CHARACTER OCCUPATION: ${occ.title} ${legalNote}
   Location: ${occ.location || 'unspecified'}
   Employer: ${occ.employer || 'self-employed / independent'}
+  Wage: ${occ.income != null ? formatCoins(occ.income)+'/month (paid automatically by the engine)' : 'unset'}
   Since: Year ${occ.since || GS.world.year}
   ${occ.desc ? 'How they got here: '+occ.desc : ''}
   ${history ? 'Previous: '+history : ''}
@@ -28710,6 +28814,7 @@ updateCharacterTab = function() {
       <div style="font-size:13px;font-weight:700;color:var(--gold)">${occ.title}</div>
       ${legalLabel ? `<div style="font-size:10px;color:${legalColor};margin-top:2px">${legalLabel}</div>` : ''}
       ${occ.location ? `<div style="font-size:11px;color:var(--muted);margin-top:2px">${occ.location}${occ.employer?' · '+occ.employer:''}</div>` : ''}
+      ${(occ.income != null && occ.income !== '') ? `<div style="font-size:11px;color:var(--green);margin-top:2px">Wage: ${formatCoins(occ.income)}/month</div>` : ''}
       ${occ.since ? `<div style="font-size:10px;color:var(--dim);margin-top:2px">Since Year ${occ.since}</div>` : ''}
       ${occ.desc ? `<div style="font-size:11px;color:var(--muted);margin-top:5px;font-style:italic;line-height:1.5">${occ.desc.slice(0,120)}</div>` : ''}
     </div>`;
@@ -28773,6 +28878,7 @@ updateCharacterTab = function() {
     safe('prisonCheck',     () => checkPrisonExecution());
     safe('bountyHunters',   () => tickBountyHunters(elapsed));
     safe('education',       () => tickEducation(elapsed));
+    safe('occupationIncome',() => tickOccupationIncome(elapsed));
     safe('sectBenefits',    () => tickSectBenefits(elapsed));
     safe('loreEvents',      () => checkLoreEvents());
     safe('warRefugees',     () => checkWarRefugees(elapsed));
@@ -29278,7 +29384,12 @@ updateCharacterTab = function() {
     });
 
     // Occupation
-    safe('occupation', () => { if(res.occupation?.title) addOccupationToHistory(res.occupation); });
+    safe('occupation', () => {
+      if(res.occupation?.title) addOccupationToHistory(res.occupation);
+      else detectOccupationFromNarrative(res); // fallback if the AI narrated a hire but forgot the field
+    });
+    // Education / training / apprenticeship the AI grants in the story.
+    safe('educationFromAI', () => applyEducationFromAI(res));
 
     // Items
     safe('items', () => {
