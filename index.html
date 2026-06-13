@@ -5115,6 +5115,14 @@ const TRAITS_CATALOG = {
     effects: {}, // stat boosts come from the Minor God race itself (setsRace)
     setsRace: 'minor_god',
   },
+  saint_of_the_heartland: {
+    name: 'Saint of the Heartland', type: 'gained', rarity: 'fable', inherited: false,
+    desc: 'Zukaisen, the Saint of the Heartland, turns back the souls that arrive in Zuriroku\'s buried heart before their time. Somewhere along your path, that office — or its echo — settled on you. You stand at the threshold between the living and the resting dead, and death has learned to ask your leave.',
+    flavor: 'A soul came loose, three breaths early.\n\nYou felt it try to fall toward the Earth\'s warm core — and you, without deciding to, said: not yet.\n\nIt went back into the body. The body sat up.',
+    gameplay: 'A profound, rare grace tied to the NzuriKami Heartland and its Saint, Zukaisen. You can sense the threshold of death and, at terrible cost and only sometimes, turn a soul back from it — yours or another\'s — when it was taken before its time. The dying are not always beyond you; the orthodox faithful revere you; and the death-touched powers treat you with wary respect.',
+    aiHint: 'SAINT OF THE HEARTLAND (FABLE): An echo of Zukaisen, the Saint who returns souls that reach the Heartland before their time. This character stands at the boundary of life and the resting dead: they sense imminent death and the recently-passed, can (rarely, at real cost, and never trivially) call back a soul taken BEFORE its appointed time — undoing a wrongful or premature death — and the dead rest easier for their presence. NzuriKami faithful treat them as holy; death/soul-touched entities (Tumijin\'s domain, the deep dark) regard them carefully. They are NOT a general resurrector — natural, earned, or fated deaths stay dead; this is about souls wronged out of their time, and every use costs the Saint dearly.',
+    effects: { willpower: 8, perception: 6, charisma: 6 },
+  },
 
   // ──────────────────────────────────────────────────────────
   // DEMIGOD — CHILDREN OF THE GODS (FABLE TIER)
@@ -5816,6 +5824,7 @@ function createDefaultState() {
       offspring:[],    // [{ name, age, alive, traits }]
       disciples:[],    // [{ id, name, since, study, talent, cultivation, loyalty, notes, alive }]
       slaves:[],       // [{ id, name, since, role, origin, spirit, notes, alive }] — bound/owned people
+      _pacts:[],       // [{ kind, with, terms, price, year }] — binding contracts with yokai/gods/entities
       assets:[],       // [{ id, name, type, subtype, location, acquired, condition, upkeepPerMonth, upgrades, staff, incomePerMonth, isHome, isHideout, notes }]
       race:'human', ascensionPath:null,
       prisonStatus:null, // { location, sentence, crime, since, execYear }
@@ -11199,7 +11208,8 @@ PART 2 — DATA (immediately after the narrative, on its own line):
   "deathCause": null,
   "crewUpdate": null,
   "disciples": [{ "name": "", "action": "add|update|remove|left|died|betrayed|expelled", "study": "what you teach them", "talent": "poor|average|gifted|prodigy|genius", "cultivation": "their stage/level", "loyaltyDelta": 0, "notes": "", "reason": "" }],
-  "slaves": [{ "name": "", "action": "add|update|free|sold|escaped|died", "role": "laborer|bodyguard|concubine|scribe|servant|...", "origin": "captured|bought|debt|conquered|spared", "spirit": "broken|compliant|loyal|defiant|plotting", "notes": "", "reason": "" }]
+  "slaves": [{ "name": "", "action": "add|update|free|sold|escaped|died", "role": "laborer|bodyguard|concubine|scribe|servant|...", "origin": "captured|bought|debt|conquered|spared", "spirit": "broken|compliant|loyal|defiant|plotting", "notes": "", "reason": "" }],
+  "pactFormed": { "kind": "yokai|divine|entity", "with": "the power's name", "terms": "what it grants you", "price": "what it costs you (always real and proportional)" }
 }
 \`\`\`
 CRITICAL: The narrative is NEVER inside the JSON. The JSON block has NO "narrative" field — the prose above is the narrative. Only include JSON fields that actually changed. Omit unchanged/zero/empty fields entirely.
@@ -11869,7 +11879,7 @@ window.addEventListener('pagehide', () => { doAutosave(true); });
 // Scheme: MAJOR.MINOR. Big updates bump MAJOR (1.2 -> 2.2). Small updates
 // bump MINOR (2.2 -> 2.3). Each version has a name. The current version is
 // stamped onto every save; older saves can be updated to the latest.
-const GAME_VERSION = { number: '3.31', name: 'Disciples & the Bound' };
+const GAME_VERSION = { number: '4.1', name: 'Pacts & Legacy' };
 
 // Which model generates the story. Lite Mode swaps to a far cheaper, faster model
 // (Claude Haiku) so long sessions / limited credits cost a fraction per turn.
@@ -11926,6 +11936,7 @@ const VERSION_HISTORY = [
   { number:'3.29', name:'Drill It In', sys:'Practice counts now. If you say you run a technique or form "eight times" (or a dozen reps, or drill it all day, over and over), that whole session counts toward mastery — not just one. A focused practice turn can carry you up a stage or two, with no wasted effort, though the very top of a technique still needs a real revelation rather than raw repetition.', note:'parsePracticeReps(msg): digit+unit ("8 times/reps/rounds/forms/swings…") + word-numbers ("eight times", "a dozen reps") + vague intensity ("all day", "over and over") → 6; capped at 12. Passed into record(Technique/Martial)Use(id, times) from the detect loop in buildTechCostInjection. Base record fns rewritten to ADD `times` points and loop-advance carrying overflow (guard-capped; stage 5→6 insight gate preserved). Threaded `reps` through the mentor + expression recordTechniqueUse wrappers (were dropping the arg). buildTechStageInjection practiceLeft now uses practiceNeeded.' },
   { number:'3.30', name:'Blood of the Beast', sys:'Permanent injuries/conditions are now strict — passing states like "post-breakthrough exhaustion", fatigue, soreness, or drained Qi can no longer become permanent (they heal like any wound), and old saves get scrubbed of any that slipped through. Offspring confirmed working: when you die you can continue as your child, who now inherits exactly HALF your power (cultivation realm and a fraction of your arts), never all of it. And a new bloodline: if you have a child with one of the Original Qi Beasts that can take human form — a Dragon, Yokai, Sanguine, Arachnid, or Giant/Titan — that child is born HALF that race, one of the strongest lineages alive, with powerful innate stats and amplified traits.', note:'#1 _isTemporaryState() guard in addCondition routes temp states to addInjury instead of permanent conditions (preserves fromBargain + _isPermanentInjury); migrateSave scrubs existing temp conditions; strict PERMANENT CONDITIONS prompt rule. #2 continueAsOffspring rewritten: always inherits floor(parentStage/2) qi + ~half techniques at half stage + path/expression (no longer needs preset imbued); Inheritance trait reworded. #3 half-beast races (half_dragon/yokai/sanguine/arachnid/giant, born, strong modifiers + mythic bloodline trait) + HALF_BEAST_RACE map; createOffspring opts.beastParent sets child.race/beastHalf (+ higher trait inheritance); continueAsOffspring applies race modifiers + bloodline trait; res.offspring[].otherParentBeast wired through + JSON template + OFFSPRING & BLOODLINE prompt rule.' },
   { number:'3.31', name:'Disciples & the Bound', sys:'The people-under-you system is expanded beyond crews. You can now take DISCIPLES — students you personally teach, who grow in cultivation and devotion (or resentment) over time — and hold the BOUND: people owned or bound to you (captured, bought, taken by debt or conquest), whose spirit ranges from broken to loyal to plotting. Both appear in a new "Disciples & Bound" panel on your character sheet, and the storyteller tracks them as real people with their own arcs. (This also quietly fixes the crew system, whose AI updates had stopped registering.)', note:'New char.disciples/char.slaves arrays (+ createDefaultState + migrate). DISCIPLE_TALENTS/SLAVE_SPIRITS catalogs; addDisciple/addSlave, applyDisciplesUpdate/applySlavesUpdate (add/update/remove|free by name/id + action verbs); updateFollowersDisplay() renders #followers-section (hidden when empty) wired into world-tab refresh. AI fields res.disciples/res.slaves + JSON template + DISCIPLES & THE BOUND prompt rule (late wrapper). FIX: res.crewUpdate handler was orphaned by the consolidated applyAIResponse rewrite (verified not firing); added outermost wirePeopleUpdates wrapper that runs applyCrewUpdate + disciples + slaves so all three actually register.' },
+  { number:'4.1', name:'Pacts & Legacy', sys:'A big lore update. Most importantly: the storyteller now reliably KNOWS the world\'s canon and will never break character to claim a real figure (like Zeret of Lust) doesn\'t exist — the Maligned Lords, the founders, Yuluh, the deep dark (bar lēlyā & Nyokuro), the Original Qi Beasts, and the NzuriKami gods are all surfaced as real. Yokai are fleshed out in depth, and so are CONTRACTS — real, structured, costly pacts you can strike with yokai, gods, deities, and entities (including bar lēlyā), each with a price that scales terribly with what you ask. A child of an extremely renowned or infamous parent now inherits a legacy: a trait tied to that parent, a title, and a measure of both fame and the enemies that come with a great name (you discover it when you continue as them). New fable trait "Saint of the Heartland" (an echo of Zukaisen, who turns souls back from the Heartland before their time), and several new achievements for pacts, disciples, the bound, and dynasty.', note:'#7 buildWorldLoreCanon() + late _bspWithWorldLore wrapper (post length-guard so never trimmed): CANON list from LORE_NPCS (lords incl. zeret_lust, founders, Yuluh, bar lēlyā/Nyokuro, ANCIENT_QI_BEASTS, NzuriKami/Heartland) + hard NEVER-DENY/never-break-character rule; detailed YOKAI section; detailed CONTRACTS & PACTS section (contact/offer/price/binding; yokai/divine/dark). This fixes the AI denying Zeret (was trimmed from preamble). #6 saint_of_the_heartland fable trait (Zukaisen echo). #1 continueAsOffspring: parent maxRenown/maxInfamy>=70 → epic Heir/Blood-of trait + social title + seeded renown/infamy + rep titles. #5 pact tracker: char._pacts + res.pactFormed handler in wirePeopleUpdates + JSON template; 6 new achievements (yokai_pact, divine_pact, saint_heartland, teacher, master_of_many, dynasty). Version → 4.1.' },
 ];
 
 function cleanSaveData(gs) {
@@ -13817,6 +13828,34 @@ function continueAsOffspring(offspringId) {
       effects:{} });
   }
 
+  // ── Legacy of a famous/infamous parent: an inherited trait, a title, and the
+  //    fame AND the enemies that come with a great name. (Seen on becoming them.) ──
+  const reps = Object.values(parent.reputation || {});
+  const maxRenown = reps.length ? Math.max(0, ...reps.map(r => r.renown || 0)) : 0;
+  const maxInfamy = reps.length ? Math.max(0, ...reps.map(r => r.infamy || 0)) : 0;
+  const parentFull = `${parent.firstName} ${parent.lastName}`.trim();
+  if(maxRenown >= 70 || maxInfamy >= 70) {
+    const famous = maxRenown >= maxInfamy;
+    const parentTitle = (parent.spiritualTitles && parent.spiritualTitles[0]?.name) || null;
+    newState.char.traits.push({
+      id: uid(), type:'innate', rarity:'epic',
+      name: famous ? `Heir of ${parent.lastName || parentFull}` : `Blood of ${parent.lastName || parentFull}`,
+      desc: famous
+        ? `Child of ${parentFull}${parentTitle?', '+parentTitle+',':','} whose renown still opens doors and turns heads. The name is a gift and a weight — people expect things of you before you have done anything at all.`
+        : `Child of ${parentFull}${parentTitle?', '+parentTitle+',':','} whose name still makes people flinch. You inherit the fear they earned — and every enemy and grudge that came with it.`,
+      effects: famous ? { charisma: 5, luck: 2 } : { willpower: 5, perception: 3 },
+    });
+    try { grantTitle('social', { name: famous ? `Scion of ${parent.lastName || 'a Great Name'}` : `Blood of ${parent.lastName || 'a Feared Name'}`, desc:`Recognized as the heir of ${parentFull}.` }, true); } catch(e) {}
+    // Inherit a fraction of the parent's standing — fame brings admirers AND foes.
+    const loc = newState.world.location;
+    if(!newState.char.reputation[loc]) newState.char.reputation[loc] = { renown:0, infamy:0, events:[] };
+    const rep = newState.char.reputation[loc];
+    rep.renown = clamp(rep.renown + (famous ? 28 : 12), 0, 100);
+    rep.infamy = clamp(rep.infamy + (famous ? 12 : 30), 0, 100);
+    rep.renownTitle = famous ? `${parent.lastName||'the'} Heir` : rep.renownTitle;
+    rep.infamyTitle = !famous ? `${parent.lastName||'the'} Blood` : rep.infamyTitle;
+  }
+
   newState.char.appearance = generateAppearance(child.gender, GS.world.location);
   newState.settings = GS.settings;
   newState.world.npcRegistry = GS.world.npcRegistry; // carry NPCs forward
@@ -14436,7 +14475,8 @@ The JSON carries ONLY state changes. There is NO "narrative" field in the JSON �
   "deathCause": null,
   "crewUpdate": null,
   "disciples": [{ "name": "", "action": "add|update|remove|left|died|betrayed|expelled", "study": "what you teach them", "talent": "poor|average|gifted|prodigy|genius", "cultivation": "their stage/level", "loyaltyDelta": 0, "notes": "", "reason": "" }],
-  "slaves": [{ "name": "", "action": "add|update|free|sold|escaped|died", "role": "laborer|bodyguard|concubine|scribe|servant|...", "origin": "captured|bought|debt|conquered|spared", "spirit": "broken|compliant|loyal|defiant|plotting", "notes": "", "reason": "" }]
+  "slaves": [{ "name": "", "action": "add|update|free|sold|escaped|died", "role": "laborer|bodyguard|concubine|scribe|servant|...", "origin": "captured|bought|debt|conquered|spared", "spirit": "broken|compliant|loyal|defiant|plotting", "notes": "", "reason": "" }],
+  "pactFormed": { "kind": "yokai|divine|entity", "with": "the power's name", "terms": "what it grants you", "price": "what it costs you (always real and proportional)" }
 }
 \`\`\`
 Omit any field that doesn't change. Zero values and empty arrays are noise — leave them out. NEVER put the narrative inside the JSON.
@@ -16782,6 +16822,32 @@ const ACHIEVEMENTS_DEF = [
     icon:'🐵', name:'The God of High School',
     desc:'Cross paths with Mori Jin — the barefoot foreign boy with a staff that is never the same length twice, who some say was once the Monkey King and the trouble of heaven itself.',
     check: gs => !!gs.char._metMonkeyKing || !!(gs.world?.npcRegistry && gs.world.npcRegistry['mori_jin']) },
+
+  // ── Pacts, legacy, and the standing of others under you ──
+  { id:'yokai_pact',
+    icon:'👹', name:'A Deal with the Dark Wood',
+    desc:'Bind a yokai to a true pact — and live to keep your end of it.',
+    check: gs => (gs.char.traits||[]).some(t => /yokai|spirit-beast pact/i.test(t.name||'') || t.id==='yokai') || (gs.char._pacts||[]).some(p => p.kind === 'yokai') },
+  { id:'divine_pact',
+    icon:'🛐', name:'Beholden to a God',
+    desc:'Enter a binding pact with a god, deity, or the deep dark — and carry its price.',
+    check: gs => (gs.char._barLelya?.bargains||0) > 0 || (gs.char._nyokuro?.bargains||0) > 0 || (gs.char._pacts||[]).some(p => p.kind === 'divine' || p.kind === 'entity') || (gs.char.traits||[]).some(t => t.id==='servant_bar_lelya' || /chosen/i.test(t.id||'')) },
+  { id:'saint_heartland',
+    icon:'🤍', name:'Saint of the Heartland',
+    desc:'Become an echo of Zukaisen — and turn a soul back from the Heartland before its time.',
+    check: gs => (gs.char.traits||[]).some(t => t.id === 'saint_of_the_heartland') },
+  { id:'teacher',
+    icon:'📿', name:'A Master\'s Burden',
+    desc:'Take three or more disciples under your wing.',
+    check: gs => (gs.char.disciples||[]).filter(d => d.alive !== false).length >= 3 },
+  { id:'master_of_many',
+    icon:'⛓', name:'Lord of the Bound',
+    desc:'Hold five or more people bound to you at once.',
+    check: gs => (gs.char.slaves||[]).filter(s => s.alive !== false).length >= 5 },
+  { id:'dynasty',
+    icon:'👑', name:'A Name That Outlives You',
+    desc:'Continue as an heir who inherits the legacy of a famous or infamous parent.',
+    check: gs => (gs.char.traits||[]).some(t => /^(Heir of|Blood of) /.test(t.name||'')) },
 ];
 
 // ── Track specific achievement state that can't be inferred from existing data ──
@@ -42956,6 +43022,37 @@ buildSystemPrompt = function() {
   return prompt;
 };
 
+// ── LATE: canonical world lore (REAL — never deny) + yokai + contracts/pacts. ──
+// Placed after the length-guard so it is never trimmed. This is the fix for the
+// AI breaking character to claim a real lore figure (e.g. Zeret) "doesn't exist".
+function buildWorldLoreCanon() {
+  const ln = (typeof LORE_NPCS !== 'undefined') ? LORE_NPCS : {};
+  const lord = k => ln[k] ? `${ln[k].name}${ln[k].title?' — '+ln[k].title:''}` : null;
+  const lords = ['xelaad_pride','iasiba_envy','dranoel_greed','normac_sloth','zeret_lust'].map(lord).filter(Boolean);
+  let s = `## CANONICAL WORLD LORE (REAL — NEVER DENY, NEVER BREAK CHARACTER)\n`
+    + `Everything below is a REAL, established part of this world's history and cosmology. If the player asks about, researches, or seeks any of these, treat them as genuinely real — reveal what a scholar/cultivator could plausibly learn (much is legend, secret, or dangerous to dig into), or have NPCs react to the inquiry — but NEVER claim a real lore figure "doesn't exist," and NEVER step out of character to do so. If you are unsure, the figure IS real and the character simply may not have found the full truth yet.\n`
+    + `THE MALIGNED LORDS (the Five great sin-entities; a sixth domain can be seized): ${lords.join(' · ')}. They are real, ancient, and walk the world on their spawn-years. ZERET (of Lust) in particular EXISTS — do not deny him.\n`
+    + `THE FOUNDERS: Reo Yamamoto (father of speed/lightning/light/time; built Tazar; died Year 150 of Ichiro's curse) and Ichiro Katsumi (father of water/earth/spear/space; died Year 130 by choice, cursing Reo to follow). YULUH the Immortal Serpent guards the root of Ichiro's tomb.\n`
+    + `THE DEEP DARK: bar lēlyā (the one and only night-force, Aruwium) and Nyokuro — beings one can bargain with for almost anything, at a price that scales terribly with the ask.\n`
+    + `THE ORIGINAL QI BEASTS (primordial Qi-wielders): ${Object.values(typeof ANCIENT_QI_BEASTS!=='undefined'?ANCIENT_QI_BEASTS:{}).map(b=>b.name).join(', ')}.\n`
+    + `THE NZURIKAMI GODS (the divine order; the dead rest in the Heartland inside Zuriroku's buried heart; Zukaisen is the Saint of the Heartland who turns back souls that arrive before their time). The God of High School's Mori Jin and the Saint of a Thousand Threads and other named legends are likewise real.\n`;
+  s += `## YOKAI (detailed)\n`
+    + `Yokai are spirit-beasts that gained Qi by accumulating years and BELIEF — the more a yokai is feared, named, and told-of, the more real and powerful it becomes. They range widely: petty road-spirits and trickster fox/tanuki-kind; nature yokai bound to a tree, river, mountain, or shrine; great beast-yokai (the boar, serpent, ape, bird forms) of immense power; vengeful ghosts and grudge-born things; and ancient ones older than the kingdoms that wear human faces. Most keep to LIMINAL places — old shrines, fog-bound passes, abandoned temples, the spirit-thick deeps of Ooina forest — and to dusk and night. They are capricious and bound by their OWN strange rules and bargains: honor a deal to the letter while twisting its spirit, test travelers with riddles and favors, and repay both insult and kindness in full. A yokai's name, true form, and the story told about it are sources of power and leverage — learn a yokai's true name and you hold something over it.\n`;
+  s += `## CONTRACTS & PACTS WITH POWERS (detailed)\n`
+    + `Binding a yokai, god, deity, or deep entity is a real, weighty arc — never a casual button. A genuine PACT has structure: (1) CONTACT — you reach the power on its terms (a yokai at its shrine at dusk with the right offering; bar lēlyā only when dark, alone, and deliberately called; Nyokuro deeper still and willpower-gated; a god through devotion, a relic, or a Chosen's trial). (2) THE OFFER — the power names what it grants (borrowed strength/Qi, a transformation, healing of the unhealable, knowledge, a servant-bond, a wish). (3) THE PRICE — ALWAYS proportional and usually permanent: a small favor costs something painful; remaking your body, mending shattered channels, or apex power costs something DEVASTATING — a beloved person, your sight, a decade of life, your capacity to love, your freedom (becoming the power's instrument). (4) THE BINDING — the terms hold; the power can call on you, and BREAKING a pact has terrible, hunting consequences. YOKAI PACTS: borrow the yokai's nature and power in exchange for service, names, memories, or years; a betrayed yokai becomes a relentless enemy. DIVINE PACTS (NzuriKami gods, D'yaqed, etc.): gods rarely deal directly — they work through devotion, oaths, Chosen vessels, and demands of worship/conduct; their gifts come with doctrine and obligation, and divine wrath for breaking faith. bar lēlyā & NYOKURO: can grant nearly anything (heal channels, change your race, power up to legendary for bar lēlyā / mythic-fable for Nyokuro, bind you as servant) for a scaling, permanent, often monstrous price — resolve via the existing dark-bargain mechanics. Always make a pact COST something real, and let the power keep its end strangely, literally, and to its own benefit.\n`;
+  return s;
+}
+const _bspWithWorldLore = buildSystemPrompt;
+buildSystemPrompt = function() {
+  let prompt = _bspWithWorldLore();
+  try {
+    const section = buildWorldLoreCanon();
+    if(prompt.includes('## ABSOLUTE RULES')) prompt = prompt.replace('## ABSOLUTE RULES', section + '\n## ABSOLUTE RULES');
+    else prompt = prompt + '\n' + section;
+  } catch(e) {}
+  return prompt;
+};
+
 // ================================================================
 // ── MYTHIC & FABLE TRAITS — HAND-TUNED APEX VALUES ───────────────
 // Explicit final stats + reinforced gameplay for the top two rarities,
@@ -43226,6 +43323,15 @@ buildSystemPrompt = function() {
     try { if(res && res.crewUpdate) applyCrewUpdate(res.crewUpdate); } catch(e) { console.error('[crew]', e); }
     try { if(res && res.disciples) applyDisciplesUpdate(res.disciples); } catch(e) { console.error('[disciples]', e); }
     try { if(res && res.slaves) applySlavesUpdate(res.slaves); } catch(e) { console.error('[slaves]', e); }
+    try {
+      const p = res && res.pactFormed;
+      if(p && (p.with || p.kind)) {
+        if(!Array.isArray(GS.char._pacts)) GS.char._pacts = [];
+        GS.char._pacts.push({ kind: p.kind || 'entity', with: p.with || 'an unnamed power', terms: p.terms || '', price: p.price || '', year: GS.world.year });
+        try { addChronicleEntry(`Bound by a pact with ${p.with || 'a power'}${p.price?' — the price: '+p.price:''}.`, 'major'); } catch(e) {}
+        try { toast(`Pact sealed with ${p.with || 'a power'}`, 'gold', 4500); } catch(e) {}
+      }
+    } catch(e) { console.error('[pact]', e); }
   };
 })();
 
