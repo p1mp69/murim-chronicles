@@ -2437,6 +2437,7 @@ body.generating [onclick*="shopSellItem"], body.generating [onclick*="closeMapGo
           <div style="margin-top:8px;display:flex;justify-content:space-between;font-size:11px;color:var(--muted)">
             <span>HP: <span id="char-hp" style="color:var(--text);font-weight:700">100</span>/<span id="char-maxhp">100</span></span>
             <span>Silver: <span id="char-silver" style="color:var(--gold);font-weight:700">0</span></span>
+            <span title="Lives this character has taken">Kills: <span id="char-kills" style="color:var(--red);font-weight:700">0</span></span>
           </div>
         </div>
 
@@ -8495,8 +8496,52 @@ function spendSilver(amount) {
 // ================================================================
 function addInjury(desc) {
   if(typeof desc !== 'string') desc = String(desc);
-  if(!GS.char.injuries.includes(desc)) GS.char.injuries.push(desc);
+  if(!GS.char.injuries.includes(desc)) {
+    GS.char.injuries.push(desc);
+    // Stamp when it was sustained so it can heal naturally over time.
+    if(!GS.char._injuryDays) GS.char._injuryDays = {};
+    GS.char._injuryDays[desc] = totalDays();
+  }
   updateConditionBlock();
+}
+
+// Injuries that are NOT ordinary wounds — these never heal on their own.
+function _isPermanentInjury(desc) {
+  return /shatter|sever|amputat|lost (?:an? )?(?:eye|arm|leg|hand|foot|finger|limb)|crippl|paralys|permanent|maim|gouged|missing (?:an? )?(?:eye|arm|leg|hand|foot|limb)/i.test(desc||'');
+}
+
+// Normalize an injury string for fuzzy matching (so AI heal-text clears the wound
+// even when the wording isn't an exact match to what was stored).
+function _normInjury(s) {
+  return (s||'').toLowerCase().replace(/[^a-z0-9 ]+/g,' ').replace(/\b(a|an|the|of|on|to|in|your|my|deep|minor|severe|bad|nasty|fresh|old)\b/g,' ').replace(/\s+/g,' ').trim();
+}
+// Collapse synonyms so "gash on the arm" and "laceration to the forearm" match.
+const _INJURY_SYN = {
+  cut:['cut','gash','laceration','slash','slice','incision','wound','cuts'],
+  stab:['stab','puncture','pierce','impalement','gore','gored'],
+  bruise:['bruise','bruising','contusion','welt','bruised'],
+  fracture:['fracture','fractured','broken','break','crack','cracked'],
+  burn:['burn','burns','scald','scalded','scorch','seared','charred'],
+  sprain:['sprain','sprained','strain','strained','twist','twisted'],
+  graze:['graze','grazed','scrape','scraped','scratch','abrasion'],
+  bleed:['bleeding','hemorrhage','bloodloss'],
+  internal:['internal','organ','rupture','ruptured'],
+  concussion:['concussion','concussed'],
+  arm:['arm','forearm','wrist','elbow','shoulder','hand','hands','bicep'],
+  leg:['leg','thigh','shin','calf','knee','ankle','foot','feet'],
+  head:['head','skull','scalp','temple','brow','jaw','cheek','nose'],
+  torso:['torso','chest','ribs','rib','abdomen','stomach','gut','belly','back','flank','side'],
+};
+const _INJURY_CANON = (() => { const m = {}; Object.entries(_INJURY_SYN).forEach(([c,ws]) => ws.forEach(w => m[w]=c)); return m; })();
+function _injuryKeywords(s) {
+  const stop = new Set(['and','from','with','that','this','some','pain','injury','injuries','left','right','still','been','have','has','across','along','near','over','under']);
+  const out = new Set();
+  _normInjury(s).split(' ').forEach(w => {
+    if(!w) return;
+    if(_INJURY_CANON[w]) { out.add(_INJURY_CANON[w]); return; }   // canonical token (incl. short body parts)
+    if(w.length >= 4 && !stop.has(w)) out.add(w);
+  });
+  return out;
 }
 
 function addIllness(desc) {
@@ -8512,8 +8557,65 @@ function addScar(desc) {
 }
 
 function removeInjury(desc) {
-  GS.char.injuries = GS.char.injuries.filter(i=>i!==desc);
+  if(typeof desc !== 'string') desc = String(desc);
+  const before = GS.char.injuries.slice();
+  // 1) Exact match.
+  let matched = before.filter(i => i === desc);
+  // 2) Fuzzy: normalized containment either direction.
+  if(!matched.length) {
+    const nd = _normInjury(desc);
+    if(nd) matched = before.filter(i => { const ni = _normInjury(i); return ni && (ni === nd || ni.includes(nd) || nd.includes(ni)); });
+  }
+  // 3) Keyword overlap (e.g. AI says "the gash on your arm closes" vs stored "deep laceration, left forearm").
+  if(!matched.length) {
+    const kw = _injuryKeywords(desc);
+    if(kw.size) matched = before.filter(i => {
+      const ik = _injuryKeywords(i);
+      let overlap = 0; kw.forEach(w => { if(ik.has(w)) overlap++; });
+      return overlap >= Math.min(2, ik.size); // share the meaningful words
+    });
+  }
+  if(matched.length) {
+    const set = new Set(matched);
+    GS.char.injuries = GS.char.injuries.filter(i => !set.has(i));
+    if(GS.char._injuryDays) matched.forEach(m => delete GS.char._injuryDays[m]);
+  }
   updateConditionBlock();
+}
+
+// Ordinary wounds knit closed with time and rest. Serious/permanent injuries
+// (shattered channels, severed limbs, etc.) do not — those need real intervention.
+function tickInjuryHealing(daysElapsed) {
+  if(!daysElapsed || daysElapsed <= 0) return;
+  const inj = GS.char.injuries;
+  if(!inj || !inj.length) return;
+  if(!GS.char._injuryDays) GS.char._injuryDays = {};
+  const now = totalDays();
+  const c = GS.char;
+  // Tougher bodies and active healing/regen mend faster.
+  const endFactor = 1 + Math.max(0, ((c.endurance||10) - 10)) * 0.02; // +2% per END over 10
+  const bonuses = (typeof getPassiveTechBonuses === 'function') ? getPassiveTechBonuses() : {};
+  const regenFactor = (bonuses.hpRegen > 0 ? 1.4 : 1) * ((c.skills?.medicine?.level||0) >= 4 ? 1.2 : 1);
+  const channelsHurt = c.channelsBroken ? 0.6 : 1; // a broken body heals everything slower
+  const healed = [];
+  inj.forEach(desc => {
+    if(_isPermanentInjury(desc)) return; // never auto-heals
+    // Base time-to-heal scales loosely with how grave the wording sounds.
+    let base = 28; // ~a month for an ordinary wound
+    if(/fracture|broken bone|broken (?:arm|leg|rib|nose|jaw|hand|foot)|deep|gash|laceration|stab|puncture|internal|concussion|burn/i.test(desc)) base = 70;
+    if(/sprain|bruise|graze|scrape|cut|cracked|soreness|strain|welt/i.test(desc)) base = 14;
+    const needed = Math.max(6, Math.round(base / (endFactor * regenFactor * channelsHurt)));
+    const since = GS.char._injuryDays[desc];
+    if(since == null) { GS.char._injuryDays[desc] = now; return; } // unstamped (old save) — stamp now
+    if(now - since >= needed) healed.push(desc);
+  });
+  if(healed.length) {
+    const set = new Set(healed);
+    GS.char.injuries = inj.filter(i => !set.has(i));
+    healed.forEach(h => delete GS.char._injuryDays[h]);
+    try { addChronicleEntry(`Time and rest closed old wounds: ${healed.join('; ')}.`, 'normal'); } catch(e) {}
+    updateConditionBlock();
+  }
 }
 
 // ── PERMANENT CONDITIONS / STATUS EFFECTS ──────────────────────────
@@ -8825,6 +8927,7 @@ function updateCharacterTab() {
   setEl('char-hp',    c.hp ?? 100);
   setEl('char-maxhp', c.maxHp ?? 100);
   setEl('char-silver',c.silver ?? 0);
+  setEl('char-kills', c.kills ?? 0);
 
   // --- Qi ---
   const qi = c.qi || {};
@@ -11443,7 +11546,7 @@ const SAVE_PREFIX = 'murim_slot_';
 // Scheme: MAJOR.MINOR. Big updates bump MAJOR (1.2 -> 2.2). Small updates
 // bump MINOR (2.2 -> 2.3). Each version has a name. The current version is
 // stamped onto every save; older saves can be updated to the latest.
-const GAME_VERSION = { number: '3.22', name: 'The Story Decides' };
+const GAME_VERSION = { number: '3.23', name: 'Blood & Healing' };
 
 // Which model generates the story. Lite Mode swaps to a far cheaper, faster model
 // (Claude Haiku) so long sessions / limited credits cost a fraction per turn.
@@ -11491,6 +11594,7 @@ const VERSION_HISTORY = [
   { number:'3.20', name:'The Bestiary', sys:'The ten Original Qi Beasts are now fully fleshed out — each with its own stats, the place in the world it can be found, its lore and behavior, exactly how its Qi works, and how (and what it costs) to learn its art. Every beast\'s Qi is genuinely DISTINCT: learning from one grants its own unique signature technique (a dragon\'s law-like elemental dominion is nothing like the arachnid\'s cutting web-silk or the sanguine\'s blood-command), and the storyteller now runs each encounter true to that beast\'s nature. A new in-game Bestiary lets you browse every creature in full detail.', note:'Expanded ANCIENT_QI_BEASTS: per-beast stats{8}, qiStageIndex, tier, danger, location, lore, behavior, qiMechanic, howToLearn, and a DISTINCT signature{name,category,type,rarity,desc} (10 unique arts across 5 categories). buildAncientQiSection() now surfaces location/mechanic/behavior/how-to-learn/granted-art per beast + DISTINCT rule. trackAchievementState ancientQiLearned now grantTechnique(beast.signature) so each grants its own art. Bestiary viewer: showBeastBestiary()/showBeastDetail() (uiPicker→uiPopup stat+lore card) + admin NPCs-tab button.' },
   { number:'3.21', name:'Earned, Not Clicked', sys:'Cultivation, techniques, and martial arts now progress the way they should — through the story, not a button. Understanding the THEORY of Qi (Meridian Theory, Meditation, Cultivation skills) genuinely speeds up how fast you gather Qi when you cultivate. The "Progress Stage" button is gone: techniques AND martial arts now advance only through real, repeated use in the narrative (each card shows how many more uses remain). You no longer hand-craft offshoots from a menu either — when you truly innovate on or break open one of your arts in the story, the narrator splits off a new variant for you, with its own proper description. Offshoots and fused techniques now read as real arts with their own bios, never "a variant of X" or "a fusion of X and Y".', note:'Part A: getCultivationTheoryMult() (meridian_theory*1.4+meditation*1.1+cultivation*1.0+formation_theory*0.4, +1.5%/pt cap +70%) applied in addQiWithTraits for positive gain; late _bspWithProgression prompt wrapper also nudges AI qiChange for theory-heavy chars. Part C: removed advanceTechStage/advanceMAStage buttons; added MA_PRACTICE_TO_ADVANCE + recordMartialUse + wired into detectTechniquesInMessage loop so MAs advance via narrative; cards show remaining-uses hint. Part B: removed player Create Offshoot button + function; newOffshoots AI field → applyOffshootsFromAI (story-driven variants, real bio, start Fragmented). Part D: combination naming now requests structured techDefine{id,name,desc} (was fragile personalEvents TECH_DEFINE — mangled by an outer wrapper). KEY FIX: the old applyAIResponse wrapper chain is DEAD (consolidatedApplyAIResponse rebuilt it without _prev); moved offshoot+techDefine handling into an outermost post-consolidation wrapper (wireTechAuthoring) so they actually run.' },
   { number:'3.22', name:'The Story Decides', sys:'Refined how offshoots work: you CAN deliberately set out to develop a variant of a technique or martial art you understand well (a "Develop Offshoot" button on the card) — but the STORY authors it. You never name or design it; the narrator decides whether a real offshoot even emerges this time, and if it does, invents its name, its bio, and what it does, drawn from the parent art and your own cultivation (path, expression, level, any beast-Qi you carry). It must genuinely diverge from the parent and starts unlearned, to be practiced up.', note:'Re-added a card button as requestOffshoot(id,type) (tech gated stage>=2, ma stage>=3): builds a context-rich DEVELOP OFFSHOOT injection (parent name/desc/category/type/rarity/stage + character cultivation stage/path/expression + learned beast arts) and sendToAI; AI authors name/bio/effect and returns via existing newOffshoots → applyOffshootsFromAI. Updated _bspWithProgression OFFSHOOTS rule to cover both organic and player-requested paths (AI always authors; may legitimately fail to produce one).' },
+  { number:'3.23', name:'Blood & Healing', sys:'Your character now has a KILL COUNTER (shown on the character sheet), with new achievements at 1, 10, 50, and 100 lives taken. Ordinary wounds finally HEAL: cuts, bruises, sprains, fractures and the like now knit closed with time and rest (faster if you\'re tough or have healing arts), and the storyteller\'s heal-text now actually clears the matching wound even when the wording differs — only grave injuries (shattered channels, lost limbs) still linger. And several achievements that used to pop when they hadn\'t really happened (the God of High School one on a stray phrase, the tomb and public-affection ones on a mere mention) now only fire on the real thing.', note:'KILLS: char.kills + migration; res.kills AI field + safe(kills) increment + JSON template + prompt rule (confirmed deaths only); char-kills display; first_kill now uses kills (not blood karma) + killer_ten/fifty/hundred achievements. INJURY HEALING: addInjury timestamps (_injuryDays); tickInjuryHealing in passive tick (scaled by severity regex, endurance, healing passives, medicine; _isPermanentInjury excluded); removeInjury made fuzzy (exact→normalized containment→canonicalized keyword overlap via _INJURY_SYN wound/body-part synonyms). ACHIEVEMENT FALSE-POSITIVES: god_of_high_school narrative now requires literal "Mori Jin" (dropped borrowed power/monkey king/charyeok); _enteredTomb requires founder-tomb + entry verb (not mere mention); _terezMoment relies only on explicit res.terezMoment AND a partner relationship (removed the fragile crowd-scene regex).' },
 ];
 
 function cleanSaveData(gs) {
@@ -11559,6 +11663,7 @@ function migrateSave(data) {
     channelsBroken:false, // true once meridians are shattered (negative-Qi breakthrough)
     drugStash:{}, _drugProfits:0, _dealCount:0, _dealBusts:0, // illicit substances trade
     _larpSuccesses:0, _larpLog:[], // successful imposture/false-identity count → Larp God
+    kills:0, _injuryDays:{}, // lives taken by the character; injury timestamps for natural healing
     _ancientQiBeasts:[], _metMonkeyKing:false, // original Qi beast arts learned + Mori Jin encounter
     trial:null, // active court case: { charges, severity, daysLeft, lawyer, defenseSet, bribes, location }
     strength:10, agility:10, endurance:10, intelligence:10, perception:10, willpower:10, charisma:10, luck:10,
@@ -11664,6 +11769,10 @@ function migrateSave(data) {
   c.karma.blood     = c.karma.blood     || 0;
   c.karma.demonic   = c.karma.demonic   || 0;
   c.karma.chaotic   = c.karma.chaotic   || 0;
+
+  // Kill counter + injury timestamps (older saves)
+  if(typeof c.kills !== 'number') c.kills = 0;
+  if(!c._injuryDays || typeof c._injuryDays !== 'object') c._injuryDays = {};
 
   // Ensure qi sub-fields
   if(!c.qi || typeof c.qi !== 'object') c.qi = dc.qi;
@@ -13894,6 +14003,7 @@ The JSON carries ONLY state changes. There is NO "narrative" field in the JSON �
   "socialTitles": [{ "name": "", "desc": "", "effects": {}, "knownBy": [], "groupReach": {} }],
   "prisonStatus": null,
   "bounty": 0,
+  "kills": 0,
   "newSects": [{ "name": "", "alignment": "", "location": "", "desc": "" }],
   "offspring": [{ "name": "", "gender": "male", "otherParent": "", "abandoned": false, "age": 0 }],
   "raceChange": null,
@@ -15739,8 +15849,20 @@ const ACHIEVEMENTS_DEF = [
   { id:'first_kill',
     icon:'💀', name:'First Blood',
     desc:'Take a life. The weight of it is real.',
-    // Blood karma > 5 means someone actually died, not just minor karma gain
-    check: gs => gs.char.karma.blood >= 5 },
+    // Use the real kill counter — not blood karma, which can rise without a death.
+    check: gs => (gs.char.kills||0) >= 1 },
+  { id:'killer_ten',
+    icon:'🔪', name:'Blood on the Hands',
+    desc:'Take ten lives.',
+    check: gs => (gs.char.kills||0) >= 10 },
+  { id:'killer_fifty',
+    icon:'☠️', name:'A Trail of Bodies',
+    desc:'Take fifty lives.',
+    check: gs => (gs.char.kills||0) >= 50 },
+  { id:'killer_hundred',
+    icon:'⚰️', name:'Hundred-Slayer',
+    desc:'Take a hundred lives. The world is lighter for your passing through it.',
+    check: gs => (gs.char.kills||0) >= 100 },
 
   // ── Reputation ──
   { id:'notorious',
@@ -16191,17 +16313,19 @@ function trackAchievementState(res) {
     c._actedDuringWorldEvent = true;
   }
 
-  // Tomb detection from narrative
-  if(res.narrative && /reo.*tomb|ichiro.*tomb|tomb.*reo|tomb.*ichiro/i.test(res.narrative)) {
-    c._enteredTomb = true;
+  // Tomb detection — must actually ENTER a FOUNDER's tomb, not merely mention one.
+  if(res.narrative) {
+    const n = res.narrative;
+    const founderTomb = /(reo|ichiro)/i.test(n) && /\btombs?\b/i.test(n);
+    const entered = /\b(enter(?:ed|ing)?|step(?:ped)?\s+(?:in|into|inside)|descend(?:ed|ing)?\s+(?:in|into)|broke?\s+into|breach(?:ed)?|inside the tomb|within the tomb|into the tomb|main chamber|burial chamber|cross(?:ed)?\s+the\s+threshold)\b/i.test(n);
+    if(founderTomb && entered) c._enteredTomb = true;
   }
 
-  // Terez: overboard public affection
-  if(res.narrative && /\b(crowd.*stares?|everyone.*watching|public.*kiss|spectacle.*love|loudly.*love|profess.*love.*market|calls? out.*love|confesses?.*love.*crowd|openly.*embrace|dropped.*to.*knee.*public|knelt.*public.*love|plaza.*kiss|marketplace.*embrace|the whole.*witnessed|onlookers.*stare|passers.*stop|street.*stopped)\b/i.test(res.narrative)) {
+  // Terez: overboard PUBLIC affection. Only the AI's explicit flag counts, and only
+  // if the character actually has a partner — no more firing on stray crowd scenes.
+  if(res.terezMoment && (c.relationships||[]).some(r => ['lover','spouse'].includes(r.type) || (r.romance && r.romance.stage && r.romance.stage !== 'none'))) {
     c._terezMoment = true;
   }
-  // Also flag if AI explicitly sets it
-  if(res.terezMoment) c._terezMoment = true;
 
   // Original Qi beasts — AI registers a genuinely learned beast art.
   if(res.ancientQiLearned && ANCIENT_QI_BEASTS[res.ancientQiLearned]) {
@@ -16218,9 +16342,10 @@ function trackAchievementState(res) {
     }
   }
 
-  // The God of High School — Mori Jin (the Monkey King) crosses the story.
+  // The God of High School — only when Mori Jin actually appears (named), not on
+  // generic phrases like "borrowed power" or a passing "monkey king" reference.
   if(w.npcRegistry && w.npcRegistry['mori_jin']) c._metMonkeyKing = true;
-  if(res.narrative && /\bmori\s*jin\b|monkey king|god of high school|charyeok|borrowed power/i.test(res.narrative)) c._metMonkeyKing = true;
+  if(res.narrative && /\bmori\s+jin\b/i.test(res.narrative)) c._metMonkeyKing = true;
 }
 
 function getUnlockedAchievements() {
@@ -28550,6 +28675,7 @@ updateCharacterTab = function() {
 
     safe('passiveQi',       () => passiveQiAccumulation(elapsed));
     safe('passiveRegen',    () => applyPassiveRegenForDays(elapsed));
+    safe('injuryHealing',   () => tickInjuryHealing(elapsed));
     safe('npcTick',         () => tickAllNPCs(elapsed));
     safe('prisonCheck',     () => checkPrisonExecution());
     safe('bountyHunters',   () => tickBountyHunters(elapsed));
@@ -29048,6 +29174,15 @@ updateCharacterTab = function() {
 
     // Karma
     safe('karma', () => { if(res.karma) Object.entries(res.karma).forEach(([k,v])=>{if(v&&GS.char.karma[k]!==undefined) GS.char.karma[k]+=v;}); });
+
+    // Kill counter — the AI reports lives the character actually takes this turn.
+    safe('kills', () => {
+      const n = parseInt(res.kills);
+      if(!isNaN(n) && n > 0) {
+        GS.char.kills = (GS.char.kills || 0) + n;
+        try { addChronicleEntry(n === 1 ? 'Took a life.' : `Took ${n} lives.`, 'normal'); } catch(e) {}
+      }
+    });
 
     // Occupation
     safe('occupation', () => { if(res.occupation?.title) addOccupationToHistory(res.occupation); });
@@ -42128,7 +42263,9 @@ buildSystemPrompt = function() {
     const section = `## TECHNIQUE PROGRESSION & OFFSHOOTS\n`
       + `Techniques and martial arts get STRONGER only through narrative PRACTICE — repeated, earned use in the story. NEVER jump a technique or martial art up multiple stages from a single action, and do not let the player simply declare mastery; mastery is shown, used, and earned over time. A stage is a real threshold of understanding.\n`
       + `OFFSHOOTS / VARIANTS: the player never names or designs their own variants — YOU author them. This happens two ways: (a) organically, when the player innovates on, diverges from, or breaks open one of their arts in the story; or (b) when the player deliberately sets out to develop an offshoot (a "DEVELOP OFFSHOOT" request) — in that case YOU decide whether a real offshoot actually emerges (it may honestly fail to click this time) and, if it does, YOU invent its name, its real BIO (what it IS and how it feels), and what it does — drawn from the parent art and the character's own cultivation (path, expression, level, any beast-Qi). Either way, register it via "newOffshoots" with a real bio (never "a variant of X"), it must genuinely diverge from the parent (not a rename), and it starts fresh at the lowest stage and must be practiced up. Do not hand these out casually.\n`
-      + `CULTIVATION SPEED:${theoryNote}\n`;
+      + `CULTIVATION SPEED:${theoryNote}\n`
+      + `KILLS: when the character actually KILLS one or more people (or clearly sentient beings) this turn — by their own hand or unambiguously as a direct result of their action — report the count as "kills": <number>. Count only real, confirmed deaths the character caused; do NOT count fights they merely won, people who fled wounded, ambiguous outcomes, kills by others, or beasts/vermin you would not narrate as a death. When in doubt, omit it.\n`
+      + `INJURIES HEAL: ordinary wounds (cuts, bruises, sprains, fractures, burns) are TEMPORARY and knit closed with time and rest — they should NOT be treated as still-open weeks or months later, and the engine already heals them over time. When enough time passes or the character recovers, clear healed wounds via "removeInjuries" (your wording need not match exactly). Only genuinely grave injuries (shattered meridian channels, severed/lost limbs, crippling, permanent maiming) persist without real intervention.\n`;
     if(prompt.includes('## ABSOLUTE RULES')) prompt = prompt.replace('## ABSOLUTE RULES', section + '\n## ABSOLUTE RULES');
     else prompt = prompt + '\n' + section;
   } catch(e) {}
