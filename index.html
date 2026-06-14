@@ -12048,7 +12048,7 @@ window.addEventListener('pagehide', () => { doAutosave(true); });
 // Scheme: MAJOR.MINOR. Big updates bump MAJOR (1.2 -> 2.2). Small updates
 // bump MINOR (2.2 -> 2.3). Each version has a name. The current version is
 // stamped onto every save; older saves can be updated to the latest.
-const GAME_VERSION = { number: '4.4.4', name: 'Names & Standing' };
+const GAME_VERSION = { number: '4.5', name: 'The Gathering Flood' };
 
 // Which model generates the story. Lite Mode swaps to a far cheaper, faster model
 // (Claude Haiku) so long sessions / limited credits cost a fraction per turn.
@@ -12114,6 +12114,7 @@ const VERSION_HISTORY = [
   { number:'4.4.2', name:'No Backwards Breakthroughs', sys:'Fixed a breakthrough bug at the higher realms: the storyteller sometimes used the GENERIC cultivation order instead of this world\'s, so a Void Refinement cultivator breaking through could be told they were becoming Nascent Soul — a realm they were already PAST. That was a demotion in disguise. Now a breakthrough only ever moves you UP, to the exact next realm, and the game flat-out ignores any attempt to turn a climbing cultivator backward. The storyteller is also shown the full realm ladder and your exact next realm every turn, so it stops guessing.', note:'aiSetQiStage hardened: rounds index; ADVANCE only by +1 (clamped to ladder top, blocks multi-stage jumps); REGRESSION (index<cur) ignored UNLESS GS.char._tribulation is active (then -1) — stops stray AI echoes from demoting a climber when the model misorders realms (Nascent Soul 9 vs Void Refinement 10). Live prompt CURRENT GAME STATE now prints the exact NEXT realm (name+index) and the FULL ordered QI_STAGES ladder; added CULTIVATION ADVANCEMENT RULE (up only, exactly current+1, never a passed realm, regress only via narrated tribulation). Version → 4.4.2.' },
   { number:'4.4.3', name:'Lessons Learned', sys:'Fixed the Education tab for informal training (lessons from a mentor or relative, apprenticeships). It was being crammed into the formal-school layout — so a lesson from your aunt showed a meaningless "undefined", a "Track: General" line, and a broken progress bar. Informal training now has its own clean card: what you\'re learning, who taught it, and how long it\'s been. It\'s also no longer a lifelong enrollment — you can End Training anytime, it wraps up on its own after about two years of lessons, and any old "still studying under someone you left ages ago" entries are quietly concluded when your save loads. Finished informal training now shows under a "Trained In" list so you keep credit for what you learned.', note:'updateEducationSection: formal-enrolled loop now filters e.institution && !e.informal (was rendering informal entries through the school card → undefined quality badge / Track / NaN progress); added a dedicated informal card (subject, mentor, since/years, desc, End Training btn) + a "Trained In" section for status==="completed". endInformalEducation(idx) sets completed+completedYear. tickEducation now accrues informal months and auto-completes at 24mo (was skipped via if(!inst) return). migrateSave concludes enrolled informal entries whose since is 2+ years old (clears long-stale mentor lessons on load). Version → 4.4.3.' },
   { number:'4.4.4', name:'Quiet Karma', sys:'The storyteller will stop talking about "karma" and "karma debt". Karma was always meant to be invisible bookkeeping that just colors how the world treats you — but the AI kept naming it out loud like a meter on your screen. Now it is told, firmly, never to write the word at all: your deeds still shape who fears or trusts you, whether the heavens send a tribulation, and what dark powers notice you — but you will see those consequences play out in the world, not get lectured about a score.', note:'Karma surfacing relabeled INTERNAL + hard no-narration directive. buildKarmaContextForAI leads with "INTERNAL MORAL-WEIGHT BOOKKEEPING — never write karma/karmic/karma debt" + numbers tagged (internal). CURRENT GAME STATE karma line prefixed "(internal moral-weight, NEVER name in prose)". Live KARMA RULE rewritten → "NEVER NARRATE IT": forbid the words karma/karmic/karma debt/balance/ledger/meter/score, show consequences through people/events only; still never gates cultivation; atonement via negative karma stays but unnamed. breakStatus internal flag de-karma\'d (was "karma outcome would be…"). Version → 4.4.4.' },
+  { number:'4.5', name:'The Gathering Flood', sys:'Qi-gathering techniques now actually count. If you know and have mastered a gathering / absorption / extraction / drawing-in art, cultivating with it floods you with Qi — scaled to how well you UNDERSTAND the technique (its mastery stage) and how great the art is (its grade). A barely-grasped art gives nothing extra, but a fully mastered, top-tier gathering technique can multiply your Qi intake many times over. The storyteller is told to narrate the intake as overwhelming when you have one.', note:'qiGatheringTechMult(): scans techniques, flags gathering arts by category==="gathering" or a keyword regex (gather/absorb/intake/extract/drink/siphon/harvest/draw-in-qi/condense/refine-qi/spirit-absorption/tribute/funnel/qi-drain/net-positive-intake/etc.), best power = stage(0..6) × rarityWeight(common1→mythic4), returns min(8, 1+power*0.45) — stage-0 fragmented = 1x (understanding gated). Applied as an extra factor in the consolidated engine-authoritative cultivation gain (× days × cultivationBonus × karmaMult × gatherMult); toast notes the flood at ≥1.5x. Live cultivation prompt note tells the AI to narrate a torrential intake when gatherMult≥1.5. Version → 4.5.' },
 ];
 
 function cleanSaveData(gs) {
@@ -16105,6 +16106,31 @@ function cultivationBaseQiPerDay() {
   const stage = GS.char.qi?.stageIndex || 0;
   perDay *= (1 + stage * 0.18);
   return perDay;
+}
+
+// Qi-GATHERING techniques boost how much Qi you pull in when you cultivate. A real
+// gathering / absorption / extraction / drawing art counts toward your intake, and
+// the more you UNDERSTAND it (technique stage 0→6) and the greater the art (rarity),
+// the more it draws — a mastered, top-grade gathering technique floods you with Qi.
+// Returns a multiplier >= 1 applied to active cultivation gain. (A fragmented,
+// barely-grasped art at stage 0 gives nothing extra — understanding is the point.)
+const _QI_GATHER_RE = /gather|absor[bp]|intake|extract|\bdrink|devour|siphon|harvest|draw(ing)?\s+(in\s+)?qi|qi\s+draw|condens|refin\w*\s+qi|spirit\s+(absorption|gathering)|breath(e|ing)|tribute|funnel|drain\w*\s+qi|qi\s+drain|essence\s+(gather|harvest|drink)|swallow\w*\s+qi|consum\w*\s+qi|net\s+positive\s+intake/i;
+function qiGatheringTechMult() {
+  const techs = GS.char.techniques || [];
+  const rarityW = { common:1, uncommon:1.3, rare:1.7, epic:2.2, legendary:3, mythic:4 };
+  let best = 0;
+  techs.forEach(t => {
+    if(!t) return;
+    const hay = `${t.name||''} ${t.category||''} ${t.type||''} ${t.desc||''}`;
+    const isGather = (t.category||'').toLowerCase() === 'gathering' || _QI_GATHER_RE.test(hay);
+    if(!isGather) return;
+    const stage = Math.max(0, t.stage || 0);                       // 0..6 — your understanding
+    const rw    = rarityW[(t.rarity||'common').toLowerCase()] || 1; // grade of the art
+    const power = stage * rw;
+    if(power > best) best = power;
+  });
+  if(best <= 0) return 1;
+  return Math.min(8, 1 + best * 0.45); // up to ~8x for a fully-mastered, top-grade gathering art
 }
 
 // Practice needed to advance a technique/MA stage — the table values are the
@@ -30333,10 +30359,13 @@ updateCharacterTab = function() {
         // qiChange is ignored for cultivation so the math always maths.
         const days  = Math.max(0.3, (res.time?.days||0) + (res.time?.months||0)*30 + (res.time?.years||0)*360);
         const bonus = Math.max(0.3, Math.min(3, parseFloat(res.cultivationBonus) || 1));
-        const gain  = Math.round(cultivationBaseQiPerDay() * days * bonus * (GS.char._karmaQiMult||1));
+        // A mastered Qi-GATHERING art turns cultivation into a flood — scaled by how
+        // well it's understood (technique stage) and how great the art is (rarity).
+        const gatherMult = qiGatheringTechMult();
+        const gain  = Math.round(cultivationBaseQiPerDay() * days * bonus * (GS.char._karmaQiMult||1) * gatherMult);
         if(gain > 0) {
           const got = addQiRaw(gain);
-          try { toast(`+${got} Qi gathered`, '', 2200); } catch(e) {}
+          try { toast(`+${got} Qi gathered${gatherMult >= 1.5 ? ' — your gathering art floods you' : ''}`, '', 2400); } catch(e) {}
         }
       } else if(res.qiChange) {
         // Non-cultivation Qi (pills, bargains, special events) — honor the AI's value.
@@ -43591,7 +43620,7 @@ buildSystemPrompt = function() {
     const section = `## TECHNIQUE PROGRESSION & OFFSHOOTS\n`
       + `Techniques and martial arts get STRONGER only through narrative PRACTICE — repeated, earned use in the story. NEVER jump a technique or martial art up multiple stages from a single action, and do not let the player simply declare mastery; mastery is shown, used, and earned over time. A stage is a real threshold of understanding.\n`
       + `OFFSHOOTS / VARIANTS: the player never names or designs their own variants — YOU author them. This happens two ways: (a) organically, when the player innovates on, diverges from, or breaks open one of their arts in the story; or (b) when the player deliberately sets out to develop an offshoot (a "DEVELOP OFFSHOOT" request) — in that case YOU decide whether a real offshoot actually emerges (it may honestly fail to click this time) and, if it does, YOU invent its name, its real BIO (what it IS and how it feels), and what it does — drawn from the parent art and the character's own cultivation (path, expression, level, any beast-Qi). Either way, register it via "newOffshoots" with a real bio (never "a variant of X"), it must genuinely diverge from the parent (not a rename), and it starts fresh at the lowest stage and must be practiced up. Do not hand these out casually.\n`
-      + `CULTIVATION SPEED:${theoryNote}${(GS.char.willpower||10) >= 25 ? ` On top of that, this character's strong WILLPOWER (${GS.char.willpower}) drives Qi through bottlenecks and sustains a deeper, steadier meditation — narrate their cultivation as unusually focused and relentless; the engine already gathers more Qi for them because of it.` : ''}\n`
+      + `CULTIVATION SPEED:${theoryNote}${(GS.char.willpower||10) >= 25 ? ` On top of that, this character's strong WILLPOWER (${GS.char.willpower}) drives Qi through bottlenecks and sustains a deeper, steadier meditation — narrate their cultivation as unusually focused and relentless; the engine already gathers more Qi for them because of it.` : ''}${qiGatheringTechMult() >= 1.5 ? ` This character KNOWS A QI-GATHERING ART and has real mastery of it — when they cultivate using it, the engine already floods them with a MASSIVE amount of Qi (scaled to their understanding and the art's grade). Narrate the intake as overwhelming and torrential: Qi pouring in, the space emptying itself into them, far beyond ordinary meditation. Do not undersell it.` : ''}\n`
       + `KILLS: when the character actually KILLS one or more people (or clearly sentient beings) this turn — by their own hand or unambiguously as a direct result of their action — report the count as "kills": <number>. Count only real, confirmed deaths the character caused; do NOT count fights they merely won, people who fled wounded, ambiguous outcomes, kills by others, or beasts/vermin you would not narrate as a death. When in doubt, omit it.\n`
       + `INJURIES HEAL: ordinary wounds (cuts, bruises, sprains, fractures, burns) are TEMPORARY and knit closed with time and rest — they should NOT be treated as still-open weeks or months later, and the engine already heals them over time. When enough time passes or the character recovers, clear healed wounds via "removeInjuries" (your wording need not match exactly). Only genuinely grave injuries (shattered meridian channels, severed/lost limbs, crippling, permanent maiming) persist without real intervention.\n`
       + `PERMANENT CONDITIONS ARE RARE AND STRICT: the "conditions" field is ONLY for genuinely PERMANENT, life-altering harm or marks — a lost eye/limb, blindness, deafness, a severed tongue, shattered meridian channels, a true curse, a brand, a divine mark. NEVER put a temporary or recoverable state in "conditions": exhaustion, fatigue, soreness, "post-breakthrough exhaustion", drained/depleted Qi, hunger, dizziness, a strain, a hangover, being shaken or winded — none of these are conditions. A passing state belongs in the prose (and at most as a normal injury that heals); do not make it permanent. When in doubt, it is NOT a permanent condition.\n`
