@@ -6620,6 +6620,18 @@ function getQiStageIndex() { return GS.char.qi.stageIndex; }
 // your floor drops to -max — negative Qi is your reserve now.
 function qiFloor() { return GS.char._negativeQiPath ? -(GS.char.qi?.max || 100) : 0; }
 
+// INVARIANT: the breakthrough wall must never sit above the Qi ceiling, or it
+// becomes mathematically unreachable (current is clamped to max). The karma
+// "difficult" surcharge used to push breakthroughAt past max — e.g. a wall of
+// 1503 while the cap was 1350 — leaving the player permanently stuck at the cap.
+// Whenever the wall moves, the ceiling rises to hold it.
+function ensureQiReachable(c) {
+  c = c || GS.char;
+  const qi = c && c.qi;
+  if(!qi) return;
+  if((qi.breakthroughAt || 0) > (qi.max || 0)) qi.max = qi.breakthroughAt;
+}
+
 function addQi(amount) {
   const qi = GS.char.qi;
   // Broken channels cannot hold or gather Qi.
@@ -6870,12 +6882,15 @@ function getQiPathColor(path) {
 // COMBAT POWER RATING
 // ================================================================
 function getPowerRating(entity) {
-  // entity has strength, agility, qi.stageIndex (or qiStageIndex)
+  // entity has strength, agility, endurance, qi.stageIndex (or qiStageIndex)
   const si = entity.qi?.stageIndex ?? entity.qiStageIndex ?? 0;
   const str = entity.strength || 10;
   const agi = entity.agility || 10;
+  const end = entity.endurance || 10;
   const qiMult = [0,1,2,3,6,10,16,25,40,65,100,160,250,500][si] || 0;
-  return str * 1.2 + agi * 1.0 + qiMult * 8;
+  // Endurance counts: a tougher body wins attrition and survives exchanges that
+  // would drop a glass-cannon. Weighted below offense but no longer ignored.
+  return str * 1.2 + agi * 1.0 + end * 0.7 + qiMult * 8;
 }
 
 function compareToPlayer(npc) {
@@ -11265,6 +11280,7 @@ PART 2 — DATA (immediately after the narrative, on its own line):
   "removeAssets": ["name of a property the player lost/sold"],
   "spiritualTitles": [{ "name": "", "desc": "", "effects": {}, "knownBy": [] }],
   "socialTitles": [{ "name": "", "desc": "", "effects": {}, "knownBy": [], "groupReach": {} }],
+  "newLocation": null,
   "prisonStatus": null,
   "bounty": 0,
   "death": false,
@@ -11942,7 +11958,7 @@ window.addEventListener('pagehide', () => { doAutosave(true); });
 // Scheme: MAJOR.MINOR. Big updates bump MAJOR (1.2 -> 2.2). Small updates
 // bump MINOR (2.2 -> 2.3). Each version has a name. The current version is
 // stamped onto every save; older saves can be updated to the latest.
-const GAME_VERSION = { number: '4.2', name: 'Set the Record Straight' };
+const GAME_VERSION = { number: '4.3', name: 'Weight & Inheritance' };
 
 // Which model generates the story. Lite Mode swaps to a far cheaper, faster model
 // (Claude Haiku) so long sessions / limited credits cost a fraction per turn.
@@ -12001,6 +12017,7 @@ const VERSION_HISTORY = [
   { number:'3.31', name:'Disciples & the Bound', sys:'The people-under-you system is expanded beyond crews. You can now take DISCIPLES — students you personally teach, who grow in cultivation and devotion (or resentment) over time — and hold the BOUND: people owned or bound to you (captured, bought, taken by debt or conquest), whose spirit ranges from broken to loyal to plotting. Both appear in a new "Disciples & Bound" panel on your character sheet, and the storyteller tracks them as real people with their own arcs. (This also quietly fixes the crew system, whose AI updates had stopped registering.)', note:'New char.disciples/char.slaves arrays (+ createDefaultState + migrate). DISCIPLE_TALENTS/SLAVE_SPIRITS catalogs; addDisciple/addSlave, applyDisciplesUpdate/applySlavesUpdate (add/update/remove|free by name/id + action verbs); updateFollowersDisplay() renders #followers-section (hidden when empty) wired into world-tab refresh. AI fields res.disciples/res.slaves + JSON template + DISCIPLES & THE BOUND prompt rule (late wrapper). FIX: res.crewUpdate handler was orphaned by the consolidated applyAIResponse rewrite (verified not firing); added outermost wirePeopleUpdates wrapper that runs applyCrewUpdate + disciples + slaves so all three actually register.' },
   { number:'4.1', name:'Pacts & Legacy', sys:'A big lore update. Most importantly: the storyteller now reliably KNOWS the world\'s canon and will never break character to claim a real figure (like Zeret of Lust) doesn\'t exist — the Maligned Lords, the founders, Yuluh, the deep dark (bar lēlyā & Nyokuro), the Original Qi Beasts, and the NzuriKami gods are all surfaced as real. Yokai are fleshed out in depth, and so are CONTRACTS — real, structured, costly pacts you can strike with yokai, gods, deities, and entities (including bar lēlyā), each with a price that scales terribly with what you ask. A child of an extremely renowned or infamous parent now inherits a legacy: a trait tied to that parent, a title, and a measure of both fame and the enemies that come with a great name (you discover it when you continue as them). New fable trait "Saint of the Heartland" (an echo of Zukaisen, who turns souls back from the Heartland before their time), and several new achievements for pacts, disciples, the bound, and dynasty.', note:'#7 buildWorldLoreCanon() + late _bspWithWorldLore wrapper (post length-guard so never trimmed): CANON list from LORE_NPCS (lords incl. zeret_lust, founders, Yuluh, bar lēlyā/Nyokuro, ANCIENT_QI_BEASTS, NzuriKami/Heartland) + hard NEVER-DENY/never-break-character rule; detailed YOKAI section; detailed CONTRACTS & PACTS section (contact/offer/price/binding; yokai/divine/dark). This fixes the AI denying Zeret (was trimmed from preamble). #6 saint_of_the_heartland fable trait (Zukaisen echo). #1 continueAsOffspring: parent maxRenown/maxInfamy>=70 → epic Heir/Blood-of trait + social title + seeded renown/infamy + rep titles. #5 pact tracker: char._pacts + res.pactFormed handler in wirePeopleUpdates + JSON template; 6 new achievements (yokai_pact, divine_pact, saint_heartland, teacher, master_of_many, dynasty). Version → 4.1.' },
   { number:'4.2', name:'Set the Record Straight', sys:'A pile of fixes. The storyteller will NO LONGER deny, rewrite, or skip past what you told it your character does — your action is what happened, full stop (this was the worst one). Polygamy and harems are explicitly supported — you can have multiple wives, concubines, and lovers openly. The NPC name pool is much bigger and more varied. The karma "difficult breakthrough" no longer compounds its wall higher every attempt — it sets a fixed extra requirement that drops back when you balance your karma (and old stuck saves are repaired). Ordinary people stay ordinary — your mill-worker uncle won\'t quietly become a Nascent Soul anymore (and existing over-leveled NPCs are pulled back down). Clicking an NPC in the admin panel now shows a full dossier — stats, life since birth, connections, network, personality, secrets. Studying (morning lessons) is education, not a paying job. And NPCs no longer magically know what distant people are doing in real time.', note:'URGENT: defined NPC_SURNAMES/MALE/FEMALE pools (were referenced undefined after last turn — would crash NPC gen). KARMA BREAKTHROUGH: attemptBreakthrough rebuilds wall each attempt from qi._baseBreakthroughAt × karma surcharge (idempotent, no compounding); difficult block now only applies cost; stage-advance stores _baseBreakthroughAt; migrate clamps runaway breakthroughAt. NPC LEVELS: generateNPC heavy mortal bias (_rollStage ~62% mortal) + cultivationCap (_rollCap); tick respects cap (dailyRate 0 past cap); migrate demotes high-realm-low-stat NPCs + freezes cultivationCap. AI AGENCY: emphatic "PLAYER ACTION IS GROUND TRUTH — never deny/retcon/replace/time-skip" rule in live late wrapper. POLYGAMY: romance rule 7 rewritten to support open harems (jealousy now only for secrecy/betrayal, rule 7b). ADMIN DOSSIER: showNPCStats expanded (age/occupation/path/lifeTimeline via ensureNPCTimeline/connections/activity/secrets). EDUCATION: _isEducationNotJob guard in addOccupationToHistory reroutes lessons→addInformalEducation + migrate + prompt note. NPC KNOWLEDGE: distance/channel-limited knowledge prompt rule. ORDINARY PEOPLE prompt rule. Version → 4.2.' },
+  { number:'4.3', name:'Weight & Inheritance', sys:'Five fixes. BREAKTHROUGH UNSTUCK: if your Qi sat at the cap but couldn\'t advance, that\'s fixed and stuck saves repair themselves on load. NO MORE KARMA DEBT: your karma NEVER raises the Qi you need to break through or walls off your cultivation — that whole "karma debt" on your save is gone, and old saves are cleaned of it. (Heavy dark karma can still call down a tribulation or risk a deviation at the moment of breakthrough, but it is not a standing tax on your progress.) TRAVEL ACTUALLY MOVES YOU: when the story takes you somewhere new — traveling, escorted, captured, carried — the world map updates to match instead of stranding you in the old place. INHERIT THE THRONE: when you continue as your offspring, any organization (crew, gang, sect, order, clan) you led and any sect leadership you held now pass to your heir — its people, silver, and reach are theirs, though an untested heir must prove they can hold the seat. STATS HAVE REAL WEIGHT: ALL eight attributes now genuinely shape what happens — high Strength overpowers, high Agility evades, high Endurance shrugs off ordinary blows, high Perception catches ambushes and lies, high Willpower resists fear and illusion, high Intelligence out-thinks and learns fast, high Charisma commands a room, high Luck bends coincidence — and low stats visibly fail. The storyteller is told your standout stats every turn and must honor them, in every kind of scene, not just combat.', note:'#1 BREAKTHROUGH: ensureQiReachable(c) invariant (qi.max≥breakthroughAt) in addQi-area + attemptBreakthrough + stage-advance; migrate now FORCES breakthroughAt=_baseBreakthroughAt (collapses any old karma surcharge) so stuck saves clear. #2 KARMA DEBT REMOVED: karmaBreakthroughCheck no longer returns "difficult"; attemptBreakthrough sets breakthroughAt=_base unconditionally; dead difficult cost-block removed; readiness msg de-karma\'d; KARMA RULE in live prompt rewritten (karma never gates cultivation; still social/tribulation; atonement via negative karma, floored at 0). #3 TRAVEL: aiSetLocation(locRef) resolves key/name/loose phrase → moves GS.world.location; res.newLocation in BOTH schema blocks + consolidated safe(location) handler + LOCATION RULE (post-ABSOLUTE-RULES so survives length guard). #4 INHERITANCE: continueAsOffspring deep-copies parent.crew (+succession log) and carries world.discoveredSects forward, preserving a led sect seat (Elder/Grand Elder/Sect Leader)+sectState; legacy personalEvent; LEGACY OF THE SEAT prompt rule. #5 STATS: STATS-HAVE-WEIGHT prompt rule (per-attribute capability map + tiers) + buildStatWeightContext(msg) per-turn [ATTRIBUTE CHECK] injection flagging standout highs(≥20 tiered)/lows(≤6); enduranceDamageMult cuts mundane physical dmg up to 70% (qi/elemental/poison/mental bypass via tightened regex) in consolidated hp handler (min 1 on intended harm); getPowerRating now includes endurance*0.7; DURABILITY tier line in buildCombatAnalysis. Version → 4.3.' },
 ];
 
 function cleanSaveData(gs) {
@@ -12213,7 +12230,11 @@ function migrateSave(data) {
   {
     const cleanBase = Math.round(((QI_STAGES[c.qi.stageIndex]?.qiNeeded) || c.qi.max || 100) * 1.35);
     if(!c.qi._baseBreakthroughAt || c.qi._baseBreakthroughAt > cleanBase * 1.6) c.qi._baseBreakthroughAt = cleanBase;
-    if((c.qi.breakthroughAt || 0) > c.qi._baseBreakthroughAt * 1.55) c.qi.breakthroughAt = Math.round(c.qi._baseBreakthroughAt * 1.4);
+    // NO KARMA DEBT: the wall is always the clean base now — wipe any karma surcharge
+    // that an old save carried (e.g. a wall of 1503 over a 1350 cap collapses back to
+    // the real threshold), so existing saves are freed from the stuck breakthrough.
+    c.qi.breakthroughAt = c.qi._baseBreakthroughAt;
+    if((c.qi.breakthroughAt || 0) > (c.qi.max || 0)) c.qi.max = c.qi.breakthroughAt;
     if(c.qi.current >= c.qi.breakthroughAt) c.qi.breakthroughReady = true;
   }
   // Repair runaway-negative Qi from the old unclamped bug (e.g., -2417/150).
@@ -13958,6 +13979,38 @@ function continueAsOffspring(offspringId) {
     rep.infamyTitle = !famous ? `${parent.lastName||'the'} Blood` : rep.infamyTitle;
   }
 
+  // ── Inherit what the parent BUILT, not just what they were. A founder's heir does
+  //    not start from nothing: any organization (crew/gang/sect/order/clan) the
+  //    parent led, and any sect seat they held, passes to the child along with its
+  //    people, silver, influence, and reach. Loyalty to an untested heir is never
+  //    guaranteed — that tension is the storyteller's to play — but the resources
+  //    are really theirs now. ──
+  const inheritedOrgs = [];
+  if(parent.crew) {
+    newState.char.crew = JSON.parse(JSON.stringify(parent.crew));
+    newState.char.crew.log = newState.char.crew.log || [];
+    newState.char.crew.log.push(`Year ${GS.world.year}: Leadership of ${parent.crew.name} passed to ${newState.char.firstName}, heir of ${parentFull}.`);
+    newState.char._inheritedCrew = { name: parent.crew.name, from: parentFull };
+    inheritedOrgs.push(`${parent.crew.name} (${getCrewLabel ? getCrewLabel(parent.crew) : 'your organization'})`);
+  }
+  // The world's sects don't vanish when a generation dies — carry them forward.
+  newState.world.discoveredSects = GS.world.discoveredSects || [];
+  const LEADER_RANKS = ['Elder','Grand Elder','Sect Leader'];
+  const parentRank = GS.char.sectState?.rank;
+  const ledSect = newState.world.discoveredSects.find(s =>
+    LEADER_RANKS.includes(s.playerRank) || (parentRank && LEADER_RANKS.includes(parentRank) && s.playerRank));
+  if(ledSect) {
+    const heldRank = LEADER_RANKS.includes(ledSect.playerRank) ? ledSect.playerRank : parentRank;
+    ledSect.playerRank = heldRank; // the heir holds the seat
+    if(GS.char.sectState) newState.char.sectState = JSON.parse(JSON.stringify(GS.char.sectState));
+    newState.char._inheritedSect = { name: ledSect.name, rank: heldRank };
+    inheritedOrgs.push(`${ledSect.name} (your standing: ${heldRank})`);
+  }
+  if(inheritedOrgs.length) {
+    const note = `As the heir of ${parentFull}, you inherit their power base: ${inheritedOrgs.join(' and ')}. Its people, resources, and reach are yours to command — though some who followed your parent will test whether you have earned the seat.`;
+    try { newState.char.personalEvents.push(note); } catch(e) {}
+  }
+
   newState.char.appearance = generateAppearance(child.gender, GS.world.location);
   newState.settings = GS.settings;
   newState.world.npcRegistry = GS.world.npcRegistry; // carry NPCs forward
@@ -14565,6 +14618,7 @@ The JSON carries ONLY state changes. There is NO "narrative" field in the JSON �
   "removeAssets": ["name of a property the player lost/sold"],
   "spiritualTitles": [{ "name": "", "desc": "", "effects": {}, "knownBy": [] }],
   "socialTitles": [{ "name": "", "desc": "", "effects": {}, "knownBy": [], "groupReach": {} }],
+  "newLocation": null,
   "prisonStatus": null,
   "bounty": 0,
   "kills": 0,
@@ -14585,6 +14639,21 @@ Omit any field that doesn't change. Zero values and empty arrays are noise — l
 
 CREW — crewUpdate: { "found":true, "name":"...", "type":"criminal|merchant|pirate|mercenary|gang|cult|espionage|guild|research|clan|raiders|smugglers", "description":"...", "tier":"nascent|small|established|powerful|feared|renowned", "silverDelta":0, "influence":0, "heat":0, "operation":"...", "upgrade":"...", "addMembers":[{"name":"...","role":"...", "contractMonths":0, "contractTerms":"..."}], "removeMembers":[{"name":"...","reason":"..."}] } — A CONTRACT WORKER is hired for a fixed term: set contractMonths (and contractTerms) on an addMembers entry; they appear in the crew with a contract countdown and automatically LEAVE when the term ends. Use this for hired specialists, mercenaries-for-a-job, seasonal hands, etc. Permanent members omit contractMonths.
 TOME RULE: Tomes are PERMANENT items — they never leave inventory from being read. A mortal (no Qi) cannot learn cultivation techniques from tomes. If a character is not ready for a technique (wrong stage, wrong path, needs a master first), say so in the narrative and do not grant it. The tome stays.
+
+LOCATION RULE (keeps the world map in sync with the story): The game tracks ONE current location for the player, shown as "Location:" in CURRENT GAME STATE. If your narrative ends with the player physically in a DIFFERENT place than that — for ANY reason: they traveled, you summarized a journey, they were escorted, captured and taken away, teleported, carried while unconscious, fled, sailed, or simply walked to the next town — you MUST report the new place with the "newLocation" field, using the location's name or key (e.g. "newLocation": "tazar"). This is the ONLY signal that updates the world location from the narrative side, so whenever the scene relocates the player, SET IT. If the player only moves around WITHIN the same city/area, do NOT set it. Never narrate the player as having arrived somewhere new while leaving "newLocation" unset — a story that says they reached the capital while the map still shows the old town is a bug you are responsible for preventing.
+
+KARMA RULE (karma is NOT a cultivation debt): Blood and demonic karma do NOT gate, tax, or wall off the player's cultivation — they never raise the Qi needed to break through and never block advancement. Karma matters socially and dramatically instead: who fears or trusts the player, what reputation precedes them, whether the heavens send a tribulation at a breakthrough, and what dark powers take an interest. Karma is also not a permanent stain — through genuine, costly atonement (real sacrifice, sustained righteous action, restitution, a penance a lesser person would refuse) it can be reduced; reflect that by sending NEGATIVE values in the "karma" field (e.g. "karma": { "blood": -8, "demonic": -4 }). Don't reduce karma for cheap gestures or while they keep doing harm. (Karma floors at 0.)
+
+STATS HAVE REAL WEIGHT (honor them EVERY scene, not just in combat): The eight attributes in CURRENT GAME STATE are not decoration — they are what the character can and cannot do, and they must shape outcomes constantly. Baseline for an ordinary person is ~10. Read each number as a tier: ~10 ordinary · 20+ gifted · 35+ exceptional · 50+ peak-human · 80+ superhuman. A HIGH stat should let the character SUCCEED, conspicuously and repeatedly, at things that stat governs — and a LOW stat should make them visibly STRUGGLE or FAIL at those things. Do not flatten everyone to "average competence." What each governs:
+- STRENGTH: raw force — lifting, breaking, bending metal, forcing doors, grappling, the sheer power behind a blow, carrying loads. High STR shatters guards and overpowers; low STR can't budge what others can.
+- AGILITY: speed, reflexes, balance, footwork, dodging, acrobatics, stealthy movement, sleight of hand. High AGI evades, strikes first, lands on its feet; low AGI is slow, clumsy, easy to hit.
+- ENDURANCE: durability and stamina — shrugging off ordinary blows (the engine reduces mundane physical damage by END), enduring pain, poison, cold, exhaustion, long marches. High END barely tires and is hard to wound with common weapons; low END gases out and bruises easily.
+- INTELLIGENCE: learning speed, memory, strategy, deduction, planning, and technical mastery (alchemy, formations, medicine, law, forgery). High INT solves, schemes, and learns fast; low INT misses the obvious and is outwitted.
+- PERCEPTION: noticing — ambushes, traps, lies, tells, hidden doors, tailing eyes, fine detail, aim at range, Qi-sense. High PER catches what others miss and is nearly impossible to surprise; low PER walks into traps and is fooled.
+- WILLPOWER: mental fortitude — resisting fear, intimidation, illusion, mental/dream attacks, temptation, corruption, deviation, and pushing through pain or a bottleneck. High WIL is unshakeable and bends others; low WIL panics, breaks, and is swayed.
+- CHARISMA: presence and influence — persuasion, negotiation, leadership, seduction, deception, inspiring loyalty, first impressions. High CHA talks its way through and commands rooms; low CHA grates, is distrusted, and is ignored.
+- LUCK: fortune's lean — narrow escapes, fortunate timing, finding the right thing, the gamble paying off, the stray arrow missing. High LCK bends coincidence their way; low LCK is where things go wrong.
+When the player attempts something an attribute governs, weigh THAT attribute (plus relevant skills/realm) to decide how well it goes, and SHOW the stat in the prose. An [ATTRIBUTE CHECK] note may flag the standout stats for a turn — treat it as authoritative.
 
 INVENTORY RULE — EVERY PHYSICAL ITEM RECEIVED GOES IN newItems. No exceptions.
 - Jewelry (necklace, pendant, ring, amulet) → type:"accessory", slot:"acc1"
@@ -15779,6 +15848,29 @@ function getTraitDamageMult(damageType) {
     if(def?.damageMult?.[damageType] !== undefined) mult *= def.damageMult[damageType];
   });
   return mult;
+}
+
+// A tempered body shrugs off ORDINARY physical force — this is what gives ENDURANCE
+// real defensive weight, since raw HP does not scale with it. Only mundane physical
+// blows (blunt/slash/generic — fists, clubs, common steel) are blunted. Qi-empowered
+// strikes, fire, lightning, poison, and mental attacks PIERCE a hardy body — exactly
+// the "high-qi advanced weapon or practitioner" that can still genuinely hurt a
+// high-endurance character. Returns a multiplier in (0,1] applied to incoming damage.
+function enduranceDamageMult(type, narrative) {
+  const end = GS.char.endurance || 10;
+  const physical = (type === 'blunt' || type === 'slash' || type === 'generic');
+  if(!physical) return 1.0;
+  // Qi/technique-empowered force ignores mere toughness. Match the ATTACK being
+  // empowered (specific phrasings), NOT any stray mention of "qi" — in a cultivation
+  // story "qi" appears constantly, and a bare match would nullify Endurance entirely.
+  if(/sword qi|saber qi|blade qi|fist qi|qi-?infused|qi-?empowered|qi-?backed|infused with qi|empowered (?:strike|blow|fist|palm|blade|weapon)|qi (?:blast|strike|wave|burst|edge)|spiritual (?:energy|pressure|weapon)|cultivation technique|\bdomain\b|\baura\b|core formation|nascent soul|golden core|enchanted weapon|spirit weapon/i.test(narrative||'')) {
+    return 1.0;
+  }
+  const over = Math.max(0, end - 10);
+  // Diminishing returns, capped at 70% reduction:
+  // END 30→~0.12 · END 50→~0.24 · END 100→~0.53 · END 130+→0.70 (takes only 30%).
+  const reduction = Math.min(0.70, over / 170);
+  return 1 - reduction;
 }
 
 // Returns the Qi cost multiplier for a technique category
@@ -17611,11 +17703,11 @@ function karmaBreakthroughCheck() {
     modifiers.chaotic = true;
   } else if(balance > 35 && karma.blood < 8 && karma.demonic < 8) {
     type = 'enhanced';
-  } else if(darkTotal > lightTotal + 18) {
-    type = 'difficult';
-    // How much extra Qi is needed — scaled to how bad the imbalance is
-    modifiers.extraQiPct = Math.min(0.40, (darkTotal - lightTotal) / 100);
   } else {
+    // NOTE: there is intentionally NO "karma debt" here. Dark karma never raises the
+    // Qi required to break through — it can still summon a tribulation or risk a
+    // deviation (the dramatic ordeals above), but it does NOT plant a persistent,
+    // ever-present wall on your cultivation. A balanced/dark breakthrough is "normal".
     type = 'normal';
   }
 
@@ -17644,19 +17736,17 @@ function attemptBreakthrough() {
 
   const check = karmaBreakthroughCheck();
 
-  // Rebuild the breakthrough wall FRESH each attempt from a clean base + current
-  // karma. Bad karma raises the wall by a FIXED amount (never compounding across
-  // attempts), and balancing your karma drops it back. Fixes the old bug where
-  // every failed attempt under dark karma pushed the threshold permanently higher.
+  // The breakthrough wall is ALWAYS the clean base for the stage — karma never adds
+  // a surcharge. There is no "karma debt": dark karma can summon a tribulation or
+  // risk a deviation when you break through, but it does not raise the Qi you need.
   const _base = qi._baseBreakthroughAt || qi.breakthroughAt || Math.round((getQiStage().qiNeeded || qi.max || 100) * 1.35);
   qi._baseBreakthroughAt = _base;
-  qi.breakthroughAt = (check.type === 'difficult')
-    ? Math.round(_base * (1 + (check.modifiers.extraQiPct || 0.25)))
-    : _base;
+  qi.breakthroughAt = _base;
+  ensureQiReachable(c);
   qi.breakthroughReady = (qi.current >= qi.breakthroughAt);
 
   if(!qi.breakthroughReady) {
-    return { success: false, reason: `Qi has not reached the threshold (${qi.current}/${qi.breakthroughAt} Qi).${check.type==='difficult'?' Your dark karma has raised the wall — balance it (good deeds) to bring it back down.':''}` };
+    return { success: false, reason: `Qi has not reached the threshold (${qi.current}/${qi.breakthroughAt} Qi).` };
   }
 
   // ── TRIBULATION ──
@@ -17700,13 +17790,8 @@ function attemptBreakthrough() {
     qi.current = Math.round(qi.max * 0.10); // barely anything left after fighting through
   }
 
-  // ── DIFFICULT ──
-  // The wall was already raised by a fixed amount above (and the readiness check
-  // would have failed if Qi were short). Here we just pay the cost of forcing it.
-  if(check.type === 'difficult') {
-    qi.current = Math.round(qi.max * 0.05); // nearly emptied
-    c.personalEvents.push(`[DIFFICULT BREAKTHROUGH TO ${nextStage.name.toUpperCase()}]: Forced through heavy karmic resistance (dark ${check.darkTotal.toFixed(0)} vs light ${check.lightTotal.toFixed(0)}). Nearly emptied. The advance happened but the cost was severe.`);
-  }
+  // (No "difficult" karma-debt branch — karma never raises the wall or taxes the
+  //  breakthrough beyond the tribulation/deviation ordeals handled above.)
 
   // ── ENHANCED ──
   // Clean karma makes breakthrough more than it should be.
@@ -17741,6 +17826,7 @@ function attemptBreakthrough() {
   const expansion = 1.25 + Math.random() * 0.25; // 1.25–1.50x
   qi.breakthroughAt = Math.round(getQiStage().qiNeeded * expansion);
   qi._baseBreakthroughAt = qi.breakthroughAt;
+  ensureQiReachable(c);
 
   // Small blood karma burn on clean breakthroughs (the energy purifies some sins)
   if(check.type === 'enhanced' || check.type === 'normal') {
@@ -19606,6 +19692,38 @@ function detectTravelAction(msg) {
   return null;
 }
 
+// Resolve an AI-reported location (a LOCATIONS key OR a display name OR a loose
+// phrase) to a real key and move the player there. This is the safety net for any
+// scene that relocates the player without a keyword-matched travel command.
+function aiSetLocation(locRef) {
+  if(!locRef || typeof LOCATIONS !== 'object') return;
+  let key = null;
+  if(LOCATIONS[locRef]) {
+    key = locRef;
+  } else {
+    const lower = String(locRef).toLowerCase().trim();
+    if(!lower) return;
+    // Exact match on key, spaced key, or display name.
+    for(const [k, loc] of Object.entries(LOCATIONS)) {
+      const name = (loc.name || '').toLowerCase();
+      if(k.toLowerCase() === lower || k.replace(/_/g,' ') === lower || name === lower) { key = k; break; }
+    }
+    // Fall back to a contains-match on the display name (e.g. "the city of Tazar").
+    if(!key) {
+      for(const [k, loc] of Object.entries(LOCATIONS)) {
+        const name = (loc.name || '').toLowerCase();
+        if(name && (lower.includes(name) || name.includes(lower))) { key = k; break; }
+      }
+    }
+  }
+  // Unknown place name — ignore rather than blanking the world location.
+  if(!key || key === GS.world.location) return;
+  GS.world.location = key;
+  try { updateTopbar(); } catch(e) {}
+  try { updateWorldTab(); } catch(e) {}
+  try { updateCharacterTab(); } catch(e) {}
+}
+
 // Calculate travel cost in silver (food + lodging per day)
 function calcTravelCost(days) {
   const locMod = LOCATION_PRICE_MOD[GS.world.location] || 1.0;
@@ -19745,6 +19863,39 @@ function getCombatSkillMod() {
   return bonus;
 }
 
+// Surface the player's STANDOUT attributes each turn so the storyteller actually
+// applies them — high stats should succeed conspicuously, low stats should bite.
+// Fires when a stat deviates meaningfully from the ~10 baseline (so a fresh, all-10
+// character produces nothing and we don't spam the prompt).
+function buildStatWeightContext(msg) {
+  const c = GS.char;
+  const STAT_CUES = {
+    strength:    { label:'Strength',    hi:'overpowers, breaks, lifts, and hits with crushing force', lo:'is physically weak — can\'t force, lift, or overpower' },
+    agility:     { label:'Agility',     hi:'is fast, evasive, and surefooted — strikes first, dodges, moves unseen', lo:'is slow and clumsy — easy to hit, fumbles fine movement' },
+    endurance:   { label:'Endurance',   hi:'shrugs off ordinary blows, pain, and fatigue; very hard to wound with common weapons', lo:'tires fast and bruises easily' },
+    intelligence:{ label:'Intelligence',hi:'learns fast, out-thinks, plans, and masters technical craft (alchemy, formations, medicine)', lo:'misses the obvious and is easily outwitted' },
+    perception:  { label:'Perception',  hi:'notices ambushes, traps, lies, tells, and hidden things; nearly impossible to surprise', lo:'walks into traps and is readily fooled' },
+    willpower:   { label:'Willpower',   hi:'is unshakeable against fear, intimidation, illusion, mental attack, and temptation; pushes through pain', lo:'panics, breaks, and is easily swayed' },
+    charisma:    { label:'Charisma',    hi:'persuades, leads, seduces, and commands a room; strong first impression', lo:'grates, is distrusted, and gets ignored' },
+    luck:        { label:'Luck',        hi:'has fortune leaning their way — narrow escapes, fortunate timing', lo:'is where things tend to go wrong' },
+  };
+  const tier = v => v>=80?'superhuman':v>=50?'peak':v>=35?'exceptional':v>=20?'gifted':null;
+  const highs = [], lows = [];
+  Object.entries(STAT_CUES).forEach(([k, cue]) => {
+    const v = c[k];
+    if(v == null) return;
+    const t = tier(v);
+    if(t) highs.push(`${cue.label} ${v} (${t}) — ${cue.hi}`);
+    else if(v <= 6) lows.push(`${cue.label} ${v} — ${cue.lo}`);
+  });
+  if(!highs.length && !lows.length) return null;
+  let out = '[ATTRIBUTE CHECK — authoritative; weigh these in how this scene resolves and SHOW them in the prose:';
+  if(highs.length) out += `\nSTANDOUT (let these conspicuously succeed where relevant): ${highs.join(' · ')}`;
+  if(lows.length)  out += `\nWEAK (let these visibly fail or struggle where relevant): ${lows.join(' · ')}`;
+  out += ']';
+  return out;
+}
+
 function buildCombatAnalysis(msg) {
   const lower = msg.toLowerCase();
 
@@ -19805,6 +19956,25 @@ function buildCombatAnalysis(msg) {
   lines.push(`  Skills: ${skillSummary}`);
   lines.push(`  Techniques: ${techSummary}`);
   lines.push(`  Martial arts: ${maSummary}${injuryPenalty}`);
+
+  // ── ENDURANCE = real physical durability. Tell the AI how tough this body is so
+  //    it sizes hp damage and narrates accordingly (the engine ALSO reduces ordinary
+  //    physical damage by the same logic). Qi/advanced attacks bypass this. ──
+  {
+    const end = c.endurance || 10;
+    const reductionPct = Math.round(Math.min(0.70, Math.max(0, end - 10) / 170) * 100);
+    let durLine;
+    if(end >= 100) {
+      durLine = `  DURABILITY (END ${end}, EXTRAORDINARY): This body has been tempered far past human norm. Ordinary attacks — fists, clubs, common steel, thrown rocks, an untrained or low-tier fighter — do little more than bruise them; mundane physical damage is cut by ~${reductionPct}%. They wade through common violence almost untouched and should be narrated that way. The ONLY things that genuinely threaten them: a qi-empowered strike or technique, a high-realm/advanced practitioner, a spiritual/enchanted weapon, or attacks that bypass toughness entirely (potent poison, deep fire/lightning, mental/illusion assault). Do NOT let an ordinary thug or common blade meaningfully wound them.`;
+    } else if(end >= 60) {
+      durLine = `  DURABILITY (END ${end}, VERY HIGH): A hardened, battle-tempered body. Mundane physical blows land for ~${reductionPct}% less; they shrug off hits that would drop a normal person and keep fighting. Skilled or qi-backed attacks still hurt; poison/fire/lightning/mental bypass their toughness.`;
+    } else if(end >= 30) {
+      durLine = `  DURABILITY (END ${end}, ABOVE AVERAGE): Noticeably tougher than an ordinary person — mundane physical damage reduced ~${reductionPct}%. Takes a hit better than most, but is not armored against real force.`;
+    } else {
+      durLine = `  DURABILITY (END ${end}, ORDINARY): A normal human body. Ordinary weapons and blows hurt them normally.`;
+    }
+    lines.push(durLine);
+  }
 
   // Low skill warning — unskilled fighters telegraphing everything
   if(combatSkillLevel === 0 && martialSkillLevel === 0 && weaponSkillLevel === 0) {
@@ -20259,6 +20429,11 @@ sendToAI = async function(overrideMsg) {
   // 2. Combat analysis with full skill context
   const combatAnalysis = buildCombatAnalysis(rawMsg);
   if(combatAnalysis) injections.push(combatAnalysis);
+
+  // 2b. Attribute check — surface the player's standout stats so the AI actually
+  //     weighs them (high stats succeed, low stats struggle), in any kind of scene.
+  const statCheck = buildStatWeightContext(rawMsg);
+  if(statCheck) injections.push(statCheck);
 
   // 3. Social skill context
   const socialContext = buildSocialSkillContext(rawMsg);
@@ -29851,8 +30026,13 @@ updateCharacterTab = function() {
             if(/lightning/i.test(lower)) type = 'lightning';
             if(/mental|fear|illusion/i.test(lower)) type = 'mental';
             dmg = Math.round(dmg * getTraitDamageMult(type));
+            // ENDURANCE matters: a tempered body absorbs ordinary physical force
+            // (qi/elemental/poison/mental attacks bypass it — see enduranceDamageMult).
+            dmg = Math.round(dmg * enduranceDamageMult(type, res.narrative));
             const passB = getPassiveTechBonuses();
             if(passB.damageMult < 1.0) dmg = Math.round(dmg * passB.damageMult);
+            // A blow the story meant as harmful still lands for at least 1.
+            if(v < 0 && dmg === 0) dmg = -1;
           }
           c.hp = clamp((c.hp||100) + dmg, 0, c.maxHp);
         } else if(k === 'silver') {
@@ -29891,6 +30071,12 @@ updateCharacterTab = function() {
       // Final safety clamp — within [floor, max]. Floor is 0, or -max on the inverted path.
       GS.char.qi.current = Math.max(qiFloor(), Math.min(GS.char.qi.current, GS.char.qi.max));
     });
+
+    // Location — keep the world map in sync with the narrative. Keyword travel is
+    // resolved by the engine before the call (processTravelAction); this catches
+    // every other way a scene relocates the player (story-driven travel, being
+    // escorted/captured, rephrased movement the verb-matcher misses).
+    safe('location', () => { if(res.newLocation) aiSetLocation(res.newLocation); });
 
     // Skills — REALISM CAP: a single action/montage cannot teach a pile of
     // skills at once. "Read 30 days, learn all physical skills" should grant a
@@ -30021,7 +30207,11 @@ updateCharacterTab = function() {
     safe('scheduled', () => res.scheduledEvents?.forEach(e => GS.world.scheduledEvents.push({...e,fired:false,voided:false})));
 
     // Karma
-    safe('karma', () => { if(res.karma) Object.entries(res.karma).forEach(([k,v])=>{if(v&&GS.char.karma[k]!==undefined) GS.char.karma[k]+=v;}); });
+    // Karma — additive, but FLOORED at 0 so atonement (negative blood/demonic the AI
+    // sends during a genuine redemption arc) can actually pay down the "karma debt"
+    // without underflowing into nonsense negatives. This is the only path that lowers
+    // accumulated blood/demonic karma — without it, dark karma was permanent.
+    safe('karma', () => { if(res.karma) Object.entries(res.karma).forEach(([k,v])=>{ if(v && GS.char.karma[k]!==undefined) GS.char.karma[k] = Math.max(0, GS.char.karma[k]+v); }); });
 
     // Kill counter — the AI reports lives the character actually takes this turn.
     safe('kills', () => {
@@ -43137,6 +43327,7 @@ buildSystemPrompt = function() {
           return y + '\n';
         })()
       + `OFFSPRING & BLOODLINE: when a child is conceived/born, report it in "offspring" with the other parent's name. A child inherits about HALF of a parent's power, never all of it. CRUCIALLY — if the OTHER parent is one of the Original Qi Beasts that can take human form (a Dragon, a Yokai, a Sanguine, an Arachnid, or a Giant/Titan), the child is born HALF that beast's race: set "otherParentBeast" to dragon|yokai|sanguine|arachnid|giant. Half of an apex being is still extraordinary — such children are among the strongest lineages alive, draw awe and danger, and the traits/arts they grow into come amplified. Treat them accordingly.\n`
+      + `LEGACY OF THE SEAT (continuing as your heir): when the player dies and continues as their offspring, the heir does NOT start from nothing — the engine hands them whatever ORGANIZATION the parent led (a crew, gang, sect, order, or clan: its members, silver, influence, and territory) and any SECT LEADERSHIP the parent held. Treat these as genuinely the heir's now: the inn, the order, the disciples, the war-chest, the name on the door are theirs to command. But an heir is UNTESTED — honor the resources while playing the real tension of succession: old lieutenants who served the parent may doubt, test, scheme, jockey, or split off; rivals smell weakness at the changeover; loyalty earned by the parent must be re-earned by the child. Never quietly delete the inherited organization or pretend the heir is a nobody — they hold the seat; the question the story explores is whether they can keep it.\n`
       + `DISCIPLES & THE BOUND: the player can gather people under them beyond a crew. DISCIPLES are students they personally teach (cultivation, martial arts, a craft) — register one via "disciples": [{ "name", "action":"add", "study", "talent", "cultivation" }] the moment the player takes someone on as a disciple, and update their cultivation/loyalty over time (loyaltyDelta), or remove them with action "left|died|betrayed|expelled" and a reason. A disciple grows with time and teaching, can become powerful and devoted — or resentful and treacherous. SLAVES / THE BOUND are people the player owns or has bound to them (captured, bought, taken in conquest, held by debt) — register via "slaves": [{ "name", "action":"add", "role", "origin", "spirit" }] and update their spirit (broken|compliant|loyal|defiant|plotting) as the relationship develops; free/lose them with action "free|sold|escaped|died". Play both honestly and with consequence: disciples carry your name and your sins; the bound resent, scheme, break, or in rare cases come to genuine loyalty — and the orthodox world judges a slaver. Only register these when they actually happen in the story.\n`;
     if(prompt.includes('## ABSOLUTE RULES')) prompt = prompt.replace('## ABSOLUTE RULES', section + '\n## ABSOLUTE RULES');
     else prompt = prompt + '\n' + section;
