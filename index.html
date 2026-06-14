@@ -1656,6 +1656,9 @@ a { color: var(--gold); text-decoration: none; }
 .trait-detail .td-desc { color: var(--muted); line-height: 1.7; margin-bottom: 10px; }
 .trait-detail .td-effects { background: var(--s2); border: 1px solid var(--border); border-radius: 5px; padding: 8px; }
 .td-effect-row { font-size: 12px; color: var(--text); padding: 2px 0; }
+.trait-detail .td-block { margin-bottom: 12px; }
+.trait-detail .td-block .td-desc { margin-bottom: 0; }
+.trait-detail .td-h { font-size: 10px; text-transform: uppercase; letter-spacing: .08em; color: var(--dim); margin-bottom: 4px; }
 /* Item modal */
 .item-modal-body { font-size: 13px; }
 .item-modal-desc { color: var(--muted); line-height: 1.7; margin: 8px 0; }
@@ -8010,13 +8013,43 @@ function renderTraitPowers() {
 // TITLE SYSTEM
 // ================================================================
 function grantTitle(type, title, silent=false) {
-  // title: { name, desc, effects:{}, knownBy:[] }
+  // title: { name, desc, earned, affects, effects:{}, location, audience:[], knownBy:[], groupReach:{} }
+  //   SPIRITUAL = physical/body — what it does TO you (stat/combat/cultivation buffs in `effects`).
+  //   SOCIAL    = how the WORLD reacts — bound to a `location` and an `audience` (which
+  //               people recognize it), with practical social `affects` (price breaks,
+  //               access, deference). A spiritual title may ALSO carry social weight; a
+  //               social title never grants body buffs.
   if(!title || !title.name || !String(title.name).trim()) return; // ignore empty schema stubs
   const list = type==='spiritual' ? GS.char.spiritualTitles : GS.char.socialTitles;
-  if(list.find(t=>t.name===title.name)) return; // already have it — silent, no spam
-  list.push({ name:title.name, desc:title.desc||'', effects:title.effects||{}, knownBy:title.knownBy||[], groupReach:{} });
-  // Apply effects
-  if(title.effects) Object.entries(title.effects).forEach(([k,v])=>{ if(GS.char[k]!==undefined) GS.char[k]+=v; });
+  const existing = list.find(t=>t.name===title.name);
+  const audience = Array.isArray(title.audience) ? title.audience : (title.audience ? [title.audience] : []);
+  if(existing) {
+    // Enrich an existing title with any newly-provided detail (how earned, what it
+    // affects, where, to whom) without re-applying its body effects.
+    if(title.desc && !existing.desc)       existing.desc = title.desc;
+    if(title.earned && !existing.earned)   existing.earned = title.earned;
+    if(title.affects && !existing.affects) existing.affects = title.affects;
+    if(title.location && !existing.location) existing.location = title.location;
+    if(audience.length && !(existing.audience||[]).length) existing.audience = audience;
+    if(title.groupReach && !Object.keys(existing.groupReach||{}).length) existing.groupReach = title.groupReach;
+    updateCharacterTab();
+    return;
+  }
+  list.push({
+    name: title.name,
+    desc: title.desc || '',
+    earned: title.earned || '',          // HOW it was gained (the deed/story behind the name)
+    affects: title.affects || '',        // WHAT it does for you, in plain words
+    effects: (type==='spiritual') ? (title.effects||{}) : {}, // body buffs — spiritual only
+    location: title.location || (type==='social' ? GS.world.location : ''),
+    audience,                            // which people recognize/honor it (social)
+    knownBy: title.knownBy || [],
+    groupReach: title.groupReach || {},
+  });
+  // Apply body effects — ONLY for spiritual titles (social titles never buff the body).
+  if(type==='spiritual' && title.effects) {
+    Object.entries(title.effects).forEach(([k,v])=>{ if(typeof v==='number' && GS.char[k]!==undefined) GS.char[k]+=v; });
+  }
   updateCharacterTab();
   if(!silent) toast(`${type==='spiritual'?'Spiritual':'Social'} title: ${title.name}`, 'gold', 4000);
 }
@@ -10952,19 +10985,47 @@ function showTitleDetail(type, name) {
   const list = type==='spiritual' ? GS.char.spiritualTitles : GS.char.socialTitles;
   const title = list.find(t=>t.name===name);
   if(!title) return;
+  const esc = s => String(s==null?'':s).replace(/[&<>]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[ch]));
   const color = type==='spiritual' ? 'var(--teal)' : 'var(--blue)';
   document.getElementById('title-modal-name').textContent = title.name;
   document.getElementById('title-modal-name').style.color = color;
+
+  const kindLine = type==='spiritual'
+    ? 'Spiritual Title — a legend of what your body and being can do.'
+    : 'Social Title — standing in the world; it shapes how people treat you.';
+
+  // HOW it was earned (the story behind the name).
+  const earnedTxt = title.earned || title.desc || '';
+  const earned = earnedTxt
+    ? `<div class="td-block"><div class="td-h">How it was earned</div><div class="td-desc">${esc(earnedTxt)}</div></div>` : '';
+
+  // Body buffs (spiritual).
   const effects = Object.keys(title.effects||{}).length
-    ? `<div class="td-effects">${Object.entries(title.effects).map(([k,v])=>`<div class="td-effect-row">${k}: <span style="color:var(--gold)">${v>0?'+':''}${v}</span></div>`).join('')}</div>`
+    ? `<div class="td-block"><div class="td-h">What it does to you</div><div class="td-effects">${Object.entries(title.effects).map(([k,v])=>`<div class="td-effect-row">${esc(k)}: <span style="color:var(--gold)">${(typeof v==='number'&&v>0?'+':'')}${esc(v)}</span></div>`).join('')}</div></div>`
     : '';
+
+  // What it affects, in plain words (esp. social perks).
+  const affects = title.affects
+    ? `<div class="td-block"><div class="td-h">What it affects</div><div class="td-desc">${esc(title.affects)}</div></div>` : '';
+
+  // Where it holds and who recognizes it (social).
+  let place = '';
+  if(type==='social') {
+    const locName = title.location ? (LOCATIONS[title.location]?.name || title.location) : '';
+    const aud = (title.audience||[]).length ? title.audience.join(', ') : '';
+    const bits = [];
+    if(locName) bits.push(`<b>Where:</b> ${esc(locName)}`);
+    if(aud)     bits.push(`<b>Recognized by:</b> ${esc(aud)}`);
+    if(bits.length) place = `<div class="td-block"><div class="td-h">Reach</div><div class="td-desc">${bits.join(' · ')}</div></div>`;
+  }
   const reach = title.groupReach && Object.keys(title.groupReach).length
-    ? `<div style="margin-top:8px;font-size:11px;color:var(--muted)">Known among: ${Object.entries(title.groupReach).map(([g,v])=>`${g} (${v}%)`).join(', ')}</div>` : '';
+    ? `<div style="margin-top:6px;font-size:11px;color:var(--muted)">Known among: ${Object.entries(title.groupReach).map(([g,v])=>`${esc(g)} (${esc(v)}%)`).join(', ')}</div>` : '';
+
   document.getElementById('title-modal-content').innerHTML = `
     <div class="trait-detail">
       <div class="td-rarity">${type==='spiritual'?'Spiritual':'Social'} Title</div>
-      <div class="td-desc">${title.desc}</div>
-      ${effects}${reach}
+      <div class="td-desc" style="font-style:italic;color:var(--muted);margin-bottom:8px">${kindLine}</div>
+      ${earned}${effects}${affects}${place}${reach}
     </div>`;
   showModal('modal-title-detail');
 }
@@ -11278,8 +11339,8 @@ PART 2 — DATA (immediately after the narrative, on its own line):
   "removeItems": ["name or id of an item the player sold, gave away, lost, or used up"],
   "newAssets": [{ "name":"", "type":"house|inn|shop|estate|workshop|clinic|hideout|...", "location":null, "how":"inherited|gifted|won|seized|built|bought", "incomePerMonth":0 }],
   "removeAssets": ["name of a property the player lost/sold"],
-  "spiritualTitles": [{ "name": "", "desc": "", "effects": {}, "knownBy": [] }],
-  "socialTitles": [{ "name": "", "desc": "", "effects": {}, "knownBy": [], "groupReach": {} }],
+  "spiritualTitles": [{ "name": "", "desc": "", "earned": "how it was won (the deed/feat)", "affects": "what it does for the body/being in plain words", "effects": { "endurance": 2 }, "knownBy": [] }],
+  "socialTitles": [{ "name": "", "desc": "", "earned": "how it was gained", "affects": "how people treat you / any practical perk (e.g. lower alchemy prices)", "location": "where it holds (location key)", "audience": ["which people recognize it, e.g. beggars, alchemists, the underworld"], "knownBy": [], "groupReach": {} }],
   "newLocation": null,
   "prisonStatus": null,
   "bounty": 0,
@@ -11958,7 +12019,7 @@ window.addEventListener('pagehide', () => { doAutosave(true); });
 // Scheme: MAJOR.MINOR. Big updates bump MAJOR (1.2 -> 2.2). Small updates
 // bump MINOR (2.2 -> 2.3). Each version has a name. The current version is
 // stamped onto every save; older saves can be updated to the latest.
-const GAME_VERSION = { number: '4.3.1', name: 'Weight & Inheritance' };
+const GAME_VERSION = { number: '4.4', name: 'Names & Standing' };
 
 // Which model generates the story. Lite Mode swaps to a far cheaper, faster model
 // (Claude Haiku) so long sessions / limited credits cost a fraction per turn.
@@ -12019,6 +12080,7 @@ const VERSION_HISTORY = [
   { number:'4.2', name:'Set the Record Straight', sys:'A pile of fixes. The storyteller will NO LONGER deny, rewrite, or skip past what you told it your character does — your action is what happened, full stop (this was the worst one). Polygamy and harems are explicitly supported — you can have multiple wives, concubines, and lovers openly. The NPC name pool is much bigger and more varied. The karma "difficult breakthrough" no longer compounds its wall higher every attempt — it sets a fixed extra requirement that drops back when you balance your karma (and old stuck saves are repaired). Ordinary people stay ordinary — your mill-worker uncle won\'t quietly become a Nascent Soul anymore (and existing over-leveled NPCs are pulled back down). Clicking an NPC in the admin panel now shows a full dossier — stats, life since birth, connections, network, personality, secrets. Studying (morning lessons) is education, not a paying job. And NPCs no longer magically know what distant people are doing in real time.', note:'URGENT: defined NPC_SURNAMES/MALE/FEMALE pools (were referenced undefined after last turn — would crash NPC gen). KARMA BREAKTHROUGH: attemptBreakthrough rebuilds wall each attempt from qi._baseBreakthroughAt × karma surcharge (idempotent, no compounding); difficult block now only applies cost; stage-advance stores _baseBreakthroughAt; migrate clamps runaway breakthroughAt. NPC LEVELS: generateNPC heavy mortal bias (_rollStage ~62% mortal) + cultivationCap (_rollCap); tick respects cap (dailyRate 0 past cap); migrate demotes high-realm-low-stat NPCs + freezes cultivationCap. AI AGENCY: emphatic "PLAYER ACTION IS GROUND TRUTH — never deny/retcon/replace/time-skip" rule in live late wrapper. POLYGAMY: romance rule 7 rewritten to support open harems (jealousy now only for secrecy/betrayal, rule 7b). ADMIN DOSSIER: showNPCStats expanded (age/occupation/path/lifeTimeline via ensureNPCTimeline/connections/activity/secrets). EDUCATION: _isEducationNotJob guard in addOccupationToHistory reroutes lessons→addInformalEducation + migrate + prompt note. NPC KNOWLEDGE: distance/channel-limited knowledge prompt rule. ORDINARY PEOPLE prompt rule. Version → 4.2.' },
   { number:'4.3', name:'Weight & Inheritance', sys:'Five fixes. BREAKTHROUGH UNSTUCK: if your Qi sat at the cap but couldn\'t advance, that\'s fixed and stuck saves repair themselves on load. NO MORE KARMA DEBT: your karma NEVER raises the Qi you need to break through or walls off your cultivation — that whole "karma debt" on your save is gone, and old saves are cleaned of it. (Heavy dark karma can still call down a tribulation or risk a deviation at the moment of breakthrough, but it is not a standing tax on your progress.) TRAVEL ACTUALLY MOVES YOU: when the story takes you somewhere new — traveling, escorted, captured, carried — the world map updates to match instead of stranding you in the old place. INHERIT THE THRONE: when you continue as your offspring, any organization (crew, gang, sect, order, clan) you led and any sect leadership you held now pass to your heir — its people, silver, and reach are theirs, though an untested heir must prove they can hold the seat. STATS HAVE REAL WEIGHT: ALL eight attributes now genuinely shape what happens — high Strength overpowers, high Agility evades, high Endurance shrugs off ordinary blows, high Perception catches ambushes and lies, high Willpower resists fear and illusion, high Intelligence out-thinks and learns fast, high Charisma commands a room, high Luck bends coincidence — and low stats visibly fail. The storyteller is told your standout stats every turn and must honor them, in every kind of scene, not just combat.', note:'#1 BREAKTHROUGH: ensureQiReachable(c) invariant (qi.max≥breakthroughAt) in addQi-area + attemptBreakthrough + stage-advance; migrate now FORCES breakthroughAt=_baseBreakthroughAt (collapses any old karma surcharge) so stuck saves clear. #2 KARMA DEBT REMOVED: karmaBreakthroughCheck no longer returns "difficult"; attemptBreakthrough sets breakthroughAt=_base unconditionally; dead difficult cost-block removed; readiness msg de-karma\'d; KARMA RULE in live prompt rewritten (karma never gates cultivation; still social/tribulation; atonement via negative karma, floored at 0). #3 TRAVEL: aiSetLocation(locRef) resolves key/name/loose phrase → moves GS.world.location; res.newLocation in BOTH schema blocks + consolidated safe(location) handler + LOCATION RULE (post-ABSOLUTE-RULES so survives length guard). #4 INHERITANCE: continueAsOffspring deep-copies parent.crew (+succession log) and carries world.discoveredSects forward, preserving a led sect seat (Elder/Grand Elder/Sect Leader)+sectState; legacy personalEvent; LEGACY OF THE SEAT prompt rule. #5 STATS: STATS-HAVE-WEIGHT prompt rule (per-attribute capability map + tiers) + buildStatWeightContext(msg) per-turn [ATTRIBUTE CHECK] injection flagging standout highs(≥20 tiered)/lows(≤6); enduranceDamageMult cuts mundane physical dmg up to 70% (qi/elemental/poison/mental bypass via tightened regex) in consolidated hp handler (min 1 on intended harm); getPowerRating now includes endurance*0.7; DURABILITY tier line in buildCombatAnalysis. Version → 4.3.' },
   { number:'4.3.1', name:'Not Your Fame', sys:'Fixed a reputation bug: when an NPC achieved something of their own — mastered their craft, exposed a wrongdoing, built a lasting legacy — the game was wrongly crediting YOU with the fame, often in cities you have never visited (and showing their name on your World/Fame log, which was extra confusing when they shared your family name). NPC accomplishments now stay theirs. Existing saves are scrubbed of the fame you never earned, and the bogus renown is rolled back.', note:'NPC goal-tick handlers (master_craft/expose/build_legacy) were calling addRenown — a PLAYER-reputation function (getRep→GS.char.reputation) — for the NPC\'s own deed, granting the player renown in npc.location. Removed those three addRenown calls (npcEvent narration retained; grudge addInfamy at ~18690 left intact as a real "someone smears your name" mechanic). migrateSave now scrubs c.reputation[*].events of the three NPC-credit descs (regex) and subtracts the removed renown amounts (floored at 0). Version → 4.3.1.' },
+  { number:'4.4', name:'Names & Standing', sys:'Reputation and titles got real. FAME FADES: if you do NOTHING to feed your name in a place, your renown and infamy there slowly fade — about a five-month grace before it starts, then a gradual decline (a true legend lingers for years; a minor reputation is forgotten in a season). Do something memorable there and the clock resets. GRUDGES WORK (and now bite harder): an enemy who hates you enough will act against you on their own — warn people off, spread damaging stories, or hire someone to deal with you — raising your infamy where they are; this now fires noticeably (at most once a year per person, no spam) and hits your name harder the deeper the grudge. TITLES MEAN SOMETHING: Spiritual titles are PHYSICAL — legends of what your body and Qi can do, and they grant real (small) buffs. Social titles are about how the WORLD REACTS — each is tied to a place and an audience (the beggars of Tazar may revere a name that means nothing to a noble), and they grant practical perks (a name among alchemists can cut your prices). Click any title to see exactly how you earned it and precisely what it does. The storyteller is now told your active titles every turn and acts on them — with the right people, in the right places.', note:'REP DECAY: tickReputation(daysElapsed) (compounding ~0.4%/day past 150-day grace, min absolute nudge; legends taper) called from advanceTime; addRenown/addInfamy stamp r._lastDeedDay to reset the idle clock. GRUDGE: tickAllNPCs grudge block confirmed wired (advanceTime+consolidated npcTick→addPersonalEvent); added per-NPC _lastGrudgeActYear cooldown (1/yr), chance 0.002→0.0035/day, infamy scaled by severity (2/4/6). TITLES: grantTitle stores earned/affects/location/audience, applies body effects ONLY for spiritual, enriches existing on re-grant; showTitleDetail rebuilt (kind line, how-earned, body effects, what-it-affects, social where/audience); schema (both blocks) gains earned/affects/location/audience; live-prompt TITLES RULE (spiritual=physical+buffs, social=world-reaction bound to place+audience+perks, social≠body, spiritual MAY be social); buildTitleContext(msg) per-turn [ACTIVE TITLES] injection flags spiritual(always) + social(LIVE only in matching location/audience). Version → 4.4.' },
 ];
 
 function cleanSaveData(gs) {
@@ -13382,6 +13444,8 @@ const REP_CROSS = 0.5;
 function addRenown(locKey, amount, eventDesc, impact) {
   const r = getRep(locKey);
   r.renown = clamp(r.renown + amount, 0, 100);
+  // Mark the moment of the deed so reputation decay knows you were just active here.
+  if(amount > 0) r._lastDeedDay = totalDays(GS.world.year, GS.world.month, GS.world.day||1);
   if(amount > 0 && r.infamy > 0) r.infamy = clamp(r.infamy - Math.round(amount * REP_CROSS), 0, 100);
   if(eventDesc) {
     if(!r.events) r.events = [];
@@ -13396,6 +13460,7 @@ const _origAddInfamy = addInfamy;
 function addInfamy(locKey, amount, eventDesc, impact) {
   const r = getRep(locKey);
   r.infamy = clamp(r.infamy + amount, 0, 100);
+  if(amount > 0) r._lastDeedDay = totalDays(GS.world.year, GS.world.month, GS.world.day||1);
   if(amount > 0 && r.renown > 0) r.renown = clamp(r.renown - Math.round(amount * REP_CROSS), 0, 100);
   if(eventDesc) {
     if(!r.events) r.events = [];
@@ -14635,8 +14700,8 @@ The JSON carries ONLY state changes. There is NO "narrative" field in the JSON �
   "removeItems": ["name or id of an item the player sold, gave away, lost, or used up"],
   "newAssets": [{ "name":"", "type":"house|inn|shop|estate|workshop|clinic|hideout|...", "location":null, "how":"inherited|gifted|won|seized|built|bought", "incomePerMonth":0 }],
   "removeAssets": ["name of a property the player lost/sold"],
-  "spiritualTitles": [{ "name": "", "desc": "", "effects": {}, "knownBy": [] }],
-  "socialTitles": [{ "name": "", "desc": "", "effects": {}, "knownBy": [], "groupReach": {} }],
+  "spiritualTitles": [{ "name": "", "desc": "", "earned": "how it was won (the deed/feat)", "affects": "what it does for the body/being in plain words", "effects": { "endurance": 2 }, "knownBy": [] }],
+  "socialTitles": [{ "name": "", "desc": "", "earned": "how it was gained", "affects": "how people treat you / any practical perk (e.g. lower alchemy prices)", "location": "where it holds (location key)", "audience": ["which people recognize it, e.g. beggars, alchemists, the underworld"], "knownBy": [], "groupReach": {} }],
   "newLocation": null,
   "prisonStatus": null,
   "bounty": 0,
@@ -14673,6 +14738,11 @@ STATS HAVE REAL WEIGHT (honor them EVERY scene, not just in combat): The eight a
 - CHARISMA: presence and influence — persuasion, negotiation, leadership, seduction, deception, inspiring loyalty, first impressions. High CHA talks its way through and commands rooms; low CHA grates, is distrusted, and is ignored.
 - LUCK: fortune's lean — narrow escapes, fortunate timing, finding the right thing, the gamble paying off, the stray arrow missing. High LCK bends coincidence their way; low LCK is where things go wrong.
 When the player attempts something an attribute governs, weigh THAT attribute (plus relevant skills/realm) to decide how well it goes, and SHOW the stat in the prose. An [ATTRIBUTE CHECK] note may flag the standout stats for a turn — treat it as authoritative.
+
+TITLES RULE — award them at genuinely earned moments, and make them MEAN something. There are two kinds, and the difference is strict:
+• SPIRITUAL = PHYSICAL / of the body and being. A spiritual title is a legend about what the character's body, Qi, or presence can DO (Sword Saint, The Undying, Iron-Skinned, Frost Maiden, Demon of Stone Root). It carries real, small body effects — emit "effects" with stat/combat/cultivation buffs (e.g. { "endurance": 3 } or { "willpower": 2 }). Always fill "earned" (the feat that won it) and "affects" (what it grants the body, in plain words). A spiritual title MAY ALSO carry social weight (a famous Sword Saint is also recognized socially) — that's allowed.
+• SOCIAL = how the WORLD REACTS to the character — standing, reputation-as-role, what people DO when they hear the name. A social title is ALWAYS tied to a place ("location") and an AUDIENCE ("audience": which people recognize it — beggars, alchemists, the dock crews, the nobility, the underworld). It never grants a body buff. Instead set "affects" to the concrete social consequence: who defers, who opens doors, who distrusts, and any practical perk (e.g. "alchemists in Tazar cut their prices for you", "the dockworkers will hide you", "guards wave you through"). CRUCIALLY it is uneven by audience and place: a title the beggars of Tazar gave you ("Friend of the Gutter") makes the destitute trust and shelter you — but a noble has never heard of it and may sneer. Honor that split every scene: apply the title only with the people/place that actually recognize it, and let it do NOTHING (or backfire) with those who don't. A SOCIAL title is never also spiritual — it does not change the body.
+Fill "earned" and "affects" on EVERY title so the player can see how they got the name and exactly what it does. When the player is in a relevant place or among a relevant audience, ACT on their titles — let them feel the deference, the discount, the open door, or the cold shoulder.
 
 INVENTORY RULE — EVERY PHYSICAL ITEM RECEIVED GOES IN newItems. No exceptions.
 - Jewelry (necklace, pendant, ring, amulet) → type:"accessory", slot:"acc1"
@@ -18696,17 +18766,22 @@ function tickAllNPCs(daysElapsed) {
     }
 
     // ── GRUDGE → HOSTILITY (active action against player) ──
-    if(npc.grudgeLevel > 70 && Math.random() < 0.002 * daysElapsed) {
-      // NPC takes an action against the player
-      const action = npc.grudgeLevel > 90
+    // Fires only for a real, alive grudge-holder, at most once per year per NPC (no
+    // spam), with a perceptible chance and infamy that scales with how bad the grudge.
+    if(npc.grudgeLevel > 70 && npc.alive !== false &&
+       (w.year - (npc._lastGrudgeActYear ?? -99)) >= 1 &&
+       Math.random() < 0.0035 * daysElapsed) {
+      const severe = npc.grudgeLevel > 90;
+      const action = severe
         ? 'has reportedly hired someone to deal with you'
         : npc.grudgeLevel > 80
         ? 'has been spreading damaging stories about you'
         : 'has been actively warning others away from you';
+      npc._lastGrudgeActYear = w.year;
       npc.activityLog.push(`Year ${w.year}: ${action}.`);
       newPersonalEvents.push(`[Grudge] ${npc.name} ${action}.`);
-      // Grudge action feeds into reputation
-      addInfamy(npc.location || w.location, 3, `${npc.name} working against you`);
+      // Grudge action feeds into reputation — worse grudge, bigger hit to your name.
+      addInfamy(npc.location || w.location, severe ? 6 : npc.grudgeLevel > 80 ? 4 : 2, `${npc.name} working against you`);
     }
 
     // ── RUMOR SPREADING ──
@@ -18784,6 +18859,42 @@ function tickAllNPCs(daysElapsed) {
   // Apply accumulated events
   newPersonalEvents.forEach(e => addPersonalEvent(e));
   newWorldEvents.forEach(e => addWorldEvent(e));
+}
+
+// ── REPUTATION DECAY ──────────────────────────────────────────────
+// Fame and infamy are not permanent monuments. If you do NOTHING to feed your
+// name in a place — no deeds, no presence — the world slowly forgets. After a
+// grace period of inactivity, renown and infamy drift back toward 0. Decay is
+// gentle and tapering (a true legend fades over years, not weeks), and any new
+// deed in that place resets the clock. A title-bearing legend never fully
+// vanishes — we floor the fade so the hardest-won names linger.
+function tickReputation(daysElapsed) {
+  const c = GS.char; const w = GS.world;
+  if(!c.reputation || !daysElapsed) return;
+  const GRACE = 150;        // ~5 months of doing nothing before a name starts to fade
+  const RATE  = 0.004;      // ~0.4% of current standing lost per idle day, tapering
+  const now = totalDays(w.year, w.month, w.day||1);
+  let changed = false;
+  Object.entries(c.reputation).forEach(([loc, r]) => {
+    if(!r || loc.endsWith('_kingdom')) return;
+    if(r._lastDeedDay == null) { r._lastDeedDay = now - daysElapsed; return; }
+    const idle = now - r._lastDeedDay;
+    if(idle < GRACE) return;
+    // Only the days spent past the grace window decay this tick.
+    const decayDays = Math.min(daysElapsed, idle - GRACE);
+    if(decayDays <= 0) return;
+    // Compounding (tapering) fade: ~0.4%/day, so a name halves after ~5-6 months of
+    // doing nothing and never collapses in a single big time-skip. A small absolute
+    // nudge ensures low standing still trends to 0.
+    const fade = (val) => {
+      if(val <= 0) return 0;
+      const nv = Math.min(val * Math.pow(1 - RATE, decayDays), val - 0.02 * decayDays);
+      return Math.max(0, nv);
+    };
+    const nr = fade(r.renown || 0), ni = fade(r.infamy || 0);
+    if(nr !== (r.renown||0) || ni !== (r.infamy||0)) { r.renown = nr; r.infamy = ni; changed = true; }
+  });
+  if(changed) { try { updateKingdomRep(); updateWorldTab(); } catch(e) {} }
 }
 
 function tickNPCRumors(npc, daysElapsed) {
@@ -18871,7 +18982,7 @@ advanceTime = function(days=0, months=0, years=0) {
   _withNPCTick(days, months, years);
   const daysAfter = totalDays(GS.world.year, GS.world.month, GS.world.day||1);
   const elapsed = daysAfter - daysBefore;
-  if(elapsed > 0) tickAllNPCs(elapsed);
+  if(elapsed > 0) { tickAllNPCs(elapsed); try { tickReputation(elapsed); } catch(e) {} }
 };
 
 // ================================================================
@@ -19886,6 +19997,39 @@ function getCombatSkillMod() {
 // applies them — high stats should succeed conspicuously, low stats should bite.
 // Fires when a stat deviates meaningfully from the ~10 baseline (so a fresh, all-10
 // character produces nothing and we don't spam the prompt).
+// Surface the player's TITLES each turn so the storyteller actually acts on them:
+// spiritual titles (body/being) are always in effect; social titles only bite with
+// the right audience in the right place, so we flag which ones are LIVE here.
+function buildTitleContext(msg) {
+  const c = GS.char;
+  const here = GS.world.location;
+  const sp = Array.isArray(c.spiritualTitles) ? c.spiritualTitles : [];
+  const so = Array.isArray(c.socialTitles) ? c.socialTitles : [];
+  if(!sp.length && !so.length) return null;
+  const lines = ['[ACTIVE TITLES — honor these in the scene:'];
+  if(sp.length) {
+    lines.push('SPIRITUAL (of the body/being — always in effect; reflect the legend and any buff):');
+    sp.forEach(t => {
+      const eff = Object.keys(t.effects||{}).length
+        ? ' [' + Object.entries(t.effects).map(([k,v])=>`${k}${(typeof v==='number'&&v>0)?'+':''}${v}`).join(', ') + ']' : '';
+      lines.push(`  · "${t.name}"${eff}${t.affects?' — '+t.affects:''}`);
+    });
+  }
+  if(so.length) {
+    lines.push('SOCIAL (how the world reacts — apply ONLY with the recognizing place/audience):');
+    so.forEach(t => {
+      const locName = t.location ? (LOCATIONS[t.location]?.name || t.location) : 'where it was earned';
+      const aud = (t.audience||[]).length ? t.audience.join(', ') : 'those who know it';
+      const activeHere = !t.location || t.location === here;
+      lines.push(`  · "${t.name}" — known in ${locName}, among ${aud}.${t.affects?' Effect: '+t.affects+'.':''}` +
+        (activeHere ? ' [YOU ARE HERE — this title is LIVE: act on it with that audience, and let it mean nothing to people outside it]'
+                    : ' [different place — only matters if that audience happens to be present]'));
+    });
+  }
+  lines.push(']');
+  return lines.join('\n');
+}
+
 function buildStatWeightContext(msg) {
   const c = GS.char;
   const STAT_CUES = {
@@ -20453,6 +20597,10 @@ sendToAI = async function(overrideMsg) {
   //     weighs them (high stats succeed, low stats struggle), in any kind of scene.
   const statCheck = buildStatWeightContext(rawMsg);
   if(statCheck) injections.push(statCheck);
+
+  // 2c. Active titles — spiritual (always) + social (only with the right audience here).
+  const titleCtx = buildTitleContext(rawMsg);
+  if(titleCtx) injections.push(titleCtx);
 
   // 3. Social skill context
   const socialContext = buildSocialSkillContext(rawMsg);
