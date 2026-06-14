@@ -12048,7 +12048,7 @@ window.addEventListener('pagehide', () => { doAutosave(true); });
 // Scheme: MAJOR.MINOR. Big updates bump MAJOR (1.2 -> 2.2). Small updates
 // bump MINOR (2.2 -> 2.3). Each version has a name. The current version is
 // stamped onto every save; older saves can be updated to the latest.
-const GAME_VERSION = { number: '4.4.2', name: 'Names & Standing' };
+const GAME_VERSION = { number: '4.4.3', name: 'Names & Standing' };
 
 // Which model generates the story. Lite Mode swaps to a far cheaper, faster model
 // (Claude Haiku) so long sessions / limited credits cost a fraction per turn.
@@ -12112,6 +12112,7 @@ const VERSION_HISTORY = [
   { number:'4.4', name:'Names & Standing', sys:'Reputation and titles got real. FAME FADES: if you do NOTHING to feed your name in a place, your renown and infamy there slowly fade — about a five-month grace before it starts, then a gradual decline (a true legend lingers for years; a minor reputation is forgotten in a season). Do something memorable there and the clock resets. GRUDGES WORK (and now bite harder): an enemy who hates you enough will act against you on their own — warn people off, spread damaging stories, or hire someone to deal with you — raising your infamy where they are; this now fires noticeably (at most once a year per person, no spam) and hits your name harder the deeper the grudge. TITLES MEAN SOMETHING: Spiritual titles are PHYSICAL — legends of what your body and Qi can do, and they grant real (small) buffs. Social titles are about how the WORLD REACTS — each is tied to a place and an audience (the beggars of Tazar may revere a name that means nothing to a noble), and they grant practical perks (a name among alchemists can cut your prices). Click any title to see exactly how you earned it and precisely what it does. The storyteller is now told your active titles every turn and acts on them — with the right people, in the right places.', note:'REP DECAY: tickReputation(daysElapsed) (compounding ~0.4%/day past 150-day grace, min absolute nudge; legends taper) called from advanceTime; addRenown/addInfamy stamp r._lastDeedDay to reset the idle clock. GRUDGE: tickAllNPCs grudge block confirmed wired (advanceTime+consolidated npcTick→addPersonalEvent); added per-NPC _lastGrudgeActYear cooldown (1/yr), chance 0.002→0.0035/day, infamy scaled by severity (2/4/6). TITLES: grantTitle stores earned/affects/location/audience, applies body effects ONLY for spiritual, enriches existing on re-grant; showTitleDetail rebuilt (kind line, how-earned, body effects, what-it-affects, social where/audience); schema (both blocks) gains earned/affects/location/audience; live-prompt TITLES RULE (spiritual=physical+buffs, social=world-reaction bound to place+audience+perks, social≠body, spiritual MAY be social); buildTitleContext(msg) per-turn [ACTIVE TITLES] injection flags spiritual(always) + social(LIVE only in matching location/audience). Version → 4.4.' },
   { number:'4.4.1', name:'Feats & Focus', sys:'Two upgrades. TITLES SCALE WITH THE DEED: a spiritual title\'s buff now matches the size of what you did to earn it — win a tournament and it\'s a small bump, but split a mountain in two or wipe out an entire sect and the title hands you big buffs across several attributes. The storyteller is told to size the buff to the feat (and not to undersell a world-shaking one). WILLPOWER FUELS CULTIVATION: your Willpower now feeds Qi cultivation on top of the existing system — an iron will drives Qi through bottlenecks and holds a deeper meditation, so high-Willpower cultivators gather noticeably more Qi per day.', note:'WILLPOWER→QI: cultivationBaseQiPerDay() adds max(0,willpower-10)*0.5 before the realm multiplier (additive, on top of meridian_theory/meditation/cultivation); live progression prompt notes strong willpower (≥25) drives cultivation. TITLE BUFF SCALING: grantTitle clamps each spiritual effect to [-50,50] (round, finite-guard) and writes the capped value back to the stored title — big feats allowed, no runaway; TITLES RULE spiritual bullet now mandates feat-scaled magnitude (local +1..3 / regional +4..8 / legendary +10..25 across stats) + schema effects example + "//spiritualTitles.effects" guidance key in both blocks. Version → 4.4.1.' },
   { number:'4.4.2', name:'No Backwards Breakthroughs', sys:'Fixed a breakthrough bug at the higher realms: the storyteller sometimes used the GENERIC cultivation order instead of this world\'s, so a Void Refinement cultivator breaking through could be told they were becoming Nascent Soul — a realm they were already PAST. That was a demotion in disguise. Now a breakthrough only ever moves you UP, to the exact next realm, and the game flat-out ignores any attempt to turn a climbing cultivator backward. The storyteller is also shown the full realm ladder and your exact next realm every turn, so it stops guessing.', note:'aiSetQiStage hardened: rounds index; ADVANCE only by +1 (clamped to ladder top, blocks multi-stage jumps); REGRESSION (index<cur) ignored UNLESS GS.char._tribulation is active (then -1) — stops stray AI echoes from demoting a climber when the model misorders realms (Nascent Soul 9 vs Void Refinement 10). Live prompt CURRENT GAME STATE now prints the exact NEXT realm (name+index) and the FULL ordered QI_STAGES ladder; added CULTIVATION ADVANCEMENT RULE (up only, exactly current+1, never a passed realm, regress only via narrated tribulation). Version → 4.4.2.' },
+  { number:'4.4.3', name:'Lessons Learned', sys:'Fixed the Education tab for informal training (lessons from a mentor or relative, apprenticeships). It was being crammed into the formal-school layout — so a lesson from your aunt showed a meaningless "undefined", a "Track: General" line, and a broken progress bar. Informal training now has its own clean card: what you\'re learning, who taught it, and how long it\'s been. It\'s also no longer a lifelong enrollment — you can End Training anytime, it wraps up on its own after about two years of lessons, and any old "still studying under someone you left ages ago" entries are quietly concluded when your save loads. Finished informal training now shows under a "Trained In" list so you keep credit for what you learned.', note:'updateEducationSection: formal-enrolled loop now filters e.institution && !e.informal (was rendering informal entries through the school card → undefined quality badge / Track / NaN progress); added a dedicated informal card (subject, mentor, since/years, desc, End Training btn) + a "Trained In" section for status==="completed". endInformalEducation(idx) sets completed+completedYear. tickEducation now accrues informal months and auto-completes at 24mo (was skipped via if(!inst) return). migrateSave concludes enrolled informal entries whose since is 2+ years old (clears long-stale mentor lessons on load). Version → 4.4.3.' },
 ];
 
 function cleanSaveData(gs) {
@@ -12371,6 +12372,19 @@ function migrateSave(data) {
       c.education.push({ institution:null, informal:true, name:nm, type:'study', subject:nm, mentor:c.occupation.employer||null, status:'enrolled', since:c.occupation.since||w.year, monthsCompleted:0 });
     }
     c.occupation = null;
+  }
+
+  // Conclude informal training the player long ago moved on from. An apprenticeship
+  // or a relative's lessons is not a lifelong enrollment — if 2+ in-game years have
+  // passed since it began and it's still sitting as "enrolled", treat it as finished
+  // (this clears stale entries like "lessons from an aunt you left ages ago").
+  if(Array.isArray(c.education)) {
+    c.education.forEach(e => {
+      if(e && e.status === 'enrolled' && (e.informal || !e.institution)) {
+        const yrs = (w.year || 0) - (e.since || w.year || 0);
+        if(yrs >= 2) { e.status = 'completed'; e.completedYear = e.completedYear || w.year; }
+      }
+    });
   }
 
   if(!w.npcRegistry) w.npcRegistry = {};
@@ -21783,6 +21797,19 @@ function dropFromSchool(instKey) {
   toast('Dropped out.', '', 2000);
 }
 
+// End an INFORMAL course of training (mentor lessons / apprenticeship) by index in
+// the education array. You keep what you learned — it just stops being "ongoing".
+function endInformalEducation(idx) {
+  const e = GS.char.education[idx];
+  if(!e || e.status !== 'enrolled') return;
+  e.status = 'completed';
+  e.completedYear = GS.world.year;
+  addPersonalEvent(`Ended your training in ${e.subject || e.name}${e.mentor ? ' under ' + e.mentor : ''}. Year ${GS.world.year}.`);
+  updateCharacterTab();
+  updateEducationSection();
+  toast('Training ended.', '', 2000);
+}
+
 // Tick education: advance months, drain silver, improve skills
 function tickEducation(daysElapsed) {
   const c = GS.char;
@@ -21793,7 +21820,21 @@ function tickEducation(daysElapsed) {
 
   c.education.filter(e => e.status === 'enrolled').forEach(e => {
     const inst = EDUCATION_INSTITUTIONS[e.institution];
-    if(!inst) return;
+    if(!inst) {
+      // INFORMAL training (a mentor/relative's lessons) has no institution. It is a
+      // FINITE course, not a lifelong bond — accrue time and conclude it after a
+      // couple of years so it doesn't linger forever after the player has moved on.
+      if(e.informal || !e.institution) {
+        e.monthsCompleted = (e.monthsCompleted || 0) + monthsElapsed;
+        const INFORMAL_DURATION = 24; // ~2 years of lessons is a full informal course
+        if(e.monthsCompleted >= INFORMAL_DURATION) {
+          e.status = 'completed';
+          e.completedYear = w.year;
+          addPersonalEvent(`Concluded your informal training in ${e.subject || e.name}${e.mentor ? ' under ' + e.mentor : ''} — you have learned what they had to teach. Year ${w.year}.`);
+        }
+      }
+      return;
+    }
 
     const prevMonths = Math.floor(e.monthsCompleted);
     e.monthsCompleted += monthsElapsed;
@@ -22357,8 +22398,12 @@ updateEducationSection = function() {
   const available = getAvailableSchools(loc);
   let html = '';
 
-  // Current enrollments with dynamic info
-  c.education.filter(e => e.status === 'enrolled').forEach(e => {
+  // Current FORMAL enrollments (real schools) with dynamic info. Informal training
+  // (lessons from a mentor/relative, apprenticeships) has none of the school fields
+  // — quality, tracks, exams, fixed duration — so it gets its own clean card below
+  // instead of being forced through this one (which showed "undefined" / "Track:
+  // General" / NaN progress for a lesson from your aunt).
+  c.education.filter(e => e.status === 'enrolled' && e.institution && !e.informal).forEach(e => {
     const inst    = EDUCATION_INSTITUTIONS[e.institution];
     const pct     = Math.min(100, Math.round((e.monthsCompleted / e.totalDurationMonths) * 100));
     const monthly = Math.ceil((inst?.costPerMonth||50) * (LOCATION_PRICE_MOD[c.birthCity]||1));
@@ -22380,6 +22425,24 @@ updateEducationSection = function() {
       ${lastExam ? `<div style="font-size:11px;color:${lastExam.outcome==='Distinction'?'var(--gold)':lastExam.outcome==='Expelled'?'var(--red)':'var(--muted)'};margin-top:3px">Last exam: ${lastExam.outcome} — ${lastExam.note}</div>` : ''}
       ${lastEvent ? `<div style="font-size:11px;color:var(--muted);margin-top:3px;font-style:italic">Recent: ${lastEvent.slice(0,100)}...</div>` : ''}
       <button class="btn-danger btn-sm" style="margin-top:8px" onclick="dropFromSchool('${e.institution}')">Drop Out</button>
+    </div>`;
+  });
+
+  // INFORMAL training — lessons from a mentor/relative, apprenticeships, private
+  // tutelage. No school fields; render it plainly with who taught it and let the
+  // player END it (you're not bound to a tutor forever — least of all one you left).
+  c.education.forEach((e, idx) => {
+    if(e.status !== 'enrolled' || !(e.informal || !e.institution)) return;
+    const yrs = Math.max(0, (GS.world.year || 0) - (e.since || GS.world.year));
+    const underWhom = e.mentor ? `under ${e.mentor}` : 'self-taught';
+    html += `<div class="edu-card edu-enrolled" style="margin-bottom:12px">
+      <div class="edu-card-header">
+        <span class="edu-card-name">${e.name || e.subject || 'Informal training'}</span>
+        <span style="font-size:10px;color:var(--teal);background:var(--teal)22;padding:2px 7px;border-radius:8px">informal</span>
+      </div>
+      <div style="font-size:12px;color:var(--muted);margin-bottom:4px">Learning <em>${e.subject || 'a craft'}</em> ${underWhom}${e.since?` · since Year ${e.since}`:''}${yrs>0?` (${yrs} yr${yrs===1?'':'s'})`:''}</div>
+      ${e.desc ? `<div style="font-size:11px;color:var(--dim);font-style:italic;margin-bottom:4px">${e.desc}</div>` : ''}
+      <button class="btn-danger btn-sm" style="margin-top:6px" onclick="endInformalEducation(${idx})">End Training</button>
     </div>`;
   });
 
@@ -22421,6 +22484,13 @@ updateEducationSection = function() {
   if(grads.length) {
     html += `<div style="font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--green);margin:10px 0 6px">Graduated From</div>`;
     grads.forEach(e => html += `<div style="font-size:12px;color:var(--muted);padding:3px 0">✓ ${e.name}${e.trackLabel?' ('+e.trackLabel+')':''} — Year ${e.since}</div>`);
+  }
+
+  // Concluded informal training — kept as a learned thing, no longer "ongoing".
+  const trained = c.education.filter(e => e.status === 'completed');
+  if(trained.length) {
+    html += `<div style="font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--teal);margin:10px 0 6px">Trained In</div>`;
+    trained.forEach(e => html += `<div style="font-size:12px;color:var(--muted);padding:3px 0">✓ ${e.subject || e.name}${e.mentor?' (under '+e.mentor+')':''}${e.completedYear?' — Year '+e.completedYear:''}</div>`);
   }
 
   el.innerHTML = html || '<div style="font-size:12px;color:var(--dim)">No education activity.</div>';
