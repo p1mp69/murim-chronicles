@@ -8023,16 +8023,60 @@ function syncReputationTitles(silent=true) {
 // ================================================================
 // NPC GENERATION & MANAGEMENT
 // ================================================================
+// Large, varied name pools so the world stops reusing a handful of names.
+// Murim-Chinese surnames + great-clan compound surnames + a scatter of the
+// world's other peoples (the founders are Yamamoto/Katsumi; kingdoms vary).
+const NPC_SURNAMES = [
+  'Wei','Lin','Chen','Zhou','Huang','Wu','Yao','Sun','Zhao','Fang','Bai','Gu','Shen','Luo','Xia','Yu','Mo','Han','Ji','Qin',
+  'Li','Wang','Zhang','Liu','Yang','Tang','Song','Xu','Feng','Cao','Du','Guo','Cheng','Jiang','Ye','Qiao','Mu','Nie','Cai','Meng',
+  'Xiao','Pan','Fan','Lei','Hou','Jin','Kong','Lu','Ma','Ning','Pei','Ruan','Tian','Wen','Xue','Yan','Zhu','Cui','Gao','Geng',
+  // great-clan compound surnames (wuxia flavor)
+  'Ouyang','Sima','Murong','Nangong','Ximen','Duanmu','Shangguan','Tantai','Yuwen','Helian','Zhuge','Dongfang','Linghu','Huangfu',
+  // the founders' people and other kingdoms
+  'Yamamoto','Katsumi','Takeda','Saito','Kuroda','Aoki','Mori','Tachibana','Hoshino','Kanaza',
+  'Tazari','Velkun','Ashgar','Dumal','Renfeld','Oskar','Mira','Sable','Vex','Ironwood',
+];
+const NPC_MALE_NAMES = [
+  'Hao','Feng','Jian','Rui','Ming','Lei','Kai','Zhen','Bo','Tao','Sheng','Yun','Long','Shan','Pei',
+  'Cheng','Hu','Jin','Wen','Yi','Zhi','Hong','Gang','Tian','Xiang','Chao','Jun','Kang','Liang','Ning',
+  'Qiang','Shi','Xin','Yong','Zhe','Dao','Fei','Jie','Kun','Ren','Xu','Yan','Zhou','An','Cong',
+  'Da','Fu','Guang','Heng','Jing','Lan','Mao','Po','Quan','Rong','Su','Wan','Xue','Yao','Zan',
+  // founder-people given names
+  'Reo','Ichiro','Kenji','Daichi','Haru','Ryo','Sora','Takeshi','Yuto','Akio',
+];
+const NPC_FEMALE_NAMES = [
+  'Mei','Lan','Xiu','Ying','Zhu','Xue','Qing','Rong','Hua','Yue','Li','Fang','Chen','Dan','Lu',
+  'Yan','Bing','Chun','Die','Fen','Hui','Jiao','Juan','Lian','Ling','Min','Ping','Qian','Ruo','Ting',
+  'Wan','Xian','Yao','Zhi','Zhen','Cai','Jing','Mu','Nuan','Su','Ya','Zhao','Bei','Cong','Han',
+  'Jia','Ke','Luan','Nian','Qiu','Shu','Wei','Xi','Yin','Zi','Ai','Duo','Niang','Rou','Yun',
+  // founder-people given names
+  'Aiko','Hana','Keiko','Mika','Rei','Sakura','Yuki','Emi','Nao','Suzu',
+];
 function generateNPC(opts={}) {
   const gender = opts.gender || rand(['male','female','female','male']);
-  const surnames = ['Wei','Lin','Chen','Zhou','Huang','Wu','Yao','Sun','Zhao','Fang','Bai','Gu','Shen','Luo','Xia','Yu','Mo','Han','Ji','Qin'];
-  const maleNames = ['Hao','Feng','Jian','Rui','Ming','Lei','Kai','Zhen','Bo','Tao','Sheng','Yun','Long','Shan','Pei'];
-  const femaleNames = ['Mei','Lan','Xiu','Ying','Zhu','Xue','Qing','Rong','Hua','Yue','Li','Fang','Chen','Dan','Lu'];
-  const firstName = gender==='male' ? rand(maleNames) : rand(femaleNames);
-  const lastName = rand(surnames);
+  const firstName = gender==='male' ? rand(NPC_MALE_NAMES) : rand(NPC_FEMALE_NAMES);
+  const lastName = rand(NPC_SURNAMES);
   const age = opts.age || (10 + Math.floor(Math.random()*60));
   const birthYear = GS.world.year - age;
-  const stageIndex = opts.stageIndex ?? Math.max(0, Math.floor(Math.random()*5));
+  // Most people are NOT cultivators. Heavily bias toward Mortal; only a minority
+  // cultivate, and very few reach high realms. (Fixes "the mill worker is Nascent Soul".)
+  const _rollStage = () => {
+    const r = Math.random();
+    if(r < 0.62) return 0;          // mortal — ordinary folk
+    if(r < 0.82) return 1 + (Math.random()<0.5?0:1); // body tempering 1-2
+    if(r < 0.94) return 3 + Math.floor(Math.random()*2); // body tempering 3 / qi condensation 1
+    if(r < 0.99) return 5 + Math.floor(Math.random()*2); // qi condensation 2-3
+    return 7 + Math.floor(Math.random()*2);              // rare: foundation / core
+  };
+  const stageIndex = opts.stageIndex ?? _rollStage();
+  // How far this NPC can climb on their own over a lifetime — most plateau low.
+  // A mortal stays mortal; a labourer never becomes an immortal in the background.
+  const _rollCap = () => {
+    if(stageIndex === 0) return Math.random() < 0.85 ? 0 : 1; // a few late-bloomers reach body tempering
+    const headroom = Math.random() < 0.6 ? 0 : (Math.random() < 0.7 ? 1 : 2 + Math.floor(Math.random()*2));
+    return Math.min(QI_STAGES.length - 1, stageIndex + headroom);
+  };
+  const cultivationCap = opts.cultivationCap != null ? opts.cultivationCap : _rollCap();
   const stage = QI_STAGES[stageIndex];
   const personality = [rand(PERSONALITY_POOL), rand(PERSONALITY_POOL)].filter((v,i,a)=>a.indexOf(v)===i);
   const alignment = rand(ALIGNMENT_POOL);
@@ -8045,7 +8089,8 @@ function generateNPC(opts={}) {
     gender, age, birthYear,
     location, homeLocation: location,
     qiStageIndex: stageIndex,
-    qiPath: rand(['beast','demonic','righteous',null]),
+    cultivationCap, // the highest realm this NPC can reach on their own over a lifetime
+    qiPath: stageIndex === 0 ? null : rand(['beast','demonic','righteous',null]),
     personality, alignment,
     strength: clamp(base + Math.floor(Math.random()*6),5,99),
     agility:  clamp(base + Math.floor(Math.random()*6),5,99),
@@ -10959,23 +11004,41 @@ function adminStatSet(key, val) {
 function showNPCStats(npcId) {
   const npc = GS.world.npcRegistry[npcId];
   if(!npc) return;
-  ensureNPCConnections(npc);
-  const network  = getNPCNetworkSummary(npcId) || 'No network data';
+  try { ensureNPCConnections(npc); } catch(e) {}
+  try { ensureNPCTimeline(npc); } catch(e) {}
+  const network  = getNPCNetworkSummary(npcId) || 'No known connections.';
   const stat = (l,v)=>`<div style="display:flex;justify-content:space-between;font-size:12px;padding:2px 0"><span style="color:var(--dim)">${l}</span><span style="color:var(--text);font-weight:600">${v??'—'}</span></div>`;
+  const head = (t)=>`<div style="font-size:10px;color:#c49a30;text-transform:uppercase;letter-spacing:.1em;margin:12px 0 4px">${t}</div>`;
+  const age = npc.birthYear != null ? (GS.world.year - npc.birthYear) : (npc.age != null ? npc.age : '?');
+  const occ = npc.occupation ? (npc.occupation.title || npc.occupation) : null;
+  // Life since birth — hand-written for lore figures, generated for everyone else.
+  const life = Array.isArray(npc.lifeTimeline) ? npc.lifeTimeline : [];
+  const lifeHtml = life.length
+    ? life.map(e => `<div style="font-size:11px;color:var(--muted);padding:2px 0;line-height:1.5"><span style="color:#c49a30">Yr ${e.year}</span> — ${_escHtml(e.event)}</div>`).join('')
+    : '<div style="font-size:11px;color:var(--dim);font-style:italic">No recorded history.</div>';
+  // What the player knows of them (relationship + recent activity).
+  const rel = (GS.char.relationships||[]).find(r => r.npcId === npcId);
+  const acts = (npc.activityLog||[]).slice(-5);
+  const actsHtml = acts.length ? acts.map(a => `<div style="font-size:11px;color:var(--muted);padding:1px 0">▸ ${_escHtml(a)}</div>`).join('') : '<div style="font-size:11px;color:var(--dim);font-style:italic">Nothing recent.</div>';
+  const secrets = (npc.hiddenHistory||[]).concat(npc.secrets||[]);
   const body = `
-    <div style="font-size:11px;color:#c49a30;text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px">${_escHtml(QI_STAGES[npc.qiStageIndex||0]?.name||'')} · ${_escHtml(npc.alive===false?'Dead':'Alive')}</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 16px;margin-bottom:10px">
+    <div style="font-size:11px;color:#c49a30;text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px">${_escHtml(QI_STAGES[npc.qiStageIndex||0]?.name||'Mortal')}${npc.qiPath?' · '+_escHtml(npc.qiPath)+' path':''} · ${npc.alive===false?'Dead':'Alive'}</div>
+    <div style="font-size:12px;color:var(--muted);line-height:1.7;margin-bottom:8px">
+      <div><b>Age:</b> ${age}${npc.birthYear!=null?` (b. Yr ${npc.birthYear})`:''} · <b>Gender:</b> ${_escHtml(npc.gender||'—')}</div>
+      ${occ?`<div><b>Occupation:</b> ${_escHtml(occ)}</div>`:''}
+      <div><b>Location:</b> ${_escHtml(LOCATIONS[npc.location]?.name||npc.location||'—')}${npc.homeLocation&&npc.homeLocation!==npc.location?` (home: ${_escHtml(LOCATIONS[npc.homeLocation]?.name||npc.homeLocation)})`:''}</div>
+      <div><b>Alignment:</b> ${_escHtml(npc.alignment||'—')} · <b>Personality:</b> ${_escHtml(npc.personality?.join(', ')||'—')}</div>
+      ${npc.religion?`<div><b>Religion:</b> ${_escHtml(npc.religion)}${npc.formerReligion?` (formerly ${_escHtml(npc.formerReligion)})`:''}</div>`:''}
+      ${rel?`<div><b>To the player:</b> ${_escHtml(rel.type||'known')} · bond ${rel.bond_level||rel.trust||0}/100</div>`:''}
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0 16px;background:var(--s2);border:1px solid var(--border);border-radius:6px;padding:8px 10px">
       ${stat('STR',npc.strength)}${stat('AGI',npc.agility)}${stat('END',npc.endurance)}${stat('INT',npc.intelligence)}
       ${stat('PER',npc.perception)}${stat('WIL',npc.willpower)}${stat('CHA',npc.charisma)}${stat('LCK',npc.luck)}
     </div>
-    <div style="font-size:12px;color:var(--muted);line-height:1.7;border-top:1px solid var(--border);padding-top:8px">
-      <div><b>Alignment:</b> ${_escHtml(npc.alignment||'—')}</div>
-      <div><b>Personality:</b> ${_escHtml(npc.personality?.join(', ')||'—')}</div>
-      <div><b>Location:</b> ${_escHtml(npc.location||'—')}</div>
-      ${npc.religion?`<div><b>Religion:</b> ${_escHtml(npc.religion)}${npc.formerReligion?` (formerly ${_escHtml(npc.formerReligion)})`:''}</div>`:''}
-    </div>
-    <div style="font-size:10px;color:#c49a30;text-transform:uppercase;letter-spacing:.1em;margin:10px 0 4px">Network</div>
-    <div style="font-size:12px;color:var(--muted);line-height:1.6;white-space:pre-wrap">${_escHtml(network)}</div>`;
+    ${head('Life Since Birth')}<div style="max-height:160px;overflow-y:auto">${lifeHtml}</div>
+    ${head('Connections & Network')}<div style="font-size:12px;color:var(--muted);line-height:1.6;white-space:pre-wrap">${_escHtml(network)}</div>
+    ${head('Recent Activity')}${actsHtml}
+    ${secrets.length?head('Secrets (admin)')+secrets.map(s=>`<div style="font-size:11px;color:#c08;padding:1px 0">⚿ ${_escHtml(typeof s==='string'?s:JSON.stringify(s))}</div>`).join(''):''}`;
   uiPopup({ title: npc.name, bodyHTML: body, actions:[{ label:'Close', class:'btn-primary btn-sm', onClick:(c)=>c() }] });
 }
 
@@ -11879,7 +11942,7 @@ window.addEventListener('pagehide', () => { doAutosave(true); });
 // Scheme: MAJOR.MINOR. Big updates bump MAJOR (1.2 -> 2.2). Small updates
 // bump MINOR (2.2 -> 2.3). Each version has a name. The current version is
 // stamped onto every save; older saves can be updated to the latest.
-const GAME_VERSION = { number: '4.1', name: 'Pacts & Legacy' };
+const GAME_VERSION = { number: '4.2', name: 'Set the Record Straight' };
 
 // Which model generates the story. Lite Mode swaps to a far cheaper, faster model
 // (Claude Haiku) so long sessions / limited credits cost a fraction per turn.
@@ -11937,6 +12000,7 @@ const VERSION_HISTORY = [
   { number:'3.30', name:'Blood of the Beast', sys:'Permanent injuries/conditions are now strict — passing states like "post-breakthrough exhaustion", fatigue, soreness, or drained Qi can no longer become permanent (they heal like any wound), and old saves get scrubbed of any that slipped through. Offspring confirmed working: when you die you can continue as your child, who now inherits exactly HALF your power (cultivation realm and a fraction of your arts), never all of it. And a new bloodline: if you have a child with one of the Original Qi Beasts that can take human form — a Dragon, Yokai, Sanguine, Arachnid, or Giant/Titan — that child is born HALF that race, one of the strongest lineages alive, with powerful innate stats and amplified traits.', note:'#1 _isTemporaryState() guard in addCondition routes temp states to addInjury instead of permanent conditions (preserves fromBargain + _isPermanentInjury); migrateSave scrubs existing temp conditions; strict PERMANENT CONDITIONS prompt rule. #2 continueAsOffspring rewritten: always inherits floor(parentStage/2) qi + ~half techniques at half stage + path/expression (no longer needs preset imbued); Inheritance trait reworded. #3 half-beast races (half_dragon/yokai/sanguine/arachnid/giant, born, strong modifiers + mythic bloodline trait) + HALF_BEAST_RACE map; createOffspring opts.beastParent sets child.race/beastHalf (+ higher trait inheritance); continueAsOffspring applies race modifiers + bloodline trait; res.offspring[].otherParentBeast wired through + JSON template + OFFSPRING & BLOODLINE prompt rule.' },
   { number:'3.31', name:'Disciples & the Bound', sys:'The people-under-you system is expanded beyond crews. You can now take DISCIPLES — students you personally teach, who grow in cultivation and devotion (or resentment) over time — and hold the BOUND: people owned or bound to you (captured, bought, taken by debt or conquest), whose spirit ranges from broken to loyal to plotting. Both appear in a new "Disciples & Bound" panel on your character sheet, and the storyteller tracks them as real people with their own arcs. (This also quietly fixes the crew system, whose AI updates had stopped registering.)', note:'New char.disciples/char.slaves arrays (+ createDefaultState + migrate). DISCIPLE_TALENTS/SLAVE_SPIRITS catalogs; addDisciple/addSlave, applyDisciplesUpdate/applySlavesUpdate (add/update/remove|free by name/id + action verbs); updateFollowersDisplay() renders #followers-section (hidden when empty) wired into world-tab refresh. AI fields res.disciples/res.slaves + JSON template + DISCIPLES & THE BOUND prompt rule (late wrapper). FIX: res.crewUpdate handler was orphaned by the consolidated applyAIResponse rewrite (verified not firing); added outermost wirePeopleUpdates wrapper that runs applyCrewUpdate + disciples + slaves so all three actually register.' },
   { number:'4.1', name:'Pacts & Legacy', sys:'A big lore update. Most importantly: the storyteller now reliably KNOWS the world\'s canon and will never break character to claim a real figure (like Zeret of Lust) doesn\'t exist — the Maligned Lords, the founders, Yuluh, the deep dark (bar lēlyā & Nyokuro), the Original Qi Beasts, and the NzuriKami gods are all surfaced as real. Yokai are fleshed out in depth, and so are CONTRACTS — real, structured, costly pacts you can strike with yokai, gods, deities, and entities (including bar lēlyā), each with a price that scales terribly with what you ask. A child of an extremely renowned or infamous parent now inherits a legacy: a trait tied to that parent, a title, and a measure of both fame and the enemies that come with a great name (you discover it when you continue as them). New fable trait "Saint of the Heartland" (an echo of Zukaisen, who turns souls back from the Heartland before their time), and several new achievements for pacts, disciples, the bound, and dynasty.', note:'#7 buildWorldLoreCanon() + late _bspWithWorldLore wrapper (post length-guard so never trimmed): CANON list from LORE_NPCS (lords incl. zeret_lust, founders, Yuluh, bar lēlyā/Nyokuro, ANCIENT_QI_BEASTS, NzuriKami/Heartland) + hard NEVER-DENY/never-break-character rule; detailed YOKAI section; detailed CONTRACTS & PACTS section (contact/offer/price/binding; yokai/divine/dark). This fixes the AI denying Zeret (was trimmed from preamble). #6 saint_of_the_heartland fable trait (Zukaisen echo). #1 continueAsOffspring: parent maxRenown/maxInfamy>=70 → epic Heir/Blood-of trait + social title + seeded renown/infamy + rep titles. #5 pact tracker: char._pacts + res.pactFormed handler in wirePeopleUpdates + JSON template; 6 new achievements (yokai_pact, divine_pact, saint_heartland, teacher, master_of_many, dynasty). Version → 4.1.' },
+  { number:'4.2', name:'Set the Record Straight', sys:'A pile of fixes. The storyteller will NO LONGER deny, rewrite, or skip past what you told it your character does — your action is what happened, full stop (this was the worst one). Polygamy and harems are explicitly supported — you can have multiple wives, concubines, and lovers openly. The NPC name pool is much bigger and more varied. The karma "difficult breakthrough" no longer compounds its wall higher every attempt — it sets a fixed extra requirement that drops back when you balance your karma (and old stuck saves are repaired). Ordinary people stay ordinary — your mill-worker uncle won\'t quietly become a Nascent Soul anymore (and existing over-leveled NPCs are pulled back down). Clicking an NPC in the admin panel now shows a full dossier — stats, life since birth, connections, network, personality, secrets. Studying (morning lessons) is education, not a paying job. And NPCs no longer magically know what distant people are doing in real time.', note:'URGENT: defined NPC_SURNAMES/MALE/FEMALE pools (were referenced undefined after last turn — would crash NPC gen). KARMA BREAKTHROUGH: attemptBreakthrough rebuilds wall each attempt from qi._baseBreakthroughAt × karma surcharge (idempotent, no compounding); difficult block now only applies cost; stage-advance stores _baseBreakthroughAt; migrate clamps runaway breakthroughAt. NPC LEVELS: generateNPC heavy mortal bias (_rollStage ~62% mortal) + cultivationCap (_rollCap); tick respects cap (dailyRate 0 past cap); migrate demotes high-realm-low-stat NPCs + freezes cultivationCap. AI AGENCY: emphatic "PLAYER ACTION IS GROUND TRUTH — never deny/retcon/replace/time-skip" rule in live late wrapper. POLYGAMY: romance rule 7 rewritten to support open harems (jealousy now only for secrecy/betrayal, rule 7b). ADMIN DOSSIER: showNPCStats expanded (age/occupation/path/lifeTimeline via ensureNPCTimeline/connections/activity/secrets). EDUCATION: _isEducationNotJob guard in addOccupationToHistory reroutes lessons→addInformalEducation + migrate + prompt note. NPC KNOWLEDGE: distance/channel-limited knowledge prompt rule. ORDINARY PEOPLE prompt rule. Version → 4.2.' },
 ];
 
 function cleanSaveData(gs) {
@@ -12144,6 +12208,14 @@ function migrateSave(data) {
   c.qi.max             = c.qi.max             ?? 100;
   c.qi.breakthroughAt  = c.qi.breakthroughAt  ?? 100;
   c.qi.breakthroughReady = c.qi.breakthroughReady ?? false;
+  // Repair the karma-compounding breakthrough wall: clamp a runaway threshold and
+  // restore a sane clean base (fixes saves whose wall spiralled out of reach).
+  {
+    const cleanBase = Math.round(((QI_STAGES[c.qi.stageIndex]?.qiNeeded) || c.qi.max || 100) * 1.35);
+    if(!c.qi._baseBreakthroughAt || c.qi._baseBreakthroughAt > cleanBase * 1.6) c.qi._baseBreakthroughAt = cleanBase;
+    if((c.qi.breakthroughAt || 0) > c.qi._baseBreakthroughAt * 1.55) c.qi.breakthroughAt = Math.round(c.qi._baseBreakthroughAt * 1.4);
+    if(c.qi.current >= c.qi.breakthroughAt) c.qi.breakthroughReady = true;
+  }
   // Repair runaway-negative Qi from the old unclamped bug (e.g., -2417/150).
   // Negative is legitimate only on the inverted path (floored at -max); otherwise 0.
   const _qfloor = c._negativeQiPath ? -(c.qi.max||100) : 0;
@@ -12157,7 +12229,37 @@ function migrateSave(data) {
   });
 
   // ── world fields ──────────────────────────────────────────────
+  // A current "occupation" that is really studying (e.g. "Morning Lessons") should
+  // not be paying wages — move it to education.
+  if(c.occupation && _isEducationNotJob(c.occupation)) {
+    if(!Array.isArray(c.education)) c.education = [];
+    const nm = c.occupation.title || 'Studies';
+    if(!c.education.some(e => (e.name||'').toLowerCase() === nm.toLowerCase())) {
+      c.education.push({ institution:null, informal:true, name:nm, type:'study', subject:nm, mentor:c.occupation.employer||null, status:'enrolled', since:c.occupation.since||w.year, monthsCompleted:0 });
+    }
+    c.occupation = null;
+  }
+
   if(!w.npcRegistry) w.npcRegistry = {};
+  // Repair NPC cultivation inflation: freeze everyone at their potential, and
+  // demote the egregiously over-leveled (high realm but ordinary stats — the bug
+  // that turned a mill-worker uncle into a Nascent Soul).
+  Object.values(w.npcRegistry).forEach(npc => {
+    if(!npc || npc.isLore) return;
+    const si = npc.qiStageIndex || 0;
+    const avg = ((npc.strength||10)+(npc.agility||10)+(npc.endurance||10)+(npc.willpower||10)) / 4;
+    // A realm this high should come with strong stats; if the NPC is weak, they
+    // were pushed up by the runaway tick — bring them back to where their body sits.
+    const plausible = Math.max(0, Math.min(QI_STAGES.length - 1, Math.floor((avg - 6) / 5)));
+    if(si > plausible + 2) {
+      npc.qiStageIndex = plausible;
+      npc.qiCurrent = 0;
+      npc.qiMax = Math.floor((QI_STAGES[plausible]?.qiNeeded || 100) * 1.5);
+      if(plausible === 0) npc.qiPath = null;
+    }
+    // Freeze where they are now so they don't climb in the background again.
+    if(npc.cultivationCap == null) npc.cultivationCap = npc.qiStageIndex || 0;
+  });
   if(!w.discoveredSects) w.discoveredSects = [];
   if(!w.activeWorldEvents) w.activeWorldEvents = [];
   if(!w.worldHistory) w.worldHistory = [];
@@ -17534,10 +17636,6 @@ function attemptBreakthrough() {
     return { success: false, reason: 'Your channels are shattered. You cannot cultivate until they are healed.' };
   }
 
-  if(!qi.breakthroughReady) {
-    return { success: false, reason: 'Qi has not reached the threshold.' };
-  }
-
   const nextIdx = (qi.stageIndex || 0) + 1;
   const nextStage = QI_STAGES[nextIdx];
   if(!nextStage) {
@@ -17545,6 +17643,21 @@ function attemptBreakthrough() {
   }
 
   const check = karmaBreakthroughCheck();
+
+  // Rebuild the breakthrough wall FRESH each attempt from a clean base + current
+  // karma. Bad karma raises the wall by a FIXED amount (never compounding across
+  // attempts), and balancing your karma drops it back. Fixes the old bug where
+  // every failed attempt under dark karma pushed the threshold permanently higher.
+  const _base = qi._baseBreakthroughAt || qi.breakthroughAt || Math.round((getQiStage().qiNeeded || qi.max || 100) * 1.35);
+  qi._baseBreakthroughAt = _base;
+  qi.breakthroughAt = (check.type === 'difficult')
+    ? Math.round(_base * (1 + (check.modifiers.extraQiPct || 0.25)))
+    : _base;
+  qi.breakthroughReady = (qi.current >= qi.breakthroughAt);
+
+  if(!qi.breakthroughReady) {
+    return { success: false, reason: `Qi has not reached the threshold (${qi.current}/${qi.breakthroughAt} Qi).${check.type==='difficult'?' Your dark karma has raised the wall — balance it (good deeds) to bring it back down.':''}` };
+  }
 
   // ── TRIBULATION ──
   // Don't advance yet. Inject tribulation event for AI to narrate.
@@ -17588,24 +17701,11 @@ function attemptBreakthrough() {
   }
 
   // ── DIFFICULT ──
-  // Needs more Qi than standard threshold.
+  // The wall was already raised by a fixed amount above (and the readiness check
+  // would have failed if Qi were short). Here we just pay the cost of forcing it.
   if(check.type === 'difficult') {
-    const extraNeeded = Math.round(qi.breakthroughAt * (check.modifiers.extraQiPct || 0.25));
-    if(qi.current < qi.breakthroughAt + extraNeeded) {
-      // Can't push through yet — increase the wall
-      const newWall = qi.breakthroughAt + extraNeeded;
-      qi.breakthroughAt = newWall;
-      c.personalEvents.push(`[DIFFICULT BREAKTHROUGH]: The karma imbalance resists the advance. Standard threshold insufficient. New breakthrough requirement: ${newWall} Qi (additional ${extraNeeded} Qi needed). The wall is harder than it should be.`);
-      updateCharacterTab();
-      return {
-        success: false,
-        reason: `Karma imbalance demands more Qi. Need ${newWall} Qi, have ${qi.current}.`,
-        note: `The dark karma (${check.darkTotal.toFixed(0)}) outweighs the light (${check.lightTotal.toFixed(0)}). The threshold has been raised by ${extraNeeded} Qi.`
-      };
-    }
-    // Has enough — push through with cost
     qi.current = Math.round(qi.max * 0.05); // nearly emptied
-    c.personalEvents.push(`[DIFFICULT BREAKTHROUGH TO ${nextStage.name.toUpperCase()}]: Forced through heavy karmic resistance. Nearly emptied. The advance happened but the cost was severe.`);
+    c.personalEvents.push(`[DIFFICULT BREAKTHROUGH TO ${nextStage.name.toUpperCase()}]: Forced through heavy karmic resistance (dark ${check.darkTotal.toFixed(0)} vs light ${check.lightTotal.toFixed(0)}). Nearly emptied. The advance happened but the cost was severe.`);
   }
 
   // ── ENHANCED ──
@@ -17636,9 +17736,11 @@ function attemptBreakthrough() {
   // echo so res.newQiStageIndex can't revert BT2 back to BT1.
   GS.char._breakthroughThisTurn = true;
 
-  // New stage threshold expands — harder each time
+  // New stage threshold expands — harder each time. Store the CLEAN base so the
+  // karma surcharge is always applied relative to it (and never compounds).
   const expansion = 1.25 + Math.random() * 0.25; // 1.25–1.50x
   qi.breakthroughAt = Math.round(getQiStage().qiNeeded * expansion);
+  qi._baseBreakthroughAt = qi.breakthroughAt;
 
   // Small blood karma burn on clean breakthroughs (the energy purifies some sins)
   if(check.type === 'enhanced' || check.type === 'normal') {
@@ -18432,12 +18534,15 @@ function tickAllNPCs(daysElapsed) {
     }
 
     // ── CULTIVATION TICK ──
+    // NPCs only climb up to their own potential — most people plateau low and
+    // never advance in the background. A cap of <= current stage = no progress.
+    const _cap = (npc.cultivationCap != null) ? npc.cultivationCap : npc.qiStageIndex;
     const stageId = QI_STAGES[npc.qiStageIndex]?.id;
-    const dailyRate = NPC_CULTIVATION_RATES[stageId] || 0;
+    const dailyRate = (npc.qiStageIndex < _cap) ? (NPC_CULTIVATION_RATES[stageId] || 0) : 0;
     if(dailyRate > 0) {
       npc.qiCurrent = (npc.qiCurrent || 0) + dailyRate * daysElapsed;
-      // Breakthrough check
-      if(npc.qiCurrent >= npc.qiMax && npc.qiStageIndex < QI_STAGES.length - 1) {
+      // Breakthrough check — never past the NPC's potential.
+      if(npc.qiCurrent >= npc.qiMax && npc.qiStageIndex < _cap && npc.qiStageIndex < QI_STAGES.length - 1) {
         const nextStageIdx = npc.qiStageIndex + 1;
         const nextStage = QI_STAGES[nextStageIdx];
         if(nextStage) {
@@ -29097,7 +29202,20 @@ function estimateOccupationIncome(occ) {
   return base;
 }
 
+// Studying is NOT a paying job. "Morning lessons", schooling, being a student/
+// pupil — these are EDUCATION, and must never become a wage-earning occupation.
+function _isEducationNotJob(occ) {
+  const t = ((occ?.title||'') + ' ' + (occ?.desc||'')).toLowerCase();
+  if(!t.trim()) return false;
+  return /\b(student|pupil|schooling|school\b|lessons?|studies|studying|study\b|tutee|scholar-in-training|attend(?:ing)? (?:class|school|the academy)|morning lessons|classes|education|learner|novice (?:student|disciple))\b/.test(t)
+    && !/\b(teacher|tutor|master|instructor|professor|lecturer|headmaster|dean|earn|wage|paid|salary|paid to)\b/.test(t);
+}
 function addOccupationToHistory(occupation) {
+  // Reroute education-as-occupation to the Education section (no wages).
+  if(_isEducationNotJob(occupation)) {
+    try { addInformalEducation({ name: occupation.title || 'Studies', subject: occupation.subject || occupation.title || 'their studies', mentor: occupation.employer || null, type: 'study' }); } catch(e) {}
+    return;
+  }
   if(!GS.char.occupationHistory) GS.char.occupationHistory = [];
   const current = GS.char.occupation;
 
@@ -29214,7 +29332,7 @@ applyAIResponse = function(res) {
 function buildOccupationContextForAI() {
   const c = GS.char;
   const occ = c.occupation;
-  if(!occ?.title) return `CHARACTER OCCUPATION: Currently none. The MOMENT the player is hired, apprenticed, taken on, or given a job/position/role in the story — even an informal one like training under a craftsman — you MUST register it in the JSON as "occupation": { "title": "...", "location": "...", "employer": "...", "legal": true/false, "income": <silver per MONTH this job pays>, "desc": "how they got it" }. Do not just describe it in prose and move on — if it isn't in the "occupation" field, the game never records the job and the player gets no wages. Pick a sensible monthly wage for the work (an apprentice/laborer a few silver, a skilled tradesman/clerk ~10-15, a merchant/physician ~25-40, a master ~70+). If it's also genuine training, ALSO add it under "newEducation".`;
+  if(!occ?.title) return `CHARACTER OCCUPATION: Currently none. The MOMENT the player is hired, apprenticed, taken on, or given a job/position/role in the story — even an informal one like training under a craftsman — you MUST register it in the JSON as "occupation": { "title": "...", "location": "...", "employer": "...", "legal": true/false, "income": <silver per MONTH this job pays>, "desc": "how they got it" }. Do not just describe it in prose and move on — if it isn't in the "occupation" field, the game never records the job and the player gets no wages. Pick a sensible monthly wage for the work (an apprentice/laborer a few silver, a skilled tradesman/clerk ~10-15, a merchant/physician ~25-40, a master ~70+). If it's also genuine training, ALSO add it under "newEducation". IMPORTANT: STUDYING is NOT a job — schooling, morning lessons, classes, being a student/pupil go ONLY in "newEducation" and pay NOTHING; never put them in "occupation".`;
 
   const legalNote = occ.legal === false ? '(UNLICENSED / ILLEGAL)' : occ.legal === true ? '(licensed)' : '(status unclear)';
   const history   = (c.occupationHistory || []).slice(-2).map(h => `${h.title} at ${h.location||'?'} until Year ${h.ended}`).join('; ');
@@ -35123,7 +35241,8 @@ buildSystemPrompt = function() {
 4. BOND REQUIREMENTS — Romance stages require sufficient bond. You can't propose to someone you barely know.
 5. REJECTION IS POSSIBLE — If the player moves too fast or the NPC isn't there yet, write the rejection honestly. This is what makes eventual success feel real.
 6. TIME PASSES — Romantic moments aren't instant. Courting takes months. Marriage takes consideration.
-7. JEALOUSY — If the player is pursuing multiple people or the NPC knows about other relationships, this creates complications. Name it.
+7. POLYGAMY & HAREMS ARE VALID — this is a murim/cultivation world where the powerful (cultivators, nobles, sect masters, kings, the wealthy) openly take MULTIPLE spouses, concubines, and lovers, and keep harems; the player may absolutely do this. When the player pursues multiple partners OPENLY — and the partners know and have accepted the arrangement (by love, custom, status, or negotiation) — do NOT treat it as automatic betrayal or jealousy-poison. Support it: multiple wives, a principal/first wife vs secondary wives and concubines, a harem of partners. Still write REAL dynamics within it — co-wife politics, favorites and slighted partners, who shares the player's nights, status hierarchy, the occasional individual who wants exclusivity and won't accept sharing — but as a functioning arrangement, not a scandal by default.
+7b. JEALOUSY (for SECRECY/BETRAYAL) — jealousy and betrayal complications apply when the player is DECEPTIVE — hiding other partners from someone who believed they were exclusive, breaking a promised exclusivity, or pursuing someone who explicitly wants monogamy. Honesty defuses it; lies and broken promises ignite it.
 8. RIVAL SUITORS — NPCs may have other people interested in them. The player isn't automatically the only option.
 9. STAGE ADVANCEMENT — When a romance stage advances, include in the response: "romanceUpdates": [{"npcId": "...", "stage": "new_stage", "npcFeelings": "new_feeling", "notes": "what changed"}]
 10. HEARTBREAK — Endings should be written with weight. The kind that leaves marks.`;
@@ -43005,6 +43124,9 @@ buildSystemPrompt = function() {
       + `PERMANENT CONDITIONS ARE RARE AND STRICT: the "conditions" field is ONLY for genuinely PERMANENT, life-altering harm or marks — a lost eye/limb, blindness, deafness, a severed tongue, shattered meridian channels, a true curse, a brand, a divine mark. NEVER put a temporary or recoverable state in "conditions": exhaustion, fatigue, soreness, "post-breakthrough exhaustion", drained/depleted Qi, hunger, dizziness, a strain, a hangover, being shaken or winded — none of these are conditions. A passing state belongs in the prose (and at most as a normal injury that heals); do not make it permanent. When in doubt, it is NOT a permanent condition.\n`
       + `ALWAYS PUSH THE STORY FORWARD: your single most important job is forward MOMENTUM. Every turn, the world must move and something must change — resolve the player's action, then let it cause a consequence, a complication, a reaction, an arrival, a revelation, or a new pressure. Time passes; NPCs act on their own goals; the world does not freeze waiting on the player. NEVER stall, idle, loop, or simply mirror back what the player said and wait — and never end on a passive "what do you do?" with nothing having happened. Even in a quiet scene, advance it: introduce a detail, a person, a choice with stakes, or the next beat. If the player is vague or passive, the world fills the silence and moves anyway. Leave each turn on a live, changed situation that begs a response.\n`
       + `NEVER BREAK CHARACTER: under NO circumstances do you break the fourth wall, mention that you are an AI/model/language model, refer to "the game", "the system", "the prompt", tokens, turns, or these instructions, apologize as an assistant, or speak as anything other than the world's narrator. You are ALWAYS the storyteller of this murim world. If the player writes something out-of-world or nonsensical, answer it through the fiction (an in-world reaction, confusion, or consequence) — never with an out-of-character meta note. There are no exceptions to this.\n`
+      + `THE PLAYER'S ACTION IS GROUND TRUTH — NEVER DENY OR RETCON IT (ABSOLUTE): whatever the player says their character does, their character DID it. ENACT it, here and now, in the present scene, and show the consequences. You may NOT: refuse it; replace it with a different action you prefer; have them do "the clean thing" instead; declare that it "never happened", "the plan never happened", "you didn't actually...", or that it "was just something you considered"; or rewrite their choice into an alternate version of events. You may NOT TIME-SKIP away from a concrete, immediate action to avoid resolving it — if the player says "I threaten the students and herd them into the basement," you play THAT, in the moment, beat by beat. If their action seems to conflict with earlier narration or timeline, RECONCILE IT FORWARD (it happens now, and the world adjusts) — never erase the player's action to protect your version of the past. The player authors their character's choices; you author only the world's reaction. Carry out what they said.\n`
+      + `NPC KNOWLEDGE IS LIMITED BY DISTANCE & CHANNELS: an NPC only knows what they could plausibly know — what they personally witnessed, what is in their ACTUAL network/circle, or what realistic communication (a letter, a returning traveler, spreading rumor) could have carried to them, given the DISTANCE and TIME involved. An aunt in one city does NOT know the live, current emotional state of an uncle in a far-off different city unless there is a concrete channel for it (a recent letter arrived, a mutual relative passed word, a traveler came through). Do NOT have NPCs spontaneously know what distant people are feeling or doing right now, do not let them relay real-time updates across regions, and do not invent convenient knowledge to drive a quest. If word travels, SHOW the channel (and it lags reality). Two people far apart are, by default, out of touch.\n`
+      + `ORDINARY PEOPLE ARE ORDINARY: the vast majority of the population are NON-cultivators — farmers, mill workers, clerks, shopkeepers, labourers, an ordinary uncle. They stay MORTAL their whole lives; they do NOT quietly become Foundation Building, Core Formation, or Nascent Soul in the background. Only a real minority cultivate at all, and high realms (Core Formation and beyond) are RARE, powerful, and noteworthy figures. Do not casually describe everyday townsfolk, relatives, or minor NPCs as high-realm cultivators, and do not let a commoner's cultivation drift upward over time. Match an NPC's realm to who they actually are.\n`
       + `DUAL WIELDING: a character may fight with a weapon in each hand if it is plausible for them (two one-handed weapons — twin blades, sword-and-dagger, paired axes, dual sabers — and the body/skill to manage it). Honor it when the player wields two weapons: describe both hands working, the added offense and defense, and the real cost (it is harder, splits focus, demands ambidexterity/training, and a two-handed or heavy weapon cannot be paired). Skilled dual-wielding is a genuine martial advantage; clumsy dual-wielding gets someone killed. Let it be learned and earned like any skill.\n`
       + (() => {
           const c = GS.char;
