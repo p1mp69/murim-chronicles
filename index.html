@@ -11958,7 +11958,7 @@ window.addEventListener('pagehide', () => { doAutosave(true); });
 // Scheme: MAJOR.MINOR. Big updates bump MAJOR (1.2 -> 2.2). Small updates
 // bump MINOR (2.2 -> 2.3). Each version has a name. The current version is
 // stamped onto every save; older saves can be updated to the latest.
-const GAME_VERSION = { number: '4.3', name: 'Weight & Inheritance' };
+const GAME_VERSION = { number: '4.3.1', name: 'Weight & Inheritance' };
 
 // Which model generates the story. Lite Mode swaps to a far cheaper, faster model
 // (Claude Haiku) so long sessions / limited credits cost a fraction per turn.
@@ -12018,6 +12018,7 @@ const VERSION_HISTORY = [
   { number:'4.1', name:'Pacts & Legacy', sys:'A big lore update. Most importantly: the storyteller now reliably KNOWS the world\'s canon and will never break character to claim a real figure (like Zeret of Lust) doesn\'t exist — the Maligned Lords, the founders, Yuluh, the deep dark (bar lēlyā & Nyokuro), the Original Qi Beasts, and the NzuriKami gods are all surfaced as real. Yokai are fleshed out in depth, and so are CONTRACTS — real, structured, costly pacts you can strike with yokai, gods, deities, and entities (including bar lēlyā), each with a price that scales terribly with what you ask. A child of an extremely renowned or infamous parent now inherits a legacy: a trait tied to that parent, a title, and a measure of both fame and the enemies that come with a great name (you discover it when you continue as them). New fable trait "Saint of the Heartland" (an echo of Zukaisen, who turns souls back from the Heartland before their time), and several new achievements for pacts, disciples, the bound, and dynasty.', note:'#7 buildWorldLoreCanon() + late _bspWithWorldLore wrapper (post length-guard so never trimmed): CANON list from LORE_NPCS (lords incl. zeret_lust, founders, Yuluh, bar lēlyā/Nyokuro, ANCIENT_QI_BEASTS, NzuriKami/Heartland) + hard NEVER-DENY/never-break-character rule; detailed YOKAI section; detailed CONTRACTS & PACTS section (contact/offer/price/binding; yokai/divine/dark). This fixes the AI denying Zeret (was trimmed from preamble). #6 saint_of_the_heartland fable trait (Zukaisen echo). #1 continueAsOffspring: parent maxRenown/maxInfamy>=70 → epic Heir/Blood-of trait + social title + seeded renown/infamy + rep titles. #5 pact tracker: char._pacts + res.pactFormed handler in wirePeopleUpdates + JSON template; 6 new achievements (yokai_pact, divine_pact, saint_heartland, teacher, master_of_many, dynasty). Version → 4.1.' },
   { number:'4.2', name:'Set the Record Straight', sys:'A pile of fixes. The storyteller will NO LONGER deny, rewrite, or skip past what you told it your character does — your action is what happened, full stop (this was the worst one). Polygamy and harems are explicitly supported — you can have multiple wives, concubines, and lovers openly. The NPC name pool is much bigger and more varied. The karma "difficult breakthrough" no longer compounds its wall higher every attempt — it sets a fixed extra requirement that drops back when you balance your karma (and old stuck saves are repaired). Ordinary people stay ordinary — your mill-worker uncle won\'t quietly become a Nascent Soul anymore (and existing over-leveled NPCs are pulled back down). Clicking an NPC in the admin panel now shows a full dossier — stats, life since birth, connections, network, personality, secrets. Studying (morning lessons) is education, not a paying job. And NPCs no longer magically know what distant people are doing in real time.', note:'URGENT: defined NPC_SURNAMES/MALE/FEMALE pools (were referenced undefined after last turn — would crash NPC gen). KARMA BREAKTHROUGH: attemptBreakthrough rebuilds wall each attempt from qi._baseBreakthroughAt × karma surcharge (idempotent, no compounding); difficult block now only applies cost; stage-advance stores _baseBreakthroughAt; migrate clamps runaway breakthroughAt. NPC LEVELS: generateNPC heavy mortal bias (_rollStage ~62% mortal) + cultivationCap (_rollCap); tick respects cap (dailyRate 0 past cap); migrate demotes high-realm-low-stat NPCs + freezes cultivationCap. AI AGENCY: emphatic "PLAYER ACTION IS GROUND TRUTH — never deny/retcon/replace/time-skip" rule in live late wrapper. POLYGAMY: romance rule 7 rewritten to support open harems (jealousy now only for secrecy/betrayal, rule 7b). ADMIN DOSSIER: showNPCStats expanded (age/occupation/path/lifeTimeline via ensureNPCTimeline/connections/activity/secrets). EDUCATION: _isEducationNotJob guard in addOccupationToHistory reroutes lessons→addInformalEducation + migrate + prompt note. NPC KNOWLEDGE: distance/channel-limited knowledge prompt rule. ORDINARY PEOPLE prompt rule. Version → 4.2.' },
   { number:'4.3', name:'Weight & Inheritance', sys:'Five fixes. BREAKTHROUGH UNSTUCK: if your Qi sat at the cap but couldn\'t advance, that\'s fixed and stuck saves repair themselves on load. NO MORE KARMA DEBT: your karma NEVER raises the Qi you need to break through or walls off your cultivation — that whole "karma debt" on your save is gone, and old saves are cleaned of it. (Heavy dark karma can still call down a tribulation or risk a deviation at the moment of breakthrough, but it is not a standing tax on your progress.) TRAVEL ACTUALLY MOVES YOU: when the story takes you somewhere new — traveling, escorted, captured, carried — the world map updates to match instead of stranding you in the old place. INHERIT THE THRONE: when you continue as your offspring, any organization (crew, gang, sect, order, clan) you led and any sect leadership you held now pass to your heir — its people, silver, and reach are theirs, though an untested heir must prove they can hold the seat. STATS HAVE REAL WEIGHT: ALL eight attributes now genuinely shape what happens — high Strength overpowers, high Agility evades, high Endurance shrugs off ordinary blows, high Perception catches ambushes and lies, high Willpower resists fear and illusion, high Intelligence out-thinks and learns fast, high Charisma commands a room, high Luck bends coincidence — and low stats visibly fail. The storyteller is told your standout stats every turn and must honor them, in every kind of scene, not just combat.', note:'#1 BREAKTHROUGH: ensureQiReachable(c) invariant (qi.max≥breakthroughAt) in addQi-area + attemptBreakthrough + stage-advance; migrate now FORCES breakthroughAt=_baseBreakthroughAt (collapses any old karma surcharge) so stuck saves clear. #2 KARMA DEBT REMOVED: karmaBreakthroughCheck no longer returns "difficult"; attemptBreakthrough sets breakthroughAt=_base unconditionally; dead difficult cost-block removed; readiness msg de-karma\'d; KARMA RULE in live prompt rewritten (karma never gates cultivation; still social/tribulation; atonement via negative karma, floored at 0). #3 TRAVEL: aiSetLocation(locRef) resolves key/name/loose phrase → moves GS.world.location; res.newLocation in BOTH schema blocks + consolidated safe(location) handler + LOCATION RULE (post-ABSOLUTE-RULES so survives length guard). #4 INHERITANCE: continueAsOffspring deep-copies parent.crew (+succession log) and carries world.discoveredSects forward, preserving a led sect seat (Elder/Grand Elder/Sect Leader)+sectState; legacy personalEvent; LEGACY OF THE SEAT prompt rule. #5 STATS: STATS-HAVE-WEIGHT prompt rule (per-attribute capability map + tiers) + buildStatWeightContext(msg) per-turn [ATTRIBUTE CHECK] injection flagging standout highs(≥20 tiered)/lows(≤6); enduranceDamageMult cuts mundane physical dmg up to 70% (qi/elemental/poison/mental bypass via tightened regex) in consolidated hp handler (min 1 on intended harm); getPowerRating now includes endurance*0.7; DURABILITY tier line in buildCombatAnalysis. Version → 4.3.' },
+  { number:'4.3.1', name:'Not Your Fame', sys:'Fixed a reputation bug: when an NPC achieved something of their own — mastered their craft, exposed a wrongdoing, built a lasting legacy — the game was wrongly crediting YOU with the fame, often in cities you have never visited (and showing their name on your World/Fame log, which was extra confusing when they shared your family name). NPC accomplishments now stay theirs. Existing saves are scrubbed of the fame you never earned, and the bogus renown is rolled back.', note:'NPC goal-tick handlers (master_craft/expose/build_legacy) were calling addRenown — a PLAYER-reputation function (getRep→GS.char.reputation) — for the NPC\'s own deed, granting the player renown in npc.location. Removed those three addRenown calls (npcEvent narration retained; grudge addInfamy at ~18690 left intact as a real "someone smears your name" mechanic). migrateSave now scrubs c.reputation[*].events of the three NPC-credit descs (regex) and subtracts the removed renown amounts (floored at 0). Version → 4.3.1.' },
 ];
 
 function cleanSaveData(gs) {
@@ -12242,6 +12243,24 @@ function migrateSave(data) {
   const _qfloor = c._negativeQiPath ? -(c.qi.max||100) : 0;
   if(c.qi.current < _qfloor) c.qi.current = _qfloor;
   if(c.qi.current > c.qi.max) c.qi.current = c.qi.max;
+
+  // Scrub fame the player never earned: the old NPC goal-tick bug called addRenown
+  // (a PLAYER-reputation function) for an NPC's own achievement, so an NPC mastering
+  // their craft / exposing wrongdoing / building a legacy wrongly granted the PLAYER
+  // renown — often in cities the player has never set foot in. Remove those events
+  // and roll the renown back. (Matches the exact event texts the bug produced.)
+  if(c.reputation && typeof c.reputation === 'object') {
+    const NPC_CREDIT_RE = /achieved mastery of their craft|exposed a significant wrongdoing|built something lasting/i;
+    Object.values(c.reputation).forEach(rep => {
+      if(!rep || !Array.isArray(rep.events)) return;
+      let removedRenown = 0;
+      rep.events = rep.events.filter(ev => {
+        if(ev && ev.type === 'renown' && NPC_CREDIT_RE.test(ev.desc || '')) { removedRenown += (ev.amount || 0); return false; }
+        return true;
+      });
+      if(removedRenown > 0) rep.renown = Math.max(0, (rep.renown || 0) - removedRenown);
+    });
+  }
 
   // Ensure equipment object has all slots
   if(!c.equipment || typeof c.equipment !== 'object') c.equipment = dc.equipment;
@@ -30486,7 +30505,9 @@ updateCharacterTab = function() {
             npc.intelligence = Math.min(99, (npc.intelligence||10) + 6);
             npc.charisma     = Math.min(99, (npc.charisma||10) + 4);
             npcEvent(`${npc.name} has reached a level in their craft that the city recognizes without being told. People seek them out. They no longer seek people out.`);
-            addRenown(npc.location||w.location, 12, `${npc.name} achieved mastery of their craft`);
+            // (This is the NPC's renown, NOT the player's — addRenown credits the
+            //  PLAYER's reputation, so calling it here wrongly gave the player fame in
+            //  the NPC's location for the NPC's achievement. Removed.)
             break;
 
           case 'open_business':
@@ -30517,7 +30538,7 @@ updateCharacterTab = function() {
           // ── ADVERSARIAL GOALS ─────────────────────────────────
           case 'expose':
             npcEvent(`${npc.name} has exposed something. It is out there now — through the right channels, or through the city's informal ones. The fallout is unpredictable. ${npc.name} knew that going in.`);
-            addRenown(npc.location||w.location, 8, `${npc.name} exposed a significant wrongdoing`);
+            // (NPC's deed — do NOT credit the player's reputation. Removed addRenown.)
             break;
 
           case 'reclaim':
@@ -30547,7 +30568,7 @@ updateCharacterTab = function() {
           case 'build_legacy':
             npc.charisma = Math.min(99, (npc.charisma||10) + 6);
             npcEvent(`${npc.name} has built something that will last. It exists now. They exist differently because of it.`);
-            addRenown(npc.location||w.location, 15, `${npc.name} built something lasting`);
+            // (NPC's legacy — do NOT credit the player's reputation. Removed addRenown.)
             break;
 
           // ── PLAYER-ADJACENT GOALS ─────────────────────────────
