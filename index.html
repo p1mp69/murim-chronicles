@@ -2104,6 +2104,9 @@ body.generating [onclick*="shopSellItem"], body.generating [onclick*="closeMapGo
           <button class="menu-btn" id="menu-dead">
             <span class="menu-btn-icon">🪦</span> Hall of the Dead
           </button>
+          <button class="menu-btn" id="menu-leaderboard">
+            <span class="menu-btn-icon">🏆</span> Leaderboard
+          </button>
           <button class="menu-btn" id="menu-achievements">
             <span class="menu-btn-icon">◆</span> Achievements
           </button>
@@ -2141,6 +2144,17 @@ body.generating [onclick*="shopSellItem"], body.generating [onclick*="closeMapGo
       <button class="modal-close" onclick="document.getElementById('panel-dead').classList.add('hidden')">✕</button>
     </div>
     <div class="panel-body" id="dead-list"></div>
+  </div>
+</div>
+
+<!-- Leaderboard panel -->
+<div id="panel-leaderboard" class="panel-overlay hidden">
+  <div class="panel-card">
+    <div class="panel-header">
+      <h2>Leaderboard — Legends of the Murim</h2>
+      <button class="modal-close" onclick="document.getElementById('panel-leaderboard').classList.add('hidden')">✕</button>
+    </div>
+    <div class="panel-body" id="leaderboard-list"></div>
   </div>
 </div>
 
@@ -2527,6 +2541,11 @@ body.generating [onclick*="shopSellItem"], body.generating [onclick*="closeMapGo
         <div class="char-section" id="race-section">
           <div class="sect-label">Race</div>
           <span id="char-race" style="font-size:13px;color:var(--text)">Human</span>
+        </div>
+
+        <div class="char-section" id="gender-section">
+          <div class="sect-label">Gender</div>
+          <span id="char-gender" style="font-size:13px;color:var(--text);cursor:pointer;border-bottom:1px dashed var(--border2)" title="Click to change" onclick="changeGender()">—</span>
         </div>
 
         <div class="char-section" id="offspring-section" style="display:none">
@@ -6955,6 +6974,25 @@ function getQiPathColor(path) {
   return 'var(--muted)';
 }
 
+// ── CHANGE GENDER ─────────────────────────────────────────────────
+// Click the Gender field on the character sheet to change it. Updates pronouns
+// the storyteller uses and notes the change so the world reflects it.
+async function changeGender() {
+  const c = GS.char;
+  const cur = c.gender || 'male';
+  const OPTS = [
+    { value:'male',   label:'Male' },
+    { value:'female', label:'Female' },
+    { value:'other',  label:'Other / Non-binary' },
+  ].filter(o => o.value !== cur);
+  const choice = await uiPicker(OPTS, { title:'Change Gender', placeholder:'Choose…' });
+  if(!choice) return;
+  c.gender = choice;
+  try { addPersonalEvent(`[GENDER]: The character now lives as ${choice}. Refer to them accordingly from here on.`); } catch(e) {}
+  toast(`Gender → ${choice.charAt(0).toUpperCase()+choice.slice(1)}`, 'gold', 3000);
+  try { updateCharacterTab(); } catch(e) {}
+}
+
 // ── CHANGE CULTIVATION PATH ───────────────────────────────────────
 // A deliberate, profound act: re-temper the Qi onto a different path (Righteous /
 // Beast / Demonic / Unaligned). Triggered by clicking the path badge on the
@@ -9333,6 +9371,11 @@ function updateCharacterTab() {
   if(raceEl) {
     const race = RACES[c.race || 'human'];
     raceEl.innerHTML = `<span style="cursor:pointer;border-bottom:1px dashed var(--border2)" onclick="showRaceDetail()" title="See what makes you different">${race ? race.name : 'Human'} <span style="font-size:10px;color:var(--dim)">ⓘ</span></span>`;
+  }
+  const genderEl = document.getElementById('char-gender');
+  if(genderEl) {
+    const g = c.gender || 'male';
+    genderEl.textContent = g.charAt(0).toUpperCase() + g.slice(1);
   }
 
   // --- Offspring ---
@@ -12182,7 +12225,7 @@ window.addEventListener('pagehide', () => { doAutosave(true); });
 // Scheme: MAJOR.MINOR. Big updates bump MAJOR (1.2 -> 2.2). Small updates
 // bump MINOR (2.2 -> 2.3). Each version has a name. The current version is
 // stamped onto every save; older saves can be updated to the latest.
-const GAME_VERSION = { number: '4.9.2', name: 'Reforge' };
+const GAME_VERSION = { number: '5.0', name: 'Leaderboard' };
 
 // Which model generates the story. Lite Mode swaps to a far cheaper, faster model
 // (Claude Haiku) so long sessions / limited credits cost a fraction per turn.
@@ -12255,6 +12298,7 @@ const VERSION_HISTORY = [
   { number:'4.9', name:'Reforge', sys:'Two things. The free/local backend options now live right inside the API Key box in Settings — paste a Claude key, or flip the Backend dropdown there to a free or local model. And you can now CHANGE YOUR CULTIVATION PATH: click your Qi path badge on the character sheet to reforge onto a different path (Righteous / Beast / Demonic / Unaligned). It is a deliberate, costly act — about half your current Qi scatters in the transition and your discovered Expression resets to be relearned — but the path is yours to choose.', note:'Settings: API Key + Backend select + endpoint/model fields regrouped into one bordered block led by the key (with a "no credits? switch below" hint). changeCultivationPath(): uiPicker(Righteous/Beast/Demonic/Unaligned minus current) → uiConfirm → sets qi.path, nulls qi.expression, halves qi.current, chronicle+personalEvent[PATH REFORGED]; gated on intact channels. qi-path-badge made clickable (cursor+title+onclick). Verified in-browser: settings layout, provider toggle relabel/show, full path-change flow (righteous→beast, expr null, qi 200→100, badge updated). Version → 4.9.' },
   { number:'4.9.1', name:'Reforge', sys:'The free/local backend options are now in the API Key button on the MAIN MENU too (not just in-game Settings). Open "API Key & Model" from the menu, pick a Backend, and enter an endpoint + model — or just paste a Claude key as before.', note:'panel-apikey (main-menu) rebuilt: added menu-provider select + menu-baseurl + menu-model + help, header "API Key & Model". saveAPIKey() now reads/validates per-backend (Claude needs key; custom needs URL+model), persists all four to localStorage, and mirrors into the Settings-modal fields. initMainMenu() loads provider/baseurl/model from localStorage, populates the fields, wires menu-provider change → syncMenuBackendVisibility(). Verified in-browser: panel layout, provider toggle relabel/show, save persists + llmConfigured() true for a local endpoint. Version → 4.9.1.' },
   { number:'4.9.2', name:'Reforge', sys:'Added clear step-by-step instructions to the API Key panel — including how to use an OpenAI (ChatGPT) key. Open "API Key & Model", set Backend to Custom, and each provider now shows its exact Endpoint URL and Model name: OpenAI (gpt-4o / gpt-4o-mini), Ollama, LM Studio, Groq, OpenRouter.', note:'Help text in both panel-apikey (main menu) and modal-settings rewritten: added a "How to use it" 4-step line + per-provider Endpoint URL & Model list with OpenAI added first (https://api.openai.com/v1, gpt-4o/gpt-4o-mini, key sk-...). Verified in-browser. Version → 4.9.2.' },
+  { number:'5.0', name:'Leaderboard', sys:'Three things. NEW LEADERBOARD: a "Leaderboard" button on the main menu ranks every life you\'ve lived — current and past — by a Legacy Score (cultivation realm, fame &amp; notoriety, lives taken, titles, and mastery of the arts), measured against benchmark legends of the murim like Ichiro, Reo, and the Sword Saint. GENDER ON THE SHEET: your gender now shows on the character page and is clickable to change (it updates how the story refers to you). TRAINED SKILLS REGISTER: when you deliberately study or train a specific skill — e.g. "train and study water manipulation" with Water Qi — it now reliably gets added to your skills (new or leveled up) instead of being ignored.', note:'LEADERBOARD: computeLegacyScore (stageIndex*1000 + fame*6 + kills*8 + titles*40 + mastery*5 + achievements*15 + age) + legacyComponents(char,world); saveToHallOfDead enriched with stageIndex/path/race/kills/titles/mastery/fame/score; renderLeaderboard merges living char + hall entries + LEADERBOARD_LEGENDS benchmarks, sorts desc, medals top-3; panel-leaderboard + menu-leaderboard button + handler + close-list. GENDER: char-gender section on sheet (clickable), render in updateCharacterTab, changeGender() uiPicker (male/female/other) + pronoun-affecting personalEvent. SKILLS: live-prompt "REGISTER TRAINED SKILLS" rule mandating res.skills entry (new or xp) whenever the player studies/trains a named skill, incl. Qi-tied manipulation skills + theory companion. Verified in-browser: leaderboard ranking + medals + legends, gender display/change/picker. Version → 5.0.' },
 ];
 
 function cleanSaveData(gs) {
@@ -16653,9 +16697,44 @@ function buildOriginCards(city, onSelect) {
 // ================================================================
 const DEAD_KEY = 'murim_hall_of_dead';
 
+// ── LEGACY SCORE (powers the Leaderboard) ─────────────────────────
+// A single number summarizing how far a life rose: cultivation realm weighs most,
+// then fame/notoriety, lives taken, titles earned, mastery of arts, and a touch for
+// a long life. Works for a living character, a Hall-of-Dead entry, or a lore legend.
+function computeLegacyScore(o) {
+  return Math.round(
+    (o.stageIndex || 0) * 1000 +
+    (o.fame || 0)       * 6 +
+    (o.kills || 0)      * 8 +
+    (o.titles || 0)     * 40 +
+    (o.mastery || 0)    * 5 +
+    (o.achievements || 0) * 15 +
+    (o.age || 0)        * 1
+  );
+}
+function legacyComponents(char, world) {
+  const reps = Object.values(char.reputation || {});
+  const renownMax = reps.length ? Math.max(0, ...reps.map(r => r.renown || 0)) : 0;
+  const infamyMax = reps.length ? Math.max(0, ...reps.map(r => r.infamy || 0)) : 0;
+  const titles  = (char.spiritualTitles || []).length + (char.socialTitles || []).length;
+  const mastery = (char.techniques || []).reduce((a,t)=>a+(t.stage||0),0)
+                + (char.martialArts || []).reduce((a,m)=>a+(m.stage||0),0);
+  let achievements = 0;
+  try { achievements = Object.keys(GS?.achievements || {}).filter(k => GS.achievements[k]).length; } catch(e) {}
+  return {
+    stageIndex: char.qi?.stageIndex || 0,
+    fame: Math.max(renownMax, infamyMax),
+    renownMax, infamyMax,
+    kills: char.kills || 0,
+    titles, mastery, achievements,
+    age: char.age || 0,
+  };
+}
+
 function saveToHallOfDead(char, world, cause) {
   let hall = [];
   try { hall = JSON.parse(localStorage.getItem(DEAD_KEY) || '[]'); } catch(e) {}
+  const comp = legacyComponents(char, world);
   hall.unshift({
     name: `${char.firstName} ${char.lastName}`,
     age: char.age,
@@ -16663,10 +16742,16 @@ function saveToHallOfDead(char, world, cause) {
     deathMonth: world.month,
     cause: cause || 'unknown',
     stage: QI_STAGES[char.qi?.stageIndex||0]?.name || 'Mortal',
+    stageIndex: comp.stageIndex,
+    path: char.qi?.path || null,
+    race: RACES[char.race]?.name || 'Human',
     location: LOCATIONS[world.location]?.name || world.location,
     traits: char.traits.map(t=>t.name),
     techniques: char.techniques.map(t=>t.name),
     crimes: char.crimes.length,
+    kills: comp.kills, titles: comp.titles, mastery: comp.mastery,
+    fame: comp.fame, renownMax: comp.renownMax, infamyMax: comp.infamyMax, achievements: comp.achievements,
+    score: computeLegacyScore(comp),
     rep: Object.entries(char.reputation||{})
       .filter(([k])=>!k.endsWith('_kingdom')&&LOCATIONS[k])
       .map(([k,v])=>`${LOCATIONS[k]?.name}: R${v.renown}/I${v.infamy}`).join(', '),
@@ -16674,6 +16759,62 @@ function saveToHallOfDead(char, world, cause) {
   });
   if(hall.length > 50) hall = hall.slice(0,50);
   localStorage.setItem(DEAD_KEY, JSON.stringify(hall));
+}
+
+// World-legend benchmarks so the leaderboard means something from your very first
+// life — you can see where you rank against the titans of the murim.
+const LEADERBOARD_LEGENDS = [
+  { name:'Ichiro Katsumi', legend:true, note:'Founder — discovered Qi', stageIndex:13, fame:100, kills:0,  titles:4, mastery:70, age:0 },
+  { name:'Reo',            legend:true, note:'Founder',                  stageIndex:13, fame:100, kills:0,  titles:4, mastery:70, age:0 },
+  { name:'Kōichi Hanzou',  legend:true, note:'The Sword Saint',          stageIndex:13, fame:98,  kills:40, titles:3, mastery:65, age:0 },
+  { name:'Hammurabi',      legend:true, note:'King of Luo · STR 95',     stageIndex:5,  fame:95,  kills:200,titles:2, mastery:30, age:0 },
+  { name:'Láng the Warlord',legend:true,note:'Strongest human · no Qi',  stageIndex:0,  fame:96,  kills:300,titles:2, mastery:20, age:0 },
+  { name:'Masaki Jūrō',    legend:true, note:'Broke the world (Fracture)',stageIndex:12, fame:90,  kills:50, titles:2, mastery:55, age:0 },
+];
+
+function renderLeaderboard() {
+  const list = document.getElementById('leaderboard-list');
+  if(!list) return;
+  const entries = [];
+  // Living character (if a game is in progress)
+  try {
+    if(GS?.char?.firstName && !GS.char.isDead) {
+      const comp = legacyComponents(GS.char, GS.world);
+      entries.push({ name:`${GS.char.firstName} ${GS.char.lastName}`, you:true,
+        stage: QI_STAGES[comp.stageIndex]?.name||'Mortal', stageIndex:comp.stageIndex,
+        fame:comp.fame, kills:comp.kills, titles:comp.titles, mastery:comp.mastery,
+        score: computeLegacyScore(comp), note:'your current life' });
+    }
+  } catch(e) {}
+  // Past lives from the Hall of the Dead
+  let hall = [];
+  try { hall = JSON.parse(localStorage.getItem(DEAD_KEY) || '[]'); } catch(e) {}
+  hall.forEach(d => entries.push({
+    name:d.name, stage:d.stage, stageIndex:d.stageIndex||0, fame:d.fame||0, kills:d.kills||0,
+    titles:d.titles||0, mastery:d.mastery||0,
+    score: (d.score != null ? d.score : computeLegacyScore(d)),
+    note:`died Year ${d.deathYear}, age ${d.age}`,
+  }));
+  // Legendary benchmarks
+  LEADERBOARD_LEGENDS.forEach(l => entries.push({
+    name:l.name, legend:true, stage:QI_STAGES[l.stageIndex]?.name||'Mortal', stageIndex:l.stageIndex,
+    fame:l.fame, kills:l.kills, titles:l.titles, mastery:l.mastery,
+    score: computeLegacyScore(l), note:l.note,
+  }));
+
+  entries.sort((a,b) => b.score - a.score);
+
+  const medal = i => i===0?'🥇':i===1?'🥈':i===2?'🥉':`#${i+1}`;
+  list.innerHTML = `<div style="font-size:11px;color:var(--dim);margin-bottom:10px;line-height:1.5">Ranked by Legacy Score — cultivation realm, fame &amp; notoriety, lives taken, titles, and mastery of the arts. Your lives are measured against the legends of the murim.</div>` +
+    entries.map((e,i) => `
+    <div class="dead-entry" style="${e.you?'border-color:var(--gold)':''}">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px">
+        <div class="dead-name" style="${e.legend?'color:var(--demonic)':e.you?'color:var(--gold)':''}">${medal(i)} &nbsp;${e.name}${e.you?' <span style="font-size:10px;color:var(--gold)">(you)</span>':''}${e.legend?' <span style="font-size:10px;color:var(--demonic)">✦ legend</span>':''}</div>
+        <div style="font-weight:700;color:var(--gold);font-size:14px;white-space:nowrap">${e.score.toLocaleString()}</div>
+      </div>
+      <div class="dead-meta">${e.stage} · ${e.note}</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:2px">Fame ${e.fame} · Kills ${e.kills} · Titles ${e.titles} · Art-mastery ${e.mastery}</div>
+    </div>`).join('');
 }
 
 function renderHallOfDead() {
@@ -17748,6 +17889,11 @@ function initMainMenu() {
     document.getElementById('panel-dead').classList.remove('hidden');
   });
 
+  document.getElementById('menu-leaderboard')?.addEventListener('click', () => {
+    renderLeaderboard();
+    document.getElementById('panel-leaderboard').classList.remove('hidden');
+  });
+
   document.getElementById('menu-achievements').addEventListener('click', () => {
     renderAchievements();
     document.getElementById('panel-achievements').classList.remove('hidden');
@@ -17765,7 +17911,7 @@ function initMainMenu() {
   });
 
   // Close panels on backdrop click
-  ['panel-continue','panel-dead','panel-achievements','panel-updatelog','panel-apikey'].forEach(id => {
+  ['panel-continue','panel-dead','panel-leaderboard','panel-achievements','panel-updatelog','panel-apikey'].forEach(id => {
     document.getElementById(id)?.addEventListener('click', e => {
       if(e.target.id === id) document.getElementById(id).classList.add('hidden');
     });
@@ -43919,6 +44065,7 @@ buildSystemPrompt = function() {
     const section = `## TECHNIQUE PROGRESSION & OFFSHOOTS\n`
       + `Techniques and martial arts get STRONGER only through narrative PRACTICE — repeated, earned use in the story. NEVER jump a technique or martial art up multiple stages from a single action, and do not let the player simply declare mastery; mastery is shown, used, and earned over time. A stage is a real threshold of understanding.\n`
       + `REPORT PRACTICE (IMPORTANT — this is how techniques actually level up): whenever the player TRAINS, drills, hones, refines, meditates on, or USES one of their existing techniques or martial arts this turn, you MUST list it in "techniquePractice" with the art's name and a "reps" count for how much they worked it (1 for a single use; 3-12 for a focused drilling session, a montage, a month of training — the more dedicated the effort, the higher, up to 12). Use the art's name as it appears in their list (a close/partial name is fine — the engine resolves it). The engine then advances the stage at the proper thresholds. If you do NOT report it, their practice does not count and the technique stays stuck (e.g. frozen at "Intent") no matter how much the prose says they trained — so always report it when they work on an art they own.\n`
+      + `REGISTER TRAINED SKILLS (IMPORTANT — a skill the player trains MUST appear in the system): whenever the player deliberately STUDIES, TRAINS, PRACTICES, or LEARNS a specific skill or body of knowledge this turn, you MUST put it in the "skills" array — creating it if it is new, or adding xp if they already have it. This is REQUIRED even for skills tied to their Qi: if a player with Water Qi says "train and study water manipulation", register a skill like { "key":"water_manipulation", "label":"Water Manipulation", "category":"cultivation", "xp": <effort> } (and you may ALSO add a theory companion like "Water Manipulation Theory" for the study half). Use a clear label and a key (lowercase_with_underscores). Set xp to match the effort (a few days ≈ 3-10, a season ≈ 15-40, a year of focused study ≈ 50-120). The SKILL REALISM cap still applies — grant only the 1-3 skills they actually trained this turn, at modest levels, never a whole category — but do NOT drop a skill they clearly and deliberately trained. If you skip it, the player trains and nothing registers, which is a bug you are responsible for preventing.\n`
       + `OFFSHOOTS / VARIANTS: the player never names or designs their own variants — YOU author them. This happens two ways: (a) organically, when the player innovates on, diverges from, or breaks open one of their arts in the story; or (b) when the player deliberately sets out to develop an offshoot (a "DEVELOP OFFSHOOT" request) — in that case YOU decide whether a real offshoot actually emerges (it may honestly fail to click this time) and, if it does, YOU invent its name, its real BIO (what it IS and how it feels), and what it does — drawn from the parent art and the character's own cultivation (path, expression, level, any beast-Qi). Either way, register it via "newOffshoots" with a real bio (never "a variant of X"), it must genuinely diverge from the parent (not a rename), and it starts fresh at the lowest stage and must be practiced up. Do not hand these out casually.\n`
       + `CULTIVATION SPEED:${theoryNote}${(GS.char.willpower||10) >= 25 ? ` On top of that, this character's strong WILLPOWER (${GS.char.willpower}) drives Qi through bottlenecks and sustains a deeper, steadier meditation — narrate their cultivation as unusually focused and relentless; the engine already gathers more Qi for them because of it.` : ''}${qiGatheringTechMult() >= 1.5 ? ` This character KNOWS A QI-GATHERING ART and has real mastery of it — when they cultivate using it, the engine already floods them with a MASSIVE amount of Qi (scaled to their understanding and the art's grade). Narrate the intake as overwhelming and torrential: Qi pouring in, the space emptying itself into them, far beyond ordinary meditation. Do not undersell it.` : ''}\n`
       + `KILLS: when the character actually KILLS one or more people (or clearly sentient beings) this turn — by their own hand or unambiguously as a direct result of their action — report the count as "kills": <number>. Count only real, confirmed deaths the character caused; do NOT count fights they merely won, people who fled wounded, ambiguous outcomes, kills by others, or beasts/vermin you would not narrate as a death. When in doubt, omit it.\n`
