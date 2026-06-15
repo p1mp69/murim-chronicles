@@ -2104,9 +2104,6 @@ body.generating [onclick*="shopSellItem"], body.generating [onclick*="closeMapGo
           <button class="menu-btn" id="menu-dead">
             <span class="menu-btn-icon">🪦</span> Hall of the Dead
           </button>
-          <button class="menu-btn" id="menu-leaderboard">
-            <span class="menu-btn-icon">🏆</span> Leaderboard
-          </button>
           <button class="menu-btn" id="menu-achievements">
             <span class="menu-btn-icon">◆</span> Achievements
           </button>
@@ -2150,17 +2147,6 @@ body.generating [onclick*="shopSellItem"], body.generating [onclick*="closeMapGo
   </div>
 </div>
 
-<!-- Leaderboard panel -->
-<div id="panel-leaderboard" class="panel-overlay hidden">
-  <div class="panel-card">
-    <div class="panel-header">
-      <h2>Leaderboard — Legends of the Murim</h2>
-      <button class="modal-close" onclick="document.getElementById('panel-leaderboard').classList.add('hidden')">✕</button>
-    </div>
-    <div class="panel-body" id="leaderboard-list"></div>
-  </div>
-</div>
-
 <!-- Support panel -->
 <div id="panel-support" class="panel-overlay hidden">
   <div class="panel-card">
@@ -2175,15 +2161,22 @@ body.generating [onclick*="shopSellItem"], body.generating [onclick*="closeMapGo
       </div>
       <div style="margin-bottom:16px">
         <div style="font-size:13px;font-weight:700;color:var(--gold);margin-bottom:4px">☕ Tip Jar</div>
-        <div style="font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:8px">If you're enjoying it, a tip keeps it growing. Totally optional.</div>
-        <a href="https://ko-fi.com/YOURNAME" target="_blank" rel="noopener" class="btn-primary" style="display:block;text-align:center;text-decoration:none;margin-bottom:6px">Buy me a coffee (Ko-fi)</a>
+        <div style="font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:8px">If you're enjoying it, a tip keeps it growing. Totally optional — pick whatever works for you.</div>
+        <a id="tip-paypal" href="https://paypal.me/YOURNAME" target="_blank" rel="noopener" class="btn-primary" style="display:block;text-align:center;text-decoration:none;margin-bottom:6px">PayPal</a>
+        <a id="tip-cashapp" href="https://cash.app/$YOURTAG" target="_blank" rel="noopener" class="btn-secondary" style="display:block;text-align:center;text-decoration:none;margin-bottom:6px">Cash App</a>
+        <a id="tip-kofi" href="https://ko-fi.com/YOURNAME" target="_blank" rel="noopener" class="btn-secondary" style="display:block;text-align:center;text-decoration:none;margin-bottom:6px">Ko-fi</a>
+        <div style="display:flex;gap:6px;align-items:center;margin-top:8px">
+          <span style="font-size:11px;color:var(--muted)">Crypto:</span>
+          <code id="tip-crypto" style="font-size:10px;color:var(--gold);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">YOUR_WALLET_ADDRESS</code>
+          <button class="btn-secondary btn-sm" onclick="(function(){var a=document.getElementById('tip-crypto').textContent;navigator.clipboard&&navigator.clipboard.writeText(a);toast('Address copied','gold',2000);})()">Copy</button>
+        </div>
       </div>
       <div>
         <div style="font-size:13px;font-weight:700;color:var(--gold);margin-bottom:4px">★ Patreon</div>
         <div style="font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:8px">Supporters get early features, a say in what's built next, and a supporter mark.</div>
-        <a href="https://patreon.com/YOURNAME" target="_blank" rel="noopener" class="btn-secondary" style="display:block;text-align:center;text-decoration:none">Become a Patron</a>
+        <a id="tip-patreon" href="https://patreon.com/YOURNAME" target="_blank" rel="noopener" class="btn-secondary" style="display:block;text-align:center;text-decoration:none">Become a Patron</a>
       </div>
-      <div style="font-size:10px;color:var(--dim);margin-top:14px;line-height:1.5">Replace the Ko-fi / Patreon links in the code with your own.</div>
+      <div style="font-size:10px;color:var(--dim);margin-top:14px;line-height:1.5">Replace the placeholder links/address in the code with your own (PayPal.me, Cash App $tag, Ko-fi, a crypto wallet, Patreon — use whichever you can set up).</div>
     </div>
   </div>
 </div>
@@ -7004,6 +6997,22 @@ function getQiPathColor(path) {
   return 'var(--muted)';
 }
 
+// Resolve a cultivation stage the AI reports for an NPC (a stage NAME, id, or index)
+// to a QI_STAGES index, so an NPC's displayed realm can be corrected to match the
+// narrative (e.g. a woman the story treats as Qi Condensation I who still showed
+// Body Tempering). Returns an index or null.
+function resolveQiStageIndex(v) {
+  if(v == null || v === '') return null;
+  if(typeof v === 'number' && isFinite(v)) return Math.max(0, Math.min(QI_STAGES.length-1, Math.round(v)));
+  const s = String(v).toLowerCase().trim();
+  let i = QI_STAGES.findIndex(q => q.name.toLowerCase() === s || q.id === s.replace(/\s+/g,'_'));
+  if(i >= 0) return i;
+  // looser: the reported text contains a stage's full name (prefer the longest match)
+  let best = -1, bestLen = 0;
+  QI_STAGES.forEach((q, idx) => { const n = q.name.toLowerCase(); if(s.includes(n) && n.length > bestLen) { best = idx; bestLen = n.length; } });
+  return best >= 0 ? best : null;
+}
+
 // ── CHANGE GENDER ─────────────────────────────────────────────────
 // Click the Gender field on the character sheet to change it. Updates pronouns
 // the storyteller uses and notes the change so the world reflects it.
@@ -8006,6 +8015,37 @@ function giveTrait(traitId, custom=null) {
   }
   updateCharacterTab();
   toast(`Trait gained: ${traitDef.name}`, 'gold', 3000);
+}
+
+// Create a CUSTOM trait the story granted (a boon, gift, mark, bloodline awakening,
+// transformation) — things that are permanent CHARACTERISTICS, not wounds. The AI
+// supplies the name/desc/effects so trait-worthy things stop being dumped into
+// "Physical Conditions". Stat effects are applied (and capped so a single grant
+// can't break the game).
+function addCustomTrait({ name, desc, effects, rarity, type } = {}) {
+  if(!name || !String(name).trim()) return;
+  name = String(name).trim();
+  if(GS.char.traits.find(t => (t.name||'').toLowerCase() === name.toLowerCase())) return; // already have it
+  const cleanEffects = {};
+  if(effects && typeof effects === 'object') {
+    Object.entries(effects).forEach(([k,v]) => {
+      if(typeof v === 'number' && isFinite(v) && GS.char[k] !== undefined) {
+        cleanEffects[k] = Math.max(-40, Math.min(40, Math.round(v)));
+      }
+    });
+  }
+  const trait = {
+    id: uid(), name,
+    type: type || 'innate',
+    rarity: (rarity || 'rare'),
+    desc: desc ? String(desc) : 'A trait gained through your journey.',
+    effects: cleanEffects,
+    source: 'earned',
+  };
+  GS.char.traits.push(trait);
+  Object.entries(cleanEffects).forEach(([k,v]) => { if(GS.char[k] !== undefined) GS.char[k] += v; });
+  try { updateCharacterTab(); } catch(e) {}
+  toast(`Trait gained: ${name}`, 'gold', 3500);
 }
 
 function evolveTrait(traitId) {
@@ -11575,10 +11615,11 @@ PART 2 — DATA (immediately after the narrative, on its own line):
   "scars": ["string only"],
   "removeInjuries": ["exact string to remove"],
   "conditions": [{ "id":"blind_left_eye", "label":"Blind (Left Eye)", "desc":"Stabbed through the left eye — permanent.", "kind":"permanent" }],
+  "newTraits": [{ "name":"", "desc":"what this gift/mark/bloodline IS and how it feels", "rarity":"common|uncommon|rare|epic|legendary|mythic", "effects":{ "endurance":2 } }],
   "removeConditions": ["condition_id_to_clear"],
   "ageChange": 0, "ageViaTechnique": false,
-  "newRelationships": [{ "npcId": "", "name": "", "title": "", "type": "", "summary": "", "alive": true, "isLore": false, "glowColor": null }],
-  "updateRelationships": [{ "npcId": "", "type": "", "summary": "", "memoryAddition": "", "trust": 0, "alive": null, "imprisoned": null, "prisonLocation": null }],
+  "newRelationships": [{ "npcId": "", "name": "", "title": "", "type": "", "summary": "", "alive": true, "isLore": false, "glowColor": null, "cultivation": "their realm if a cultivator, e.g. Qi Condensation I" }],
+  "updateRelationships": [{ "npcId": "", "type": "", "summary": "", "memoryAddition": "", "trust": 0, "alive": null, "imprisoned": null, "prisonLocation": null, "cultivation": "set when their realm should change/correct, e.g. Foundation Building" }],
   "reputation": [{ "location": "tazar", "renown": 0, "infamy": 0, "eventDesc": "" }],
   "decisions": ["narrative text"],
   "personalEvents": ["narrative text"],
@@ -12316,7 +12357,7 @@ window.addEventListener('pagehide', () => { doAutosave(true); });
 // Scheme: MAJOR.MINOR. Big updates bump MAJOR (1.2 -> 2.2). Small updates
 // bump MINOR (2.2 -> 2.3). Each version has a name. The current version is
 // stamped onto every save; older saves can be updated to the latest.
-const GAME_VERSION = { number: '5.2', name: 'Names With Weight' };
+const GAME_VERSION = { number: '5.3', name: 'Housekeeping' };
 
 // Which model generates the story. Lite Mode swaps to a far cheaper, faster model
 // (Claude Haiku) so long sessions / limited credits cost a fraction per turn.
@@ -12392,6 +12433,7 @@ const VERSION_HISTORY = [
   { number:'5.0', name:'Leaderboard', sys:'Three things. NEW LEADERBOARD: a "Leaderboard" button on the main menu ranks every life you\'ve lived — current and past — by a Legacy Score (cultivation realm, fame &amp; notoriety, lives taken, titles, and mastery of the arts), measured against benchmark legends of the murim like Ichiro, Reo, and the Sword Saint. GENDER ON THE SHEET: your gender now shows on the character page and is clickable to change (it updates how the story refers to you). TRAINED SKILLS REGISTER: when you deliberately study or train a specific skill — e.g. "train and study water manipulation" with Water Qi — it now reliably gets added to your skills (new or leveled up) instead of being ignored.', note:'LEADERBOARD: computeLegacyScore (stageIndex*1000 + fame*6 + kills*8 + titles*40 + mastery*5 + achievements*15 + age) + legacyComponents(char,world); saveToHallOfDead enriched with stageIndex/path/race/kills/titles/mastery/fame/score; renderLeaderboard merges living char + hall entries + LEADERBOARD_LEGENDS benchmarks, sorts desc, medals top-3; panel-leaderboard + menu-leaderboard button + handler + close-list. GENDER: char-gender section on sheet (clickable), render in updateCharacterTab, changeGender() uiPicker (male/female/other) + pronoun-affecting personalEvent. SKILLS: live-prompt "REGISTER TRAINED SKILLS" rule mandating res.skills entry (new or xp) whenever the player studies/trains a named skill, incl. Qi-tied manipulation skills + theory companion. Verified in-browser: leaderboard ranking + medals + legends, gender display/change/picker. Version → 5.0.' },
   { number:'5.1', name:'Global Legends', sys:'The Leaderboard is now GLOBAL — the greatest lives across all players, ranked by Legacy Score (it auto-submits your character when they die). It needs a free shared database to go live (Supabase, ~5 min — the panel walks you through it); until then it shows the setup steps and the legendary benchmarks. Meanwhile the HALL OF THE DEAD is your personal leaderboard: your own fallen, ranked, with each gravestone\'s story. Plus a new SUPPORT THE GAME button on the menu — how Bring-Your-Own-Key keeps it free, a tip jar, and Patreon.', note:'Hall of the Dead renderHallOfDead now sorts by score (medals) = personal leaderboard. GLOBAL_LB config (Supabase url/anonKey/table) + globalLBConfigured + submitGlobalScore (POST rest/v1) + fetchGlobalTop (order=score.desc) + submitMyLifeToGlobal; handleDeath auto-submits (silent). renderLeaderboard rewritten async: configured→fetch+render global top (highlights you) + submit button; unconfigured→Supabase setup steps + legend benchmarks teaser. panel-support (BYOK explainer + Ko-fi + Patreon, placeholder links) + menu-support button/handler + close-list. Verified in-browser: global setup state, legends, support panel. Version → 5.1.' },
   { number:'5.2', name:'Names With Weight', sys:'Titles were stiff and gave nothing — fixed. Reputation-born titles (the ones the world gives you for renown or infamy, like "The Eyeless Mask") now tell the real STORY of how you earned them — built from the actual deeds that spread your name — instead of a bare "Notorious in Wheat Capital." They also grant real buffs now, scaled to how big the reputation is (a feared name hardens your will and sharpens your eye; a renowned one lends bearing and luck). Existing buff-less titles on your save are repaired and given their buffs the moment it loads. And the storyteller is told, firmly, that every spiritual title must carry a buff and a vivid 1-2 sentence story of the moment it was won — no more lifeless one-liners.', note:'syncReputationTitles rewritten: upsertRepTitle() builds "earned" from rep.definingEvents (real deeds), sets a meaningful "affects", and applies repTitleEffects() (infamy→willpower+perception, renown→charisma+luck, scaled by magnitude, capped) exactly once via _repEffectsApplied flag; repairs existing bland titles (replaces /^(Renowned|Notorious) in / earned + applies missing buffs). Runs on load. Prompt TITLES rule: every spiritual title MUST have effects + "earned" must be a vivid 1-2 sentence story, never a bare label. Verified in-browser: bland "The Eyeless Mask" → real story + willpower+4/perception+2, no double-apply. Version → 5.2.' },
+  { number:'5.3', name:'Housekeeping', sys:'A big batch of fixes. NO MORE FAKE JOBS: the game will not turn a PLACE or stray phrase ("Ocean Floor") into an occupation anymore, and existing bogus ones are cleared on load. BOONS ARE TRAITS NOW: permanent gifts, bloodlines, marks, and awakenings (Heavenly Demon Seedling, Tribulation-Marked, a hardened frame…) become real TRAITS with buffs instead of being dumped into Physical Conditions. NPC REALMS STAY ACCURATE: the cultivation level shown next to a person now matches the story (no more "Body Tempering" for someone the tale treats as Qi Condensation), and duplicate people in your list are merged. HOUSE UPGRADES: building a training yard / alchemy lab / etc. now attaches to your home as an upgrade instead of spawning a separate "property". CUSTOM BACKEND FIX: starting a new game no longer wipes your free/local model setup (the "blank api not working" bug). LEADERBOARD REMOVED; HALL OF THE DEAD is now sortable by Legacy, Cultivation, Wealth, Strength, Kills, or Fame. New tip options (PayPal, Cash App, crypto) in Support.', note:'OCCUPATION: _looksLikeOccupation() rejects locations/place-words + LOCATIONS names, requires job suffix/trade word; gates detectOccupationFromNarrative; migrate clears auto-detected ("Taken on through the story.") occupations failing the check. TRAITS: addCustomTrait({name,desc,effects,rarity}) (effects clamped ±40, applied) + res.newTraits handler + schema + TRAITS-vs-CONDITIONS prompt rule (boons→newTraits). NPC: resolveQiStageIndex(name/id/index) + cultivation field on new/updateRelationships (sets npc.qiStageIndex+cap) + schema + prompt; dedupe newRelationships by name; migrate collapses same-name relationship duplicates. HOUSE: _matchUpgradeKey + registerNarrativeAsset attaches known upgrades to home instead of new property. BACKEND: menu-newgame now restores apiProvider/apiBaseUrl/apiModel from localStorage (was only apiKey → reverted custom backend to blank Anthropic). LEADERBOARD removed (panel/button/global-LB/renderLeaderboard/auto-submit); renderHallOfDead category tabs (HALL_CATEGORIES + setHallSort) + saveToHallOfDead stores stats+silver. SUPPORT: PayPal/CashApp/Ko-fi/crypto(copy)/Patreon placeholders. Verified in-browser. Version → 5.3.' },
 ];
 
 function cleanSaveData(gs) {
@@ -12642,6 +12684,35 @@ function migrateSave(data) {
   });
 
   // ── world fields ──────────────────────────────────────────────
+  // Clear a bogus auto-detected occupation that was never really a job — the loose
+  // narrative detector once captured PLACES and stray nouns ("Ocean Floor"). Only
+  // touches the auto-detected ones (desc "Taken on through the story.") that fail the
+  // job sanity check; AI-set occupations are left alone.
+  if(c.occupation && c.occupation.desc === 'Taken on through the story.'
+     && typeof _looksLikeOccupation === 'function' && !_looksLikeOccupation(c.occupation.title)) {
+    c.occupation = null;
+  }
+
+  // De-duplicate the People list — the AI sometimes re-introduced the same person
+  // under a fresh id, leaving doubles. Collapse relationships that share a name,
+  // keeping the richer entry.
+  if(Array.isArray(c.relationships)) {
+    const seen = new Map(); const kept = [];
+    c.relationships.forEach(r => {
+      const key = (r?.name || '').toLowerCase().trim();
+      if(!key) { kept.push(r); return; }
+      const ex = seen.get(key);
+      if(ex) {
+        if((r.summary||'').length > (ex.summary||'').length) ex.summary = r.summary;
+        ex.trust = Math.max(ex.trust||0, r.trust||0);
+        if(r.alive === false && ex.alive !== false) ex.alive = false;
+        return; // drop the duplicate
+      }
+      seen.set(key, r); kept.push(r);
+    });
+    if(kept.length !== c.relationships.length) c.relationships = kept;
+  }
+
   // A current "occupation" that is really studying (e.g. "Morning Lessons") should
   // not be paying wages — move it to education.
   if(c.occupation && _isEducationNotJob(c.occupation)) {
@@ -15056,10 +15127,11 @@ The JSON carries ONLY state changes. There is NO "narrative" field in the JSON �
   "scars": ["string only"],
   "removeInjuries": ["exact string to remove"],
   "conditions": [{ "id":"blind_left_eye", "label":"Blind (Left Eye)", "desc":"Stabbed through the left eye — permanent.", "kind":"permanent" }],
+  "newTraits": [{ "name":"", "desc":"what this gift/mark/bloodline IS and how it feels", "rarity":"common|uncommon|rare|epic|legendary|mythic", "effects":{ "endurance":2 } }],
   "removeConditions": ["condition_id_to_clear"],
   "ageChange": 0, "ageViaTechnique": false,
   "newRelationships": [{ "npcId": "", "name": "", "title": "", "type": "", "summary": "1 sentence max", "alive": true, "isLore": false, "glowColor": null }],
-  "updateRelationships": [{ "npcId": "", "type": "", "summary": "", "memoryAddition": "full prose paragraph of what happened", "trust": 0, "alive": null, "imprisoned": null, "prisonLocation": null }],
+  "updateRelationships": [{ "npcId": "", "type": "", "summary": "", "memoryAddition": "full prose paragraph of what happened", "trust": 0, "alive": null, "imprisoned": null, "prisonLocation": null, "cultivation": "set when their realm should change/correct, e.g. Foundation Building" }],
   "reputation": [{ "location": "tazar", "renown": 0, "infamy": 0, "eventDesc": "specific deed", "impact": 10, "renownTitle": null, "infamyTitle": null }],
   "decisions": ["prose — what the character chose and what it cost or meant"],
   "personalEvents": ["prose — what happened"],
@@ -16845,6 +16917,10 @@ function saveToHallOfDead(char, world, cause) {
     kills: comp.kills, titles: comp.titles, mastery: comp.mastery,
     fame: comp.fame, renownMax: comp.renownMax, infamyMax: comp.infamyMax, achievements: comp.achievements,
     score: computeLegacyScore(comp),
+    // Final attribute spread + wealth, so the Hall can be sorted by any category.
+    strength: char.strength||0, agility: char.agility||0, endurance: char.endurance||0,
+    intelligence: char.intelligence||0, perception: char.perception||0, willpower: char.willpower||0,
+    charisma: char.charisma||0, luck: char.luck||0, silver: Math.round(char.silver||0),
     rep: Object.entries(char.reputation||{})
       .filter(([k])=>!k.endsWith('_kingdom')&&LOCATIONS[k])
       .map(([k,v])=>`${LOCATIONS[k]?.name}: R${v.renown}/I${v.infamy}`).join(', '),
@@ -16854,130 +16930,18 @@ function saveToHallOfDead(char, world, cause) {
   localStorage.setItem(DEAD_KEY, JSON.stringify(hall));
 }
 
-// ── GLOBAL LEADERBOARD (Supabase REST) ────────────────────────────
-// A real worldwide board needs shared storage. The cheapest, simplest way is a
-// free Supabase project. To turn it on:
-//   1. Create a free project at supabase.com.
-//   2. Make a table `leaderboard` with columns:
-//        name text, score int8, stage text, detail text, created_at timestamptz default now()
-//   3. Enable RLS, add an INSERT policy and a SELECT policy for the `anon` role.
-//   4. Paste your Project URL and anon public key below (the anon key is meant to
-//      be public — security comes from the RLS policies).
-const GLOBAL_LB = {
-  url: '',       // e.g. 'https://abcdefgh.supabase.co'
-  anonKey: '',   // your anon public key
-  table: 'leaderboard',
-};
-function globalLBConfigured() { return !!(GLOBAL_LB.url && GLOBAL_LB.anonKey); }
 
-async function submitGlobalScore(name, score, stage, detail) {
-  if(!globalLBConfigured()) return { ok:false, reason:'not_configured' };
-  try {
-    const r = await fetch(`${GLOBAL_LB.url}/rest/v1/${GLOBAL_LB.table}`, {
-      method:'POST',
-      headers:{ apikey:GLOBAL_LB.anonKey, Authorization:'Bearer '+GLOBAL_LB.anonKey, 'Content-Type':'application/json', Prefer:'return=minimal' },
-      body: JSON.stringify({ name, score, stage, detail }),
-    });
-    return { ok:r.ok, status:r.status };
-  } catch(e) { return { ok:false, reason:e?.message }; }
-}
-async function fetchGlobalTop(limit=100) {
-  if(!globalLBConfigured()) return null;
-  try {
-    const r = await fetch(`${GLOBAL_LB.url}/rest/v1/${GLOBAL_LB.table}?select=name,score,stage,detail&order=score.desc&limit=${limit}`, {
-      headers:{ apikey:GLOBAL_LB.anonKey, Authorization:'Bearer '+GLOBAL_LB.anonKey },
-    });
-    if(!r.ok) return null;
-    return await r.json();
-  } catch(e) { return null; }
-}
-// Submit the player's current/finished life to the global board (best-effort).
-async function submitMyLifeToGlobal(silent=false) {
-  try {
-    if(!globalLBConfigured()) { if(!silent) toast('Global leaderboard not set up yet.', '', 3000); return false; }
-    const c = GS.char, w = GS.world;
-    if(!c?.firstName) return false;
-    const comp = legacyComponents(c, w);
-    const score = computeLegacyScore(comp);
-    const detail = `${RACES[c.race]?.name||'Human'} · ${c.qi?.path?c.qi.path+' Qi':'no path'} · age ${c.age} · Yr ${w.year}`;
-    const res = await submitGlobalScore(`${c.firstName} ${c.lastName}`, score, QI_STAGES[comp.stageIndex]?.name||'Mortal', detail);
-    if(res.ok && !silent) toast('Your life was submitted to the global leaderboard.', 'gold', 4000);
-    else if(!res.ok && !silent) toast('Could not reach the global leaderboard.', 'error', 3500);
-    return res.ok;
-  } catch(e) { return false; }
-}
-
-// World-legend benchmarks so the leaderboard means something from your very first
-// life — you can see where you rank against the titans of the murim.
-const LEADERBOARD_LEGENDS = [
-  { name:'Ichiro Katsumi', legend:true, note:'Founder — discovered Qi', stageIndex:13, fame:100, kills:0,  titles:4, mastery:70, age:0 },
-  { name:'Reo',            legend:true, note:'Founder',                  stageIndex:13, fame:100, kills:0,  titles:4, mastery:70, age:0 },
-  { name:'Kōichi Hanzou',  legend:true, note:'The Sword Saint',          stageIndex:13, fame:98,  kills:40, titles:3, mastery:65, age:0 },
-  { name:'Hammurabi',      legend:true, note:'King of Luo · STR 95',     stageIndex:5,  fame:95,  kills:200,titles:2, mastery:30, age:0 },
-  { name:'Láng the Warlord',legend:true,note:'Strongest human · no Qi',  stageIndex:0,  fame:96,  kills:300,titles:2, mastery:20, age:0 },
-  { name:'Masaki Jūrō',    legend:true, note:'Broke the world (Fracture)',stageIndex:12, fame:90,  kills:50, titles:2, mastery:55, age:0 },
+// Hall of the Dead = your personal leaderboard, sortable by category.
+const HALL_CATEGORIES = [
+  { key:'score',     label:'Legacy',      get:d => d.score!=null?d.score:computeLegacyScore(d), fmt:v=>Math.round(v).toLocaleString() },
+  { key:'stageIndex',label:'Cultivation', get:d => d.stageIndex||0, fmt:(v,d)=>d.stage||(QI_STAGES[v]?.name||'Mortal') },
+  { key:'silver',    label:'Wealth',      get:d => d.silver||0,     fmt:v=>Math.round(v).toLocaleString()+'s' },
+  { key:'strength',  label:'Strength',    get:d => d.strength||0,   fmt:v=>'STR '+v },
+  { key:'kills',     label:'Kills',       get:d => d.kills||0,      fmt:v=>v+' kills' },
+  { key:'fame',      label:'Fame',        get:d => d.fame||0,       fmt:v=>'fame '+v },
 ];
-
-async function renderLeaderboard() {
-  const list = document.getElementById('leaderboard-list');
-  if(!list) return;
-  const medal = i => i===0?'🥇':i===1?'🥈':i===2?'🥉':`#${i+1}`;
-
-  // Header + a "submit my life" button (only useful once the board is live).
-  const myScore = (() => { try { return GS?.char?.firstName ? computeLegacyScore(legacyComponents(GS.char, GS.world)) : null; } catch(e) { return null; } })();
-  const submitBtn = (globalLBConfigured() && myScore != null)
-    ? `<button class="btn-primary btn-sm" style="margin-bottom:10px" onclick="submitMyLifeToGlobal().then(()=>renderLeaderboard())">Submit your current life (${myScore.toLocaleString()})</button>` : '';
-
-  if(!globalLBConfigured()) {
-    // Not wired to a backend yet — explain how, and show the legend benchmarks as a teaser.
-    list.innerHTML = `
-      <div style="font-size:12px;color:var(--muted);line-height:1.65;margin-bottom:14px">
-        <b style="color:var(--gold)">Global leaderboard not set up yet.</b><br>
-        A worldwide board needs a shared online database. The free way (≈5 min):
-        <ol style="margin:8px 0 0;padding-left:18px">
-          <li>Create a free project at <span style="color:var(--gold)">supabase.com</span>.</li>
-          <li>Add a table <code>leaderboard</code> (columns: <code>name</code> text, <code>score</code> int8, <code>stage</code> text, <code>detail</code> text, <code>created_at</code> timestamptz default now()).</li>
-          <li>Enable RLS, add an <b>insert</b> and a <b>select</b> policy for the <code>anon</code> role.</li>
-          <li>Paste your Project URL + anon key into <code>GLOBAL_LB</code> in the code.</li>
-        </ol>
-        <div style="margin-top:8px">Meanwhile, your own ranked lives live in <b>Hall of the Dead</b>. Below: the legends you're climbing toward.</div>
-      </div>
-      <div style="font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--demonic);margin-bottom:8px">Legendary Benchmarks</div>` +
-      LEADERBOARD_LEGENDS.map(l => ({ ...l, score:computeLegacyScore(l), stage:QI_STAGES[l.stageIndex]?.name||'Mortal' }))
-        .sort((a,b)=>b.score-a.score)
-        .map((e,i)=>`
-        <div class="dead-entry">
-          <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px">
-            <div class="dead-name" style="color:var(--demonic)">${medal(i)} &nbsp;${e.name} <span style="font-size:10px">✦ legend</span></div>
-            <div style="font-weight:700;color:var(--gold);font-size:14px;white-space:nowrap">${e.score.toLocaleString()}</div>
-          </div>
-          <div class="dead-meta">${e.stage} · ${e.note}</div>
-        </div>`).join('');
-    return;
-  }
-
-  list.innerHTML = `<div style="text-align:center;color:var(--dim);font-style:italic;padding:24px 0">Loading the global leaderboard…</div>`;
-  const rows = await fetchGlobalTop(100);
-  if(!rows) {
-    list.innerHTML = submitBtn + `<div style="text-align:center;color:var(--red);padding:24px 0">Couldn't reach the global leaderboard. Try again shortly.</div>`;
-    return;
-  }
-  const myName = GS?.char?.firstName ? `${GS.char.firstName} ${GS.char.lastName}` : null;
-  list.innerHTML = `<div style="font-size:11px;color:var(--dim);margin-bottom:10px;line-height:1.5">The greatest lives ever lived across all players, by Legacy Score. Your own fallen are ranked in <b>Hall of the Dead</b>.</div>` +
-    submitBtn +
-    (rows.length ? rows.map((e,i)=>{
-      const mine = myName && e.name === myName;
-      return `
-      <div class="dead-entry" style="${mine?'border-color:var(--gold)':''}">
-        <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px">
-          <div class="dead-name" style="${mine?'color:var(--gold)':''}">${medal(i)} &nbsp;${(e.name||'Unknown').slice(0,40)}${mine?' <span style="font-size:10px;color:var(--gold)">(you)</span>':''}</div>
-          <div style="font-weight:700;color:var(--gold);font-size:14px;white-space:nowrap">${(e.score||0).toLocaleString()}</div>
-        </div>
-        <div class="dead-meta">${e.stage||'Mortal'}${e.detail?' · '+e.detail:''}</div>
-      </div>`; }).join('')
-    : `<div style="text-align:center;color:var(--dim);padding:24px 0">No legends recorded yet. Be the first.</div>`);
-}
-
+let _hallSort = 'score';
+function setHallSort(key) { _hallSort = key; renderHallOfDead(); }
 function renderHallOfDead() {
   let hall = [];
   try { hall = JSON.parse(localStorage.getItem(DEAD_KEY) || '[]'); } catch(e) {}
@@ -16987,16 +16951,20 @@ function renderHallOfDead() {
     list.innerHTML = '<div style="text-align:center;color:var(--dim);font-style:italic;padding:40px 0">No one has died yet.</div>';
     return;
   }
-  // YOUR personal leaderboard: rank your own fallen by Legacy Score (highest lives
-  // first), while keeping the gravestone details for each.
-  const ranked = hall.slice().sort((a,b) => (b.score||computeLegacyScore(b)) - (a.score||computeLegacyScore(a)));
+  const cat = HALL_CATEGORIES.find(c => c.key === _hallSort) || HALL_CATEGORIES[0];
+  const ranked = hall.slice().sort((a,b) => cat.get(b) - cat.get(a));
   const medal = i => i===0?'🥇':i===1?'🥈':i===2?'🥉':`#${i+1}`;
-  list.innerHTML = `<div style="font-size:11px;color:var(--dim);margin-bottom:10px;line-height:1.5">Your fallen, ranked by Legacy Score. Each gravestone keeps how that life rose and how it ended.</div>` +
+  const tabs = HALL_CATEGORIES.map(c =>
+    `<button class="btn-${c.key===_hallSort?'primary':'secondary'} btn-sm" style="margin:2px" onclick="setHallSort('${c.key}')">${c.label}</button>`
+  ).join('');
+  list.innerHTML =
+    `<div style="font-size:11px;color:var(--dim);margin-bottom:6px;line-height:1.5">Your fallen, ranked — choose what to rank them by:</div>
+     <div style="margin-bottom:12px">${tabs}</div>` +
     ranked.map((d,i) => `
     <div class="dead-entry">
       <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px">
         <div class="dead-name">${medal(i)} &nbsp;${d.name}</div>
-        <div style="font-weight:700;color:var(--gold);font-size:13px;white-space:nowrap">${(d.score!=null?d.score:computeLegacyScore(d)).toLocaleString()}</div>
+        <div style="font-weight:700;color:var(--gold);font-size:13px;white-space:nowrap">${cat.fmt(cat.get(d), d)}</div>
       </div>
       <div class="dead-meta">Age ${d.age} · Year ${d.deathYear} · ${d.stage} · ${d.location}</div>
       <div class="dead-cause">Cause: ${d.cause}</div>
@@ -18041,8 +18009,13 @@ function initMainMenu() {
   document.getElementById('menu-newgame').addEventListener('click', () => {
     _sameWorldSnapshot = null; // fresh world from the main menu
     GS = createDefaultState();
-    const savedKey2 = localStorage.getItem('murim_apikey') || '';
-    GS.settings.apiKey = savedKey2;
+    // Restore the FULL backend config (not just the key) — otherwise starting a new
+    // game silently reverted a custom/local backend to Anthropic with a blank key,
+    // which read as "blank api not working".
+    GS.settings.apiKey      = localStorage.getItem('murim_apikey')      || '';
+    GS.settings.apiProvider = localStorage.getItem('murim_apiprovider') || 'anthropic';
+    GS.settings.apiBaseUrl  = localStorage.getItem('murim_apibaseurl')  || '';
+    GS.settings.apiModel    = localStorage.getItem('murim_apimodel')    || '';
     GS.settings.mobileMode = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
     document.getElementById('screen-menu').classList.add('hidden');
     fullReset(true);
@@ -18056,11 +18029,6 @@ function initMainMenu() {
   document.getElementById('menu-dead').addEventListener('click', () => {
     renderHallOfDead();
     document.getElementById('panel-dead').classList.remove('hidden');
-  });
-
-  document.getElementById('menu-leaderboard')?.addEventListener('click', () => {
-    renderLeaderboard();
-    document.getElementById('panel-leaderboard').classList.remove('hidden');
   });
 
   document.getElementById('menu-achievements').addEventListener('click', () => {
@@ -18084,7 +18052,7 @@ function initMainMenu() {
   });
 
   // Close panels on backdrop click
-  ['panel-continue','panel-dead','panel-leaderboard','panel-support','panel-achievements','panel-updatelog','panel-apikey'].forEach(id => {
+  ['panel-continue','panel-dead','panel-support','panel-achievements','panel-updatelog','panel-apikey'].forEach(id => {
     document.getElementById(id)?.addEventListener('click', e => {
       if(e.target.id === id) document.getElementById(id).classList.add('hidden');
     });
@@ -18101,8 +18069,6 @@ const _origHandleDeath = handleDeath;
 handleDeath = function(cause) {
   // Save to hall before clearing state
   saveToHallOfDead(GS.char, GS.world, cause);
-  // And submit the finished life to the global leaderboard (best-effort, silent).
-  try { submitMyLifeToGlobal(true); } catch(e) {}
   _origHandleDeath(cause);
 };
 
@@ -30360,6 +30326,22 @@ function tickOccupationIncome(daysElapsed) {
 // "occupation" field. Detect it and register a best-effort occupation so jobs
 // actually stick (this is exactly the "blacksmith gave me a job but it never
 // showed up" case).
+// Sanity-check a captured occupation title so the loose narrative regexes don't turn
+// a PLACE or a stray noun into a "job" (the "Ocean Floor" bug). Rejects location
+// names and geography words; accepts things that actually read like a trade.
+function _looksLikeOccupation(title) {
+  if(!title) return false;
+  const t = String(title).trim();
+  if(t.length < 3) return false;
+  // Reject anything that is (or names) a place / geographic feature.
+  const placeRe = /\b(capital|city|port|harbou?r|floor|ocean|sea|seas|river|lake|mountain|mountains|peak|peaks|forest|woods|grove|valley|desert|plain|plains|field|fields|cave|caves|tomb|temple|shrine|palace|street|district|quarter|village|town|province|kingdom|empire|island|isle|shore|coast|cliff|cliffs|bridge|gate|wall|walls|road|roads|market|square|hall|north|south|east|west|sky|skies|heaven|heavens|underworld|abyss|void|sun|moon|stars?)\b/i;
+  if(placeRe.test(t)) return false;
+  if(typeof LOCATIONS === 'object' && Object.values(LOCATIONS).some(l => (l.name||'').toLowerCase() === t.toLowerCase())) return false;
+  // Accept if it reads like a job: a common occupational suffix, or a known trade word.
+  if(/(smith|wright|keeper|monger|maid|hand|man|woman|er|or|ist|ian)\b/i.test(t)) return true;
+  return /\b(cook|baker|brewer|tailor|tanner|mason|miner|farmer|fisher|hunter|scribe|scholar|physician|healer|herbalist|apothecary|alchemist|merchant|trader|clerk|servant|laborer|labourer|porter|courier|sailor|soldier|mercenary|bodyguard|nurse|teacher|tutor|priest|monk|nun|scout|ranger|cobbler|fletcher|bowyer|armou?rer|jeweler|jeweller|weaver|potter|butcher|carpenter|innkeeper|barkeep|waiter|dancer|singer|musician|courtesan|thief|assassin|spy|guard|watchman|gravedigger|shepherd|herder|forager|woodcutter|logger|carter|boatman|ferryman|midwife|surgeon|undertaker|executioner|jailer|warden|magistrate|official|secretary|accountant|banker|moneylender|broker|peddler|hawker|vendor|grocer|apprentice|maid|cleaner|guide|smuggler|pirate|bandit|gladiator|bard|cartographer|blacksmith|smith)\b/i.test(t);
+}
+
 function detectOccupationFromNarrative(res) {
   const n = res?.narrative; if(!n) return;
   // Only auto-detect when they have NO job yet — never overwrite an established
@@ -30385,6 +30367,9 @@ function detectOccupationFromNarrative(res) {
     if(tr) { title = tr.replace(/\b\w/, c=>c.toUpperCase()) + ' Apprentice'; isApprentice = true; if(!trade) trade = tr; }
   }
   title = title.replace(/\b\w/g, ch => ch.toUpperCase());
+  // GUARD: only accept something that actually reads like a job — never a place or
+  // stray noun the loose regexes grabbed (the "Ocean Floor" bug).
+  if(!_looksLikeOccupation(title)) return;
   const cur = GS.char.occupation;
   if(cur?.title && cur.title.toLowerCase() === title.toLowerCase()) return;
   addOccupationToHistory({ title, location: LOCATIONS[GS.world.location]?.name || GS.world.location, desc: 'Taken on through the story.' });
@@ -31071,6 +31056,11 @@ updateCharacterTab = function() {
     });
 
     // Permanent conditions / status effects (blindness, lost limbs, curses, etc.)
+    // Custom TRAITS — boons/gifts/marks/bloodlines the story grants. These are
+    // permanent CHARACTERISTICS and belong here, not in Physical Conditions.
+    safe('newTraits', () => {
+      if(res.newTraits?.length) res.newTraits.forEach(tr => addCustomTrait(tr));
+    });
     safe('conditions', () => {
       if(res.conditions?.length) res.conditions.forEach(cnd => addCondition(cnd));
       if(res.removeConditions?.length) res.removeConditions.forEach(id => removeCondition(id));
@@ -31098,11 +31088,17 @@ updateCharacterTab = function() {
     // Relationships
     safe('relationships', () => {
       res.newRelationships?.forEach(r => {
-        let npc = GS.world.npcRegistry[r.npcId];
+        // DEDUPE: if we already know someone by this name, reuse them instead of
+        // spawning a duplicate with a fresh id (the "same person twice in People" bug).
+        let npc = GS.world.npcRegistry[r.npcId]
+          || (r.name ? Object.values(GS.world.npcRegistry).find(n => n && (n.name||'').toLowerCase() === String(r.name).toLowerCase()) : null);
         if(!npc) {
           npc = { id:r.npcId||uid(), name:r.name, title:r.title||'', alive:r.alive!==false, isLore:r.isLore||false, glowColor:r.glowColor||null, qiStageIndex:0, strength:10, agility:10, endurance:10, intelligence:10, perception:10, willpower:10, charisma:10, luck:10, memoriesOfPlayer:[] };
           GS.world.npcRegistry[npc.id] = npc;
         }
+        // Cultivation realm the story gives them — keep the displayed stage in sync.
+        const ci = resolveQiStageIndex(r.cultivation);
+        if(ci != null) { npc.qiStageIndex = ci; npc.cultivationCap = Math.max(npc.cultivationCap||0, ci); }
         addOrUpdateRelationship(npc, r.type, r.summary);
       });
       res.updateRelationships?.forEach(u => {
@@ -31112,6 +31108,7 @@ updateCharacterTab = function() {
           if(u.summary) rel.summary = u.summary.slice(0,120);
           if(u.memoryAddition) { updateRelationshipMemory(u.npcId, u.memoryAddition); recordNPCMemory(u.npcId, u.memoryAddition.slice(0,200)); }
           if(u.trust != null) rel.trust = (rel.trust||0)+u.trust;
+          if(u.cultivation != null) { const npc=GS.world.npcRegistry[u.npcId]; const ci=resolveQiStageIndex(u.cultivation); if(npc && ci!=null) { npc.qiStageIndex=ci; npc.cultivationCap=Math.max(npc.cultivationCap||0, ci); } }
           if(u.alive != null) { rel.alive = u.alive; const npc=GS.world.npcRegistry[u.npcId]; if(npc) npc.alive=u.alive; }
           // Imprisonment — blocks contact until released/freed
           if(u.imprisoned != null) {
@@ -38901,6 +38898,20 @@ function matchPropertyType(typeStr='', name='') {
 
 // Register a property the player gained THROUGH THE NARRATIVE (inherited, gifted,
 // won, seized, built) — no purchase/requirement checks, the story already granted it.
+// Match a name to a known property UPGRADE key (so a "training yard" or "alchemy
+// lab" the player builds becomes an upgrade on their home, not a separate property).
+function _matchUpgradeKey(name) {
+  if(!name) return null;
+  const s = String(name).toLowerCase().trim();
+  for(const [key, def] of Object.entries(PROPERTY_UPGRADES)) {
+    if(key === s.replace(/\s+/g,'_') || (def.name||'').toLowerCase() === s) return key;
+  }
+  for(const [key, def] of Object.entries(PROPERTY_UPGRADES)) {
+    if(s.includes((def.name||'').toLowerCase()) || s.includes(key.replace(/_/g,' '))) return key;
+  }
+  return null;
+}
+
 function registerNarrativeAsset(obj) {
   if(!obj) return null;
   const name = (typeof obj === 'string') ? obj : (obj.name || '');
@@ -38908,6 +38919,26 @@ function registerNarrativeAsset(obj) {
   const assets = ensureAssets();
   // Dedupe by name (case-insensitive)
   if(assets.some(a => (a.name||'').toLowerCase() === name.toLowerCase())) return null;
+
+  // HOUSE UPGRADE, not a new property: if the player improved their home (added a
+  // training yard, alchemy lab, herb garden, reinforced walls, …), attach it to the
+  // home instead of spawning a whole separate "property" for one room.
+  const upgKey = _matchUpgradeKey(name);
+  if(upgKey) {
+    const home = assets.find(a => a.isHome)
+      || assets.find(a => (PROPERTY_TYPES[a.type]?.category) === 'residence');
+    if(home) {
+      if(!home.upgrades) home.upgrades = [];
+      if(!home.upgrades.includes(upgKey)) {
+        home.upgrades.push(upgKey);
+        try { addChronicleEntry(`Improved ${home.name}: added ${PROPERTY_UPGRADES[upgKey].name}.`, 'normal'); } catch(e) {}
+        try { updateAssetsDisplay(); updateWorldTab(); } catch(e) {}
+        toast(`Home upgraded: ${PROPERTY_UPGRADES[upgKey].name}`, 'gold', 3500);
+      }
+      return home;
+    }
+    // No home yet to attach to — let it register as a standalone property below.
+  }
   const typeKey = obj.typeKey || matchPropertyType(obj.type || '', name);
   const def = PROPERTY_TYPES[typeKey] || PROPERTY_TYPES.house;
   const loc = obj.location || GS.world.location;
@@ -44245,12 +44276,14 @@ buildSystemPrompt = function() {
       + `CULTIVATION SPEED:${theoryNote}${(GS.char.willpower||10) >= 25 ? ` On top of that, this character's strong WILLPOWER (${GS.char.willpower}) drives Qi through bottlenecks and sustains a deeper, steadier meditation — narrate their cultivation as unusually focused and relentless; the engine already gathers more Qi for them because of it.` : ''}${qiGatheringTechMult() >= 1.5 ? ` This character KNOWS A QI-GATHERING ART and has real mastery of it — when they cultivate using it, the engine already floods them with a MASSIVE amount of Qi (scaled to their understanding and the art's grade). Narrate the intake as overwhelming and torrential: Qi pouring in, the space emptying itself into them, far beyond ordinary meditation. Do not undersell it.` : ''}\n`
       + `KILLS: when the character actually KILLS one or more people (or clearly sentient beings) this turn — by their own hand or unambiguously as a direct result of their action — report the count as "kills": <number>. Count only real, confirmed deaths the character caused; do NOT count fights they merely won, people who fled wounded, ambiguous outcomes, kills by others, or beasts/vermin you would not narrate as a death. When in doubt, omit it.\n`
       + `INJURIES HEAL: ordinary wounds (cuts, bruises, sprains, fractures, burns) are TEMPORARY and knit closed with time and rest — they should NOT be treated as still-open weeks or months later, and the engine already heals them over time. When enough time passes or the character recovers, clear healed wounds via "removeInjuries" (your wording need not match exactly). Only genuinely grave injuries (shattered meridian channels, severed/lost limbs, crippling, permanent maiming) persist without real intervention.\n`
-      + `PERMANENT CONDITIONS ARE RARE AND STRICT: the "conditions" field is ONLY for genuinely PERMANENT, life-altering harm or marks — a lost eye/limb, blindness, deafness, a severed tongue, shattered meridian channels, a true curse, a brand, a divine mark. NEVER put a temporary or recoverable state in "conditions": exhaustion, fatigue, soreness, "post-breakthrough exhaustion", drained/depleted Qi, hunger, dizziness, a strain, a hangover, being shaken or winded — none of these are conditions. A passing state belongs in the prose (and at most as a normal injury that heals); do not make it permanent. When in doubt, it is NOT a permanent condition.\n`
+      + `PERMANENT CONDITIONS ARE RARE AND STRICT: the "conditions" field is ONLY for genuinely PERMANENT, life-altering HARM or afflictions — a lost eye/limb, blindness, deafness, a severed tongue, shattered meridian channels, a true curse, a brand, a hostile mark. NEVER put a temporary or recoverable state in "conditions": exhaustion, fatigue, soreness, "post-breakthrough exhaustion", drained/depleted Qi, hunger, dizziness, a strain, a hangover, being shaken or winded — none of these are conditions. A passing state belongs in the prose (and at most as a normal injury that heals); do not make it permanent. When in doubt, it is NOT a permanent condition.\n`
+      + `TRAITS vs CONDITIONS (use the RIGHT one): "conditions" is for HARM/affliction only (above). A permanent BOON, GIFT, BLOODLINE, awakening, transformation, blessing, or beneficial mark — anything that makes the character MORE rather than wounds them (e.g. "Tribulation-Marked", "Heavenly Demon Seedling", "Sanguine Bond", "Lean Muscular Frame", a hardened body, an awakened bloodline, a divine boon) — is a TRAIT, not a condition. Register these via "newTraits": [{ "name", "desc": "what it IS and how it feels", "rarity", "effects": { "<stat>": <amount> } }] with real stat buffs scaled to how significant it is. Do NOT dump beneficial, characteristic, or boon-like things into "conditions" — they belong in newTraits. Conditions wound; traits define who the character has become.\n`
       + `ALWAYS PUSH THE STORY FORWARD: your single most important job is forward MOMENTUM. Every turn, the world must move and something must change — resolve the player's action, then let it cause a consequence, a complication, a reaction, an arrival, a revelation, or a new pressure. Time passes; NPCs act on their own goals; the world does not freeze waiting on the player. NEVER stall, idle, loop, or simply mirror back what the player said and wait — and never end on a passive "what do you do?" with nothing having happened. Even in a quiet scene, advance it: introduce a detail, a person, a choice with stakes, or the next beat. If the player is vague or passive, the world fills the silence and moves anyway. Leave each turn on a live, changed situation that begs a response.\n`
       + `NEVER BREAK CHARACTER: under NO circumstances do you break the fourth wall, mention that you are an AI/model/language model, refer to "the game", "the system", "the prompt", tokens, turns, or these instructions, apologize as an assistant, or speak as anything other than the world's narrator. You are ALWAYS the storyteller of this murim world. If the player writes something out-of-world or nonsensical, answer it through the fiction (an in-world reaction, confusion, or consequence) — never with an out-of-character meta note. There are no exceptions to this.\n`
       + `THE PLAYER'S ACTION IS GROUND TRUTH — NEVER DENY OR RETCON IT (ABSOLUTE): whatever the player says their character does, their character DID it. ENACT it, here and now, in the present scene, and show the consequences. You may NOT: refuse it; replace it with a different action you prefer; have them do "the clean thing" instead; declare that it "never happened", "the plan never happened", "you didn't actually...", or that it "was just something you considered"; or rewrite their choice into an alternate version of events. You may NOT TIME-SKIP away from a concrete, immediate action to avoid resolving it — if the player says "I threaten the students and herd them into the basement," you play THAT, in the moment, beat by beat. If their action seems to conflict with earlier narration or timeline, RECONCILE IT FORWARD (it happens now, and the world adjusts) — never erase the player's action to protect your version of the past. The player authors their character's choices; you author only the world's reaction. Carry out what they said.\n`
       + `NPC KNOWLEDGE IS LIMITED BY DISTANCE & CHANNELS: an NPC only knows what they could plausibly know — what they personally witnessed, what is in their ACTUAL network/circle, or what realistic communication (a letter, a returning traveler, spreading rumor) could have carried to them, given the DISTANCE and TIME involved. An aunt in one city does NOT know the live, current emotional state of an uncle in a far-off different city unless there is a concrete channel for it (a recent letter arrived, a mutual relative passed word, a traveler came through). Do NOT have NPCs spontaneously know what distant people are feeling or doing right now, do not let them relay real-time updates across regions, and do not invent convenient knowledge to drive a quest. If word travels, SHOW the channel (and it lags reality). Two people far apart are, by default, out of touch.\n`
       + `ORDINARY PEOPLE ARE ORDINARY: the vast majority of the population are NON-cultivators — farmers, mill workers, clerks, shopkeepers, labourers, an ordinary uncle. They stay MORTAL their whole lives; they do NOT quietly become Foundation Building, Core Formation, or Nascent Soul in the background. Only a real minority cultivate at all, and high realms (Core Formation and beyond) are RARE, powerful, and noteworthy figures. Do not casually describe everyday townsfolk, relatives, or minor NPCs as high-realm cultivators, and do not let a commoner's cultivation drift upward over time. Match an NPC's realm to who they actually are.\n`
+      + `KEEP NPC CULTIVATION IN SYNC: the People list shows each known NPC's cultivation realm, and it must match how you treat them in the story. If an NPC is, or advances to, a realm different from what the game shows, set "cultivation" on that NPC in "updateRelationships" (or on "newRelationships" when you introduce them) using the realm's NAME (e.g. "Qi Condensation I", "Foundation Building"). Don't let a character the narrative treats as a Qi Condensation cultivator keep showing as Body Tempering. And do NOT introduce someone the player already knows as a brand-new relationship — update the existing one (reuse their npcId / name) so they don't appear twice.\n`
       + `DUAL WIELDING: a character may fight with a weapon in each hand if it is plausible for them (two one-handed weapons — twin blades, sword-and-dagger, paired axes, dual sabers — and the body/skill to manage it). Honor it when the player wields two weapons: describe both hands working, the added offense and defense, and the real cost (it is harder, splits focus, demands ambidexterity/training, and a two-handed or heavy weapon cannot be paired). Skilled dual-wielding is a genuine martial advantage; clumsy dual-wielding gets someone killed. Let it be learned and earned like any skill.\n`
       + (() => {
           const c = GS.char;
