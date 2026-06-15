@@ -12357,7 +12357,7 @@ window.addEventListener('pagehide', () => { doAutosave(true); });
 // Scheme: MAJOR.MINOR. Big updates bump MAJOR (1.2 -> 2.2). Small updates
 // bump MINOR (2.2 -> 2.3). Each version has a name. The current version is
 // stamped onto every save; older saves can be updated to the latest.
-const GAME_VERSION = { number: '5.3', name: 'Housekeeping' };
+const GAME_VERSION = { number: '5.4', name: 'It Counts Now' };
 
 // Which model generates the story. Lite Mode swaps to a far cheaper, faster model
 // (Claude Haiku) so long sessions / limited credits cost a fraction per turn.
@@ -12434,6 +12434,7 @@ const VERSION_HISTORY = [
   { number:'5.1', name:'Global Legends', sys:'The Leaderboard is now GLOBAL — the greatest lives across all players, ranked by Legacy Score (it auto-submits your character when they die). It needs a free shared database to go live (Supabase, ~5 min — the panel walks you through it); until then it shows the setup steps and the legendary benchmarks. Meanwhile the HALL OF THE DEAD is your personal leaderboard: your own fallen, ranked, with each gravestone\'s story. Plus a new SUPPORT THE GAME button on the menu — how Bring-Your-Own-Key keeps it free, a tip jar, and Patreon.', note:'Hall of the Dead renderHallOfDead now sorts by score (medals) = personal leaderboard. GLOBAL_LB config (Supabase url/anonKey/table) + globalLBConfigured + submitGlobalScore (POST rest/v1) + fetchGlobalTop (order=score.desc) + submitMyLifeToGlobal; handleDeath auto-submits (silent). renderLeaderboard rewritten async: configured→fetch+render global top (highlights you) + submit button; unconfigured→Supabase setup steps + legend benchmarks teaser. panel-support (BYOK explainer + Ko-fi + Patreon, placeholder links) + menu-support button/handler + close-list. Verified in-browser: global setup state, legends, support panel. Version → 5.1.' },
   { number:'5.2', name:'Names With Weight', sys:'Titles were stiff and gave nothing — fixed. Reputation-born titles (the ones the world gives you for renown or infamy, like "The Eyeless Mask") now tell the real STORY of how you earned them — built from the actual deeds that spread your name — instead of a bare "Notorious in Wheat Capital." They also grant real buffs now, scaled to how big the reputation is (a feared name hardens your will and sharpens your eye; a renowned one lends bearing and luck). Existing buff-less titles on your save are repaired and given their buffs the moment it loads. And the storyteller is told, firmly, that every spiritual title must carry a buff and a vivid 1-2 sentence story of the moment it was won — no more lifeless one-liners.', note:'syncReputationTitles rewritten: upsertRepTitle() builds "earned" from rep.definingEvents (real deeds), sets a meaningful "affects", and applies repTitleEffects() (infamy→willpower+perception, renown→charisma+luck, scaled by magnitude, capped) exactly once via _repEffectsApplied flag; repairs existing bland titles (replaces /^(Renowned|Notorious) in / earned + applies missing buffs). Runs on load. Prompt TITLES rule: every spiritual title MUST have effects + "earned" must be a vivid 1-2 sentence story, never a bare label. Verified in-browser: bland "The Eyeless Mask" → real story + willpower+4/perception+2, no double-apply. Version → 5.2.' },
   { number:'5.3', name:'Housekeeping', sys:'A big batch of fixes. NO MORE FAKE JOBS: the game will not turn a PLACE or stray phrase ("Ocean Floor") into an occupation anymore, and existing bogus ones are cleared on load. BOONS ARE TRAITS NOW: permanent gifts, bloodlines, marks, and awakenings (Heavenly Demon Seedling, Tribulation-Marked, a hardened frame…) become real TRAITS with buffs instead of being dumped into Physical Conditions. NPC REALMS STAY ACCURATE: the cultivation level shown next to a person now matches the story (no more "Body Tempering" for someone the tale treats as Qi Condensation), and duplicate people in your list are merged. HOUSE UPGRADES: building a training yard / alchemy lab / etc. now attaches to your home as an upgrade instead of spawning a separate "property". CUSTOM BACKEND FIX: starting a new game no longer wipes your free/local model setup (the "blank api not working" bug). LEADERBOARD REMOVED; HALL OF THE DEAD is now sortable by Legacy, Cultivation, Wealth, Strength, Kills, or Fame. New tip options (PayPal, Cash App, crypto) in Support.', note:'OCCUPATION: _looksLikeOccupation() rejects locations/place-words + LOCATIONS names, requires job suffix/trade word; gates detectOccupationFromNarrative; migrate clears auto-detected ("Taken on through the story.") occupations failing the check. TRAITS: addCustomTrait({name,desc,effects,rarity}) (effects clamped ±40, applied) + res.newTraits handler + schema + TRAITS-vs-CONDITIONS prompt rule (boons→newTraits). NPC: resolveQiStageIndex(name/id/index) + cultivation field on new/updateRelationships (sets npc.qiStageIndex+cap) + schema + prompt; dedupe newRelationships by name; migrate collapses same-name relationship duplicates. HOUSE: _matchUpgradeKey + registerNarrativeAsset attaches known upgrades to home instead of new property. BACKEND: menu-newgame now restores apiProvider/apiBaseUrl/apiModel from localStorage (was only apiKey → reverted custom backend to blank Anthropic). LEADERBOARD removed (panel/button/global-LB/renderLeaderboard/auto-submit); renderHallOfDead category tabs (HALL_CATEGORIES + setHallSort) + saveToHallOfDead stores stats+silver. SUPPORT: PayPal/CashApp/Ko-fi/crypto(copy)/Patreon placeholders. Verified in-browser. Version → 5.3.' },
+  { number:'5.4', name:'It Counts Now', sys:'Talking to and flirting with people in the story finally counts. Before, you could flirt with someone for weeks and the People tab would still show nothing — now any real interaction with a known NPC nudges the relationship: talking/helping/spending time raises your bond, and flirting builds chemistry and moves the romance along (noticed → interested → flirting) right there in the People tab. The storyteller is also told it MUST register these, so it stops happening only in the prose.', note:'registerNarrativeInteractions(rawMsg): detects social vs romantic interaction (_SOCIAL_RE/_ROMANTIC_RE) with any known relationship named in the player message (full or distinctive first name, word-boundary); bumps bond_level (+2 social/+3 romantic) + trust; romantic also ensureRomance + chemistry+4/attraction+3 and auto-walks early stages none→noticed→interested→flirting by chemistry thresholds (never past flirting — confess/court/together stay AI-owned). Wired into the turn injection pass. Prompt: RELATIONSHIPS & ROMANCE MUST REGISTER rule (trust on interaction, romanceUpdates on any romantic beat). Verified in-browser. Version → 5.4.' },
 ];
 
 function cleanSaveData(gs) {
@@ -21267,6 +21268,10 @@ sendToAI = async function(overrideMsg) {
   // 2c. Active titles — spiritual (always) + social (only with the right audience here).
   const titleCtx = buildTitleContext(rawMsg);
   if(titleCtx) injections.push(titleCtx);
+
+  // Make talking to / flirting with a known NPC actually count toward their
+  // relationship + romance, even if the storyteller forgets to report it.
+  try { registerNarrativeInteractions(rawMsg); } catch(e) {}
 
   // 3. Social skill context
   const socialContext = buildSocialSkillContext(rawMsg);
@@ -36036,6 +36041,47 @@ function ensureRomance(rel) {
   return rel.romance;
 }
 
+// ── Narrative interactions COUNT ──────────────────────────────────
+// Talking to, helping, or flirting with a known NPC in the player's own message
+// nudges that relationship — bond/trust always, and chemistry + an early romance
+// stage when it's romantic. This is the safety net so casual flirting/talking
+// registers in the People tab even when the storyteller forgets to report it.
+const _SOCIAL_RE = /\b(talk|talks|talked|speak|spoke|speaking|chat|chatted|greet|greeted|help|helped|thank|thanked|compliment|complimented|spend|spent|walk|walked|sit|sat|dine|dined|share|shared|comfort|comforted|listen|listened|visit|visited|meet|met|catch up|laugh|joke|gift|give|gave|train with|spar)\b/i;
+const _ROMANTIC_RE = /\b(flirt|flirted|flirting|kiss|kissed|hold hands|held hands|embrace|embraced|hug|hugged|romance|romantic|seduce|seduced|seducing|charm|charmed|tease|teased|caress|woo|wooed|court|courted|cuddle|cuddled|sweet[- ]?talk|whisper|lean in|leaned in|gaze|gazed|beautiful|gorgeous|lovely|my love|darling|sweetheart|date|ask .* out|take .* out|confess)\b/i;
+function registerNarrativeInteractions(msg) {
+  if(!msg) return;
+  const lower = msg.toLowerCase();
+  const romantic = _ROMANTIC_RE.test(lower);
+  const social = romantic || _SOCIAL_RE.test(lower);
+  if(!social) return;
+  const rels = GS.char.relationships || [];
+  let changed = false;
+  const esc = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  rels.forEach(rel => {
+    if(rel.alive === false) return;
+    const full = (rel.name||'').trim();
+    if(full.length < 2) return;
+    const first = full.split(/\s+/)[0];
+    const named = new RegExp('\\b'+esc(full.toLowerCase())+'\\b','i').test(lower)
+      || (first.length >= 3 && new RegExp('\\b'+esc(first.toLowerCase())+'\\b','i').test(lower));
+    if(!named) return;
+    rel.bond_level = Math.min(100, (rel.bond_level || rel.trust || 10) + (romantic ? 3 : 2));
+    rel.trust = (rel.trust || 0) + 1;
+    if(romantic) {
+      const rom = ensureRomance(rel);
+      rom.chemistry  = Math.min(100, (rom.chemistry || 0) + 4);
+      rom.attraction = Math.min(100, (rom.attraction || 0) + 3);
+      // Gently walk the early stages with chemistry — never past flirting on autopilot
+      // (confessing / courting / together are real narrative beats the AI owns).
+      const order = ['none','noticed','interested','flirting'];
+      const idx = order.indexOf(rom.stage || 'none');
+      if(idx >= 0 && idx < order.length-1 && rom.chemistry >= (idx+1)*18) rom.stage = order[idx+1];
+    }
+    changed = true;
+  });
+  if(changed) { try { updateRelationsTab(); } catch(e) {} }
+}
+
 // ── Chemistry: How naturally well they click ────────────────────
 // Higher chemistry = easier to advance romance stages
 // Based on personality alignment, karma, shared history
@@ -44284,6 +44330,7 @@ buildSystemPrompt = function() {
       + `NPC KNOWLEDGE IS LIMITED BY DISTANCE & CHANNELS: an NPC only knows what they could plausibly know — what they personally witnessed, what is in their ACTUAL network/circle, or what realistic communication (a letter, a returning traveler, spreading rumor) could have carried to them, given the DISTANCE and TIME involved. An aunt in one city does NOT know the live, current emotional state of an uncle in a far-off different city unless there is a concrete channel for it (a recent letter arrived, a mutual relative passed word, a traveler came through). Do NOT have NPCs spontaneously know what distant people are feeling or doing right now, do not let them relay real-time updates across regions, and do not invent convenient knowledge to drive a quest. If word travels, SHOW the channel (and it lags reality). Two people far apart are, by default, out of touch.\n`
       + `ORDINARY PEOPLE ARE ORDINARY: the vast majority of the population are NON-cultivators — farmers, mill workers, clerks, shopkeepers, labourers, an ordinary uncle. They stay MORTAL their whole lives; they do NOT quietly become Foundation Building, Core Formation, or Nascent Soul in the background. Only a real minority cultivate at all, and high realms (Core Formation and beyond) are RARE, powerful, and noteworthy figures. Do not casually describe everyday townsfolk, relatives, or minor NPCs as high-realm cultivators, and do not let a commoner's cultivation drift upward over time. Match an NPC's realm to who they actually are.\n`
       + `KEEP NPC CULTIVATION IN SYNC: the People list shows each known NPC's cultivation realm, and it must match how you treat them in the story. If an NPC is, or advances to, a realm different from what the game shows, set "cultivation" on that NPC in "updateRelationships" (or on "newRelationships" when you introduce them) using the realm's NAME (e.g. "Qi Condensation I", "Foundation Building"). Don't let a character the narrative treats as a Qi Condensation cultivator keep showing as Body Tempering. And do NOT introduce someone the player already knows as a brand-new relationship — update the existing one (reuse their npcId / name) so they don't appear twice.\n`
+      + `RELATIONSHIPS & ROMANCE MUST REGISTER: any real interaction with a known NPC this turn has to be reflected in the data, not just the prose. When the player talks with, helps, confides in, spars with, or spends time with someone, report a small positive "trust" on that NPC in "updateRelationships" (bond grows). When there is FLIRTING, attraction, a charged moment, a kiss, courtship, or any romantic beat — even a light first flirt — you MUST also emit "romanceUpdates": [{ "npcId": "<their id>", "stage": "<noticed|interested|flirting|tension|confessed|courting|together|…>", "npcFeelings": "<how they feel>", "chemistry": <0-100 or omit>, "notes": "what shifted" }] so the romance actually moves in the People tab. Do not let weeks of flirting leave a relationship at "none". Match the stage to how far things have genuinely gone.\n`
       + `DUAL WIELDING: a character may fight with a weapon in each hand if it is plausible for them (two one-handed weapons — twin blades, sword-and-dagger, paired axes, dual sabers — and the body/skill to manage it). Honor it when the player wields two weapons: describe both hands working, the added offense and defense, and the real cost (it is harder, splits focus, demands ambidexterity/training, and a two-handed or heavy weapon cannot be paired). Skilled dual-wielding is a genuine martial advantage; clumsy dual-wielding gets someone killed. Let it be learned and earned like any skill.\n`
       + (() => {
           const c = GS.char;
