@@ -2189,14 +2189,16 @@ body.generating [onclick*="shopSellItem"], body.generating [onclick*="closeMapGo
         <input type="text" id="menu-baseurl" placeholder="http://localhost:11434/v1" style="width:100%;margin-bottom:10px">
         <label style="font-size:11px;color:var(--dim);display:block;margin-bottom:4px">Model</label>
         <input type="text" id="menu-model" placeholder="llama3.1 / qwen2.5 / …" style="width:100%;margin-bottom:10px">
-        <p style="font-size:11px;color:var(--dim);margin:0 0 12px;line-height:1.55">
-          Any OpenAI-compatible backend — no Anthropic credits.<br>
-          • <b>Ollama</b> (local, free, no key): <code>http://localhost:11434/v1</code>, model e.g. <code>llama3.1</code>. Run <code>OLLAMA_ORIGINS=* ollama serve</code> so the browser can reach it.<br>
-          • <b>LM Studio</b> (local, free): <code>http://localhost:1234/v1</code>.<br>
-          • <b>Groq</b> (free key): <code>https://api.groq.com/openai/v1</code>, model e.g. <code>llama-3.3-70b-versatile</code>.<br>
-          • <b>OpenRouter</b> (free models): <code>https://openrouter.ai/api/v1</code>, a <code>:free</code> model.<br>
-          The key above is the access token (leave blank for local). Smaller models give rougher stories.
-        </p>
+        <div style="font-size:11px;color:var(--dim);margin:0 0 12px;line-height:1.6">
+          <b style="color:var(--muted)">How to use it:</b> 1) leave Backend on Custom · 2) paste the <b>Endpoint URL</b> · 3) type the <b>Model</b> name · 4) put that provider's key in the <b>API Key</b> field above (leave blank for local). Then Save.<br><br>
+          <b style="color:var(--muted)">Endpoint URL &amp; Model per provider:</b><br>
+          • <b>OpenAI</b> (ChatGPT models, paid key <code>sk-...</code>): URL <code>https://api.openai.com/v1</code>, model <code>gpt-4o</code> (best) or <code>gpt-4o-mini</code> (cheaper).<br>
+          • <b>Ollama</b> (local, free, no key): URL <code>http://localhost:11434/v1</code>, model e.g. <code>llama3.1</code>. First run <code>OLLAMA_ORIGINS=* ollama serve</code> in a terminal so the browser is allowed to reach it.<br>
+          • <b>LM Studio</b> (local, free, no key): URL <code>http://localhost:1234/v1</code>, start its local server, model = whatever you loaded.<br>
+          • <b>Groq</b> (free key at console.groq.com): URL <code>https://api.groq.com/openai/v1</code>, model e.g. <code>llama-3.3-70b-versatile</code>.<br>
+          • <b>OpenRouter</b> (free models, key at openrouter.ai): URL <code>https://openrouter.ai/api/v1</code>, a model ending in <code>:free</code>.<br>
+          <span style="color:var(--muted)">Tip:</span> Claude and GPT-4o give the best stories; smaller/free models are rougher and may occasionally break formatting.
+        </div>
       </div>
 
       <button class="btn-primary" style="width:100%" onclick="saveAPIKey()">Save</button>
@@ -2883,14 +2885,14 @@ body.generating [onclick*="shopSellItem"], body.generating [onclick*="closeMapGo
             <label>Model</label>
             <input type="text" id="set-model" placeholder="llama3.1 / qwen2.5 / …" style="flex:1;max-width:none">
           </div>
-          <div style="font-size:10px;color:var(--dim);margin:-2px 0 4px;line-height:1.5">
-            Point the game at any OpenAI-compatible backend — no Anthropic credits.<br>
+          <div style="font-size:10px;color:var(--dim);margin:-2px 0 4px;line-height:1.6">
+            <b style="color:var(--muted)">How to use it:</b> set Backend to Custom, paste an Endpoint URL, type a Model, and put that provider's key in the API Key field above (blank for local).<br>
+            • <b>OpenAI</b> (ChatGPT, paid key <code>sk-...</code>): URL <code>https://api.openai.com/v1</code>, model <code>gpt-4o</code> or <code>gpt-4o-mini</code>.<br>
             • <b>Ollama</b> (local, free, no key): URL <code>http://localhost:11434/v1</code>, model e.g. <code>llama3.1</code>. Run <code>OLLAMA_ORIGINS=* ollama serve</code> so the browser can reach it.<br>
             • <b>LM Studio</b> (local, free): URL <code>http://localhost:1234/v1</code>, enable the local server.<br>
-            • <b>Groq</b> (free cloud): URL <code>https://api.groq.com/openai/v1</code> + a free key above, model e.g. <code>llama-3.3-70b-versatile</code>.<br>
-            • <b>OpenRouter</b> (free models): URL <code>https://openrouter.ai/api/v1</code> + key, a <code>:free</code> model.<br>
-            The key field above is the access token (leave blank for local).<br>
-            Note: smaller models give rougher stories and may occasionally break formatting.
+            • <b>Groq</b> (free key): URL <code>https://api.groq.com/openai/v1</code>, model e.g. <code>llama-3.3-70b-versatile</code>.<br>
+            • <b>OpenRouter</b> (free models): URL <code>https://openrouter.ai/api/v1</code>, a <code>:free</code> model.<br>
+            Claude and GPT-4o give the best stories; smaller/free models are rougher and may break formatting.
           </div>
         </div>
       </div>
@@ -12180,7 +12182,7 @@ window.addEventListener('pagehide', () => { doAutosave(true); });
 // Scheme: MAJOR.MINOR. Big updates bump MAJOR (1.2 -> 2.2). Small updates
 // bump MINOR (2.2 -> 2.3). Each version has a name. The current version is
 // stamped onto every save; older saves can be updated to the latest.
-const GAME_VERSION = { number: '4.9.1', name: 'Reforge' };
+const GAME_VERSION = { number: '4.9.2', name: 'Reforge' };
 
 // Which model generates the story. Lite Mode swaps to a far cheaper, faster model
 // (Claude Haiku) so long sessions / limited credits cost a fraction per turn.
@@ -12252,6 +12254,7 @@ const VERSION_HISTORY = [
   { number:'4.8', name:'Bring Your Own Brain', sys:'You can now play WITHOUT Anthropic credits. Settings has a new Backend option: keep Claude, or switch to "Custom" and point the game at any OpenAI-compatible model — a free local one via Ollama or LM Studio (no key, no cost, runs on your machine), or a free cloud key from Groq, OpenRouter, or Gemini. Enter an endpoint URL and model name and play. (Heads up: smaller/free models write rougher stories and can occasionally trip the game\'s formatting — Claude still gives the best results.)', note:'Added unified llmComplete({system,messages,maxTokens,model}) adapter: provider "anthropic" (default, x-api-key, /v1/messages, content[0].text) or "openai" (Bearer optional, {base}/chat/completions, system folded into messages, choices[0].message.content). llmConfigured() guard. Refactored ALL 6 direct anthropic fetches (main story callClaude, opening narrative, generateStory, era/chronicle compaction [haiku via model override], parent extraction [haiku]) to route through it — single remaining anthropic fetch lives inside the adapter. Settings: provider select + endpoint URL + model fields (#set-provider/#set-baseurl/#set-model) with syncCustomEndpointVisibility(); persisted to localStorage murim_apiprovider/apibaseurl/apimodel and restored on boot + load-save; createDefaultState settings gains apiProvider/apiBaseUrl/apiModel. URL resolver tolerates trailing slash or full /chat/completions. Version → 4.8.' },
   { number:'4.9', name:'Reforge', sys:'Two things. The free/local backend options now live right inside the API Key box in Settings — paste a Claude key, or flip the Backend dropdown there to a free or local model. And you can now CHANGE YOUR CULTIVATION PATH: click your Qi path badge on the character sheet to reforge onto a different path (Righteous / Beast / Demonic / Unaligned). It is a deliberate, costly act — about half your current Qi scatters in the transition and your discovered Expression resets to be relearned — but the path is yours to choose.', note:'Settings: API Key + Backend select + endpoint/model fields regrouped into one bordered block led by the key (with a "no credits? switch below" hint). changeCultivationPath(): uiPicker(Righteous/Beast/Demonic/Unaligned minus current) → uiConfirm → sets qi.path, nulls qi.expression, halves qi.current, chronicle+personalEvent[PATH REFORGED]; gated on intact channels. qi-path-badge made clickable (cursor+title+onclick). Verified in-browser: settings layout, provider toggle relabel/show, full path-change flow (righteous→beast, expr null, qi 200→100, badge updated). Version → 4.9.' },
   { number:'4.9.1', name:'Reforge', sys:'The free/local backend options are now in the API Key button on the MAIN MENU too (not just in-game Settings). Open "API Key & Model" from the menu, pick a Backend, and enter an endpoint + model — or just paste a Claude key as before.', note:'panel-apikey (main-menu) rebuilt: added menu-provider select + menu-baseurl + menu-model + help, header "API Key & Model". saveAPIKey() now reads/validates per-backend (Claude needs key; custom needs URL+model), persists all four to localStorage, and mirrors into the Settings-modal fields. initMainMenu() loads provider/baseurl/model from localStorage, populates the fields, wires menu-provider change → syncMenuBackendVisibility(). Verified in-browser: panel layout, provider toggle relabel/show, save persists + llmConfigured() true for a local endpoint. Version → 4.9.1.' },
+  { number:'4.9.2', name:'Reforge', sys:'Added clear step-by-step instructions to the API Key panel — including how to use an OpenAI (ChatGPT) key. Open "API Key & Model", set Backend to Custom, and each provider now shows its exact Endpoint URL and Model name: OpenAI (gpt-4o / gpt-4o-mini), Ollama, LM Studio, Groq, OpenRouter.', note:'Help text in both panel-apikey (main menu) and modal-settings rewritten: added a "How to use it" 4-step line + per-provider Endpoint URL & Model list with OpenAI added first (https://api.openai.com/v1, gpt-4o/gpt-4o-mini, key sk-...). Verified in-browser. Version → 4.9.2.' },
 ];
 
 function cleanSaveData(gs) {
