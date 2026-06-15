@@ -2837,8 +2837,34 @@ body.generating [onclick*="shopSellItem"], body.generating [onclick*="closeMapGo
     </div>
     <div class="modal-body">
       <div class="setting-row">
-        <label>Claude API Key</label>
+        <label>Backend</label>
+        <select id="set-provider" style="flex:1;max-width:none">
+          <option value="anthropic">Claude (Anthropic)</option>
+          <option value="openai">Custom — local or free (OpenAI-compatible)</option>
+        </select>
+      </div>
+      <div class="setting-row">
+        <label id="set-apikey-label">Claude API Key</label>
         <input type="password" id="set-apikey" placeholder="sk-ant-..." style="flex:1;max-width:none">
+      </div>
+      <div id="custom-endpoint-fields" style="display:none">
+        <div class="setting-row">
+          <label>Endpoint URL</label>
+          <input type="text" id="set-baseurl" placeholder="http://localhost:11434/v1" style="flex:1;max-width:none">
+        </div>
+        <div class="setting-row">
+          <label>Model</label>
+          <input type="text" id="set-model" placeholder="llama3.1 / qwen2.5 / …" style="flex:1;max-width:none">
+        </div>
+        <div style="font-size:10px;color:var(--dim);margin:-2px 0 8px;line-height:1.5">
+          Point the game at any OpenAI-compatible backend — no Anthropic credits.<br>
+          • <b>Ollama</b> (local, free, no key): URL <code>http://localhost:11434/v1</code>, model e.g. <code>llama3.1</code>. Run <code>OLLAMA_ORIGINS=* ollama serve</code> so the browser can reach it.<br>
+          • <b>LM Studio</b> (local, free): URL <code>http://localhost:1234/v1</code>, enable the local server.<br>
+          • <b>Groq</b> (free cloud): URL <code>https://api.groq.com/openai/v1</code> + a free key above, model e.g. <code>llama-3.3-70b-versatile</code>.<br>
+          • <b>OpenRouter</b> (free models): URL <code>https://openrouter.ai/api/v1</code> + key, a <code>:free</code> model.<br>
+          The key field above is used as the access token (leave blank for local).<br>
+          Note: smaller models give rougher stories and may occasionally break formatting.
+        </div>
       </div>
       <div class="setting-row">
         <label>Mobile Layout</label>
@@ -5858,7 +5884,7 @@ function createDefaultState() {
     narrative:[],  // string[] — no error messages
     turn:0,
     admin:{ unlocked:false, bgClicks:0, lastBgClick:0 },
-    settings:{ apiKey:'', mobileMode:/Mobi|Android/i.test(navigator.userAgent), fontSize:14, liteMode:false },
+    settings:{ apiKey:'', apiProvider:'anthropic', apiBaseUrl:'', apiModel:'', mobileMode:/Mobi|Android/i.test(navigator.userAgent), fontSize:14, liteMode:false },
     selectedOrigin:null,
     pendingAppearance:{},
   };
@@ -11519,10 +11545,67 @@ function isForcedChoiceRailroad(text) {
   return mustPick && optLines >= 2;
 }
 
+// ── UNIFIED LLM ADAPTER ───────────────────────────────────────────
+// Default backend is Anthropic (Claude). If the player configures a CUSTOM provider
+// in Settings (apiProvider='openai'), this routes to ANY OpenAI-compatible endpoint
+// instead — Ollama / LM Studio (local, free, no key), or Groq / OpenRouter / Gemini's
+// OpenAI-compat URL (free cloud key). One adapter covers them all. The rest of the
+// game keeps speaking in "system + messages" and gets plain text back.
+// Returns { ok, status, text, errBody }.
+async function llmComplete({ system, messages, maxTokens = 8192, model = null }) {
+  const s = GS.settings || {};
+  const provider = s.apiProvider || 'anthropic';
+  const key = (s.apiKey || '').trim();
+
+  if(provider === 'openai') {
+    let base = (s.apiBaseUrl || '').trim().replace(/\/+$/, '');
+    if(!base) return { ok:false, status:0, text:null, errBody:'No endpoint URL set. Open Settings and enter your custom API base URL (e.g. http://localhost:11434/v1 for Ollama).' };
+    const url = /\/chat\/completions$/.test(base) ? base : base + '/chat/completions';
+    const model = (s.apiModel || '').trim();
+    if(!model) return { ok:false, status:0, text:null, errBody:'No model name set. Open Settings and enter the model name for your endpoint (e.g. llama3.1, qwen2.5, etc.).' };
+    const headers = { 'Content-Type':'application/json' };
+    if(key) headers['Authorization'] = 'Bearer ' + key; // local backends often need no key
+    try {
+      const resp = await fetch(url, {
+        method:'POST', headers,
+        body: JSON.stringify({
+          model, max_tokens: maxTokens, temperature: 1,
+          messages: [ { role:'system', content: system }, ...messages ],
+        }),
+      });
+      if(!resp.ok) { let e=''; try { e = await resp.text(); } catch(_){} return { ok:false, status:resp.status, text:null, errBody:e }; }
+      const data = await resp.json();
+      const text = data.choices?.[0]?.message?.content ?? data.choices?.[0]?.text ?? null;
+      return { ok:true, status:200, text, errBody:'' };
+    } catch(e) { return { ok:false, status:0, text:null, errBody: e?.message || 'Network error (is the endpoint reachable / CORS-enabled?)' }; }
+  }
+
+  // Default: Anthropic
+  if(!key) return { ok:false, status:0, text:null, errBody:'No API key set.' };
+  try {
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method:'POST',
+      headers:{ 'Content-Type':'application/json', 'x-api-key':key, 'anthropic-version':'2023-06-01', 'anthropic-dangerous-direct-browser-access':'true' },
+      body: JSON.stringify({ model: model || storyModel(), max_tokens: maxTokens, system, messages }),
+    });
+    if(!resp.ok) { let e=''; try { e = await resp.text(); } catch(_){} return { ok:false, status:resp.status, text:null, errBody:e }; }
+    const data = await resp.json();
+    return { ok:true, status:200, text: data.content?.[0]?.text || null, errBody:'' };
+  } catch(e) { return { ok:false, status:0, text:null, errBody: e?.message || 'Network error' }; }
+}
+
+// Is the model backend configured enough to make a call?
+function llmConfigured() {
+  const s = GS.settings || {};
+  if((s.apiProvider || 'anthropic') === 'openai') return !!(s.apiBaseUrl || '').trim();
+  return !!(s.apiKey || '').trim();
+}
+
 async function callClaude(userMessage, _retry=false) {
-  const apiKey = GS.settings.apiKey;
-  if(!apiKey) {
-    appendNarrative('No API key set. Open Settings (⚙) and enter your Claude API key.');
+  if(!llmConfigured()) {
+    appendNarrative((GS.settings.apiProvider === 'openai')
+      ? 'No custom endpoint set. Open Settings (⚙) and enter your API base URL and model name.'
+      : 'No API key set. Open Settings (⚙) and enter your Claude API key.');
     return null;
   }
   let systemPrompt = buildSystemPrompt();
@@ -11540,33 +11623,17 @@ async function callClaude(userMessage, _retry=false) {
     : userMessage;
 
   try {
-    const resp = await fetch('https://api.anthropic.com/v1/messages', {
-      method:'POST',
-      headers:{
-        'Content-Type':'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version':'2023-06-01',
-        'anthropic-dangerous-direct-browser-access':'true',
-      },
-      body: JSON.stringify({
-        model: storyModel(),
-        max_tokens:8192,
-        system: systemPrompt,
-        messages:[
-          ...history,
-          { role:'user', content: userContent },
-        ],
-      }),
+    const result = await llmComplete({
+      system: systemPrompt,
+      messages: [ ...history, { role:'user', content: userContent } ],
+      maxTokens: 8192,
     });
-    if(!resp.ok) {
-      let errBody = '';
-      try { errBody = await resp.text(); } catch(_) {}
-      console.error('API error:', resp.status, errBody);
-      showAPIError(resp.status, errBody);
+    if(!result.ok) {
+      console.error('API error:', result.status, result.errBody);
+      showAPIError(result.status, result.errBody);
       return null;
     }
-    const data = await resp.json();
-    const text = data.content?.[0]?.text || null;
+    const text = result.text;
 
     // Catch and recover from out-of-character refusals / crisis misfires / railroad menus.
     if(text && (isOutOfCharacterRefusal(text) || isForcedChoiceRailroad(text))) {
@@ -12050,7 +12117,7 @@ window.addEventListener('pagehide', () => { doAutosave(true); });
 // Scheme: MAJOR.MINOR. Big updates bump MAJOR (1.2 -> 2.2). Small updates
 // bump MINOR (2.2 -> 2.3). Each version has a name. The current version is
 // stamped onto every save; older saves can be updated to the latest.
-const GAME_VERSION = { number: '4.7', name: 'Drain & Devour' };
+const GAME_VERSION = { number: '4.8', name: 'Bring Your Own Brain' };
 
 // Which model generates the story. Lite Mode swaps to a far cheaper, faster model
 // (Claude Haiku) so long sessions / limited credits cost a fraction per turn.
@@ -12119,6 +12186,7 @@ const VERSION_HISTORY = [
   { number:'4.5', name:'The Gathering Flood', sys:'Qi-gathering techniques now actually count. If you know and have mastered a gathering / absorption / extraction / drawing-in art, cultivating with it floods you with Qi — scaled to how well you UNDERSTAND the technique (its mastery stage) and how great the art is (its grade). A barely-grasped art gives nothing extra, but a fully mastered, top-tier gathering technique can multiply your Qi intake many times over. The storyteller is told to narrate the intake as overwhelming when you have one.', note:'qiGatheringTechMult(): scans techniques, flags gathering arts by category==="gathering" or a keyword regex (gather/absorb/intake/extract/drink/siphon/harvest/draw-in-qi/condense/refine-qi/spirit-absorption/tribute/funnel/qi-drain/net-positive-intake/etc.), best power = stage(0..6) × rarityWeight(common1→mythic4), returns min(8, 1+power*0.45) — stage-0 fragmented = 1x (understanding gated). Applied as an extra factor in the consolidated engine-authoritative cultivation gain (× days × cultivationBonus × karmaMult × gatherMult); toast notes the flood at ≥1.5x. Live cultivation prompt note tells the AI to narrate a torrential intake when gatherMult≥1.5. Version → 4.5.' },
   { number:'4.6', name:'Drilled In', sys:'Two things. RARER GATHERING ARTS HIT HARDER: the grade of a Qi-gathering technique now matters a lot more — a purple (Epic) gathering art at full mastery floods you with far more Qi than before, and Legendary/Mythic/Fable arts climb higher still. UNSTICKING TECHNIQUE LEVELS: techniques could get stuck (e.g. frozen at "Intent") because they only counted practice when you typed the technique\'s EXACT full name in your message — so a long, custom-named art rarely registered any training. Now the storyteller reports when you train or use an art (even by a shortened or reworded name), and the engine advances it at the proper thresholds. Drilling, montages, and "I spend the month perfecting it" finally count.', note:'GATHERING: qiGatheringTechMult rarity weights steepened (common1/uncommon1.5/rare2.2/epic3.2/legendary4.5/mythic6/fable8 — fable added, was defaulting to 1), factor 0.45→0.5, cap 8→18. Epic full-mastery ~10.6x, Legendary ~14.5x, Mythic/Fable ride 18x; stage-0 still 1x. TECH ADVANCEMENT: new res.techniquePractice (+techniqueUse alias) handled in consolidated applyAIResponse → findArtByName() fuzzy resolver (exact → contains → significant shared-word, stopword-filtered) → recordTechniqueUse/recordMartialUse(reps 1-12). detectTechniquesInMessage (exact-name, controls Qi cost) left strict; AI field is the additive advancement path. Schema (both blocks) + TECHNIQUE PROGRESSION prompt rule mandating techniquePractice whenever the player trains/uses an owned art. Version → 4.6.' },
   { number:'4.7', name:'Drain & Devour', sys:'Qi-absorbing arts now actually work in combat. If you have a martial art or technique that drains, absorbs, siphons, or devours a foe\'s Qi, landing it on a Qi-bearing enemy (a cultivator, a Qi-beast) now TEARS loose some of their Qi and pours it into your own reserve — scaled to the foe and to how mastered and rare your art is. The storyteller is reminded the art exists every time you fight, so it stops being flavor text. (Ordinary mortals have no Qi to drain — nothing to take there.)', note:'qiAbsorptionArt(): scans techniques+martialArts for category==="absorption" or a drain regex (absorb/drain/siphon/leech/devour/sap/steal-qi/vampiric/parasit/extract-qi/etc.), best power=(stage+1)×rarityWeight, returns {found,name,power,suggestedPerHit=power*8}. res.qiAbsorbed handler in consolidated applyAIResponse adds it via addQiRaw (gated on owning a drain art + channels intact, clamped to max). buildCombatAnalysis appends a QI-DRAIN directive (suggested 0.6×-1.6× per-hit range, narrate the theft, nothing vs no-Qi mortals). Schema (both blocks) + qiAbsorbed:0 field. Version → 4.7.' },
+  { number:'4.8', name:'Bring Your Own Brain', sys:'You can now play WITHOUT Anthropic credits. Settings has a new Backend option: keep Claude, or switch to "Custom" and point the game at any OpenAI-compatible model — a free local one via Ollama or LM Studio (no key, no cost, runs on your machine), or a free cloud key from Groq, OpenRouter, or Gemini. Enter an endpoint URL and model name and play. (Heads up: smaller/free models write rougher stories and can occasionally trip the game\'s formatting — Claude still gives the best results.)', note:'Added unified llmComplete({system,messages,maxTokens,model}) adapter: provider "anthropic" (default, x-api-key, /v1/messages, content[0].text) or "openai" (Bearer optional, {base}/chat/completions, system folded into messages, choices[0].message.content). llmConfigured() guard. Refactored ALL 6 direct anthropic fetches (main story callClaude, opening narrative, generateStory, era/chronicle compaction [haiku via model override], parent extraction [haiku]) to route through it — single remaining anthropic fetch lives inside the adapter. Settings: provider select + endpoint URL + model fields (#set-provider/#set-baseurl/#set-model) with syncCustomEndpointVisibility(); persisted to localStorage murim_apiprovider/apibaseurl/apimodel and restored on boot + load-save; createDefaultState settings gains apiProvider/apiBaseUrl/apiModel. URL resolver tolerates trailing slash or full /chat/completions. Version → 4.8.' },
 ];
 
 function cleanSaveData(gs) {
@@ -12459,9 +12527,13 @@ function loadGameFromRaw(raw) {
     GS.char.illnesses = (GS.char.illnesses||[]).map(i=>String(i)).filter(i=>i&&!i.startsWith('[object'));
     GS.char.scars     = (GS.char.scars||[]).map(i=>String(i)).filter(i=>i&&!i.startsWith('[object'));
     GS.narrative      = (GS.narrative||[]).filter(n=>!isErrorText(n));
-    // Always use saved API key from localStorage
+    // Always use saved API key + backend config from localStorage (device-level,
+    // not part of the save file).
     const savedKey = localStorage.getItem('murim_apikey') || '';
     if(savedKey) GS.settings.apiKey = savedKey;
+    GS.settings.apiProvider = localStorage.getItem('murim_apiprovider') || GS.settings.apiProvider || 'anthropic';
+    GS.settings.apiBaseUrl  = localStorage.getItem('murim_apibaseurl')  || GS.settings.apiBaseUrl  || '';
+    GS.settings.apiModel    = localStorage.getItem('murim_apimodel')    || GS.settings.apiModel    || '';
     // Hide any modals or panels
     hideModal('modal-settings');
     document.getElementById('panel-continue')?.classList.add('hidden');
@@ -12741,6 +12813,10 @@ function startGame(isLoad=false) {
   initCollapsibles();
   initSubtabs();
   document.getElementById('modal-settings').querySelector('#set-apikey').value = GS.settings.apiKey || '';
+  { const pv = document.getElementById('set-provider'); if(pv) pv.value = GS.settings.apiProvider || 'anthropic'; }
+  { const bu = document.getElementById('set-baseurl'); if(bu) bu.value = GS.settings.apiBaseUrl || ''; }
+  { const md = document.getElementById('set-model');   if(md) md.value = GS.settings.apiModel || ''; }
+  try { syncCustomEndpointVisibility(); } catch(e) {}
   document.getElementById('modal-settings').querySelector('#set-mobile').checked = GS.settings.mobileMode;
   const liteEl = document.getElementById('set-litemode');
   if(liteEl) liteEl.checked = !!GS.settings.liteMode;
@@ -13264,9 +13340,38 @@ function initTabs() {
 // ================================================================
 // SETTINGS PANEL
 // ================================================================
+// Show/hide the custom-endpoint fields and relabel the key field for the chosen backend.
+function syncCustomEndpointVisibility() {
+  const prov = (document.getElementById('set-provider')?.value) || GS.settings.apiProvider || 'anthropic';
+  const fields = document.getElementById('custom-endpoint-fields');
+  if(fields) fields.style.display = (prov === 'openai') ? 'block' : 'none';
+  const lbl = document.getElementById('set-apikey-label');
+  const key = document.getElementById('set-apikey');
+  if(prov === 'openai') {
+    if(lbl) lbl.textContent = 'API Key (optional — blank for local)';
+    if(key) key.placeholder = 'leave blank for Ollama/LM Studio';
+  } else {
+    if(lbl) lbl.textContent = 'Claude API Key';
+    if(key) key.placeholder = 'sk-ant-...';
+  }
+}
+
 function initSettings() {
   // btn-settings click is handled in initSettings bottom (with renderSaveSlots)
   document.getElementById('set-apikey').addEventListener('change', e => { GS.settings.apiKey = e.target.value.trim(); });
+  document.getElementById('set-provider')?.addEventListener('change', e => {
+    GS.settings.apiProvider = e.target.value;
+    try { localStorage.setItem('murim_apiprovider', e.target.value); } catch(_) {}
+    syncCustomEndpointVisibility();
+  });
+  document.getElementById('set-baseurl')?.addEventListener('change', e => {
+    GS.settings.apiBaseUrl = e.target.value.trim();
+    try { localStorage.setItem('murim_apibaseurl', GS.settings.apiBaseUrl); } catch(_) {}
+  });
+  document.getElementById('set-model')?.addEventListener('change', e => {
+    GS.settings.apiModel = e.target.value.trim();
+    try { localStorage.setItem('murim_apimodel', GS.settings.apiModel); } catch(_) {}
+  });
   document.getElementById('set-mobile').addEventListener('change', e => {
     GS.settings.mobileMode = e.target.checked;
     document.body.classList.toggle('mobile-mode', e.target.checked);
@@ -13424,6 +13529,16 @@ window.addEventListener('DOMContentLoaded', () => {
     const inp = document.getElementById('set-apikey');
     if(inp) inp.value = savedKey;
   }
+  // Load persisted custom-backend config (provider / endpoint / model).
+  try {
+    const sp = localStorage.getItem('murim_apiprovider'); if(sp) GS.settings.apiProvider = sp;
+    const sb = localStorage.getItem('murim_apibaseurl');  if(sb) GS.settings.apiBaseUrl  = sb;
+    const sm = localStorage.getItem('murim_apimodel');    if(sm) GS.settings.apiModel    = sm;
+    const pvEl = document.getElementById('set-provider'); if(pvEl) pvEl.value = GS.settings.apiProvider || 'anthropic';
+    const buEl = document.getElementById('set-baseurl');  if(buEl) buEl.value = GS.settings.apiBaseUrl || '';
+    const mdEl = document.getElementById('set-model');    if(mdEl) mdEl.value = GS.settings.apiModel || '';
+    syncCustomEndpointVisibility();
+  } catch(e) {}
 
   // ── City dropdown: populate now and whenever year changes ──────
   // Called directly here so it works regardless of patch chain status
@@ -15354,8 +15469,7 @@ async function generateOpeningNarrative() {
   placeholder.innerHTML = `<div class="narrative-text" style="color:var(--dim);font-style:italic;display:flex;align-items:center;gap:10px"><span class="spinner"></span>The world is taking shape...</div>`;
   content.appendChild(placeholder);
 
-  const apiKey = GS.settings.apiKey;
-  if(!apiKey) {
+  if(!llmConfigured()) {
     placeholder.remove();
     const fallbackText = buildFallbackOpening(c, loc, kingdom, originDef, pronoun, possessive);
     appendNarrative(fallbackText);
@@ -15505,31 +15619,20 @@ Once named: use the name. Not "the woman" — her name. Not "the old man" — hi
 Do not include JSON. Write narrative prose only.`;
 
   try {
-    const resp = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true',
-      },
-      body: JSON.stringify({
-        model: storyModel(),
-        max_tokens: 2000,
-        system: systemPrompt,
-        messages: [{ role: 'user', content: userPrompt }],
-      }),
+    const result = await llmComplete({
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userPrompt }],
+      maxTokens: 2000,
     });
 
     placeholder.remove();
 
-    if(!resp.ok) {
+    if(!result.ok) {
       appendNarrative(buildFallbackOpening(c, loc, kingdom, originDef, pronoun, possessive));
       return;
     }
 
-    const data = await resp.json();
-    let text = (data.content?.[0]?.text || '').trim();
+    let text = (result.text || '').trim();
     // Guard the opening against an out-of-character refusal misfire too.
     if(text && isOutOfCharacterRefusal(text)) { console.warn('[refusal-filter] opening misfire suppressed'); text = ''; }
     if(text && !isErrorText(text)) {
@@ -39310,21 +39413,15 @@ Write a narrative story (800-1200 words) about this character's life so far.
 - Do NOT include game mechanics, stats, or system references — pure story`;
 
   try {
-    const apiKey = GS.settings.apiKey;
-    if(!apiKey) throw new Error('No API key set');
+    if(!llmConfigured()) throw new Error('No model backend configured (set an API key or custom endpoint in Settings)');
 
-    const resp = await fetch('https://api.anthropic.com/v1/messages', {
-      method:'POST',
-      headers:{ 'x-api-key':apiKey, 'anthropic-version':'2023-06-01', 'content-type':'application/json', 'anthropic-dangerous-direct-browser-access':'true' },
-      body: JSON.stringify({
-        model: storyModel(),
-        max_tokens:1500,
-        messages:[{ role:'user', content:prompt }]
-      })
+    const result = await llmComplete({
+      system: 'You are a master storyteller writing in vivid, grounded prose.',
+      messages: [{ role:'user', content:prompt }],
+      maxTokens: 1500,
     });
-
-    const data = await resp.json();
-    const story = data.content?.[0]?.text || 'Story could not be generated.';
+    if(!result.ok) throw new Error(result.errBody || ('Request failed ('+result.status+')'));
+    const story = result.text || 'Story could not be generated.';
     _currentStory = story;
 
     if(contentEl) { contentEl.textContent = story; contentEl.style.display = 'block'; }
@@ -41763,8 +41860,7 @@ async function maybeCompactChronicle() {
 
   _compactionRunning = true;
   try {
-    const apiKey = GS.settings.apiKey;
-    if(!apiKey) return;
+    if(!llmConfigured()) return;
 
     // Group ancient entries into 10-year periods
     const minYr = ancient[0].year;
@@ -41781,24 +41877,14 @@ ${lines}
 
 Write ONLY the summary paragraph. No JSON, no commentary, no title.`;
 
-    const resp = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true',
-      },
-      body: JSON.stringify({
-        model: 'claude-haiku-4-5', // cheaper model for background summarization
-        max_tokens: 300,
-        messages: [{ role: 'user', content: compactPrompt }],
-      }),
+    const result = await llmComplete({
+      system: 'You write concise, vivid life-chronicle summaries.',
+      messages: [{ role: 'user', content: compactPrompt }],
+      maxTokens: 300,
+      model: 'claude-haiku-4-5', // cheaper model for background summarization (Anthropic only)
     });
-
-    if(!resp.ok) return;
-    const data   = await resp.json();
-    const summary = (data.content?.[0]?.text || '').trim();
+    if(!result.ok) return;
+    const summary = (result.text || '').trim();
     if(!summary || summary.length < 20) return;
 
     // Store the summary and remove the compacted entries
@@ -41874,8 +41960,7 @@ migrateSave = function(data) {
 async function extractCharactersWithAI(narrativeText) {
   const c       = GS.char;
   const w       = GS.world;
-  const apiKey  = GS.settings.apiKey;
-  if(!apiKey || !narrativeText || narrativeText.length < 100) return;
+  if(!llmConfigured() || !narrativeText || narrativeText.length < 100) return;
 
   const ORPHAN_IDS = new Set(['orphan_streets','discarded_child','bridge_born','left_behind']);
   const isOrphan   = GS.selectedOrigin && ORPHAN_IDS.has(GS.selectedOrigin);
@@ -41923,24 +42008,14 @@ Return ONLY a JSON array, no other text:
 Valid roles: mother, father, grandmother, grandfather, sister, brother, aunt, uncle, caregiver, teacher, mentor, neighbor, friend, acquaintance, rival, enemy, employer, encountered`;
 
   try {
-    const resp = await fetch('https://api.anthropic.com/v1/messages', {
-      method:'POST',
-      headers:{
-        'Content-Type':'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version':'2023-06-01',
-        'anthropic-dangerous-direct-browser-access':'true',
-      },
-      body: JSON.stringify({
-        model:'claude-haiku-4-5', // fast + cheap for this extraction task
-        max_tokens:800,
-        messages:[{ role:'user', content:prompt }],
-      }),
+    const result = await llmComplete({
+      system: 'You extract structured data and return only valid JSON.',
+      messages: [{ role:'user', content:prompt }],
+      maxTokens: 800,
+      model: 'claude-haiku-4-5', // fast + cheap for this extraction task (Anthropic only)
     });
-
-    if(!resp.ok) return;
-    const data = await resp.json();
-    const rawText = (data.content?.[0]?.text || '').trim();
+    if(!result.ok) return;
+    const rawText = (result.text || '').trim();
     if(!rawText) return;
 
     // Parse the JSON array
