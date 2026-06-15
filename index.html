@@ -2448,7 +2448,7 @@ body.generating [onclick*="shopSellItem"], body.generating [onclick*="closeMapGo
           <div class="sect-label">Cultivation</div>
           <div id="qi-block">
             <div class="qi-path-row">
-              <span id="qi-path-badge" class="qi-path-badge none">No Path</span>
+              <span id="qi-path-badge" class="qi-path-badge none" style="cursor:pointer" title="Click to reshape your cultivation path" onclick="changeCultivationPath()">No Path</span>
               <span id="qi-expr" class="qi-expr"></span>
             </div>
             <div id="qi-stage-name" class="qi-stage-name">Mortal</div>
@@ -2836,34 +2836,39 @@ body.generating [onclick*="shopSellItem"], body.generating [onclick*="closeMapGo
       <button class="modal-close" data-modal="modal-settings">✕</button>
     </div>
     <div class="modal-body">
-      <div class="setting-row">
-        <label>Backend</label>
-        <select id="set-provider" style="flex:1;max-width:none">
-          <option value="anthropic">Claude (Anthropic)</option>
-          <option value="openai">Custom — local or free (OpenAI-compatible)</option>
-        </select>
-      </div>
-      <div class="setting-row">
-        <label id="set-apikey-label">Claude API Key</label>
-        <input type="password" id="set-apikey" placeholder="sk-ant-..." style="flex:1;max-width:none">
-      </div>
-      <div id="custom-endpoint-fields" style="display:none">
-        <div class="setting-row">
-          <label>Endpoint URL</label>
-          <input type="text" id="set-baseurl" placeholder="http://localhost:11434/v1" style="flex:1;max-width:none">
-        </div>
-        <div class="setting-row">
-          <label>Model</label>
-          <input type="text" id="set-model" placeholder="llama3.1 / qwen2.5 / …" style="flex:1;max-width:none">
+      <div style="border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:12px">
+        <div class="setting-row" style="margin-bottom:6px">
+          <label id="set-apikey-label">API Key</label>
+          <input type="password" id="set-apikey" placeholder="sk-ant-..." style="flex:1;max-width:none">
         </div>
         <div style="font-size:10px;color:var(--dim);margin:-2px 0 8px;line-height:1.5">
-          Point the game at any OpenAI-compatible backend — no Anthropic credits.<br>
-          • <b>Ollama</b> (local, free, no key): URL <code>http://localhost:11434/v1</code>, model e.g. <code>llama3.1</code>. Run <code>OLLAMA_ORIGINS=* ollama serve</code> so the browser can reach it.<br>
-          • <b>LM Studio</b> (local, free): URL <code>http://localhost:1234/v1</code>, enable the local server.<br>
-          • <b>Groq</b> (free cloud): URL <code>https://api.groq.com/openai/v1</code> + a free key above, model e.g. <code>llama-3.3-70b-versatile</code>.<br>
-          • <b>OpenRouter</b> (free models): URL <code>https://openrouter.ai/api/v1</code> + key, a <code>:free</code> model.<br>
-          The key field above is used as the access token (leave blank for local).<br>
-          Note: smaller models give rougher stories and may occasionally break formatting.
+          Paste your Claude key to play. <b>No Anthropic credits?</b> Switch the backend below to a free or local model (Ollama, LM Studio, Groq, OpenRouter…) and the key field becomes optional.
+        </div>
+        <div class="setting-row">
+          <label>Backend</label>
+          <select id="set-provider" style="flex:1;max-width:none">
+            <option value="anthropic">Claude (Anthropic)</option>
+            <option value="openai">Free / local — Custom (OpenAI-compatible)</option>
+          </select>
+        </div>
+        <div id="custom-endpoint-fields" style="display:none">
+          <div class="setting-row">
+            <label>Endpoint URL</label>
+            <input type="text" id="set-baseurl" placeholder="http://localhost:11434/v1" style="flex:1;max-width:none">
+          </div>
+          <div class="setting-row">
+            <label>Model</label>
+            <input type="text" id="set-model" placeholder="llama3.1 / qwen2.5 / …" style="flex:1;max-width:none">
+          </div>
+          <div style="font-size:10px;color:var(--dim);margin:-2px 0 4px;line-height:1.5">
+            Point the game at any OpenAI-compatible backend — no Anthropic credits.<br>
+            • <b>Ollama</b> (local, free, no key): URL <code>http://localhost:11434/v1</code>, model e.g. <code>llama3.1</code>. Run <code>OLLAMA_ORIGINS=* ollama serve</code> so the browser can reach it.<br>
+            • <b>LM Studio</b> (local, free): URL <code>http://localhost:1234/v1</code>, enable the local server.<br>
+            • <b>Groq</b> (free cloud): URL <code>https://api.groq.com/openai/v1</code> + a free key above, model e.g. <code>llama-3.3-70b-versatile</code>.<br>
+            • <b>OpenRouter</b> (free models): URL <code>https://openrouter.ai/api/v1</code> + key, a <code>:free</code> model.<br>
+            The key field above is the access token (leave blank for local).<br>
+            Note: smaller models give rougher stories and may occasionally break formatting.
+          </div>
         </div>
       </div>
       <div class="setting-row">
@@ -6923,6 +6928,41 @@ function getQiPathColor(path) {
   if(path==='demonic')  return 'var(--demonic)';
   if(path==='righteous')return 'var(--right)';
   return 'var(--muted)';
+}
+
+// ── CHANGE CULTIVATION PATH ───────────────────────────────────────
+// A deliberate, profound act: re-temper the Qi onto a different path (Righteous /
+// Beast / Demonic / Unaligned). Triggered by clicking the path badge on the
+// character sheet. It is not free — some current Qi scatters in the transition and
+// the discovered Expression resets, to be relearned on the new current.
+async function changeCultivationPath() {
+  const c = GS.char;
+  if(c.channelsBroken) { toast('Your channels are shattered — you cannot reshape your path until they are mended.', 'error', 4500); return; }
+  const cur = c.qi.path || 'none';
+  const ALL = [
+    { value:'righteous', label:'Righteous Qi', sub:'Orthodox, clean, steady. The heavens and the great sects favor it.' },
+    { value:'beast',     label:'Beast Qi',     sub:'Primal, instinctive, ferocious. The strength of the body and the wild.' },
+    { value:'demonic',   label:'Demonic Qi',   sub:'Forbidden, hungry, immense. The orthodox world will fear and hunt you.' },
+    { value:'none',      label:'Unaligned',    sub:'Walk no fixed path — formless and undeclared.' },
+  ];
+  const choice = await uiPicker(ALL.filter(p => p.value !== cur), {
+    title:'Reshape Your Cultivation Path', placeholder:'Choose a path to reforge toward…',
+  });
+  if(!choice) return;
+  const newPath = choice === 'none' ? null : choice;
+  const ok = await uiConfirm(
+    `Reforge your foundation onto the ${choice==='none'?'unaligned':choice} path?\n\nThis is a deliberate, dangerous act. Your Qi is re-tempered to the new path — about half your current Qi scatters in the transition, and the Expression you discovered must be relearned on the new current. The world will treat what you become differently.`,
+    { title:'Reforge the Path', okLabel:'Reforge', danger:true });
+  if(!ok) return;
+  const prev = c.qi.path;
+  c.qi.path = newPath;
+  c.qi.expression = null;
+  c.qi.current = Math.max(0, Math.round((c.qi.current||0) * 0.5));
+  try { addChronicleEntry(`Reforged their cultivation foundation from ${prev||'no path'} to ${newPath||'unaligned'} Qi.`, 'major'); } catch(e) {}
+  try { addPersonalEvent(`[PATH REFORGED]: You have reshaped your cultivation path — ${prev||'a formless foundation'} gives way to ${newPath?newPath+' Qi':'an unaligned current'}. The Qi runs differently through you now; its expression must be rediscovered, and those who can read a cultivator's nature will notice the change.`); } catch(e) {}
+  toast(`Cultivation path → ${newPath ? newPath.charAt(0).toUpperCase()+newPath.slice(1)+' Qi' : 'Unaligned'}`, 'gold', 5000);
+  try { updateCharacterTab(); } catch(e) {}
+  try { updateTopbar(); } catch(e) {}
 }
 
 // ================================================================
@@ -12117,7 +12157,7 @@ window.addEventListener('pagehide', () => { doAutosave(true); });
 // Scheme: MAJOR.MINOR. Big updates bump MAJOR (1.2 -> 2.2). Small updates
 // bump MINOR (2.2 -> 2.3). Each version has a name. The current version is
 // stamped onto every save; older saves can be updated to the latest.
-const GAME_VERSION = { number: '4.8', name: 'Bring Your Own Brain' };
+const GAME_VERSION = { number: '4.9', name: 'Reforge' };
 
 // Which model generates the story. Lite Mode swaps to a far cheaper, faster model
 // (Claude Haiku) so long sessions / limited credits cost a fraction per turn.
@@ -12187,6 +12227,7 @@ const VERSION_HISTORY = [
   { number:'4.6', name:'Drilled In', sys:'Two things. RARER GATHERING ARTS HIT HARDER: the grade of a Qi-gathering technique now matters a lot more — a purple (Epic) gathering art at full mastery floods you with far more Qi than before, and Legendary/Mythic/Fable arts climb higher still. UNSTICKING TECHNIQUE LEVELS: techniques could get stuck (e.g. frozen at "Intent") because they only counted practice when you typed the technique\'s EXACT full name in your message — so a long, custom-named art rarely registered any training. Now the storyteller reports when you train or use an art (even by a shortened or reworded name), and the engine advances it at the proper thresholds. Drilling, montages, and "I spend the month perfecting it" finally count.', note:'GATHERING: qiGatheringTechMult rarity weights steepened (common1/uncommon1.5/rare2.2/epic3.2/legendary4.5/mythic6/fable8 — fable added, was defaulting to 1), factor 0.45→0.5, cap 8→18. Epic full-mastery ~10.6x, Legendary ~14.5x, Mythic/Fable ride 18x; stage-0 still 1x. TECH ADVANCEMENT: new res.techniquePractice (+techniqueUse alias) handled in consolidated applyAIResponse → findArtByName() fuzzy resolver (exact → contains → significant shared-word, stopword-filtered) → recordTechniqueUse/recordMartialUse(reps 1-12). detectTechniquesInMessage (exact-name, controls Qi cost) left strict; AI field is the additive advancement path. Schema (both blocks) + TECHNIQUE PROGRESSION prompt rule mandating techniquePractice whenever the player trains/uses an owned art. Version → 4.6.' },
   { number:'4.7', name:'Drain & Devour', sys:'Qi-absorbing arts now actually work in combat. If you have a martial art or technique that drains, absorbs, siphons, or devours a foe\'s Qi, landing it on a Qi-bearing enemy (a cultivator, a Qi-beast) now TEARS loose some of their Qi and pours it into your own reserve — scaled to the foe and to how mastered and rare your art is. The storyteller is reminded the art exists every time you fight, so it stops being flavor text. (Ordinary mortals have no Qi to drain — nothing to take there.)', note:'qiAbsorptionArt(): scans techniques+martialArts for category==="absorption" or a drain regex (absorb/drain/siphon/leech/devour/sap/steal-qi/vampiric/parasit/extract-qi/etc.), best power=(stage+1)×rarityWeight, returns {found,name,power,suggestedPerHit=power*8}. res.qiAbsorbed handler in consolidated applyAIResponse adds it via addQiRaw (gated on owning a drain art + channels intact, clamped to max). buildCombatAnalysis appends a QI-DRAIN directive (suggested 0.6×-1.6× per-hit range, narrate the theft, nothing vs no-Qi mortals). Schema (both blocks) + qiAbsorbed:0 field. Version → 4.7.' },
   { number:'4.8', name:'Bring Your Own Brain', sys:'You can now play WITHOUT Anthropic credits. Settings has a new Backend option: keep Claude, or switch to "Custom" and point the game at any OpenAI-compatible model — a free local one via Ollama or LM Studio (no key, no cost, runs on your machine), or a free cloud key from Groq, OpenRouter, or Gemini. Enter an endpoint URL and model name and play. (Heads up: smaller/free models write rougher stories and can occasionally trip the game\'s formatting — Claude still gives the best results.)', note:'Added unified llmComplete({system,messages,maxTokens,model}) adapter: provider "anthropic" (default, x-api-key, /v1/messages, content[0].text) or "openai" (Bearer optional, {base}/chat/completions, system folded into messages, choices[0].message.content). llmConfigured() guard. Refactored ALL 6 direct anthropic fetches (main story callClaude, opening narrative, generateStory, era/chronicle compaction [haiku via model override], parent extraction [haiku]) to route through it — single remaining anthropic fetch lives inside the adapter. Settings: provider select + endpoint URL + model fields (#set-provider/#set-baseurl/#set-model) with syncCustomEndpointVisibility(); persisted to localStorage murim_apiprovider/apibaseurl/apimodel and restored on boot + load-save; createDefaultState settings gains apiProvider/apiBaseUrl/apiModel. URL resolver tolerates trailing slash or full /chat/completions. Version → 4.8.' },
+  { number:'4.9', name:'Reforge', sys:'Two things. The free/local backend options now live right inside the API Key box in Settings — paste a Claude key, or flip the Backend dropdown there to a free or local model. And you can now CHANGE YOUR CULTIVATION PATH: click your Qi path badge on the character sheet to reforge onto a different path (Righteous / Beast / Demonic / Unaligned). It is a deliberate, costly act — about half your current Qi scatters in the transition and your discovered Expression resets to be relearned — but the path is yours to choose.', note:'Settings: API Key + Backend select + endpoint/model fields regrouped into one bordered block led by the key (with a "no credits? switch below" hint). changeCultivationPath(): uiPicker(Righteous/Beast/Demonic/Unaligned minus current) → uiConfirm → sets qi.path, nulls qi.expression, halves qi.current, chronicle+personalEvent[PATH REFORGED]; gated on intact channels. qi-path-badge made clickable (cursor+title+onclick). Verified in-browser: settings layout, provider toggle relabel/show, full path-change flow (righteous→beast, expr null, qi 200→100, badge updated). Version → 4.9.' },
 ];
 
 function cleanSaveData(gs) {
