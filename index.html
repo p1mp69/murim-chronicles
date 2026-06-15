@@ -11344,6 +11344,7 @@ PART 2 — DATA (immediately after the narrative, on its own line):
   "newTechniques": [{ "name": "", "category": "", "type": "", "rarity": "", "desc": "", "source": "" }],
   "newMartialArts": [{ "name": "", "type": "", "rarity": "", "desc": "", "source": "" }],
   "techniquePractice": [{ "name": "<an existing technique/martial art the player trained or used this turn>", "reps": 1 }],
+  "qiAbsorbed": 0,
   "injuries": ["string only"],
   "illnesses": ["string only"],
   "scars": ["string only"],
@@ -12049,7 +12050,7 @@ window.addEventListener('pagehide', () => { doAutosave(true); });
 // Scheme: MAJOR.MINOR. Big updates bump MAJOR (1.2 -> 2.2). Small updates
 // bump MINOR (2.2 -> 2.3). Each version has a name. The current version is
 // stamped onto every save; older saves can be updated to the latest.
-const GAME_VERSION = { number: '4.6', name: 'Drilled In' };
+const GAME_VERSION = { number: '4.7', name: 'Drain & Devour' };
 
 // Which model generates the story. Lite Mode swaps to a far cheaper, faster model
 // (Claude Haiku) so long sessions / limited credits cost a fraction per turn.
@@ -12117,6 +12118,7 @@ const VERSION_HISTORY = [
   { number:'4.4.4', name:'Quiet Karma', sys:'The storyteller will stop talking about "karma" and "karma debt". Karma was always meant to be invisible bookkeeping that just colors how the world treats you — but the AI kept naming it out loud like a meter on your screen. Now it is told, firmly, never to write the word at all: your deeds still shape who fears or trusts you, whether the heavens send a tribulation, and what dark powers notice you — but you will see those consequences play out in the world, not get lectured about a score.', note:'Karma surfacing relabeled INTERNAL + hard no-narration directive. buildKarmaContextForAI leads with "INTERNAL MORAL-WEIGHT BOOKKEEPING — never write karma/karmic/karma debt" + numbers tagged (internal). CURRENT GAME STATE karma line prefixed "(internal moral-weight, NEVER name in prose)". Live KARMA RULE rewritten → "NEVER NARRATE IT": forbid the words karma/karmic/karma debt/balance/ledger/meter/score, show consequences through people/events only; still never gates cultivation; atonement via negative karma stays but unnamed. breakStatus internal flag de-karma\'d (was "karma outcome would be…"). Version → 4.4.4.' },
   { number:'4.5', name:'The Gathering Flood', sys:'Qi-gathering techniques now actually count. If you know and have mastered a gathering / absorption / extraction / drawing-in art, cultivating with it floods you with Qi — scaled to how well you UNDERSTAND the technique (its mastery stage) and how great the art is (its grade). A barely-grasped art gives nothing extra, but a fully mastered, top-tier gathering technique can multiply your Qi intake many times over. The storyteller is told to narrate the intake as overwhelming when you have one.', note:'qiGatheringTechMult(): scans techniques, flags gathering arts by category==="gathering" or a keyword regex (gather/absorb/intake/extract/drink/siphon/harvest/draw-in-qi/condense/refine-qi/spirit-absorption/tribute/funnel/qi-drain/net-positive-intake/etc.), best power = stage(0..6) × rarityWeight(common1→mythic4), returns min(8, 1+power*0.45) — stage-0 fragmented = 1x (understanding gated). Applied as an extra factor in the consolidated engine-authoritative cultivation gain (× days × cultivationBonus × karmaMult × gatherMult); toast notes the flood at ≥1.5x. Live cultivation prompt note tells the AI to narrate a torrential intake when gatherMult≥1.5. Version → 4.5.' },
   { number:'4.6', name:'Drilled In', sys:'Two things. RARER GATHERING ARTS HIT HARDER: the grade of a Qi-gathering technique now matters a lot more — a purple (Epic) gathering art at full mastery floods you with far more Qi than before, and Legendary/Mythic/Fable arts climb higher still. UNSTICKING TECHNIQUE LEVELS: techniques could get stuck (e.g. frozen at "Intent") because they only counted practice when you typed the technique\'s EXACT full name in your message — so a long, custom-named art rarely registered any training. Now the storyteller reports when you train or use an art (even by a shortened or reworded name), and the engine advances it at the proper thresholds. Drilling, montages, and "I spend the month perfecting it" finally count.', note:'GATHERING: qiGatheringTechMult rarity weights steepened (common1/uncommon1.5/rare2.2/epic3.2/legendary4.5/mythic6/fable8 — fable added, was defaulting to 1), factor 0.45→0.5, cap 8→18. Epic full-mastery ~10.6x, Legendary ~14.5x, Mythic/Fable ride 18x; stage-0 still 1x. TECH ADVANCEMENT: new res.techniquePractice (+techniqueUse alias) handled in consolidated applyAIResponse → findArtByName() fuzzy resolver (exact → contains → significant shared-word, stopword-filtered) → recordTechniqueUse/recordMartialUse(reps 1-12). detectTechniquesInMessage (exact-name, controls Qi cost) left strict; AI field is the additive advancement path. Schema (both blocks) + TECHNIQUE PROGRESSION prompt rule mandating techniquePractice whenever the player trains/uses an owned art. Version → 4.6.' },
+  { number:'4.7', name:'Drain & Devour', sys:'Qi-absorbing arts now actually work in combat. If you have a martial art or technique that drains, absorbs, siphons, or devours a foe\'s Qi, landing it on a Qi-bearing enemy (a cultivator, a Qi-beast) now TEARS loose some of their Qi and pours it into your own reserve — scaled to the foe and to how mastered and rare your art is. The storyteller is reminded the art exists every time you fight, so it stops being flavor text. (Ordinary mortals have no Qi to drain — nothing to take there.)', note:'qiAbsorptionArt(): scans techniques+martialArts for category==="absorption" or a drain regex (absorb/drain/siphon/leech/devour/sap/steal-qi/vampiric/parasit/extract-qi/etc.), best power=(stage+1)×rarityWeight, returns {found,name,power,suggestedPerHit=power*8}. res.qiAbsorbed handler in consolidated applyAIResponse adds it via addQiRaw (gated on owning a drain art + channels intact, clamped to max). buildCombatAnalysis appends a QI-DRAIN directive (suggested 0.6×-1.6× per-hit range, narrate the theft, nothing vs no-Qi mortals). Schema (both blocks) + qiAbsorbed:0 field. Version → 4.7.' },
 ];
 
 function cleanSaveData(gs) {
@@ -14726,6 +14728,7 @@ The JSON carries ONLY state changes. There is NO "narrative" field in the JSON �
   "newTechniques": [{ "name": "", "category": "", "type": "", "rarity": "", "desc": "", "source": "" }],
   "newMartialArts": [{ "name": "", "type": "physical|qi", "rarity": "", "desc": "", "source": "" }],
   "techniquePractice": [{ "name": "<an existing technique/martial art the player trained or used this turn>", "reps": 1 }],
+  "qiAbsorbed": 0,
   "newOffshoots": [{ "parent": "existing technique/art it diverged from", "name": "", "kind": "tech|ma", "type": "", "rarity": "", "desc": "a real bio of what this offshoot IS and does — not 'a variant of X'" }],
   "newCombinations": [{ "parents": ["technique A", "technique B"], "name": "", "type": "", "rarity": "", "desc": "a real bio of the fused art — more than the sum of its parts, never 'A + B'" }],
   "injuries": ["string only — no objects"],
@@ -16138,6 +16141,37 @@ function qiGatheringTechMult() {
   // Up to ~18x for a fully-mastered, top-grade art. A purple (Epic) at full mastery
   // lands around 10-11x; Legendary ~14-15x; Mythic/Fable ride the cap.
   return Math.min(18, 1 + best * 0.5);
+}
+
+// A combat Qi-DRAIN art steals Qi from a foe when it lands. This finds the player's
+// best such art (technique OR martial art) and returns its details + power, so the
+// engine can honor "qiAbsorbed" and the prompt can tell the AI to actually use it.
+// Detected by an explicit category or drain/absorb/siphon/devour/leech-style wording.
+const _QI_DRAIN_RE = /absor[bp]|drain|siphon|leech|devour|sap\b|steal\w*\s*(qi|energy|essence|life)|(qi|energy|essence|life)\s*(steal|theft|drain|siphon|drink|leech)|drink\w*\s*(qi|energy|essence|blood)|consum\w*\s*(qi|energy|essence)|rob\w*\s*(qi|energy)|vampir|parasit|tribute|extract\w*\s*(qi|energy|essence)/i;
+function qiAbsorptionArt() {
+  const rarityW = { common:1, uncommon:1.5, rare:2.2, epic:3.2, legendary:4.5, mythic:6, fable:8 };
+  const scan = (arr, isMA) => {
+    let best = null, bestPow = 0;
+    (arr||[]).forEach(a => {
+      if(!a) return;
+      const hay = `${a.name||''} ${a.category||''} ${a.type||''} ${a.desc||''}`;
+      const isDrain = (a.category||'').toLowerCase() === 'absorption' || _QI_DRAIN_RE.test(hay);
+      if(!isDrain) return;
+      const stage = Math.max(0, a.stage || 0);
+      const rw    = rarityW[(a.rarity||'common').toLowerCase()] || 1;
+      const pow   = (stage + 1) * rw; // +1 so even a fresh drain art does SOMETHING
+      if(pow > bestPow) { bestPow = pow; best = { name:a.name, stage, isMA, power:pow, rarity:(a.rarity||'common') }; }
+    });
+    return best;
+  };
+  const t = scan(GS.char.techniques, false);
+  const m = scan(GS.char.martialArts, true);
+  const best = (!t && !m) ? null : (!t ? m : (!m ? t : (t.power >= m.power ? t : m)));
+  if(!best) return { found:false, power:0 };
+  // Suggested Qi stolen per solid hit on a worthy foe — scales with mastery & grade.
+  best.found = true;
+  best.suggestedPerHit = Math.round(best.power * 8);
+  return best;
 }
 
 // Practice needed to advance a technique/MA stage — the table values are the
@@ -20295,6 +20329,13 @@ function buildCombatAnalysis(msg) {
   const victoryDecl = /\b(i win|i defeat|i kill (him|her|them|it)|i emerge victorious|i overpower|i easily|i quickly|i take (him|her|them) down|i finish (him|her|them)|i dominate)\b/i;
   if(victoryDecl.test(lower)) {
     lines.push(`DECLARATION BLOCKED: Player declared a combat outcome. Disregard entirely. Outcomes are determined by the numbers above, not statements. Calculate the actual result based on the analysis above.`);
+  }
+
+  // QI-DRAIN ART — if the player owns one, remind the AI to actually USE it: when it
+  // lands on a Qi-bearing foe, they STEAL Qi (and the engine banks it via qiAbsorbed).
+  const drain = qiAbsorptionArt();
+  if(drain.found) {
+    lines.push(`QI-DRAIN ART: This character wields "${drain.name}" — an art that ABSORBS/STEALS Qi from foes in combat. This is REAL and must function: when they land it on an opponent who has Qi (a cultivator, a beast with Qi, a Qi-using threat), they tear loose some of that Qi and ADD IT TO THEIR OWN reserve. You MUST report the amount stolen this turn via "qiAbsorbed": <number> (the engine adds it to their Qi). Scale it to the foe and to the art's mastery — a solid drain on a worthy cultivator is roughly ${Math.round(drain.suggestedPerHit*0.6)}-${Math.round(drain.suggestedPerHit*1.6)} Qi; a glancing touch less; draining a far stronger foe or a sustained grapple, more. Narrate the theft viscerally — the foe's Qi guttering, the cold pull, the character's reserve swelling. Against a foe with NO Qi (an ordinary mortal), there is nothing to drain — say so. Do not forget this art exists when combat happens.`);
   }
 
   lines.push(']');
@@ -30469,6 +30510,18 @@ updateCharacterTab = function() {
         if(!hit) return;
         if(hit.isMA) recordMartialUse(hit.id, reps); else recordTechniqueUse(hit.id, reps);
       });
+    });
+
+    // QI ABSORBED IN COMBAT — a drain/absorb art steals Qi from a foe when it lands.
+    // The AI reports how much was torn loose this turn; we add it to the player's Qi.
+    // Gated on actually OWNING such an art so it can't be hallucinated for anyone.
+    safe('qiAbsorbed', () => {
+      let amt = parseFloat(res.qiAbsorbed);
+      if(!amt || amt <= 0 || !isFinite(amt)) return;
+      if(!qiAbsorptionArt().found || GS.char.channelsBroken) return;
+      amt = Math.min(Math.round(amt), GS.char.qi.max); // can't bank more than your reserve holds in one go
+      const got = addQiRaw(amt);
+      if(got > 0) { try { toast(`+${got} Qi torn from your foe`, '', 2400); } catch(e) {} }
     });
 
     // Physical condition — always strings
