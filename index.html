@@ -8241,17 +8241,78 @@ function grantTitle(type, title, silent=false) {
   if(!silent) toast(`${type==='spiritual'?'Spiritual':'Social'} title: ${title.name}`, 'gold', 4000);
 }
 
-// Promote any reputation-bar epithets (renownTitle/infamyTitle) that aren't yet in
-// the Titles section — fixes older saves where a "Young Prodigy" style title showed
-// on the renown bar but never appeared under Spiritual Titles.
+// Build a real "how it was earned" story for a reputation epithet from the actual
+// deeds that built that reputation (the location's defining events), instead of a
+// stiff "Notorious in X." line.
+function buildRepTitleEarned(locName, rep, kind) {
+  const evs = (rep.definingEvents || []).filter(e => e && e.desc);
+  const matched = evs.filter(e => e.type === kind);
+  const pick = (matched.length ? matched : evs).slice(0, 2).map(e => String(e.desc).replace(/[.\s]+$/, ''));
+  if(pick.length) {
+    return `Earned in ${locName} — ${pick.join('; ')}. The name spread until it arrived ahead of you.`;
+  }
+  return kind === 'infamy'
+    ? `Earned through the fear you spread across ${locName} — enough that your name became a warning.`
+    : `Earned through the deeds you became known for across ${locName} — your name began to open doors.`;
+}
+// A feared/renowned name reshapes the person who carries it — scaled to how big the
+// reputation is. Infamy hardens presence and watchfulness; renown lends bearing and fortune.
+function repTitleEffects(rep, kind) {
+  const mag = kind === 'infamy' ? (rep.infamy || 0) : (rep.renown || 0);
+  const eff = {};
+  if(kind === 'infamy') {
+    const wil = Math.min(8, 1 + Math.round(mag / 22));
+    const per = Math.min(5, Math.round(mag / 40));
+    if(wil) eff.willpower = wil;
+    if(per) eff.perception = per;
+  } else {
+    const cha = Math.min(8, 1 + Math.round(mag / 22));
+    const lck = Math.min(4, Math.round(mag / 50));
+    if(cha) eff.charisma = cha;
+    if(lck) eff.luck = lck;
+  }
+  return eff;
+}
+// Create OR repair a reputation-derived spiritual title: give it a real earned story,
+// a clear "what it does", and scaled buffs — applied exactly once.
+function upsertRepTitle(name, locName, rep, kind, silent) {
+  const list = GS.char.spiritualTitles;
+  let t = list.find(x => x.name === name);
+  const earned = buildRepTitleEarned(locName, rep, kind);
+  const affects = kind === 'infamy'
+    ? `Where your name is known, people who hear it tread carefully — and the weight you now carry steadies your will and sharpens what you notice.`
+    : `Where your name is known, doors open and people give you the benefit of the doubt — and you carry yourself like someone the world expects things of.`;
+  const effects = repTitleEffects(rep, kind);
+  if(!t) {
+    t = { name, desc:'', earned, affects, effects:{}, location:'', audience:[], knownBy:[], groupReach:{}, _repEffectsApplied:false };
+    list.push(t);
+    if(!silent) toast(`Spiritual title: ${name}`, 'gold', 4000);
+  } else {
+    // Replace the old stiff one-liner; fill in what's missing.
+    if(!t.earned || /^(Renowned|Notorious) in /.test(t.earned)) t.earned = earned;
+    if(!t.affects) t.affects = affects;
+  }
+  // Apply the buffs once (so re-syncs don't stack them).
+  if(!t._repEffectsApplied && Object.keys(effects).length) {
+    t.effects = effects;
+    Object.entries(effects).forEach(([k, v]) => { if(typeof v === 'number' && GS.char[k] !== undefined) GS.char[k] += v; });
+    t._repEffectsApplied = true;
+  }
+}
+
+// Promote reputation-bar epithets (renownTitle/infamyTitle) into proper Spiritual
+// Titles WITH a real earned story and scaled buffs — and repair any old, bland,
+// buff-less ones already on the save.
 function syncReputationTitles(silent=true) {
   try {
     const reps = GS.char.reputation || {};
     Object.entries(reps).forEach(([loc, rep]) => {
+      if(!rep) return;
       const locName = LOCATIONS[loc]?.name || loc;
-      if(rep?.renownTitle && String(rep.renownTitle).trim()) grantTitle('spiritual', { name:String(rep.renownTitle).trim(), desc:`Renowned in ${locName}.` }, silent);
-      if(rep?.infamyTitle && String(rep.infamyTitle).trim()) grantTitle('spiritual', { name:String(rep.infamyTitle).trim(), desc:`Notorious in ${locName}.` }, silent);
+      if(rep.renownTitle && String(rep.renownTitle).trim()) upsertRepTitle(String(rep.renownTitle).trim(), locName, rep, 'renown', silent);
+      if(rep.infamyTitle && String(rep.infamyTitle).trim()) upsertRepTitle(String(rep.infamyTitle).trim(), locName, rep, 'infamy', silent);
     });
+    try { updateCharacterTab(); } catch(e) {}
   } catch(e) {}
 }
 
@@ -12255,7 +12316,7 @@ window.addEventListener('pagehide', () => { doAutosave(true); });
 // Scheme: MAJOR.MINOR. Big updates bump MAJOR (1.2 -> 2.2). Small updates
 // bump MINOR (2.2 -> 2.3). Each version has a name. The current version is
 // stamped onto every save; older saves can be updated to the latest.
-const GAME_VERSION = { number: '5.1', name: 'Global Legends' };
+const GAME_VERSION = { number: '5.2', name: 'Names With Weight' };
 
 // Which model generates the story. Lite Mode swaps to a far cheaper, faster model
 // (Claude Haiku) so long sessions / limited credits cost a fraction per turn.
@@ -12330,6 +12391,7 @@ const VERSION_HISTORY = [
   { number:'4.9.2', name:'Reforge', sys:'Added clear step-by-step instructions to the API Key panel — including how to use an OpenAI (ChatGPT) key. Open "API Key & Model", set Backend to Custom, and each provider now shows its exact Endpoint URL and Model name: OpenAI (gpt-4o / gpt-4o-mini), Ollama, LM Studio, Groq, OpenRouter.', note:'Help text in both panel-apikey (main menu) and modal-settings rewritten: added a "How to use it" 4-step line + per-provider Endpoint URL & Model list with OpenAI added first (https://api.openai.com/v1, gpt-4o/gpt-4o-mini, key sk-...). Verified in-browser. Version → 4.9.2.' },
   { number:'5.0', name:'Leaderboard', sys:'Three things. NEW LEADERBOARD: a "Leaderboard" button on the main menu ranks every life you\'ve lived — current and past — by a Legacy Score (cultivation realm, fame &amp; notoriety, lives taken, titles, and mastery of the arts), measured against benchmark legends of the murim like Ichiro, Reo, and the Sword Saint. GENDER ON THE SHEET: your gender now shows on the character page and is clickable to change (it updates how the story refers to you). TRAINED SKILLS REGISTER: when you deliberately study or train a specific skill — e.g. "train and study water manipulation" with Water Qi — it now reliably gets added to your skills (new or leveled up) instead of being ignored.', note:'LEADERBOARD: computeLegacyScore (stageIndex*1000 + fame*6 + kills*8 + titles*40 + mastery*5 + achievements*15 + age) + legacyComponents(char,world); saveToHallOfDead enriched with stageIndex/path/race/kills/titles/mastery/fame/score; renderLeaderboard merges living char + hall entries + LEADERBOARD_LEGENDS benchmarks, sorts desc, medals top-3; panel-leaderboard + menu-leaderboard button + handler + close-list. GENDER: char-gender section on sheet (clickable), render in updateCharacterTab, changeGender() uiPicker (male/female/other) + pronoun-affecting personalEvent. SKILLS: live-prompt "REGISTER TRAINED SKILLS" rule mandating res.skills entry (new or xp) whenever the player studies/trains a named skill, incl. Qi-tied manipulation skills + theory companion. Verified in-browser: leaderboard ranking + medals + legends, gender display/change/picker. Version → 5.0.' },
   { number:'5.1', name:'Global Legends', sys:'The Leaderboard is now GLOBAL — the greatest lives across all players, ranked by Legacy Score (it auto-submits your character when they die). It needs a free shared database to go live (Supabase, ~5 min — the panel walks you through it); until then it shows the setup steps and the legendary benchmarks. Meanwhile the HALL OF THE DEAD is your personal leaderboard: your own fallen, ranked, with each gravestone\'s story. Plus a new SUPPORT THE GAME button on the menu — how Bring-Your-Own-Key keeps it free, a tip jar, and Patreon.', note:'Hall of the Dead renderHallOfDead now sorts by score (medals) = personal leaderboard. GLOBAL_LB config (Supabase url/anonKey/table) + globalLBConfigured + submitGlobalScore (POST rest/v1) + fetchGlobalTop (order=score.desc) + submitMyLifeToGlobal; handleDeath auto-submits (silent). renderLeaderboard rewritten async: configured→fetch+render global top (highlights you) + submit button; unconfigured→Supabase setup steps + legend benchmarks teaser. panel-support (BYOK explainer + Ko-fi + Patreon, placeholder links) + menu-support button/handler + close-list. Verified in-browser: global setup state, legends, support panel. Version → 5.1.' },
+  { number:'5.2', name:'Names With Weight', sys:'Titles were stiff and gave nothing — fixed. Reputation-born titles (the ones the world gives you for renown or infamy, like "The Eyeless Mask") now tell the real STORY of how you earned them — built from the actual deeds that spread your name — instead of a bare "Notorious in Wheat Capital." They also grant real buffs now, scaled to how big the reputation is (a feared name hardens your will and sharpens your eye; a renowned one lends bearing and luck). Existing buff-less titles on your save are repaired and given their buffs the moment it loads. And the storyteller is told, firmly, that every spiritual title must carry a buff and a vivid 1-2 sentence story of the moment it was won — no more lifeless one-liners.', note:'syncReputationTitles rewritten: upsertRepTitle() builds "earned" from rep.definingEvents (real deeds), sets a meaningful "affects", and applies repTitleEffects() (infamy→willpower+perception, renown→charisma+luck, scaled by magnitude, capped) exactly once via _repEffectsApplied flag; repairs existing bland titles (replaces /^(Renowned|Notorious) in / earned + applies missing buffs). Runs on load. Prompt TITLES rule: every spiritual title MUST have effects + "earned" must be a vivid 1-2 sentence story, never a bare label. Verified in-browser: bland "The Eyeless Mask" → real story + willpower+4/perception+2, no double-apply. Version → 5.2.' },
 ];
 
 function cleanSaveData(gs) {
@@ -15054,7 +15116,7 @@ STATS HAVE REAL WEIGHT (honor them EVERY scene, not just in combat): The eight a
 When the player attempts something an attribute governs, weigh THAT attribute (plus relevant skills/realm) to decide how well it goes, and SHOW the stat in the prose. An [ATTRIBUTE CHECK] note may flag the standout stats for a turn — treat it as authoritative.
 
 TITLES RULE — award them at genuinely earned moments, and make them MEAN something. There are two kinds, and the difference is strict:
-• SPIRITUAL = PHYSICAL / of the body and being. A spiritual title is a legend about what the character's body, Qi, or presence can DO (Sword Saint, The Undying, Iron-Skinned, Frost Maiden, Demon of Stone Root). It carries real body effects — emit "effects" with stat buffs (strength, agility, endurance, intelligence, perception, willpower, charisma, luck, and/or maxHp). THE SIZE OF THE BUFF MUST SCALE WITH THE FEAT THAT WON THE TITLE — a bigger, more impossible, more world-shaking deed earns a bigger buff (and may buff SEVERAL stats at once). Rough guide: a modest, local feat (won a tournament, killed a notorious bandit) → +1 to +3 in one stat; a regionally famous feat (slew a Core-Formation master, survived a tribulation) → +4 to +8, maybe two stats; a legendary feat (split a mountain in two, single-handedly wiped out an entire sect, walked out of a god's domain alive) → +10 to +25 across multiple stats. Do NOT hand a small deed a huge buff, and do NOT undersell a mountain-splitting, sect-ending feat with a +2. Always fill "earned" (the feat that won it) and "affects" (what it grants the body, in plain words). A spiritual title MAY ALSO carry social weight (a famous Sword Saint is also recognized socially) — that's allowed.
+• SPIRITUAL = PHYSICAL / of the body and being. A spiritual title is a legend about what the character's body, Qi, or presence can DO (Sword Saint, The Undying, Iron-Skinned, Frost Maiden, Demon of Stone Root). It carries real body effects — emit "effects" with stat buffs (strength, agility, endurance, intelligence, perception, willpower, charisma, luck, and/or maxHp). THE SIZE OF THE BUFF MUST SCALE WITH THE FEAT THAT WON THE TITLE — a bigger, more impossible, more world-shaking deed earns a bigger buff (and may buff SEVERAL stats at once). Rough guide: a modest, local feat (won a tournament, killed a notorious bandit) → +1 to +3 in one stat; a regionally famous feat (slew a Core-Formation master, survived a tribulation) → +4 to +8, maybe two stats; a legendary feat (split a mountain in two, single-handedly wiped out an entire sect, walked out of a god's domain alive) → +10 to +25 across multiple stats. Do NOT hand a small deed a huge buff, and do NOT undersell a mountain-splitting, sect-ending feat with a +2. EVERY spiritual title MUST carry at least one "effects" buff — a spiritual title with no buff is a bug. ALWAYS fill "earned" and "affects", and make them VIVID, not stiff: "earned" is a 1-2 sentence STORY of the specific moment or deed that won the name (what happened, where, what it cost) — never a bare label like "Notorious in Tazar" or "Renowned for cultivation"; "affects" plainly states what the title does for the body/presence. Give the title FLAVOR — these are legends, not database rows. A spiritual title MAY ALSO carry social weight (a famous Sword Saint is also recognized socially) — that's allowed.
 • SOCIAL = how the WORLD REACTS to the character — standing, reputation-as-role, what people DO when they hear the name. A social title is ALWAYS tied to a place ("location") and an AUDIENCE ("audience": which people recognize it — beggars, alchemists, the dock crews, the nobility, the underworld). It never grants a body buff. Instead set "affects" to the concrete social consequence: who defers, who opens doors, who distrusts, and any practical perk (e.g. "alchemists in Tazar cut their prices for you", "the dockworkers will hide you", "guards wave you through"). CRUCIALLY it is uneven by audience and place: a title the beggars of Tazar gave you ("Friend of the Gutter") makes the destitute trust and shelter you — but a noble has never heard of it and may sneer. Honor that split every scene: apply the title only with the people/place that actually recognize it, and let it do NOTHING (or backfire) with those who don't. A SOCIAL title is never also spiritual — it does not change the body.
 Fill "earned" and "affects" on EVERY title so the player can see how they got the name and exactly what it does. When the player is in a relevant place or among a relevant audience, ACT on their titles — let them feel the deference, the discount, the open door, or the cold shoulder.
 
