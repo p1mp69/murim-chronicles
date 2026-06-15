@@ -2113,6 +2113,9 @@ body.generating [onclick*="shopSellItem"], body.generating [onclick*="closeMapGo
           <button class="menu-btn" id="menu-updatelog">
             <span class="menu-btn-icon">📜</span> Update Log
           </button>
+          <button class="menu-btn" id="menu-support">
+            <span class="menu-btn-icon">❤</span> Support the Game
+          </button>
           <div class="menu-divider"></div>
           <button class="menu-btn" id="menu-apikey">
             <span class="menu-btn-icon">⚙</span> API Key
@@ -2155,6 +2158,33 @@ body.generating [onclick*="shopSellItem"], body.generating [onclick*="closeMapGo
       <button class="modal-close" onclick="document.getElementById('panel-leaderboard').classList.add('hidden')">✕</button>
     </div>
     <div class="panel-body" id="leaderboard-list"></div>
+  </div>
+</div>
+
+<!-- Support panel -->
+<div id="panel-support" class="panel-overlay hidden">
+  <div class="panel-card">
+    <div class="panel-header">
+      <h2>Support the Game</h2>
+      <button class="modal-close" onclick="document.getElementById('panel-support').classList.add('hidden')">✕</button>
+    </div>
+    <div class="panel-body">
+      <div style="margin-bottom:16px">
+        <div style="font-size:13px;font-weight:700;color:var(--gold);margin-bottom:4px">🔑 Bring Your Own Key (always free)</div>
+        <div style="font-size:12px;color:var(--muted);line-height:1.6">The story is written by an AI, which costs money per turn — so the game uses <b>your</b> own API key (or a free/local model). It's set in <b>API Key</b> on the menu. The game itself is free; you only ever pay your own model provider, and local models (Ollama / LM Studio) cost nothing at all.</div>
+      </div>
+      <div style="margin-bottom:16px">
+        <div style="font-size:13px;font-weight:700;color:var(--gold);margin-bottom:4px">☕ Tip Jar</div>
+        <div style="font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:8px">If you're enjoying it, a tip keeps it growing. Totally optional.</div>
+        <a href="https://ko-fi.com/YOURNAME" target="_blank" rel="noopener" class="btn-primary" style="display:block;text-align:center;text-decoration:none;margin-bottom:6px">Buy me a coffee (Ko-fi)</a>
+      </div>
+      <div>
+        <div style="font-size:13px;font-weight:700;color:var(--gold);margin-bottom:4px">★ Patreon</div>
+        <div style="font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:8px">Supporters get early features, a say in what's built next, and a supporter mark.</div>
+        <a href="https://patreon.com/YOURNAME" target="_blank" rel="noopener" class="btn-secondary" style="display:block;text-align:center;text-decoration:none">Become a Patron</a>
+      </div>
+      <div style="font-size:10px;color:var(--dim);margin-top:14px;line-height:1.5">Replace the Ko-fi / Patreon links in the code with your own.</div>
+    </div>
   </div>
 </div>
 
@@ -12225,7 +12255,7 @@ window.addEventListener('pagehide', () => { doAutosave(true); });
 // Scheme: MAJOR.MINOR. Big updates bump MAJOR (1.2 -> 2.2). Small updates
 // bump MINOR (2.2 -> 2.3). Each version has a name. The current version is
 // stamped onto every save; older saves can be updated to the latest.
-const GAME_VERSION = { number: '5.0', name: 'Leaderboard' };
+const GAME_VERSION = { number: '5.1', name: 'Global Legends' };
 
 // Which model generates the story. Lite Mode swaps to a far cheaper, faster model
 // (Claude Haiku) so long sessions / limited credits cost a fraction per turn.
@@ -12299,6 +12329,7 @@ const VERSION_HISTORY = [
   { number:'4.9.1', name:'Reforge', sys:'The free/local backend options are now in the API Key button on the MAIN MENU too (not just in-game Settings). Open "API Key & Model" from the menu, pick a Backend, and enter an endpoint + model — or just paste a Claude key as before.', note:'panel-apikey (main-menu) rebuilt: added menu-provider select + menu-baseurl + menu-model + help, header "API Key & Model". saveAPIKey() now reads/validates per-backend (Claude needs key; custom needs URL+model), persists all four to localStorage, and mirrors into the Settings-modal fields. initMainMenu() loads provider/baseurl/model from localStorage, populates the fields, wires menu-provider change → syncMenuBackendVisibility(). Verified in-browser: panel layout, provider toggle relabel/show, save persists + llmConfigured() true for a local endpoint. Version → 4.9.1.' },
   { number:'4.9.2', name:'Reforge', sys:'Added clear step-by-step instructions to the API Key panel — including how to use an OpenAI (ChatGPT) key. Open "API Key & Model", set Backend to Custom, and each provider now shows its exact Endpoint URL and Model name: OpenAI (gpt-4o / gpt-4o-mini), Ollama, LM Studio, Groq, OpenRouter.', note:'Help text in both panel-apikey (main menu) and modal-settings rewritten: added a "How to use it" 4-step line + per-provider Endpoint URL & Model list with OpenAI added first (https://api.openai.com/v1, gpt-4o/gpt-4o-mini, key sk-...). Verified in-browser. Version → 4.9.2.' },
   { number:'5.0', name:'Leaderboard', sys:'Three things. NEW LEADERBOARD: a "Leaderboard" button on the main menu ranks every life you\'ve lived — current and past — by a Legacy Score (cultivation realm, fame &amp; notoriety, lives taken, titles, and mastery of the arts), measured against benchmark legends of the murim like Ichiro, Reo, and the Sword Saint. GENDER ON THE SHEET: your gender now shows on the character page and is clickable to change (it updates how the story refers to you). TRAINED SKILLS REGISTER: when you deliberately study or train a specific skill — e.g. "train and study water manipulation" with Water Qi — it now reliably gets added to your skills (new or leveled up) instead of being ignored.', note:'LEADERBOARD: computeLegacyScore (stageIndex*1000 + fame*6 + kills*8 + titles*40 + mastery*5 + achievements*15 + age) + legacyComponents(char,world); saveToHallOfDead enriched with stageIndex/path/race/kills/titles/mastery/fame/score; renderLeaderboard merges living char + hall entries + LEADERBOARD_LEGENDS benchmarks, sorts desc, medals top-3; panel-leaderboard + menu-leaderboard button + handler + close-list. GENDER: char-gender section on sheet (clickable), render in updateCharacterTab, changeGender() uiPicker (male/female/other) + pronoun-affecting personalEvent. SKILLS: live-prompt "REGISTER TRAINED SKILLS" rule mandating res.skills entry (new or xp) whenever the player studies/trains a named skill, incl. Qi-tied manipulation skills + theory companion. Verified in-browser: leaderboard ranking + medals + legends, gender display/change/picker. Version → 5.0.' },
+  { number:'5.1', name:'Global Legends', sys:'The Leaderboard is now GLOBAL — the greatest lives across all players, ranked by Legacy Score (it auto-submits your character when they die). It needs a free shared database to go live (Supabase, ~5 min — the panel walks you through it); until then it shows the setup steps and the legendary benchmarks. Meanwhile the HALL OF THE DEAD is your personal leaderboard: your own fallen, ranked, with each gravestone\'s story. Plus a new SUPPORT THE GAME button on the menu — how Bring-Your-Own-Key keeps it free, a tip jar, and Patreon.', note:'Hall of the Dead renderHallOfDead now sorts by score (medals) = personal leaderboard. GLOBAL_LB config (Supabase url/anonKey/table) + globalLBConfigured + submitGlobalScore (POST rest/v1) + fetchGlobalTop (order=score.desc) + submitMyLifeToGlobal; handleDeath auto-submits (silent). renderLeaderboard rewritten async: configured→fetch+render global top (highlights you) + submit button; unconfigured→Supabase setup steps + legend benchmarks teaser. panel-support (BYOK explainer + Ko-fi + Patreon, placeholder links) + menu-support button/handler + close-list. Verified in-browser: global setup state, legends, support panel. Version → 5.1.' },
 ];
 
 function cleanSaveData(gs) {
@@ -16761,6 +16792,59 @@ function saveToHallOfDead(char, world, cause) {
   localStorage.setItem(DEAD_KEY, JSON.stringify(hall));
 }
 
+// ── GLOBAL LEADERBOARD (Supabase REST) ────────────────────────────
+// A real worldwide board needs shared storage. The cheapest, simplest way is a
+// free Supabase project. To turn it on:
+//   1. Create a free project at supabase.com.
+//   2. Make a table `leaderboard` with columns:
+//        name text, score int8, stage text, detail text, created_at timestamptz default now()
+//   3. Enable RLS, add an INSERT policy and a SELECT policy for the `anon` role.
+//   4. Paste your Project URL and anon public key below (the anon key is meant to
+//      be public — security comes from the RLS policies).
+const GLOBAL_LB = {
+  url: '',       // e.g. 'https://abcdefgh.supabase.co'
+  anonKey: '',   // your anon public key
+  table: 'leaderboard',
+};
+function globalLBConfigured() { return !!(GLOBAL_LB.url && GLOBAL_LB.anonKey); }
+
+async function submitGlobalScore(name, score, stage, detail) {
+  if(!globalLBConfigured()) return { ok:false, reason:'not_configured' };
+  try {
+    const r = await fetch(`${GLOBAL_LB.url}/rest/v1/${GLOBAL_LB.table}`, {
+      method:'POST',
+      headers:{ apikey:GLOBAL_LB.anonKey, Authorization:'Bearer '+GLOBAL_LB.anonKey, 'Content-Type':'application/json', Prefer:'return=minimal' },
+      body: JSON.stringify({ name, score, stage, detail }),
+    });
+    return { ok:r.ok, status:r.status };
+  } catch(e) { return { ok:false, reason:e?.message }; }
+}
+async function fetchGlobalTop(limit=100) {
+  if(!globalLBConfigured()) return null;
+  try {
+    const r = await fetch(`${GLOBAL_LB.url}/rest/v1/${GLOBAL_LB.table}?select=name,score,stage,detail&order=score.desc&limit=${limit}`, {
+      headers:{ apikey:GLOBAL_LB.anonKey, Authorization:'Bearer '+GLOBAL_LB.anonKey },
+    });
+    if(!r.ok) return null;
+    return await r.json();
+  } catch(e) { return null; }
+}
+// Submit the player's current/finished life to the global board (best-effort).
+async function submitMyLifeToGlobal(silent=false) {
+  try {
+    if(!globalLBConfigured()) { if(!silent) toast('Global leaderboard not set up yet.', '', 3000); return false; }
+    const c = GS.char, w = GS.world;
+    if(!c?.firstName) return false;
+    const comp = legacyComponents(c, w);
+    const score = computeLegacyScore(comp);
+    const detail = `${RACES[c.race]?.name||'Human'} · ${c.qi?.path?c.qi.path+' Qi':'no path'} · age ${c.age} · Yr ${w.year}`;
+    const res = await submitGlobalScore(`${c.firstName} ${c.lastName}`, score, QI_STAGES[comp.stageIndex]?.name||'Mortal', detail);
+    if(res.ok && !silent) toast('Your life was submitted to the global leaderboard.', 'gold', 4000);
+    else if(!res.ok && !silent) toast('Could not reach the global leaderboard.', 'error', 3500);
+    return res.ok;
+  } catch(e) { return false; }
+}
+
 // World-legend benchmarks so the leaderboard means something from your very first
 // life — you can see where you rank against the titans of the murim.
 const LEADERBOARD_LEGENDS = [
@@ -16772,49 +16856,64 @@ const LEADERBOARD_LEGENDS = [
   { name:'Masaki Jūrō',    legend:true, note:'Broke the world (Fracture)',stageIndex:12, fame:90,  kills:50, titles:2, mastery:55, age:0 },
 ];
 
-function renderLeaderboard() {
+async function renderLeaderboard() {
   const list = document.getElementById('leaderboard-list');
   if(!list) return;
-  const entries = [];
-  // Living character (if a game is in progress)
-  try {
-    if(GS?.char?.firstName && !GS.char.isDead) {
-      const comp = legacyComponents(GS.char, GS.world);
-      entries.push({ name:`${GS.char.firstName} ${GS.char.lastName}`, you:true,
-        stage: QI_STAGES[comp.stageIndex]?.name||'Mortal', stageIndex:comp.stageIndex,
-        fame:comp.fame, kills:comp.kills, titles:comp.titles, mastery:comp.mastery,
-        score: computeLegacyScore(comp), note:'your current life' });
-    }
-  } catch(e) {}
-  // Past lives from the Hall of the Dead
-  let hall = [];
-  try { hall = JSON.parse(localStorage.getItem(DEAD_KEY) || '[]'); } catch(e) {}
-  hall.forEach(d => entries.push({
-    name:d.name, stage:d.stage, stageIndex:d.stageIndex||0, fame:d.fame||0, kills:d.kills||0,
-    titles:d.titles||0, mastery:d.mastery||0,
-    score: (d.score != null ? d.score : computeLegacyScore(d)),
-    note:`died Year ${d.deathYear}, age ${d.age}`,
-  }));
-  // Legendary benchmarks
-  LEADERBOARD_LEGENDS.forEach(l => entries.push({
-    name:l.name, legend:true, stage:QI_STAGES[l.stageIndex]?.name||'Mortal', stageIndex:l.stageIndex,
-    fame:l.fame, kills:l.kills, titles:l.titles, mastery:l.mastery,
-    score: computeLegacyScore(l), note:l.note,
-  }));
-
-  entries.sort((a,b) => b.score - a.score);
-
   const medal = i => i===0?'🥇':i===1?'🥈':i===2?'🥉':`#${i+1}`;
-  list.innerHTML = `<div style="font-size:11px;color:var(--dim);margin-bottom:10px;line-height:1.5">Ranked by Legacy Score — cultivation realm, fame &amp; notoriety, lives taken, titles, and mastery of the arts. Your lives are measured against the legends of the murim.</div>` +
-    entries.map((e,i) => `
-    <div class="dead-entry" style="${e.you?'border-color:var(--gold)':''}">
-      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px">
-        <div class="dead-name" style="${e.legend?'color:var(--demonic)':e.you?'color:var(--gold)':''}">${medal(i)} &nbsp;${e.name}${e.you?' <span style="font-size:10px;color:var(--gold)">(you)</span>':''}${e.legend?' <span style="font-size:10px;color:var(--demonic)">✦ legend</span>':''}</div>
-        <div style="font-weight:700;color:var(--gold);font-size:14px;white-space:nowrap">${e.score.toLocaleString()}</div>
+
+  // Header + a "submit my life" button (only useful once the board is live).
+  const myScore = (() => { try { return GS?.char?.firstName ? computeLegacyScore(legacyComponents(GS.char, GS.world)) : null; } catch(e) { return null; } })();
+  const submitBtn = (globalLBConfigured() && myScore != null)
+    ? `<button class="btn-primary btn-sm" style="margin-bottom:10px" onclick="submitMyLifeToGlobal().then(()=>renderLeaderboard())">Submit your current life (${myScore.toLocaleString()})</button>` : '';
+
+  if(!globalLBConfigured()) {
+    // Not wired to a backend yet — explain how, and show the legend benchmarks as a teaser.
+    list.innerHTML = `
+      <div style="font-size:12px;color:var(--muted);line-height:1.65;margin-bottom:14px">
+        <b style="color:var(--gold)">Global leaderboard not set up yet.</b><br>
+        A worldwide board needs a shared online database. The free way (≈5 min):
+        <ol style="margin:8px 0 0;padding-left:18px">
+          <li>Create a free project at <span style="color:var(--gold)">supabase.com</span>.</li>
+          <li>Add a table <code>leaderboard</code> (columns: <code>name</code> text, <code>score</code> int8, <code>stage</code> text, <code>detail</code> text, <code>created_at</code> timestamptz default now()).</li>
+          <li>Enable RLS, add an <b>insert</b> and a <b>select</b> policy for the <code>anon</code> role.</li>
+          <li>Paste your Project URL + anon key into <code>GLOBAL_LB</code> in the code.</li>
+        </ol>
+        <div style="margin-top:8px">Meanwhile, your own ranked lives live in <b>Hall of the Dead</b>. Below: the legends you're climbing toward.</div>
       </div>
-      <div class="dead-meta">${e.stage} · ${e.note}</div>
-      <div style="font-size:11px;color:var(--muted);margin-top:2px">Fame ${e.fame} · Kills ${e.kills} · Titles ${e.titles} · Art-mastery ${e.mastery}</div>
-    </div>`).join('');
+      <div style="font-size:10px;text-transform:uppercase;letter-spacing:.1em;color:var(--demonic);margin-bottom:8px">Legendary Benchmarks</div>` +
+      LEADERBOARD_LEGENDS.map(l => ({ ...l, score:computeLegacyScore(l), stage:QI_STAGES[l.stageIndex]?.name||'Mortal' }))
+        .sort((a,b)=>b.score-a.score)
+        .map((e,i)=>`
+        <div class="dead-entry">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px">
+            <div class="dead-name" style="color:var(--demonic)">${medal(i)} &nbsp;${e.name} <span style="font-size:10px">✦ legend</span></div>
+            <div style="font-weight:700;color:var(--gold);font-size:14px;white-space:nowrap">${e.score.toLocaleString()}</div>
+          </div>
+          <div class="dead-meta">${e.stage} · ${e.note}</div>
+        </div>`).join('');
+    return;
+  }
+
+  list.innerHTML = `<div style="text-align:center;color:var(--dim);font-style:italic;padding:24px 0">Loading the global leaderboard…</div>`;
+  const rows = await fetchGlobalTop(100);
+  if(!rows) {
+    list.innerHTML = submitBtn + `<div style="text-align:center;color:var(--red);padding:24px 0">Couldn't reach the global leaderboard. Try again shortly.</div>`;
+    return;
+  }
+  const myName = GS?.char?.firstName ? `${GS.char.firstName} ${GS.char.lastName}` : null;
+  list.innerHTML = `<div style="font-size:11px;color:var(--dim);margin-bottom:10px;line-height:1.5">The greatest lives ever lived across all players, by Legacy Score. Your own fallen are ranked in <b>Hall of the Dead</b>.</div>` +
+    submitBtn +
+    (rows.length ? rows.map((e,i)=>{
+      const mine = myName && e.name === myName;
+      return `
+      <div class="dead-entry" style="${mine?'border-color:var(--gold)':''}">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px">
+          <div class="dead-name" style="${mine?'color:var(--gold)':''}">${medal(i)} &nbsp;${(e.name||'Unknown').slice(0,40)}${mine?' <span style="font-size:10px;color:var(--gold)">(you)</span>':''}</div>
+          <div style="font-weight:700;color:var(--gold);font-size:14px;white-space:nowrap">${(e.score||0).toLocaleString()}</div>
+        </div>
+        <div class="dead-meta">${e.stage||'Mortal'}${e.detail?' · '+e.detail:''}</div>
+      </div>`; }).join('')
+    : `<div style="text-align:center;color:var(--dim);padding:24px 0">No legends recorded yet. Be the first.</div>`);
 }
 
 function renderHallOfDead() {
@@ -16826,9 +16925,17 @@ function renderHallOfDead() {
     list.innerHTML = '<div style="text-align:center;color:var(--dim);font-style:italic;padding:40px 0">No one has died yet.</div>';
     return;
   }
-  list.innerHTML = hall.map(d => `
+  // YOUR personal leaderboard: rank your own fallen by Legacy Score (highest lives
+  // first), while keeping the gravestone details for each.
+  const ranked = hall.slice().sort((a,b) => (b.score||computeLegacyScore(b)) - (a.score||computeLegacyScore(a)));
+  const medal = i => i===0?'🥇':i===1?'🥈':i===2?'🥉':`#${i+1}`;
+  list.innerHTML = `<div style="font-size:11px;color:var(--dim);margin-bottom:10px;line-height:1.5">Your fallen, ranked by Legacy Score. Each gravestone keeps how that life rose and how it ended.</div>` +
+    ranked.map((d,i) => `
     <div class="dead-entry">
-      <div class="dead-name">${d.name}</div>
+      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:10px">
+        <div class="dead-name">${medal(i)} &nbsp;${d.name}</div>
+        <div style="font-weight:700;color:var(--gold);font-size:13px;white-space:nowrap">${(d.score!=null?d.score:computeLegacyScore(d)).toLocaleString()}</div>
+      </div>
       <div class="dead-meta">Age ${d.age} · Year ${d.deathYear} · ${d.stage} · ${d.location}</div>
       <div class="dead-cause">Cause: ${d.cause}</div>
       ${d.traits?.length ? `<div style="font-size:11px;color:var(--muted);margin-top:4px">Traits: ${d.traits.join(', ')}</div>` : ''}
@@ -17904,6 +18011,10 @@ function initMainMenu() {
     document.getElementById('panel-updatelog').classList.remove('hidden');
   });
 
+  document.getElementById('menu-support')?.addEventListener('click', () => {
+    document.getElementById('panel-support').classList.remove('hidden');
+  });
+
   document.getElementById('menu-apikey').addEventListener('click', () => {
     const inp = document.getElementById('menu-apikey-input');
     if(inp) inp.value = localStorage.getItem('murim_apikey') || '';
@@ -17911,7 +18022,7 @@ function initMainMenu() {
   });
 
   // Close panels on backdrop click
-  ['panel-continue','panel-dead','panel-leaderboard','panel-achievements','panel-updatelog','panel-apikey'].forEach(id => {
+  ['panel-continue','panel-dead','panel-leaderboard','panel-support','panel-achievements','panel-updatelog','panel-apikey'].forEach(id => {
     document.getElementById(id)?.addEventListener('click', e => {
       if(e.target.id === id) document.getElementById(id).classList.add('hidden');
     });
@@ -17928,6 +18039,8 @@ const _origHandleDeath = handleDeath;
 handleDeath = function(cause) {
   // Save to hall before clearing state
   saveToHallOfDead(GS.char, GS.world, cause);
+  // And submit the finished life to the global leaderboard (best-effort, silent).
+  try { submitMyLifeToGlobal(true); } catch(e) {}
   _origHandleDeath(cause);
 };
 
