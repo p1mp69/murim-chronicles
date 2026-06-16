@@ -2068,6 +2068,10 @@ body.generating [onclick*="shopSellItem"], body.generating [onclick*="closeMapGo
 
 <!-- ── MAIN MENU ── -->
 <div id="screen-menu" class="screen hidden">
+  <a href="https://discord.gg/8ppee4BQT" target="_blank" rel="noopener" title="Join the Discord"
+     style="position:absolute;top:14px;right:16px;z-index:30;display:flex;align-items:center;gap:6px;padding:7px 12px;border:1px solid #5865F2;border-radius:8px;background:rgba(88,101,242,.15);color:#aab4ff;font-size:12px;font-weight:700;text-decoration:none">
+    💬 Discord
+  </a>
   <div class="menu-layout">
 
     <!-- Left lore pane -->
@@ -2160,23 +2164,15 @@ body.generating [onclick*="shopSellItem"], body.generating [onclick*="closeMapGo
         <div style="font-size:12px;color:var(--muted);line-height:1.6">The story is written by an AI, which costs money per turn — so the game uses <b>your</b> own API key (or a free/local model). It's set in <b>API Key</b> on the menu. The game itself is free; you only ever pay your own model provider, and local models (Ollama / LM Studio) cost nothing at all.</div>
       </div>
       <div style="margin-bottom:16px">
-        <div style="font-size:13px;font-weight:700;color:var(--gold);margin-bottom:4px">☕ Tip Jar</div>
-        <div style="font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:8px">If you're enjoying it, a tip keeps it growing. Totally optional — pick whatever works for you.</div>
-        <a id="tip-paypal" href="https://paypal.me/YOURNAME" target="_blank" rel="noopener" class="btn-primary" style="display:block;text-align:center;text-decoration:none;margin-bottom:6px">PayPal</a>
-        <a id="tip-cashapp" href="https://cash.app/$YOURTAG" target="_blank" rel="noopener" class="btn-secondary" style="display:block;text-align:center;text-decoration:none;margin-bottom:6px">Cash App</a>
-        <a id="tip-kofi" href="https://ko-fi.com/YOURNAME" target="_blank" rel="noopener" class="btn-secondary" style="display:block;text-align:center;text-decoration:none;margin-bottom:6px">Ko-fi</a>
-        <div style="display:flex;gap:6px;align-items:center;margin-top:8px">
-          <span style="font-size:11px;color:var(--muted)">Crypto:</span>
-          <code id="tip-crypto" style="font-size:10px;color:var(--gold);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">YOUR_WALLET_ADDRESS</code>
-          <button class="btn-secondary btn-sm" onclick="(function(){var a=document.getElementById('tip-crypto').textContent;navigator.clipboard&&navigator.clipboard.writeText(a);toast('Address copied','gold',2000);})()">Copy</button>
-        </div>
+        <div style="font-size:13px;font-weight:700;color:var(--gold);margin-bottom:4px">💵 Tip Jar — Cash App</div>
+        <div style="font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:8px">If you want the game updated more often, or you just want to support it, a tip goes a long way. Totally optional — but it directly funds more frequent updates and new features.</div>
+        <a href="https://cash.app/$MurimChronicles" target="_blank" rel="noopener" class="btn-primary" style="display:block;text-align:center;text-decoration:none">Tip on Cash App — $MurimChronicles</a>
       </div>
       <div>
-        <div style="font-size:13px;font-weight:700;color:var(--gold);margin-bottom:4px">★ Patreon</div>
-        <div style="font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:8px">Supporters get early features, a say in what's built next, and a supporter mark.</div>
-        <a id="tip-patreon" href="https://patreon.com/YOURNAME" target="_blank" rel="noopener" class="btn-secondary" style="display:block;text-align:center;text-decoration:none">Become a Patron</a>
+        <div style="font-size:13px;font-weight:700;color:var(--gold);margin-bottom:4px">💬 Discord</div>
+        <div style="font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:8px">Join the community — report bugs, suggest features, and follow updates.</div>
+        <a href="https://discord.gg/8ppee4BQT" target="_blank" rel="noopener" class="btn-secondary" style="display:block;text-align:center;text-decoration:none">Join the Discord</a>
       </div>
-      <div style="font-size:10px;color:var(--dim);margin-top:14px;line-height:1.5">Replace the placeholder links/address in the code with your own (PayPal.me, Cash App $tag, Ko-fi, a crypto wallet, Patreon — use whichever you can set up).</div>
     </div>
   </div>
 </div>
@@ -8871,8 +8867,47 @@ function spawnLoreNPC(loreId) {
   return npc;
 }
 
+// A NAME that is really an organization / building / sect, not a person — so it
+// never lands in the People tab ("Gentle Path Academy" showed up as a person).
+const _ORG_NAME_RE = /\b(sect|clan|academy|school|pavilion|guild|order|society|association|alliance|faction|dojo|monastery|abbey|conservatory|brigade|company|corps|cult|coven|syndicate|consortium|league|college|institute|bureau|ministry|tribunal|emporium|library|forge|workshop|the .* hall)\b/i;
+function _looksLikeOrganization(name) {
+  return !!name && _ORG_NAME_RE.test(String(name));
+}
+function _looksLikeSect(name) {
+  return !!name && /\b(sect|clan|academy|school|pavilion|order|dojo|monastery|cult|coven|league|martial)\b/i.test(String(name));
+}
+// Register a sect/faction the player learns of, so it shows under World → Sects.
+function addDiscoveredSect(obj) {
+  if(!obj) return null;
+  const name = (typeof obj === 'string' ? obj : (obj.name || '')).trim();
+  if(!name) return null;
+  const w = GS.world;
+  if(!Array.isArray(w.discoveredSects)) w.discoveredSects = [];
+  let s = w.discoveredSects.find(x => (x.name||'').toLowerCase() === name.toLowerCase());
+  if(!s) {
+    s = { name, alignment: obj.alignment || 'Unknown', location: obj.location || (LOCATIONS[w.location]?.name || w.location),
+          desc: obj.desc || '', status: obj.status || 'Discovered', playerRank: obj.playerRank || null };
+    w.discoveredSects.push(s);
+    try { addChronicleEntry(`Learned of a sect/faction: ${name}.`, 'normal'); } catch(e) {}
+  } else {
+    if(obj.desc && !s.desc) s.desc = obj.desc;
+    if(obj.alignment && (!s.alignment || s.alignment==='Unknown')) s.alignment = obj.alignment;
+    if(obj.location && !s.location) s.location = obj.location;
+    if(obj.playerRank) s.playerRank = obj.playerRank;
+    if(obj.status) s.status = obj.status;
+  }
+  try { updateWorldTab(); } catch(e) {}
+  return s;
+}
+
 function addOrUpdateRelationship(npc, type='encountered', summary='') {
   const w = GS.world;
+  // GUARD: never file an organization/building as a person. If it's sect-like, learn
+  // it as a sect instead so it shows under World → Sects, not People.
+  if(npc && _looksLikeOrganization(npc.name)) {
+    if(_looksLikeSect(npc.name)) addDiscoveredSect({ name:npc.name, desc:(summary||npc.title||'') });
+    return null;
+  }
   const existing = GS.char.relationships.find(r=>r.npcId===npc.id);
   if(existing) {
     existing.type = type || existing.type;
@@ -11621,6 +11656,7 @@ PART 2 — DATA (immediately after the narrative, on its own line):
   "newRelationships": [{ "npcId": "", "name": "", "title": "", "type": "", "summary": "", "alive": true, "isLore": false, "glowColor": null, "cultivation": "their realm if a cultivator, e.g. Qi Condensation I" }],
   "updateRelationships": [{ "npcId": "", "type": "", "summary": "", "memoryAddition": "", "trust": 0, "alive": null, "imprisoned": null, "prisonLocation": null, "cultivation": "set when their realm should change/correct, e.g. Foundation Building" }],
   "reputation": [{ "location": "tazar", "renown": 0, "infamy": 0, "eventDesc": "" }],
+  "newSects": [{ "name":"", "alignment":"orthodox|demonic|neutral|unknown", "location":"where", "desc":"what they are" }],
   "decisions": ["narrative text"],
   "personalEvents": ["narrative text"],
   "crimes": ["narrative text"],
@@ -12357,7 +12393,7 @@ window.addEventListener('pagehide', () => { doAutosave(true); });
 // Scheme: MAJOR.MINOR. Big updates bump MAJOR (1.2 -> 2.2). Small updates
 // bump MINOR (2.2 -> 2.3). Each version has a name. The current version is
 // stamped onto every save; older saves can be updated to the latest.
-const GAME_VERSION = { number: '5.4', name: 'It Counts Now' };
+const GAME_VERSION = { number: '5.5', name: 'New Bloodlines' };
 
 // Which model generates the story. Lite Mode swaps to a far cheaper, faster model
 // (Claude Haiku) so long sessions / limited credits cost a fraction per turn.
@@ -12435,6 +12471,7 @@ const VERSION_HISTORY = [
   { number:'5.2', name:'Names With Weight', sys:'Titles were stiff and gave nothing — fixed. Reputation-born titles (the ones the world gives you for renown or infamy, like "The Eyeless Mask") now tell the real STORY of how you earned them — built from the actual deeds that spread your name — instead of a bare "Notorious in Wheat Capital." They also grant real buffs now, scaled to how big the reputation is (a feared name hardens your will and sharpens your eye; a renowned one lends bearing and luck). Existing buff-less titles on your save are repaired and given their buffs the moment it loads. And the storyteller is told, firmly, that every spiritual title must carry a buff and a vivid 1-2 sentence story of the moment it was won — no more lifeless one-liners.', note:'syncReputationTitles rewritten: upsertRepTitle() builds "earned" from rep.definingEvents (real deeds), sets a meaningful "affects", and applies repTitleEffects() (infamy→willpower+perception, renown→charisma+luck, scaled by magnitude, capped) exactly once via _repEffectsApplied flag; repairs existing bland titles (replaces /^(Renowned|Notorious) in / earned + applies missing buffs). Runs on load. Prompt TITLES rule: every spiritual title MUST have effects + "earned" must be a vivid 1-2 sentence story, never a bare label. Verified in-browser: bland "The Eyeless Mask" → real story + willpower+4/perception+2, no double-apply. Version → 5.2.' },
   { number:'5.3', name:'Housekeeping', sys:'A big batch of fixes. NO MORE FAKE JOBS: the game will not turn a PLACE or stray phrase ("Ocean Floor") into an occupation anymore, and existing bogus ones are cleared on load. BOONS ARE TRAITS NOW: permanent gifts, bloodlines, marks, and awakenings (Heavenly Demon Seedling, Tribulation-Marked, a hardened frame…) become real TRAITS with buffs instead of being dumped into Physical Conditions. NPC REALMS STAY ACCURATE: the cultivation level shown next to a person now matches the story (no more "Body Tempering" for someone the tale treats as Qi Condensation), and duplicate people in your list are merged. HOUSE UPGRADES: building a training yard / alchemy lab / etc. now attaches to your home as an upgrade instead of spawning a separate "property". CUSTOM BACKEND FIX: starting a new game no longer wipes your free/local model setup (the "blank api not working" bug). LEADERBOARD REMOVED; HALL OF THE DEAD is now sortable by Legacy, Cultivation, Wealth, Strength, Kills, or Fame. New tip options (PayPal, Cash App, crypto) in Support.', note:'OCCUPATION: _looksLikeOccupation() rejects locations/place-words + LOCATIONS names, requires job suffix/trade word; gates detectOccupationFromNarrative; migrate clears auto-detected ("Taken on through the story.") occupations failing the check. TRAITS: addCustomTrait({name,desc,effects,rarity}) (effects clamped ±40, applied) + res.newTraits handler + schema + TRAITS-vs-CONDITIONS prompt rule (boons→newTraits). NPC: resolveQiStageIndex(name/id/index) + cultivation field on new/updateRelationships (sets npc.qiStageIndex+cap) + schema + prompt; dedupe newRelationships by name; migrate collapses same-name relationship duplicates. HOUSE: _matchUpgradeKey + registerNarrativeAsset attaches known upgrades to home instead of new property. BACKEND: menu-newgame now restores apiProvider/apiBaseUrl/apiModel from localStorage (was only apiKey → reverted custom backend to blank Anthropic). LEADERBOARD removed (panel/button/global-LB/renderLeaderboard/auto-submit); renderHallOfDead category tabs (HALL_CATEGORIES + setHallSort) + saveToHallOfDead stores stats+silver. SUPPORT: PayPal/CashApp/Ko-fi/crypto(copy)/Patreon placeholders. Verified in-browser. Version → 5.3.' },
   { number:'5.4', name:'It Counts Now', sys:'Talking to and flirting with people in the story finally counts. Before, you could flirt with someone for weeks and the People tab would still show nothing — now any real interaction with a known NPC nudges the relationship: talking/helping/spending time raises your bond, and flirting builds chemistry and moves the romance along (noticed → interested → flirting) right there in the People tab. The storyteller is also told it MUST register these, so it stops happening only in the prose.', note:'registerNarrativeInteractions(rawMsg): detects social vs romantic interaction (_SOCIAL_RE/_ROMANTIC_RE) with any known relationship named in the player message (full or distinctive first name, word-boundary); bumps bond_level (+2 social/+3 romantic) + trust; romantic also ensureRomance + chemistry+4/attraction+3 and auto-walks early stages none→noticed→interested→flirting by chemistry thresholds (never past flirting — confess/court/together stay AI-owned). Wired into the turn injection pass. Prompt: RELATIONSHIPS & ROMANCE MUST REGISTER rule (trust on interaction, romanceUpdates on any romantic beat). Verified in-browser. Version → 5.4.' },
+  { number:'5.5', name:'New Bloodlines', sys:'A batch. NEW RACES: Abyssborn, Bloodkin, Revenant, Shadow Walker (gained through dark arcs); Heavenly Demon, Asura, Nine Hells Saint (apex transformations); and eight DIVINE-BEAST HYBRIDS you can be born as OR transform into and shift to their form at will — True Dragon, Vermilion Bird, White Tiger, Black Tortoise, Golden Roc, Qilin, Heavenly Fox, Divine Ape — plus the Lycanthrope (beast-Qi were-shifter). SECTS ARE NOT PEOPLE: a sect/academy/clan can no longer show up in your People tab as a person — they now register under World → Sects, and old bogus "people" like that are cleared on load; sects you encounter actually get recorded. USABLE DRUGS: a drug you keep for yourself now goes in your inventory (not just the dealing stash) so you can actually use it. SUPPORT: tipping is now Cash App ($MurimChronicles) with a note that it funds more frequent updates, plus a Discord button in the menu corner and in Support.', note:'RACES: 16 new entries in RACES (gained/transformed/8 hybrids born:true+hybridForm/lycanthrope) + RACE_PATHS triggers/risks for all; race-prompt builders fixed — bornNames now born&&!RACE_PATHS, paths lists all RACE_PATHS with "(can also be BORN)" note for born hybrids; setRace verified applies modifiers. SECTS: _looksLikeOrganization/_looksLikeSect guards in addOrUpdateRelationship + consolidated newRelationships (reroute sect-named to addDiscoveredSect); res.newSects handler + addDiscoveredSect() + schema (both blocks) + SECTS-ARE-NOT-PEOPLE prompt; migrate evicts org-named relationships (sects→discoveredSects). DRUGS: prompt rule routes personal-use drugs to newItems(consumable) inventory. SUPPORT: panel→Cash App $MurimChronicles + update note + Discord; menu corner Discord button (discord.gg/8ppee4BQT). Verified in-browser. Version → 5.5.' },
 ];
 
 function cleanSaveData(gs) {
@@ -12692,6 +12729,22 @@ function migrateSave(data) {
   if(c.occupation && c.occupation.desc === 'Taken on through the story.'
      && typeof _looksLikeOccupation === 'function' && !_looksLikeOccupation(c.occupation.title)) {
     c.occupation = null;
+  }
+
+  // Evict organizations/buildings that were wrongly filed as PEOPLE (e.g. a sect like
+  // "Gentle Path Academy"). Sect-like ones are moved to the discovered-sects list.
+  if(Array.isArray(c.relationships) && typeof _looksLikeOrganization === 'function') {
+    const keep = [];
+    c.relationships.forEach(r => {
+      if(r && _looksLikeOrganization(r.name)) {
+        if(typeof _looksLikeSect === 'function' && _looksLikeSect(r.name)) {
+          try { addDiscoveredSect({ name:r.name, desc:r.summary||r.title||'' }); } catch(e) {}
+        }
+        return; // drop from People
+      }
+      keep.push(r);
+    });
+    if(keep.length !== c.relationships.length) c.relationships = keep;
   }
 
   // De-duplicate the People list — the AI sometimes re-introduced the same person
@@ -14590,6 +14643,31 @@ const RACES = {
   half_sanguine: { name:'Half-Sanguine',   born:true, halfBeast:'sanguine', desc:'One of your parents was a Sanguine — an ancient, elegant blood-drinker in mortal seeming. Their dominion over blood runs in you: you feel the pulse of every living thing nearby.', modifiers:{ agility:12, perception:10, charisma:14, endurance:10, willpower:8 }, culture:'Half-sanguine are magnetic and unsettling in equal measure — beautiful, patient, and never quite warm. They move easily through courts and high society, hungry for something they rarely name.', aiHint:'HALF-SANGUINE: Half ancient blood-cultivator. Seductive, predatory grace; can sense and (with art) command blood — drawing vitality, healing, reading the living by their pulse. Refined and unhurried. Blood arts and social manipulation come amplified.' },
   half_arachnid: { name:'Half-Arachnid',   born:true, halfBeast:'arachnid', desc:'One of your parents was an Arachnid — the original weaver — in humanoid form. Their thread-and-web Qi is yours: you feel tremors others miss and spin silk that cuts and binds.', modifiers:{ agility:14, perception:14, intelligence:10, willpower:8 }, culture:'Half-arachnid are patient, watchful, and coldly brilliant. They unnerve people who can\'t say why. They are the source-kin of every thread-cultivator, and the great weaver-clans would kill or covet them.', aiHint:'HALF-ARACHNID: Half the original weaver. Uncanny agility and tremor-sense, the source-art of thread/silk/web cultivation, and a patient, predatory intelligence. Thread and snare arts come amplified; they sense far more of their surroundings than anyone expects.' },
   half_giant:    { name:'Half-Giant',      born:true, halfBeast:'giant', desc:'One of your parents was a Giant or Titan — a colossus that wore a smaller shape to walk among people. Their weight-Qi runs in you: you are denser, stronger, and harder to move than any mortal frame should allow.', modifiers:{ strength:18, endurance:18, willpower:10, agility:-2 }, culture:'Half-giants tower over ordinary folk and carry a stillness that makes rooms go quiet. Slow to rouse and immovable once set, they are sought as guardians and feared as enemies.', aiHint:'HALF-GIANT: Half the blood of a titan. Colossal strength and durability, control over weight and gravity (what they strike is crushed; they cannot be easily moved), and a slow, mountainous certainty. Body-tempering and gravity arts come amplified; their sheer physical power dwarfs ordinary cultivators.' },
+
+  // ── GAINED races — taken on through a dark, dangerous arc (not born). ──
+  abyssborn:     { name:'Abyssborn',       desc:'You went down into the deep dark and something came back up wearing you. The abyss left its cold in your marrow — you see in lightless places and the void answers when you call.', modifiers:{ perception:9, willpower:8, endurance:6, charisma:-4 }, aiHint:'ABYSSBORN: Remade by the deep dark/void. Sees in total darkness, draws on abyssal cold, unnervingly calm under dread; the deep dark and its servants treat them as kin. Increasingly detached from warmth and ordinary people.' },
+  bloodkin:      { name:'Bloodkin',        desc:'You drank deep of a blood art and it rewrote you. Your blood is power now — you feel the pulse of everyone near, mend from wounds that should kill, and take strength from spilled life.', modifiers:{ strength:7, agility:8, endurance:8, charisma:6, luck:-2 }, qiPathForced:'demonic', aiHint:'BLOODKIN: A blood-cultivator remade. Senses and (with art) commands blood, heals by drawing vitality, grows stronger amid carnage. Magnetic and predatory; the orthodox world hunts them, the demonic courts covet them.' },
+  revenant:      { name:'Revenant',        desc:'You died — and refused it. Whatever dragged you back left you on the wrong side of the door: hard to kill, slow to age, and never quite warm again.', modifiers:{ endurance:12, willpower:9, strength:4, charisma:-5, luck:-2 }, aiHint:'REVENANT: One who returned from death. Extraordinarily hard to kill, ignores pain and many wounds, does not age normally; death-Qi answers them. Cold, single-minded, and unsettling to the living — and death has unfinished business with them.' },
+  shadow_walker: { name:'Shadow Walker',   desc:'You learned to step sideways into shadow and not every part of you came back into the light. You move through dark as through an open door, and eyes slide off you when you wish.', modifiers:{ agility:12, perception:9, willpower:5, charisma:-3 }, aiHint:'SHADOW WALKER: Bonded to shadow. Slips between shadows over short distances, near-invisible in dim light, strikes from where no one was looking. Peerless infiltrator and assassin; struggles to be truly seen, even by those they love.' },
+
+  // ── TRANSFORMED races — the apex of a forbidden or holy path, earned at terrible cost. ──
+  heavenly_demon:{ name:'Heavenly Demon',  desc:'You walked the demonic path to its summit and became its sovereign. The Heavenly Demon is not a cultivator of demonic Qi — they ARE it, the peak a demonic practitioner can reach. Lesser demons kneel; the orthodox world unites to end you.', modifiers:{ strength:14, agility:12, endurance:12, willpower:16, charisma:10, perception:8 }, qiPathForced:'demonic', aiHint:'HEAVENLY DEMON: The apex of the demonic path — a sovereign of demonic Qi. Overwhelming presence and power; demonic cultivators instinctively submit, and demonic arts come effortlessly and amplified. A monarch-tier threat the righteous sects band together against. Earned only by mastering the demonic path to its very peak.' },
+  asura:         { name:'Asura',           desc:'You drowned a battlefield in blood and rose as something that war itself fears. The Asura is wrath given a body — the more you fight and kill, the stronger and harder to stop you become.', modifiers:{ strength:16, agility:14, endurance:14, willpower:12, charisma:-3 }, aiHint:'ASURA: A war-demon born of endless slaughter. Combat prowess beyond the human ceiling; grows stronger the longer and bloodier the fight, shrugs off wounds in battle-fury, nearly unstoppable in open war. Driven by an appetite for conflict that restraint can barely cage.' },
+  nine_hells_saint:{ name:'Nine Hells Saint', desc:'You passed through every torment of the nine hells and were sanctified by them rather than broken. You command hellfire and judgment, and the damned answer your name.', modifiers:{ willpower:16, endurance:12, charisma:10, perception:8, strength:6 }, qiPathForced:'demonic', aiHint:'NINE HELLS SAINT: Sanctified by surviving every hell. Commands hellfire, judgment, and the damned; immense will and authority over dark spirits and the dead. A paradox — holy and infernal at once — feared and revered. Earned only through an ordeal that destroys almost everyone who attempts it.' },
+
+  // ── DIVINE-BEAST HYBRIDS — born of, or transformed into, one of the sacred beasts.
+  // You are not fully the beast: you are a hybrid who can shift into its form at will. ──
+  true_dragon:   { name:'True Dragon',     born:true, hybridForm:true, desc:'The blood of a True Dragon runs in you — sovereign heaven-Qi, dominion over storm and flame. You wear a human shape, but the dragon is always there, and you can let it out.', modifiers:{ strength:14, endurance:16, willpower:16, perception:10, intelligence:10, charisma:12, qi_efficiency:0.6 }, aiHint:'TRUE DRAGON HYBRID: Can shift between human form and a true dragon at will. Sovereign elemental dominion (storm, flame, pressure bend to their will as law), immense durability and presence, the heavens never indifferent to them. Among the strongest beings alive. Either born to it or achieved through a legendary draconic transformation.' },
+  vermilion_bird:{ name:'Vermilion Bird',  born:true, hybridForm:true, desc:'You carry the fire of the Vermilion Bird of the South — undying flame and rebirth. Burn away and rise again; your human form is one shape of many.', modifiers:{ agility:14, willpower:14, charisma:12, perception:10, endurance:10 }, aiHint:'VERMILION BIRD HYBRID: Shifts between human and a great flame-phoenix at will. Commands fire, rises reborn from near-death (rarely, dramatically), radiant presence that inspires or terrifies. Either born to it or attained through a fiery rebirth.' },
+  white_tiger:   { name:'White Tiger',     born:true, hybridForm:true, desc:'The White Tiger of the West prowls in your blood — metal, slaughter, and the killing wind. You are the perfect predator wearing a person.', modifiers:{ strength:14, agility:16, endurance:12, perception:12, charisma:-2 }, aiHint:'WHITE TIGER HYBRID: Shifts between human and a colossal white tiger at will. Apex predator — blinding speed, metal-edged claws and killing instinct, unmatched in close slaughter. Either born to it or earned through a brutal martial transformation.' },
+  black_tortoise:{ name:'Black Tortoise',  born:true, hybridForm:true, desc:'The Black Tortoise of the North anchors you — water, winter, and an endurance that outlasts mountains. Nigh-immovable, nigh-unkillable.', modifiers:{ endurance:20, willpower:14, strength:8, agility:-3 }, aiHint:'BLACK TORTOISE HYBRID: Shifts between human and a vast serpent-shelled tortoise at will. Near-impenetrable defense, command of water and cold, endurance that outlasts almost anything. The immovable guardian. Either born to it or attained through a long ordeal of tempering.' },
+  golden_roc:    { name:'Golden Roc',      born:true, hybridForm:true, desc:'The Golden Roc\'s sky-splitting speed is yours — wind, distance, and a wingbeat that crosses kingdoms. Nothing outruns you.', modifiers:{ agility:20, perception:14, strength:8, willpower:6 }, aiHint:'GOLDEN ROC HYBRID: Shifts between human and a kingdom-spanning golden roc at will. The fastest thing in the sky — wind dominion, blinding aerial speed, strikes that arrive before they\'re seen. Either born to it or earned through a transformation of the wind-path.' },
+  qilin:         { name:'Qilin',           born:true, hybridForm:true, desc:'The sacred Qilin walks gently in your blood — an auspicious beast of judgment and grace. Where you tread, fortune and reckoning follow.', modifiers:{ willpower:14, charisma:14, intelligence:12, luck:10, perception:8 }, aiHint:'QILIN HYBRID: Shifts between human and the sacred Qilin at will. An auspicious, righteous beast — radiant fortune, unerring judgment of good and ill, gentle until provoked and then overwhelming. The heavens and holy powers favor them. Either born to it or attained through a path of supreme virtue.' },
+  heavenly_fox:  { name:'Heavenly Fox',    born:true, hybridForm:true, qiPathForced:'beast', desc:'The Nine-Tailed Heavenly Fox\'s spirit-Qi is yours — illusion, charm, and a beauty that bypasses thought. You wear whatever face you please.', modifiers:{ charisma:18, perception:14, intelligence:12, agility:10, willpower:6 }, aiHint:'HEAVENLY FOX HYBRID: Shifts between human and a nine-tailed celestial fox at will. Flawless illusion and shapeshifting, overwhelming charm that bends minds, spirit-sight. Belief and devotion feed their power. Either born to it or attained through a spirit-fox transformation.' },
+  divine_ape:    { name:'Divine Ape',      born:true, hybridForm:true, desc:'The blood of a Divine Ape — primal strength that breaks heaven\'s ceiling and a defiance nothing tames. You can let the colossus out.', modifiers:{ strength:20, endurance:16, willpower:12, agility:6, charisma:-3 }, aiHint:'DIVINE APE HYBRID: Shifts between human and a mountain-sized divine ape at will. Raw, ceiling-breaking strength and ferocity, a body that endures the impossible, an untameable defiance of heaven itself. Either born to it or earned through a primal transformation.' },
+
+  // ── LYCANTHROPE — a beast-Qi lineage; the moon and the hunt run in the blood. ──
+  lycanthrope:   { name:'Lycanthrope',     born:true, qiPathForced:'beast', desc:'You carry the old beast-Qi of the were-kin — the change takes you under the moon, or at your will once mastered. Half person, half hunting thing, never only one.', modifiers:{ strength:12, agility:12, endurance:10, perception:12, charisma:-3 }, culture:'Were-kin run in packs at the wild edges of the kingdoms, feared by villages and hunted by the orthodox — though some learn to pass for human and walk among them. Loyalty to the pack is absolute.', aiHint:'LYCANTHROPE: A beast-Qi were-shifter. Shifts between human and a powerful hunting-beast form (full beast under the moon; controlled once mastered) — heightened senses, speed, savage strength, regeneration. Pack-loyal and instinct-driven; the change is hardest to hold at the full moon. Beast Qi comes naturally and amplified.' },
 };
 
 // Which Original Qi Beasts can sire a half-race child (those able to take human form).
@@ -14661,6 +14739,30 @@ const RACE_PATHS = {
     risk:'A single misstep in the regimen is a fatal poisoning; even success makes your touch lethal to those you love.',
     becoming:'Poison given a body — immune to all toxins, your blood/breath/touch deadly.' },
   // demigod: born-only, intentionally absent from the transformation paths.
+
+  // ── GAINED races ──
+  abyssborn: { trigger:'Descend into the deep dark / the void and return — a pact with bar lēlyā or Nyokuro, or surviving an abyssal place that should have unmade you.', demands:'Iron will and a real brush with the deep dark.', risk:'The dark can simply keep you, or hollow out your warmth and ties to the living.', becoming:'Void-touched: dark-sight, abyssal cold, eerie calm — kin to the deep dark.' },
+  bloodkin:  { trigger:'Cultivate a true blood art to the point it rewrites your body — a blood-awakening ritual, drinking deep of an ancient blood-cultivator\'s essence.', demands:'A demonic/blood cultivation path and the endurance to be remade.', risk:'Lose yourself to the hunger and become a mindless blood-thing; the orthodox hunt you.', becoming:'Blood given power — pulse-sense, healing by drawn vitality, stronger amid carnage.' },
+  revenant:  { trigger:'Die and refuse death — a resurrection art you barely survive, a bargain that drags you back, or a death-Qi rite that leaves you on the wrong side of the door.', demands:'A genuine death (or its edge) and the will to come back wrong.', risk:'Come back broken, mindless, or owing a debt death intends to collect.', becoming:'A returned one — near-unkillable, slow-aging, cold; death-Qi answers you.' },
+  shadow_walker: { trigger:'Bond yourself to shadow — a shadow-art mastered to the point you can step into the dark, or a pact with a shadow-spirit.', demands:'Stealth/shadow cultivation and the nerve to step somewhere light cannot follow.', risk:'Leave too much of yourself in the dark and struggle to ever be truly seen again.', becoming:'Shadow-bonded — short shadow-steps, near-invisibility in dim light, peerless assassin.' },
+
+  // ── TRANSFORMED (apex) races ──
+  heavenly_demon: { trigger:'Master the DEMONIC path to its absolute summit — defeat or supplant the reigning peak of the demonic world and seize its mantle.', demands:'A long, bloody demonic cultivation path taken to its very top, and the power to claim the throne.', risk:'Every step invites righteous-sect intervention; falling short at the summit is usually fatal.', becoming:'The Heavenly Demon — sovereign of demonic Qi, a monarch-tier power the orthodox unite against.' },
+  asura: { trigger:'Drown in endless slaughter until war remakes you — survive and win battle after battle until the body becomes a thing of wrath.', demands:'A path soaked in real combat and killing, and a will that does not break under it.', risk:'Be consumed by the bloodlust and lose the person you were; you can no longer easily stop.', becoming:'An Asura — a war-demon that grows stronger the longer and bloodier the fight.' },
+  nine_hells_saint: { trigger:'Pass through every torment of the nine hells — a hellish ordeal, descent, or trial-by-damnation — and be sanctified rather than broken by it.', demands:'Surviving an ordeal designed to destroy the soul, with will intact.', risk:'Almost everyone is broken or claimed; the hells rarely let go.', becoming:'A Nine Hells Saint — command of hellfire, judgment, and the damned; holy and infernal at once.' },
+
+  // ── DIVINE-BEAST HYBRIDS — born to it, OR achieved through a legendary beast transformation. ──
+  true_dragon:   { trigger:'Awaken or earn the blood of a True Dragon — inherit a dragon\'s core, bathe in and survive dragon blood, or have a dragon acknowledge you as kin.', demands:'A worthy body and an apex draconic source that does not unmake you.', risk:'Dragon blood incinerates the unworthy; this is survived more than chosen.', becoming:'A True Dragon hybrid — shift to dragon form at will, sovereign dominion over storm and flame.' },
+  vermilion_bird:{ trigger:'Undergo the Vermilion Bird\'s rebirth — burn away in true sacred flame at the edge of death and rise remade.', demands:'A fire-path and the will to let yourself burn.', risk:'The flame simply ends those who cannot rise from it.', becoming:'A Vermilion Bird hybrid — shift to a great flame-phoenix at will, undying rebirth, fire dominion.' },
+  white_tiger:   { trigger:'Earn the White Tiger\'s blood through a brutal martial-killing path or a metal-beast awakening.', demands:'An apex martial path and a White Tiger source.', risk:'The killing instinct can swallow the person; the unworthy are torn apart.', becoming:'A White Tiger hybrid — shift to a colossal white tiger at will, peerless metal-edged slaughter.' },
+  black_tortoise:{ trigger:'Endure the Black Tortoise\'s long tempering — a years-long ordeal of water, cold, and unbreakable defense until the beast\'s essence settles in you.', demands:'Immense patience and endurance, and a Black Tortoise source.', risk:'The ordeal grinds down all but the truly immovable.', becoming:'A Black Tortoise hybrid — shift to a vast shelled tortoise at will, near-impenetrable, water/cold dominion.' },
+  golden_roc:    { trigger:'Awaken the Golden Roc\'s wind-blood — master the wind-path to its peak or inherit a roc\'s essence.', demands:'A wind/speed cultivation path and a roc source.', risk:'The wind tears apart those who cannot hold it.', becoming:'A Golden Roc hybrid — shift to a kingdom-spanning roc at will, the fastest thing in the sky.' },
+  qilin:         { trigger:'Walk a path of supreme virtue and judgment until the sacred Qilin recognizes and remakes you.', demands:'A genuinely righteous life and a Qilin\'s blessing.', risk:'The Qilin does not suffer the false; pretenders are judged.', becoming:'A Qilin hybrid — shift to the sacred Qilin at will, radiant fortune and unerring judgment.' },
+  heavenly_fox:  { trigger:'Awaken or be granted nine-tailed fox spirit-Qi — a spirit-fox transformation, a fox-spirit pact, or accumulating enough belief and years.', demands:'Beast/spirit cultivation and a heavenly-fox source or patron.', risk:'Lose yourself to charm and illusion until nothing of you remains.', becoming:'A Heavenly Fox hybrid — shift to a nine-tailed celestial fox at will, flawless illusion and charm.' },
+  divine_ape:    { trigger:'Awaken the Divine Ape\'s primal blood — a primal-strength transformation or inheriting an ape-god\'s essence.', demands:'A body-tempering path of raw power and a Divine Ape source.', risk:'The primal fury can overwhelm and unmake the mind.', becoming:'A Divine Ape hybrid — shift to a mountain-sized divine ape at will, ceiling-breaking strength.' },
+
+  // ── LYCANTHROPE — a were-beast change taken on through beast-Qi and a moon-bite/awakening. ──
+  lycanthrope:   { trigger:'Take the were-change — survive a lycanthrope\'s bite under the moon, drink of were-blood, or awaken a dormant beast-Qi lineage.', demands:'Beast-Qi affinity and the strength to hold the change without losing the self.', risk:'Lose control of the beast and become a mindless killer, especially at the full moon; the orthodox hunt were-kin.', becoming:'A Lycanthrope — shift between human and a powerful hunting-beast form (controlled once mastered).' },
 };
 
 // Build a concise races + transformation-paths reference for the system prompt.
@@ -14677,13 +14779,16 @@ function rollBirthRace() {
 function buildRacesLore() {
   const cur = GS.char?.race || 'human';
   const curR = RACES[cur];
-  const bornNames = Object.entries(RACES).filter(([id,r]) => r.born || id==='human').map(([id,r]) => r.name).join(', ');
+  // Born-ONLY = born and NOT also reachable through a transformation path. Hybrids
+  // (dragon/fox/…) are born:true but ALSO in RACE_PATHS, so they are not "born-only".
+  const bornNames = Object.entries(RACES).filter(([id,r]) => (r.born || id==='human') && !RACE_PATHS[id]).map(([id,r]) => r.name).join(', ');
   // Common peoples + their cultures and how they regard one another.
   const peoples = Object.entries(RACES).filter(([id,r]) => r.common).map(([id,r]) =>
     `  • ${r.name}: ${r.culture || r.desc || ''}`).join('\n');
   const paths = Object.entries(RACE_PATHS).map(([id, p]) => {
-    const r = RACES[id]; if(!r || r.born) return '';
-    return `  • ${r.name} (raceChange:"${id}"): ${p.trigger} — risk: ${p.risk.replace(/\.$/,'')}.`;
+    const r = RACES[id]; if(!r) return '';
+    const bornNote = r.born ? ' (can also be BORN this race)' : '';
+    return `  • ${r.name} (raceChange:"${id}")${bornNote}: ${p.trigger} — risk: ${p.risk.replace(/\.$/,'')}.`;
   }).filter(Boolean).join('\n');
   return `## RACES OF THE WORLD
 The player is currently: ${curR?.name||'Human'}${curR?.aiHint?` — ${curR.aiHint}`:(curR?.desc?` — ${curR.desc}`:'')}
@@ -15134,6 +15239,7 @@ The JSON carries ONLY state changes. There is NO "narrative" field in the JSON �
   "newRelationships": [{ "npcId": "", "name": "", "title": "", "type": "", "summary": "1 sentence max", "alive": true, "isLore": false, "glowColor": null }],
   "updateRelationships": [{ "npcId": "", "type": "", "summary": "", "memoryAddition": "full prose paragraph of what happened", "trust": 0, "alive": null, "imprisoned": null, "prisonLocation": null, "cultivation": "set when their realm should change/correct, e.g. Foundation Building" }],
   "reputation": [{ "location": "tazar", "renown": 0, "infamy": 0, "eventDesc": "specific deed", "impact": 10, "renownTitle": null, "infamyTitle": null }],
+  "newSects": [{ "name":"", "alignment":"orthodox|demonic|neutral|unknown", "location":"where", "desc":"what they are" }],
   "decisions": ["prose — what the character chose and what it cost or meant"],
   "personalEvents": ["prose — what happened"],
   "crimes": ["prose — what was done, where, witnessed or not"],
@@ -31091,8 +31197,15 @@ updateCharacterTab = function() {
     });
 
     // Relationships
+    // Sects/factions the player discovers → World → Sects list (NOT People).
+    safe('newSects', () => {
+      if(res.newSects?.length) res.newSects.forEach(s => addDiscoveredSect(s));
+    });
     safe('relationships', () => {
       res.newRelationships?.forEach(r => {
+        // GUARD: an organization/building is not a person — route sects to the Sects
+        // list and never file them under People.
+        if(_looksLikeOrganization(r.name)) { if(_looksLikeSect(r.name)) addDiscoveredSect({ name:r.name, desc:r.summary||r.title||'' }); return; }
         // DEDUPE: if we already know someone by this name, reuse them instead of
         // spawning a duplicate with a fresh id (the "same person twice in People" bug).
         let npc = GS.world.npcRegistry[r.npcId]
@@ -44331,6 +44444,8 @@ buildSystemPrompt = function() {
       + `ORDINARY PEOPLE ARE ORDINARY: the vast majority of the population are NON-cultivators — farmers, mill workers, clerks, shopkeepers, labourers, an ordinary uncle. They stay MORTAL their whole lives; they do NOT quietly become Foundation Building, Core Formation, or Nascent Soul in the background. Only a real minority cultivate at all, and high realms (Core Formation and beyond) are RARE, powerful, and noteworthy figures. Do not casually describe everyday townsfolk, relatives, or minor NPCs as high-realm cultivators, and do not let a commoner's cultivation drift upward over time. Match an NPC's realm to who they actually are.\n`
       + `KEEP NPC CULTIVATION IN SYNC: the People list shows each known NPC's cultivation realm, and it must match how you treat them in the story. If an NPC is, or advances to, a realm different from what the game shows, set "cultivation" on that NPC in "updateRelationships" (or on "newRelationships" when you introduce them) using the realm's NAME (e.g. "Qi Condensation I", "Foundation Building"). Don't let a character the narrative treats as a Qi Condensation cultivator keep showing as Body Tempering. And do NOT introduce someone the player already knows as a brand-new relationship — update the existing one (reuse their npcId / name) so they don't appear twice.\n`
       + `RELATIONSHIPS & ROMANCE MUST REGISTER: any real interaction with a known NPC this turn has to be reflected in the data, not just the prose. When the player talks with, helps, confides in, spars with, or spends time with someone, report a small positive "trust" on that NPC in "updateRelationships" (bond grows). When there is FLIRTING, attraction, a charged moment, a kiss, courtship, or any romantic beat — even a light first flirt — you MUST also emit "romanceUpdates": [{ "npcId": "<their id>", "stage": "<noticed|interested|flirting|tension|confessed|courting|together|…>", "npcFeelings": "<how they feel>", "chemistry": <0-100 or omit>, "notes": "what shifted" }] so the romance actually moves in the People tab. Do not let weeks of flirting leave a relationship at "none". Match the stage to how far things have genuinely gone.\n`
+      + `SECTS ARE NOT PEOPLE: a sect, clan, academy, order, guild, faction, or any organization/building is NOT a person — never put it in newRelationships/People. When the player learns of or encounters a sect or faction, register it in newSects: [{ name, alignment, location, desc }] so it appears under World, Sects. Only actual individuals go in relationships.\n`
+      + `DRUGS THE PLAYER CAN USE: the dealing stash is for product they sell. But when the player obtains a narcotic, pill, or drug to KEEP and USE themselves (a dose for the road, a vial they pocket, something a contact slips them), put it in their INVENTORY as a consumable via newItems: [{ "name", "type":"consumable", "rarity", "desc":"what it does / the high and the cost", "value", "effects":{} }] — so it's in their bag and they can actually take it later. Don't shove a personal-use dose into the dealing stash where they can't reach it.\n`
       + `DUAL WIELDING: a character may fight with a weapon in each hand if it is plausible for them (two one-handed weapons — twin blades, sword-and-dagger, paired axes, dual sabers — and the body/skill to manage it). Honor it when the player wields two weapons: describe both hands working, the added offense and defense, and the real cost (it is harder, splits focus, demands ambidexterity/training, and a two-handed or heavy weapon cannot be paired). Skilled dual-wielding is a genuine martial advantage; clumsy dual-wielding gets someone killed. Let it be learned and earned like any skill.\n`
       + (() => {
           const c = GS.char;
