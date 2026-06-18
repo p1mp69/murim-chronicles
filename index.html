@@ -5722,38 +5722,8 @@ const APPEARANCE_POOLS = {
   eyes:    ['dark brown','warm brown','pale grey, unsettling in their steadiness','amber','honey-gold','deep black','green-flecked hazel','clear green','steel grey','pale blue','ice-blue','fox-gold','violet-tinged','heterochromatic — one brown, one grey','bloodshot from too many late nights','a brown so dark it reads as black','catlike and slit when narrowed'],
   build:   ['lean and wiry','compact with ropy muscle from years of labor','broad-shouldered','slight and quick','heavyset with hidden power','tall and angular','short and dense','willowy','stocky','athletic without trying to be','rangy and long-limbed','barrel-chested','lithe and dancer-like','soft but deceptively strong','gaunt and sharp-edged','statuesque','thick-necked and powerful'],
   feature: ['a jaw that comes to a sharp point','soft features that make age hard to judge','weathered earlier than they should be','high cheekbones that catch light oddly','a nose that has been broken at least once','a steadiness to the gaze that makes people look away first','hands that have seen real labor','calluses that tell a story','a mouth that stays flat more often than not','eyes that evaluate before they feel','a faint scar through one eyebrow','a dimple that undercuts a hard face','freckles scattered across the nose','a habit of half-smiling at nothing','unusually long lashes','a crooked tooth shown only when they forget themselves','a birthmark high on the throat','ears that stick out just slightly'],
-  childBuild: ['small, with the soft roundness of early childhood','tiny and quick','slight, all knees and elbows','round-cheeked and restless','small for their age, but wiry'],
-  youthBuild: ['lean and growing, a child\'s frame still finding its shape','wiry and kid-quick','slight, still filling out','gangly, a step ahead of their own coordination','sturdy for a child'],
-  teenBuild:  ['still lengthening, not yet grown into themselves','lanky, limbs outpacing the rest','filling out through the shoulders','coltish, growing fast','caught between boy and man','caught between girl and woman'],
+  height:  ['very short for their age','short','average','tall for their age','notably tall','unusually tall, almost awkward with it'],
 };
-// Adult height (inches) by tier and gender — current height is derived from this by age.
-const _HEIGHT_TIERS = ['petite','short','average','tall','strikingly tall'];
-function _adultHeightInches(tier, gender) {
-  const male = { petite:64, short:67, average:70, tall:73, 'strikingly tall':77 };
-  const inch = male[tier] || 70;
-  return (gender === 'female') ? inch - 5 : (gender === 'male') ? inch : inch - 2;
-}
-function _growthFactor(age) {
-  if(age <= 1) return 0.30; if(age <= 4) return 0.46; if(age <= 8) return 0.61;
-  if(age <= 12) return 0.75; if(age <= 15) return 0.88; if(age <= 17) return 0.96; return 1.0;
-}
-function _fmtHeight(inches) { return `${Math.floor(inches/12)}'${inches%12}"`; }
-// Build a CURRENT appearance description from a stable blueprint + the character's age,
-// so the body genuinely changes from child to adult while eyes/skin/hair stay theirs.
-function appearanceFromBlueprint(bp, age) {
-  age = (age == null) ? 18 : age;
-  const adult = _adultHeightInches(bp.heightTier || 'average', bp.gender);
-  const inches = Math.max(18, Math.round(adult * _growthFactor(age)));
-  const heightStr = _fmtHeight(inches);
-  let build;
-  if(age <= 5)       build = (bp.childBuild || 'small, with the soft roundness of early childhood');
-  else if(age <= 11) build = (bp.youthBuild || 'lean and growing, a child\'s frame still finding its shape');
-  else if(age <= 16) build = `${bp.teenBuild || 'still lengthening'} — growing into a ${bp.adultBuild} frame`;
-  else               build = `a ${bp.adultBuild} frame`;
-  const cap = s => s ? s.charAt(0).toUpperCase()+s.slice(1) : '';
-  const full = `Around ${heightStr}, ${build}. ${cap(bp.skin)} skin. ${cap(bp.hair)} hair. ${cap(bp.eyes)} eyes. ${cap(bp.feature)}.`;
-  return { skin:bp.skin, hair:bp.hair, eyes:bp.eyes, build, height:heightStr, heightInches:inches, feature:bp.feature, full, blueprint:bp };
-}
 
 const ORIGIN_CARDS = {
   tazar: [
@@ -6137,52 +6107,23 @@ function rarityColor(r) { return RARITIES[r]?.color || RARITIES.common.color; }
 // ================================================================
 // APPEARANCE GENERATION
 // ================================================================
+// NOTE: this is the SIMPLE appearance generator (used as a fallback/preview). The
+// real, age-aware system is generateDetailedAppearance / evolveAppearance (height_cm,
+// skin_tone, hair_color, …) — startGame upgrades any plain appearance to that schema.
 function generateAppearance(gender, city, age) {
   const p = APPEARANCE_POOLS;
-  // The stable "blueprint" — the genetics that don't change with age. The CURRENT
-  // body (height, build) is derived from this + age, so an 8-year-old isn't 5'6".
-  const bp = {
-    gender,
-    skin:       rand(p.skin),
-    hair:       rand(p.hair),
-    eyes:       rand(p.eyes),
-    adultBuild: rand(p.build),
-    heightTier: rand(_HEIGHT_TIERS),
-    feature:    rand(p.feature),
-    childBuild: rand(p.childBuild),
-    youthBuild: rand(p.youthBuild),
-    teenBuild:  rand(p.teenBuild),
+  const ap = {
+    skin:    rand(p.skin),
+    hair:    rand(p.hair),
+    eyes:    rand(p.eyes),
+    build:   rand(p.build),
+    height:  rand(p.height),
+    feature: rand(p.feature),
   };
-  // City flavor (applied to the stable blueprint).
-  if(city==='ooina')       { bp.skin = rand(['weathered tan','river-dock brown','tawny']); bp.adultBuild = rand(['lean and wiry','compact with ropy muscle from years of labor','rangy and long-limbed']); }
-  if(city==='beggars_rest'){ bp.adultBuild = rand(['lean and wiry','slight and quick','gaunt and sharp-edged']); }
-  return appearanceFromBlueprint(bp, age);
-}
-
-// Re-derive the player's body for their CURRENT age (call when age changes). Keeps
-// eyes/skin/hair/face the same; grows height and build child → adult. No-ops if the
-// appearance has no blueprint and one can't be synthesised.
-function refreshAppearanceForAge() {
-  const c = GS.char; if(!c) return;
-  let ap = c.appearance;
-  if(typeof ap !== 'object' || !ap) return;
-  let bp = ap.blueprint;
-  if(!bp) {
-    // Synthesise a blueprint from an old (blueprint-less) appearance so existing
-    // characters also age from here on.
-    const p = APPEARANCE_POOLS;
-    bp = {
-      gender: c.gender,
-      skin: ap.skin || rand(p.skin), hair: ap.hair || rand(p.hair), eyes: ap.eyes || rand(p.eyes),
-      adultBuild: (ap.build && !/grow|length|child|small|tiny|slight/i.test(ap.build)) ? ap.build : rand(p.build),
-      heightTier: rand(_HEIGHT_TIERS), feature: ap.feature || rand(p.feature),
-      childBuild: rand(p.childBuild), youthBuild: rand(p.youthBuild), teenBuild: rand(p.teenBuild),
-    };
-  }
-  const next = appearanceFromBlueprint(bp, c.age);
-  // Preserve any AI-written prose appendix the player accumulated.
-  if(ap.appended) next.appended = ap.appended;
-  c.appearance = next;
+  if(city==='ooina') { ap.skin = rand(['weathered tan','river-dock brown','tawny']); ap.build = rand(['lean and wiry','compact with ropy muscle from years of labor']); }
+  if(city==='beggars_rest') { ap.build = rand(['lean and wiry','slight and quick']); }
+  ap.full = `${ap.height.charAt(0).toUpperCase()+ap.height.slice(1)}, with a ${ap.build} frame. ${ap.skin.charAt(0).toUpperCase()+ap.skin.slice(1)} skin. ${ap.hair.charAt(0).toUpperCase()+ap.hair.slice(1)} hair. ${ap.eyes.charAt(0).toUpperCase()+ap.eyes.slice(1)} eyes. ${ap.feature.charAt(0).toUpperCase()+ap.feature.slice(1)}.`;
+  return ap;
 }
 
 // ================================================================
@@ -12509,7 +12450,7 @@ window.addEventListener('pagehide', () => { doAutosave(true); });
 // Scheme: MAJOR.MINOR. Big updates bump MAJOR (1.2 -> 2.2). Small updates
 // bump MINOR (2.2 -> 2.3). Each version has a name. The current version is
 // stamped onto every save; older saves can be updated to the latest.
-const GAME_VERSION = { number: '5.7', name: 'Growing Up' };
+const GAME_VERSION = { number: '5.7.1', name: 'Growing Up' };
 
 // Which model generates the story. Lite Mode swaps to a far cheaper, faster model
 // (Claude Haiku) so long sessions / limited credits cost a fraction per turn.
@@ -12590,6 +12531,7 @@ const VERSION_HISTORY = [
   { number:'5.5', name:'New Bloodlines', sys:'A batch. NEW RACES: Abyssborn, Bloodkin, Revenant, Shadow Walker (gained through dark arcs); Heavenly Demon, Asura, Nine Hells Saint (apex transformations); and eight DIVINE-BEAST HYBRIDS you can be born as OR transform into and shift to their form at will — True Dragon, Vermilion Bird, White Tiger, Black Tortoise, Golden Roc, Qilin, Heavenly Fox, Divine Ape — plus the Lycanthrope (beast-Qi were-shifter). SECTS ARE NOT PEOPLE: a sect/academy/clan can no longer show up in your People tab as a person — they now register under World → Sects, and old bogus "people" like that are cleared on load; sects you encounter actually get recorded. USABLE DRUGS: a drug you keep for yourself now goes in your inventory (not just the dealing stash) so you can actually use it. SUPPORT: tipping is now Cash App ($MurimChronicles) with a note that it funds more frequent updates, plus a Discord button in the menu corner and in Support.', note:'RACES: 16 new entries in RACES (gained/transformed/8 hybrids born:true+hybridForm/lycanthrope) + RACE_PATHS triggers/risks for all; race-prompt builders fixed — bornNames now born&&!RACE_PATHS, paths lists all RACE_PATHS with "(can also be BORN)" note for born hybrids; setRace verified applies modifiers. SECTS: _looksLikeOrganization/_looksLikeSect guards in addOrUpdateRelationship + consolidated newRelationships (reroute sect-named to addDiscoveredSect); res.newSects handler + addDiscoveredSect() + schema (both blocks) + SECTS-ARE-NOT-PEOPLE prompt; migrate evicts org-named relationships (sects→discoveredSects). DRUGS: prompt rule routes personal-use drugs to newItems(consumable) inventory. SUPPORT: panel→Cash App $MurimChronicles + update note + Discord; menu corner Discord button (discord.gg/8ppee4BQT). Verified in-browser. Version → 5.5.' },
   { number:'5.6', name:'Cleanup Crew', sys:'A batch of fixes. HALL OF THE DEAD: a character who nearly died (but was saved) no longer gets stamped into the graveyard — only real deaths are recorded, and the stacked duplicates from that bug are cleaned up on load. SHOPS: a shop popup no longer fires when you merely mention or plan to visit one ("I tell her I\'m going to the blacksmith later") or talk about a guild — only when you actually go shopping. RELATIONSHIPS: a spouse, lover, sworn friend, or close family will never show as "Just Met" again — the type sets a floor on how close the game shows you. ORGANIZATIONS: you can now draw money OUT of your crew\'s treasury into your own gold (it never reached your purse before), and the storyteller is told a small/weak crew can\'t take over a whole district — scale matches power, and bold moves spike heat. PROPERTY: a maintained property (upkeep paid) now RECOVERS condition instead of only ever decaying. ADMIN: the dev panel is harder to find now (see notes). Plus prompt fixes so disciples\' cultivation updates when they level, and serious crimes (murder, trafficking, kidnapping, theft) register and draw the law.', note:'HALL: handleDeath wrapper now runs orig FIRST and only saveToHallOfDead if isDead (defied/cheated death + repeat calls no longer stack gravestones); saveToHallOfDead dedupe (name|age|deathYear) + stores birthYear; renderHallOfDead one-time cleanup collapses existing dupes. SHOP: detectShopType rejects reported/future/mention phrasing + guild/org words without buy intent. BOND: relationshipBondFloor(type)/effectiveBond used in buildBondDisplay (spouse/lover 78, family 60, friend 52, disciple/mentor 38). CREW: applyCrewUpdate payout/silverToPlayer moves crew.silver→addSilver; live prompt ORGANIZATION rule (payout + scale-vs-influence/tier + heat). ASSET: tickAssets restores condition when upkeep paid (+3/mo to 100); no-upkeep wear floors at 50. ADMIN: removed Settings title hint+5-click instant unlock → 7 title-clicks open code prompt; code 3005→7341; creation-bg trigger 3→9. PROMPT: disciples must report new cultivation on level; CRIMES-SEND-YOU-TO-COURT rule. Verified in-browser. Version → 5.6.' },
   { number:'5.7', name:'Growing Up', sys:'Three big ones. YOUR BODY AGES NOW: your appearance changes with age — a small child is short and soft-featured and genuinely grows, year by year, into their adult height and build (no more being 5\'6" at age 8), while eyes, skin, hair, and your distinctive features stay yours. The variety pools are much bigger too, and existing characters start aging from their current age. MINOR GOD OF A DOMAIN: the Larp God is no longer the only road to godhood — you can ascend to a Minor God of a specific domain (War, Death, the Forge, Vengeance, the Hunt, healing, the harvest…) through other earned, world-shaking arcs: becoming the utter embodiment of one thing, inheriting a dead god\'s portfolio, being worshipped until belief makes it real, or a divine bargain. The god of that domain commands it. RELATIONSHIPS DEEPEN WITH TIME: someone you actually live and travel alongside now grows closer month by month — a companion you\'ve been inseparable from for over a year will read as a real bond, not "Just Met", and people you keep dealing with graduate from "encountered" to companion/friend on their own.', note:'APPEARANCE: stable blueprint (skin/eyes/hair/feature/heightTier/adultBuild) + appearanceFromBlueprint(bp,age) derives current height (_adultHeightInches×_growthFactor) & age-banded build; generateAppearance(gender,city,age) builds blueprint; refreshAppearanceForAge() re-derives on age change (advanceTime age delta, ageChange handler, load) + synthesises a blueprint for old saves; pools expanded + child/youth/teen build pools; creation callers pass selectedAge/child.age. DOMAIN GODS: becomeMinorGodOfDomain(domain,path) sets race minor_god + godDomain + mythic "Minor God of X" trait (wil+10/cha+8/per+6); res.divineAscension handler + schema; god prompt section branches on godDomain; OTHER PATHS TO MINOR GODHOOD prompt added to larp section. COMPANIONS: registerNarrativeInteractions stamps _lastInteractDay + upgrades generic types (→companion/friend by effectiveBond); tickCompanionBonds(daysElapsed) grows bond toward a type ceiling for recently-active/close rels (wired into advanceTime). Verified in-browser. Version → 5.7.' },
+  { number:'5.7.1', name:'Growing Up (hotfix)', sys:'HOTFIX: the v5.7 appearance change clashed with the game\'s real appearance system and blanked out your height/hair/eyes/skin/face (and made the character sheet look broken). Reverted that and fixed the actual system instead — your appearance grid is back, and height is now genuinely age-appropriate: a child is short and grows toward their adult height by ~18, then stops. Existing/broken saves repair themselves on load. (Your disciples and organization were never deleted — that was the broken sheet failing to draw; they\'re back now.)', note:'Reverted the v5.7 parallel appearance: removed appearanceFromBlueprint/refreshAppearanceForAge + its 3 call sites + the _HEIGHT_TIERS/_adultHeightInches/_growthFactor/_fmtHeight helpers; generateAppearance restored to the simple schema (+ APPEARANCE_POOLS.height key) so startGame still upgrades it to the detailed system; reverted creation/offspring callers. FIXED THE REAL SYSTEM: _heightGrowthFactor(age); generateDetailedAppearance now stores adult_height_cm + age-scaled height_cm; evolveAppearance grows height_cm toward adult_height_cm for ALL categories until ~19 (with reverse-derive fallback for pre-field saves). Broken blueprint-schema appearances regenerate to detailed via startGame upgrade (no height_cm). Verified: age 4→3\'7\", 8→4\'4\", 13→5\'1\", 18→5\'7\" adult; child grows to target. Version → 5.7.1.' },
 ];
 
 function cleanSaveData(gs) {
@@ -13392,9 +13334,7 @@ function initCreation() {
     state.world.month    = 1;
     state.world.day      = 1;
     state.world.location = city;
-    state.char.appearance = (currentAppearance && currentAppearance.blueprint)
-      ? appearanceFromBlueprint(currentAppearance.blueprint, selectedAge)
-      : generateAppearance(selectedGender, city, selectedAge);
+    state.char.appearance = currentAppearance.full ? currentAppearance : generateAppearance(selectedGender, city, selectedAge);
 
     // Random stats — everyone different
     const randomStats = generateRandomStats();
@@ -28006,6 +27946,15 @@ function cmToFeetInches(cm) {
   return `${ft}'${inch}" (${cm}cm)`;
 }
 
+// Fraction of ADULT height reached at a given age — children are genuinely shorter
+// and grow toward their adult height by ~18 (no more 5'6" at age 8).
+function _heightGrowthFactor(age) {
+  if(age == null) return 1.0;
+  if(age <= 1) return 0.43; if(age <= 3) return 0.56; if(age <= 5) return 0.64;
+  if(age <= 8) return 0.74; if(age <= 11) return 0.83; if(age <= 13) return 0.89;
+  if(age <= 15) return 0.94; if(age <= 17) return 0.98; return 1.0;
+}
+
 function rollHeight(gender) {
   const ranges = HEIGHT_RANGES[gender] || HEIGHT_RANGES.other;
   const keys   = Object.keys(ranges);
@@ -28052,8 +28001,11 @@ function generateDetailedAppearance(gender, city, age) {
     wheat_capital: { skin: rand(['tawny','light olive','medium brown']) },
   }[city] || {};
 
+  const adultCm = heightObj.cm;
+  const curCm   = Math.round(adultCm * _heightGrowthFactor(age));
   const ap = {
-    height_cm:    heightObj.cm,
+    height_cm:    curCm,
+    adult_height_cm: adultCm,
     height_cat:   heightObj.category,
     skin_tone:    locInfluence.skin || skin,
     hair_color:   hairColor,
@@ -28106,13 +28058,16 @@ function evolveAppearance(ap, newAge, cultivationStage) {
   const cultivationYouthBonus = Math.floor((cultivationStage||0) / 2);
   const effectiveAge = Math.max(0, newAge - cultivationYouthBonus);
 
-  // Height changes until ~20
-  if(newAge <= 20 && prevAge < 20) {
-    const ranges = HEIGHT_RANGES[g];
-    if(ap.height_cat === 'average' || ap.height_cat === 'short') {
-      ap.height_cm = Math.min(ranges[ap.height_cat][1], ap.height_cm + (newAge - prevAge) * 0.8);
-      ap.height_cm = Math.round(ap.height_cm);
-    }
+  // Height grows toward the adult target until ~18 (for ALL height categories).
+  // Recover the adult target for older saves that predate the field.
+  if(!ap.adult_height_cm) {
+    const f = _heightGrowthFactor(prevAge);
+    ap.adult_height_cm = (prevAge >= 18 || !f) ? ap.height_cm : Math.round(ap.height_cm / f);
+  }
+  if(newAge < 19) {
+    ap.height_cm = Math.round(ap.adult_height_cm * _heightGrowthFactor(newAge));
+  } else {
+    ap.height_cm = ap.adult_height_cm;
   }
 
   // Beard growth for males 16+
@@ -30834,9 +30789,7 @@ updateCharacterTab = function() {
     const rem = td % 360;
     w.month = Math.floor(rem / 30) + 1;
     w.day   = (rem % 30) + 1;
-    const _prevAge = GS.char.age;
     GS.char.age = w.year - GS.char.birthYear;
-    if(GS.char.age !== _prevAge) { try { refreshAppearanceForAge(); } catch(e) {} }
     Object.values(w.npcRegistry).forEach(n => { if(n.birthYear) n.age = w.year - n.birthYear; });
     checkScheduledEvents();
     if(w.year !== prevYear) { try { checkZeretSpawn(); } catch(e) {} }
@@ -31338,7 +31291,6 @@ updateCharacterTab = function() {
         GS.char.birthYear -= res.ageChange; // shifting birth year changes computed age
         GS.char._maxAgeReached = Math.max(0, (GS.char._maxAgeReached||0) + res.ageChange);
         GS.char.age = Math.max(0, (GS.char.age||0) + res.ageChange);
-        try { refreshAppearanceForAge(); } catch(e) {}
         updateCharacterTab();
       }
     });
@@ -40045,7 +39997,6 @@ startGame = function(isLoad=false) {
     if(c.birthYear !== undefined && w.year !== undefined) {
       c.age = w.year - c.birthYear;
     }
-    try { refreshAppearanceForAge(); } catch(e) {}
     updateTopbar();
     updateCharacterTab();
   } catch(e) {}
