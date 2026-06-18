@@ -2895,7 +2895,7 @@ body.generating [onclick*="shopSellItem"], body.generating [onclick*="closeMapGo
 <div id="modal-settings" class="modal-overlay hidden">
   <div class="modal-card modal-sm">
     <div class="modal-header">
-      <h2 id="settings-title" title="Click S five times for something...">Settings</h2>
+      <h2 id="settings-title">Settings</h2>
       <button class="modal-close" data-modal="modal-settings">✕</button>
     </div>
     <div class="modal-body">
@@ -10024,6 +10024,20 @@ function applyCrewUpdate(update) {
   if(update.description) crew.description = update.description;
   if(update.tier)        crew.tier        = update.tier;
   if(update.silverDelta) crew.silver      = Math.max(0, (crew.silver||0) + update.silverDelta);
+  // PAYOUT — the player draws their cut from the organization into their OWN purse.
+  // (Previously there was no way to do this, so "I take my cut" never hit your gold.)
+  if(update.payout || update.silverToPlayer) {
+    const want = Math.max(0, Math.round(update.payout || update.silverToPlayer));
+    const take = Math.min(want, crew.silver || 0);
+    if(take > 0) {
+      crew.silver -= take;
+      addSilver(take);
+      crew.log.push(`Year ${GS.world.year}: You drew ${formatCoins(take)} from the treasury.`);
+      try { toast(`+${formatCoins(take)} from ${crew.name}`, 'gold', 3500); } catch(e) {}
+    } else if(want > 0) {
+      try { toast(`${crew.name} doesn't have that much in the treasury.`, '', 3000); } catch(e) {}
+    }
+  }
   if(update.influence != null) crew.influence = Math.max(0, Math.min(100, update.influence));
   if(update.heat != null)      crew.heat      = Math.max(0, Math.min(100, update.heat));
   if(update.operation)   crew.operations.push(update.operation);
@@ -10420,8 +10434,21 @@ function getBondStage(bondLevel) {
   return stage;
 }
 
+// The relationship TYPE implies a floor on closeness — a spouse, lover, sworn
+// friend, or close family is never "Just Met" no matter what the raw bond number
+// says. Fixes "we've been inseparable 14 months but it says I just met them".
+function relationshipBondFloor(type) {
+  const t = (type || '').toLowerCase();
+  if(/spouse|husband|wife|lover|partner|betroth|fianc|beloved|consort|concubine/.test(t)) return 78;
+  if(/best.?friend|sworn|soulmate|family|mother|father|grandmother|grandfather|sister|brother|sibling|\bson\b|daughter|child|parent/.test(t)) return 60;
+  if(/friend|ally|companion|confidant|comrade/.test(t)) return 52;
+  if(/disciple|mentor|master|teacher|bodyguard|crew|right.?hand/.test(t)) return 38;
+  return 0;
+}
+function effectiveBond(r) { return Math.max(r.bond_level || r.trust || 0, relationshipBondFloor(r.type)); }
+
 function buildBondDisplay(r, npc) {
-  const bond     = r.bond_level || r.trust || 0;
+  const bond     = effectiveBond(r);
   const grudge   = npc?.grudgeLevel || 0;
   const stage    = getBondStage(bond);
   const isFamily = ['mother','father','grandmother','grandfather','aunt','uncle','sister','brother','family','caregiver'].includes(r.type);
@@ -12393,7 +12420,7 @@ window.addEventListener('pagehide', () => { doAutosave(true); });
 // Scheme: MAJOR.MINOR. Big updates bump MAJOR (1.2 -> 2.2). Small updates
 // bump MINOR (2.2 -> 2.3). Each version has a name. The current version is
 // stamped onto every save; older saves can be updated to the latest.
-const GAME_VERSION = { number: '5.5', name: 'New Bloodlines' };
+const GAME_VERSION = { number: '5.6', name: 'Cleanup Crew' };
 
 // Which model generates the story. Lite Mode swaps to a far cheaper, faster model
 // (Claude Haiku) so long sessions / limited credits cost a fraction per turn.
@@ -12472,6 +12499,7 @@ const VERSION_HISTORY = [
   { number:'5.3', name:'Housekeeping', sys:'A big batch of fixes. NO MORE FAKE JOBS: the game will not turn a PLACE or stray phrase ("Ocean Floor") into an occupation anymore, and existing bogus ones are cleared on load. BOONS ARE TRAITS NOW: permanent gifts, bloodlines, marks, and awakenings (Heavenly Demon Seedling, Tribulation-Marked, a hardened frame…) become real TRAITS with buffs instead of being dumped into Physical Conditions. NPC REALMS STAY ACCURATE: the cultivation level shown next to a person now matches the story (no more "Body Tempering" for someone the tale treats as Qi Condensation), and duplicate people in your list are merged. HOUSE UPGRADES: building a training yard / alchemy lab / etc. now attaches to your home as an upgrade instead of spawning a separate "property". CUSTOM BACKEND FIX: starting a new game no longer wipes your free/local model setup (the "blank api not working" bug). LEADERBOARD REMOVED; HALL OF THE DEAD is now sortable by Legacy, Cultivation, Wealth, Strength, Kills, or Fame. New tip options (PayPal, Cash App, crypto) in Support.', note:'OCCUPATION: _looksLikeOccupation() rejects locations/place-words + LOCATIONS names, requires job suffix/trade word; gates detectOccupationFromNarrative; migrate clears auto-detected ("Taken on through the story.") occupations failing the check. TRAITS: addCustomTrait({name,desc,effects,rarity}) (effects clamped ±40, applied) + res.newTraits handler + schema + TRAITS-vs-CONDITIONS prompt rule (boons→newTraits). NPC: resolveQiStageIndex(name/id/index) + cultivation field on new/updateRelationships (sets npc.qiStageIndex+cap) + schema + prompt; dedupe newRelationships by name; migrate collapses same-name relationship duplicates. HOUSE: _matchUpgradeKey + registerNarrativeAsset attaches known upgrades to home instead of new property. BACKEND: menu-newgame now restores apiProvider/apiBaseUrl/apiModel from localStorage (was only apiKey → reverted custom backend to blank Anthropic). LEADERBOARD removed (panel/button/global-LB/renderLeaderboard/auto-submit); renderHallOfDead category tabs (HALL_CATEGORIES + setHallSort) + saveToHallOfDead stores stats+silver. SUPPORT: PayPal/CashApp/Ko-fi/crypto(copy)/Patreon placeholders. Verified in-browser. Version → 5.3.' },
   { number:'5.4', name:'It Counts Now', sys:'Talking to and flirting with people in the story finally counts. Before, you could flirt with someone for weeks and the People tab would still show nothing — now any real interaction with a known NPC nudges the relationship: talking/helping/spending time raises your bond, and flirting builds chemistry and moves the romance along (noticed → interested → flirting) right there in the People tab. The storyteller is also told it MUST register these, so it stops happening only in the prose.', note:'registerNarrativeInteractions(rawMsg): detects social vs romantic interaction (_SOCIAL_RE/_ROMANTIC_RE) with any known relationship named in the player message (full or distinctive first name, word-boundary); bumps bond_level (+2 social/+3 romantic) + trust; romantic also ensureRomance + chemistry+4/attraction+3 and auto-walks early stages none→noticed→interested→flirting by chemistry thresholds (never past flirting — confess/court/together stay AI-owned). Wired into the turn injection pass. Prompt: RELATIONSHIPS & ROMANCE MUST REGISTER rule (trust on interaction, romanceUpdates on any romantic beat). Verified in-browser. Version → 5.4.' },
   { number:'5.5', name:'New Bloodlines', sys:'A batch. NEW RACES: Abyssborn, Bloodkin, Revenant, Shadow Walker (gained through dark arcs); Heavenly Demon, Asura, Nine Hells Saint (apex transformations); and eight DIVINE-BEAST HYBRIDS you can be born as OR transform into and shift to their form at will — True Dragon, Vermilion Bird, White Tiger, Black Tortoise, Golden Roc, Qilin, Heavenly Fox, Divine Ape — plus the Lycanthrope (beast-Qi were-shifter). SECTS ARE NOT PEOPLE: a sect/academy/clan can no longer show up in your People tab as a person — they now register under World → Sects, and old bogus "people" like that are cleared on load; sects you encounter actually get recorded. USABLE DRUGS: a drug you keep for yourself now goes in your inventory (not just the dealing stash) so you can actually use it. SUPPORT: tipping is now Cash App ($MurimChronicles) with a note that it funds more frequent updates, plus a Discord button in the menu corner and in Support.', note:'RACES: 16 new entries in RACES (gained/transformed/8 hybrids born:true+hybridForm/lycanthrope) + RACE_PATHS triggers/risks for all; race-prompt builders fixed — bornNames now born&&!RACE_PATHS, paths lists all RACE_PATHS with "(can also be BORN)" note for born hybrids; setRace verified applies modifiers. SECTS: _looksLikeOrganization/_looksLikeSect guards in addOrUpdateRelationship + consolidated newRelationships (reroute sect-named to addDiscoveredSect); res.newSects handler + addDiscoveredSect() + schema (both blocks) + SECTS-ARE-NOT-PEOPLE prompt; migrate evicts org-named relationships (sects→discoveredSects). DRUGS: prompt rule routes personal-use drugs to newItems(consumable) inventory. SUPPORT: panel→Cash App $MurimChronicles + update note + Discord; menu corner Discord button (discord.gg/8ppee4BQT). Verified in-browser. Version → 5.5.' },
+  { number:'5.6', name:'Cleanup Crew', sys:'A batch of fixes. HALL OF THE DEAD: a character who nearly died (but was saved) no longer gets stamped into the graveyard — only real deaths are recorded, and the stacked duplicates from that bug are cleaned up on load. SHOPS: a shop popup no longer fires when you merely mention or plan to visit one ("I tell her I\'m going to the blacksmith later") or talk about a guild — only when you actually go shopping. RELATIONSHIPS: a spouse, lover, sworn friend, or close family will never show as "Just Met" again — the type sets a floor on how close the game shows you. ORGANIZATIONS: you can now draw money OUT of your crew\'s treasury into your own gold (it never reached your purse before), and the storyteller is told a small/weak crew can\'t take over a whole district — scale matches power, and bold moves spike heat. PROPERTY: a maintained property (upkeep paid) now RECOVERS condition instead of only ever decaying. ADMIN: the dev panel is harder to find now (see notes). Plus prompt fixes so disciples\' cultivation updates when they level, and serious crimes (murder, trafficking, kidnapping, theft) register and draw the law.', note:'HALL: handleDeath wrapper now runs orig FIRST and only saveToHallOfDead if isDead (defied/cheated death + repeat calls no longer stack gravestones); saveToHallOfDead dedupe (name|age|deathYear) + stores birthYear; renderHallOfDead one-time cleanup collapses existing dupes. SHOP: detectShopType rejects reported/future/mention phrasing + guild/org words without buy intent. BOND: relationshipBondFloor(type)/effectiveBond used in buildBondDisplay (spouse/lover 78, family 60, friend 52, disciple/mentor 38). CREW: applyCrewUpdate payout/silverToPlayer moves crew.silver→addSilver; live prompt ORGANIZATION rule (payout + scale-vs-influence/tier + heat). ASSET: tickAssets restores condition when upkeep paid (+3/mo to 100); no-upkeep wear floors at 50. ADMIN: removed Settings title hint+5-click instant unlock → 7 title-clicks open code prompt; code 3005→7341; creation-bg trigger 3→9. PROMPT: disciples must report new cultivation on level; CRIMES-SEND-YOU-TO-COURT rule. Verified in-browser. Version → 5.6.' },
 ];
 
 function cleanSaveData(gs) {
@@ -13770,10 +13798,11 @@ function initAdminUnlock() {
     // Only count clicks directly on the background, not on form elements
     if(e.target.tagName==='INPUT'||e.target.tagName==='BUTTON'||e.target.tagName==='SELECT'||e.target.tagName==='LABEL') return;
     const now = Date.now();
-    if(now - GS.admin.lastBgClick > 2000) GS.admin.bgClicks = 0;
+    if(now - GS.admin.lastBgClick > 1500) GS.admin.bgClicks = 0;
     GS.admin.lastBgClick = now;
     GS.admin.bgClicks++;
-    if(GS.admin.bgClicks >= 3) {
+    // Raised from 3 → 9 so it can't be hit by accident on the creation screen.
+    if(GS.admin.bgClicks >= 9) {
       GS.admin.bgClicks = 0;
       showModal('modal-code');
       document.getElementById('code-input').value = '';
@@ -13782,7 +13811,7 @@ function initAdminUnlock() {
   });
   document.getElementById('btn-code-submit').addEventListener('click', () => {
     const code = document.getElementById('code-input').value;
-    if(code === '3005') {
+    if(code === '7341') {
       GS.admin.unlocked = true;
       document.getElementById('btn-admin').classList.remove('hidden');
       hideModal('modal-code');
@@ -17006,8 +17035,13 @@ function legacyComponents(char, world) {
 function saveToHallOfDead(char, world, cause) {
   let hall = [];
   try { hall = JSON.parse(localStorage.getItem(DEAD_KEY) || '[]'); } catch(e) {}
+  // Belt-and-suspenders dedupe: never record the same life twice (same name, same
+  // age, same death year). Uses age so it also catches pre-fix entries with no birthYear.
+  const dupKey = `${char.firstName} ${char.lastName}|${char.age}|${world.year}`;
+  if(hall.some(d => `${d.name}|${d.age}|${d.deathYear}` === dupKey)) return;
   const comp = legacyComponents(char, world);
   hall.unshift({
+    birthYear: char.birthYear,
     name: `${char.firstName} ${char.lastName}`,
     age: char.age,
     deathYear: world.year,
@@ -17052,6 +17086,12 @@ function setHallSort(key) { _hallSort = key; renderHallOfDead(); }
 function renderHallOfDead() {
   let hall = [];
   try { hall = JSON.parse(localStorage.getItem(DEAD_KEY) || '[]'); } catch(e) {}
+  // Clean up any stacked duplicates from the old near-death bug (same name/birth/death).
+  {
+    const seen = new Set(); const cleaned = [];
+    hall.forEach(d => { const k = `${d.name}|${d.age}|${d.deathYear}`; if(seen.has(k)) return; seen.add(k); cleaned.push(d); });
+    if(cleaned.length !== hall.length) { hall = cleaned; try { localStorage.setItem(DEAD_KEY, JSON.stringify(hall)); } catch(e) {} }
+  }
   const list = document.getElementById('dead-list');
   if(!list) return;
   if(!hall.length) {
@@ -18174,9 +18214,12 @@ const _origHandleDeath = handleDeath;
 // declaration would be hoisted over the first, making _origHandleDeath capture
 // THIS wrapper and infinitely recurse. (That was a real bug; deaths stack-overflowed.)
 handleDeath = function(cause) {
-  // Save to hall before clearing state
-  saveToHallOfDead(GS.char, GS.world, cause);
-  _origHandleDeath(cause);
+  // Only REAL deaths belong in the Hall. The old version saved BEFORE the original
+  // ran — so a near-death that got DEFIED (Defy Death / Cheated Death) or any repeat
+  // call still dropped a gravestone, stacking 20 copies of a character who never died.
+  if(GS.char.isDead) return;        // already dead — don't re-save
+  _origHandleDeath(cause);          // may refuse death (isDead stays false) or actually kill it
+  if(GS.char.isDead) saveToHallOfDead(GS.char, GS.world, cause); // saved once, only if truly dead
 };
 
 // ================================================================
@@ -28124,6 +28167,14 @@ function detectShopType(msg) {
   const lower = msg.toLowerCase();
   const goPattern = /\b(go|visit|enter|head.*?to|walk.*?into|stop.*?at|check.*?out|browse|look.*?around)\b/i;
   if(!goPattern.test(lower)) return null;
+
+  // Don't open a shop on a mere MENTION, a question, reported speech, or a FUTURE
+  // plan ("I tell her I'm going to the blacksmith later", "I ask about the market").
+  if(/\b(talk(?:ing)? about|tell|telling|told|ask(?:ing)? about|mention|wonder(?:ing)?|think(?:ing)? (?:of|about)|plan(?:ning)? to|hope to|want to go|later|tomorrow|next (?:day|week)|someday|one day|used to|remember)\b/i.test(lower)) return null;
+  // A GUILD / association / order is an organization, not a browseable stall — only
+  // treat it as a shop if the player explicitly buys/sells/browses there.
+  if(/\b(guild|association|society|order|faction|company|consortium|league)\b/i.test(lower)
+     && !/\b(buy|purchase|browse|shop|sell|trade|haggle|spend|coin|silver|gold|price)\b/i.test(lower)) return null;
 
   const shopTypes = [
     { patterns: [/apothecary|herb.*shop|medicine.*shop|medicine.*stall|pharmacist|herbalist/i],  type:'medicine',  name:'Apothecary' },
@@ -39192,13 +39243,15 @@ function tickAssets(daysElapsed) {
   assets.forEach(asset => {
     const def = PROPERTY_TYPES[asset.type];
 
-    // Upkeep
+    // Upkeep — and the maintenance it pays for RESTORES condition (the old version
+    // only ever degraded, so a property slid to a wreck and never came back).
     if(asset.upkeepPerMonth > 0) {
       const upkeepDue = Math.ceil(asset.upkeepPerMonth * monthsElapsed);
       if(c.silver >= upkeepDue) {
         c.silver = Math.max(0, c.silver - upkeepDue);
+        if((asset.condition||100) < 100) asset.condition = Math.min(100, (asset.condition||100) + Math.ceil(monthsElapsed * 3));
       } else {
-        // Can't afford upkeep
+        // Can't afford upkeep — it falls into disrepair.
         asset.condition = Math.max(0, asset.condition - Math.ceil(monthsElapsed * 5));
         if(asset.condition <= 20) {
           addPersonalEvent(`WARNING: ${asset.name} is deteriorating — upkeep unpaid. Condition: ${asset.condition}%.`);
@@ -39231,9 +39284,10 @@ function tickAssets(daysElapsed) {
       addPersonalEvent(`Spirit stone mine at ${asset.name} yielded 1 spirit stone.`);
     }
 
-    // Condition degradation over time
-    if(daysElapsed >= 90) {
-      asset.condition = Math.max(0, asset.condition - 1);
+    // Slow natural wear for assets with NO upkeep cost — but it never rots them below
+    // half on its own; a maintained property (upkeep paid above) trends back to 100.
+    if(daysElapsed >= 90 && !(asset.upkeepPerMonth > 0) && (asset.condition||100) > 50) {
+      asset.condition = Math.max(50, asset.condition - 1);
     }
   });
 
@@ -39953,15 +40007,13 @@ document.addEventListener('DOMContentLoaded', () => {
     settingsTitle.addEventListener('click', () => {
       settingsClickCount++;
       clearTimeout(settingsClickTimer);
-      settingsClickTimer = setTimeout(() => { settingsClickCount = 0; }, 2000);
-      if(settingsClickCount >= 5) {
+      settingsClickTimer = setTimeout(() => { settingsClickCount = 0; }, 2500);
+      // Harder & quieter: 7 quick clicks on the Settings TITLE opens the code prompt
+      // (no instant unlock, no hint). The code is then required.
+      if(settingsClickCount >= 7) {
         settingsClickCount = 0;
-        GS.admin.unlocked = true;
-        document.getElementById('btn-admin')?.classList.remove('hidden');
-        hideModal('modal-settings');
-        buildAdminStatGrid?.();
-        showModal('modal-admin');
-        toast('Admin access granted.', 'gold', 3000);
+        showModal('modal-code');
+        const ci = document.getElementById('code-input'); if(ci) { ci.value=''; ci.focus(); }
       }
     });
   }
@@ -44446,6 +44498,7 @@ buildSystemPrompt = function() {
       + `RELATIONSHIPS & ROMANCE MUST REGISTER: any real interaction with a known NPC this turn has to be reflected in the data, not just the prose. When the player talks with, helps, confides in, spars with, or spends time with someone, report a small positive "trust" on that NPC in "updateRelationships" (bond grows). When there is FLIRTING, attraction, a charged moment, a kiss, courtship, or any romantic beat — even a light first flirt — you MUST also emit "romanceUpdates": [{ "npcId": "<their id>", "stage": "<noticed|interested|flirting|tension|confessed|courting|together|…>", "npcFeelings": "<how they feel>", "chemistry": <0-100 or omit>, "notes": "what shifted" }] so the romance actually moves in the People tab. Do not let weeks of flirting leave a relationship at "none". Match the stage to how far things have genuinely gone.\n`
       + `SECTS ARE NOT PEOPLE: a sect, clan, academy, order, guild, faction, or any organization/building is NOT a person — never put it in newRelationships/People. When the player learns of or encounters a sect or faction, register it in newSects: [{ name, alignment, location, desc }] so it appears under World, Sects. Only actual individuals go in relationships.\n`
       + `DRUGS THE PLAYER CAN USE: the dealing stash is for product they sell. But when the player obtains a narcotic, pill, or drug to KEEP and USE themselves (a dose for the road, a vial they pocket, something a contact slips them), put it in their INVENTORY as a consumable via newItems: [{ "name", "type":"consumable", "rarity", "desc":"what it does / the high and the cost", "value", "effects":{} }] — so it's in their bag and they can actually take it later. Don't shove a personal-use dose into the dealing stash where they can't reach it.\n`
+      + `ORGANIZATION (crewUpdate) — MONEY & SCALE: when the player draws their cut / takes money OUT of their crew's treasury into their own purse, set "payout": <amount> in crewUpdate (it moves silver from the org to the player's gold — narrating it alone does NOT). And SCALE MUST MATCH POWER: an organization's reach is bounded by its tier, "influence" (0-100) and member count. A nascent/small crew with low influence CANNOT take over a district, topple a guild, or run a city from the shadows — those are feats of a powerful/feared org with high influence. Do not narrate a tiny crew pulling off a massive takeover; if the player attempts something beyond their org's weight, it strains, partially fails, or spikes "heat" hard. Big, bold, or violent operations should RAISE heat substantially; only real growth raises influence.\n`
       + `DUAL WIELDING: a character may fight with a weapon in each hand if it is plausible for them (two one-handed weapons — twin blades, sword-and-dagger, paired axes, dual sabers — and the body/skill to manage it). Honor it when the player wields two weapons: describe both hands working, the added offense and defense, and the real cost (it is harder, splits focus, demands ambidexterity/training, and a two-handed or heavy weapon cannot be paired). Skilled dual-wielding is a genuine martial advantage; clumsy dual-wielding gets someone killed. Let it be learned and earned like any skill.\n`
       + (() => {
           const c = GS.char;
@@ -44457,7 +44510,8 @@ buildSystemPrompt = function() {
         })()
       + `OFFSPRING & BLOODLINE: when a child is conceived/born, report it in "offspring" with the other parent's name. A child inherits about HALF of a parent's power, never all of it. CRUCIALLY — if the OTHER parent is one of the Original Qi Beasts that can take human form (a Dragon, a Yokai, a Sanguine, an Arachnid, or a Giant/Titan), the child is born HALF that beast's race: set "otherParentBeast" to dragon|yokai|sanguine|arachnid|giant. Half of an apex being is still extraordinary — such children are among the strongest lineages alive, draw awe and danger, and the traits/arts they grow into come amplified. Treat them accordingly.\n`
       + `LEGACY OF THE SEAT (continuing as your heir): when the player dies and continues as their offspring, the heir does NOT start from nothing — the engine hands them whatever ORGANIZATION the parent led (a crew, gang, sect, order, or clan: its members, silver, influence, and territory) and any SECT LEADERSHIP the parent held. Treat these as genuinely the heir's now: the inn, the order, the disciples, the war-chest, the name on the door are theirs to command. But an heir is UNTESTED — honor the resources while playing the real tension of succession: old lieutenants who served the parent may doubt, test, scheme, jockey, or split off; rivals smell weakness at the changeover; loyalty earned by the parent must be re-earned by the child. Never quietly delete the inherited organization or pretend the heir is a nobody — they hold the seat; the question the story explores is whether they can keep it.\n`
-      + `DISCIPLES & THE BOUND: the player can gather people under them beyond a crew. DISCIPLES are students they personally teach (cultivation, martial arts, a craft) — register one via "disciples": [{ "name", "action":"add", "study", "talent", "cultivation" }] the moment the player takes someone on as a disciple, and update their cultivation/loyalty over time (loyaltyDelta), or remove them with action "left|died|betrayed|expelled" and a reason. A disciple grows with time and teaching, can become powerful and devoted — or resentful and treacherous. SLAVES / THE BOUND are people the player owns or has bound to them (captured, bought, taken in conquest, held by debt) — register via "slaves": [{ "name", "action":"add", "role", "origin", "spirit" }] and update their spirit (broken|compliant|loyal|defiant|plotting) as the relationship develops; free/lose them with action "free|sold|escaped|died". Play both honestly and with consequence: disciples carry your name and your sins; the bound resent, scheme, break, or in rare cases come to genuine loyalty — and the orthodox world judges a slaver. Only register these when they actually happen in the story.\n`;
+      + `DISCIPLES & THE BOUND: the player can gather people under them beyond a crew. DISCIPLES are students they personally teach (cultivation, martial arts, a craft) — register one via "disciples": [{ "name", "action":"add", "study", "talent", "cultivation" }] the moment the player takes someone on as a disciple, and update their cultivation/loyalty over time (loyaltyDelta), or remove them with action "left|died|betrayed|expelled" and a reason. A disciple grows with time and teaching, can become powerful and devoted — or resentful and treacherous. SLAVES / THE BOUND are people the player owns or has bound to them (captured, bought, taken in conquest, held by debt) — register via "slaves": [{ "name", "action":"add", "role", "origin", "spirit" }] and update their spirit (broken|compliant|loyal|defiant|plotting) as the relationship develops; free/lose them with action "free|sold|escaped|died". Play both honestly and with consequence: disciples carry your name and your sins; the bound resent, scheme, break, or in rare cases come to genuine loyalty — and the orthodox world judges a slaver. Only register these when they actually happen in the story. IMPORTANT: whenever a disciple ADVANCES, breaks through, or grows stronger in the narrative, you MUST report it with their NEW "cultivation" in the "disciples" array (action "update") — don't let a disciple who reached Foundation Building in the story still show their old realm in the Disciples panel.\n`
+      + `CRIMES SEND YOU TO COURT: serious wrongdoing the player commits — MURDER, assault, theft/robbery, kidnapping, human trafficking/slaving, arson, extortion, smuggling, treason — MUST be registered in "crimes": ["specific deed"] and, when there are witnesses or evidence, raise "bounty" and location "infamy". The more severe and more witnessed the crime, the higher the bounty and the more actively the law (wardens, magistrates, sect enforcers) pursues, investigates, and tries to ARREST and try the player. Don't let the player murder or traffic in the open with zero legal consequence; the world has courts, watchmen, and victims' kin. A clean, unwitnessed crime may go unpunished — but it still happened and still counts.\n`;
     if(prompt.includes('## ABSOLUTE RULES')) prompt = prompt.replace('## ABSOLUTE RULES', section + '\n## ABSOLUTE RULES');
     else prompt = prompt + '\n' + section;
   } catch(e) {}
