@@ -5717,13 +5717,43 @@ const PERSONALITY_POOL = ['ambitious','cautious','cruel','loyal','cowardly','rig
 const ALIGNMENT_POOL = ['orthodox','neutral','demonic','chaotic'];
 
 const APPEARANCE_POOLS = {
-  skin:    ['pale','fair','tawny','olive','light brown','brown','dark brown','deep brown','weathered tan','river-dock brown','ash-grey','copper-toned'],
-  hair:    ['black, straight','dark brown, choppy','brown with lighter streaks','reddish-brown','silver-streaked black','freeform dreads','shaved sides with a long top','topknot, loose','loose and wild','close-cropped','braided back','silver-white'],
-  eyes:    ['dark brown','pale grey, unsettling in their steadiness','amber','deep black','green-flecked hazel','steel grey','pale blue','fox-gold','bloodshot from too many late nights','a brown so dark it reads as black'],
-  build:   ['lean and wiry','compact with ropy muscle from years of labor','broad-shouldered','slight and quick','heavyset with hidden power','tall and angular','short and dense','willowy','stocky','athletic without trying to be'],
-  height:  ['very short for their age','short','average','tall for their age','notably tall','unusually tall, almost awkward with it'],
-  feature: ['a jaw that comes to a sharp point','soft features that make age hard to judge','weathered earlier than they should be','high cheekbones that catch light oddly','a nose that has been broken at least once','a steadiness to the gaze that makes people look away first','hands that have seen real labor','calluses that tell a story','a mouth that stays flat more often than not','eyes that evaluate before they feel'],
+  skin:    ['pale','fair','porcelain-pale','tawny','olive','sun-browned','light brown','brown','warm brown','golden-brown','dark brown','deep brown','rich umber','weathered tan','river-dock brown','ash-grey','copper-toned','freckled','scar-flecked','sallow'],
+  hair:    ['black, straight','jet-black, glossy','dark brown, choppy','brown with lighter streaks','chestnut, wavy','auburn','reddish-brown','sandy blond','ash-blond','silver-streaked black','freeform dreads','shaved sides with a long top','topknot, loose','tight braids','loose and wild','close-cropped','braided back','silver-white','prematurely greying','blue-black, raven-sheen','honey-brown, curling'],
+  eyes:    ['dark brown','warm brown','pale grey, unsettling in their steadiness','amber','honey-gold','deep black','green-flecked hazel','clear green','steel grey','pale blue','ice-blue','fox-gold','violet-tinged','heterochromatic — one brown, one grey','bloodshot from too many late nights','a brown so dark it reads as black','catlike and slit when narrowed'],
+  build:   ['lean and wiry','compact with ropy muscle from years of labor','broad-shouldered','slight and quick','heavyset with hidden power','tall and angular','short and dense','willowy','stocky','athletic without trying to be','rangy and long-limbed','barrel-chested','lithe and dancer-like','soft but deceptively strong','gaunt and sharp-edged','statuesque','thick-necked and powerful'],
+  feature: ['a jaw that comes to a sharp point','soft features that make age hard to judge','weathered earlier than they should be','high cheekbones that catch light oddly','a nose that has been broken at least once','a steadiness to the gaze that makes people look away first','hands that have seen real labor','calluses that tell a story','a mouth that stays flat more often than not','eyes that evaluate before they feel','a faint scar through one eyebrow','a dimple that undercuts a hard face','freckles scattered across the nose','a habit of half-smiling at nothing','unusually long lashes','a crooked tooth shown only when they forget themselves','a birthmark high on the throat','ears that stick out just slightly'],
+  childBuild: ['small, with the soft roundness of early childhood','tiny and quick','slight, all knees and elbows','round-cheeked and restless','small for their age, but wiry'],
+  youthBuild: ['lean and growing, a child\'s frame still finding its shape','wiry and kid-quick','slight, still filling out','gangly, a step ahead of their own coordination','sturdy for a child'],
+  teenBuild:  ['still lengthening, not yet grown into themselves','lanky, limbs outpacing the rest','filling out through the shoulders','coltish, growing fast','caught between boy and man','caught between girl and woman'],
 };
+// Adult height (inches) by tier and gender — current height is derived from this by age.
+const _HEIGHT_TIERS = ['petite','short','average','tall','strikingly tall'];
+function _adultHeightInches(tier, gender) {
+  const male = { petite:64, short:67, average:70, tall:73, 'strikingly tall':77 };
+  const inch = male[tier] || 70;
+  return (gender === 'female') ? inch - 5 : (gender === 'male') ? inch : inch - 2;
+}
+function _growthFactor(age) {
+  if(age <= 1) return 0.30; if(age <= 4) return 0.46; if(age <= 8) return 0.61;
+  if(age <= 12) return 0.75; if(age <= 15) return 0.88; if(age <= 17) return 0.96; return 1.0;
+}
+function _fmtHeight(inches) { return `${Math.floor(inches/12)}'${inches%12}"`; }
+// Build a CURRENT appearance description from a stable blueprint + the character's age,
+// so the body genuinely changes from child to adult while eyes/skin/hair stay theirs.
+function appearanceFromBlueprint(bp, age) {
+  age = (age == null) ? 18 : age;
+  const adult = _adultHeightInches(bp.heightTier || 'average', bp.gender);
+  const inches = Math.max(18, Math.round(adult * _growthFactor(age)));
+  const heightStr = _fmtHeight(inches);
+  let build;
+  if(age <= 5)       build = (bp.childBuild || 'small, with the soft roundness of early childhood');
+  else if(age <= 11) build = (bp.youthBuild || 'lean and growing, a child\'s frame still finding its shape');
+  else if(age <= 16) build = `${bp.teenBuild || 'still lengthening'} — growing into a ${bp.adultBuild} frame`;
+  else               build = `a ${bp.adultBuild} frame`;
+  const cap = s => s ? s.charAt(0).toUpperCase()+s.slice(1) : '';
+  const full = `Around ${heightStr}, ${build}. ${cap(bp.skin)} skin. ${cap(bp.hair)} hair. ${cap(bp.eyes)} eyes. ${cap(bp.feature)}.`;
+  return { skin:bp.skin, hair:bp.hair, eyes:bp.eyes, build, height:heightStr, heightInches:inches, feature:bp.feature, full, blueprint:bp };
+}
 
 const ORIGIN_CARDS = {
   tazar: [
@@ -6107,21 +6137,52 @@ function rarityColor(r) { return RARITIES[r]?.color || RARITIES.common.color; }
 // ================================================================
 // APPEARANCE GENERATION
 // ================================================================
-function generateAppearance(gender, city) {
+function generateAppearance(gender, city, age) {
   const p = APPEARANCE_POOLS;
-  const ap = {
-    skin:    rand(p.skin),
-    hair:    rand(p.hair),
-    eyes:    rand(p.eyes),
-    build:   rand(p.build),
-    height:  rand(p.height),
-    feature: rand(p.feature),
+  // The stable "blueprint" — the genetics that don't change with age. The CURRENT
+  // body (height, build) is derived from this + age, so an 8-year-old isn't 5'6".
+  const bp = {
+    gender,
+    skin:       rand(p.skin),
+    hair:       rand(p.hair),
+    eyes:       rand(p.eyes),
+    adultBuild: rand(p.build),
+    heightTier: rand(_HEIGHT_TIERS),
+    feature:    rand(p.feature),
+    childBuild: rand(p.childBuild),
+    youthBuild: rand(p.youthBuild),
+    teenBuild:  rand(p.teenBuild),
   };
-  // City flavor
-  if(city==='ooina') { ap.skin = rand(['weathered tan','river-dock brown','tawny']); ap.build = rand(['lean and wiry','compact with ropy muscle from years of labor']); }
-  if(city==='beggars_rest') { ap.build = rand(['lean and wiry','slight and quick']); }
-  ap.full = `${ap.height.charAt(0).toUpperCase()+ap.height.slice(1)}, with a ${ap.build} frame. ${ap.skin.charAt(0).toUpperCase()+ap.skin.slice(1)} skin. ${ap.hair.charAt(0).toUpperCase()+ap.hair.slice(1)} hair. ${ap.eyes.charAt(0).toUpperCase()+ap.eyes.slice(1)} eyes. ${ap.feature.charAt(0).toUpperCase()+ap.feature.slice(1)}.`;
-  return ap;
+  // City flavor (applied to the stable blueprint).
+  if(city==='ooina')       { bp.skin = rand(['weathered tan','river-dock brown','tawny']); bp.adultBuild = rand(['lean and wiry','compact with ropy muscle from years of labor','rangy and long-limbed']); }
+  if(city==='beggars_rest'){ bp.adultBuild = rand(['lean and wiry','slight and quick','gaunt and sharp-edged']); }
+  return appearanceFromBlueprint(bp, age);
+}
+
+// Re-derive the player's body for their CURRENT age (call when age changes). Keeps
+// eyes/skin/hair/face the same; grows height and build child → adult. No-ops if the
+// appearance has no blueprint and one can't be synthesised.
+function refreshAppearanceForAge() {
+  const c = GS.char; if(!c) return;
+  let ap = c.appearance;
+  if(typeof ap !== 'object' || !ap) return;
+  let bp = ap.blueprint;
+  if(!bp) {
+    // Synthesise a blueprint from an old (blueprint-less) appearance so existing
+    // characters also age from here on.
+    const p = APPEARANCE_POOLS;
+    bp = {
+      gender: c.gender,
+      skin: ap.skin || rand(p.skin), hair: ap.hair || rand(p.hair), eyes: ap.eyes || rand(p.eyes),
+      adultBuild: (ap.build && !/grow|length|child|small|tiny|slight/i.test(ap.build)) ? ap.build : rand(p.build),
+      heightTier: rand(_HEIGHT_TIERS), feature: ap.feature || rand(p.feature),
+      childBuild: rand(p.childBuild), youthBuild: rand(p.youthBuild), teenBuild: rand(p.teenBuild),
+    };
+  }
+  const next = appearanceFromBlueprint(bp, c.age);
+  // Preserve any AI-written prose appendix the player accumulated.
+  if(ap.appended) next.appended = ap.appended;
+  c.appearance = next;
 }
 
 // ================================================================
@@ -6690,6 +6751,13 @@ buildSystemPrompt = function() {
 function buildLarpGodSection() {
   const c = GS.char;
   const isGod = (c.traits||[]).some(t => t.id === 'larp_god') || c.race === 'minor_god';
+  // A Minor God WITH a domain (ascended by deeds/worship/inheritance, not the Larp path).
+  if(c.godDomain && c.race === 'minor_god') {
+    const d = c.godDomain;
+    return `## MINOR GOD OF ${String(d).toUpperCase()} (this character is a Minor God)\n`
+      + `This character has ascended to a Minor God whose domain is ${d}. Within that domain their authority is real and tangible — events, people, and forces that fall under ${d} bend toward their will, and they wield power over ${d} that no mortal cultivator can match. Faith and reverence gather around them; lesser powers of related domains acknowledge or resent them. `
+      + `LIMITS: they are a MINOR god, not omnipotent — outside their domain they are formidable but not invincible, they can still be wounded or killed by a peer or by enough force, and other gods/Maligned Lords are genuine threats. But anything squarely within ${d}, treat as theirs to command. Narrate them with the weight and strangeness of something no longer wholly mortal.\n`;
+  }
   if(isGod) {
     return `## THE LARP GOD (this character is a Minor God)\n`
       + `This character faked their way into divinity — they lied so well, so often, that the lie became real. `
@@ -6701,7 +6769,28 @@ function buildLarpGodSection() {
   return `## IMPOSTURE & FALSE IDENTITY (Larp God path — ${n}/8)\n`
     + `If the player deliberately and successfully pulls off a BOLD imposture or false identity — passing as something they are not to people who matter, and being genuinely believed — register it with "larpSuccess": "<one-line description>". `
     + `This is reserved for real, earned deceptions with stakes and scale, NOT trivial small talk or minor white lies. Examples that COUNT: keeping up the role of a bank's master for months despite no head for coin; convincing a congregation you are the messiah and the reincarnation of Reo Yamamoto; fooling a sect into accepting you as an elder. `
-    + `Only set it when the con actually LANDS in the story — if they're caught or doubted, do NOT set it (and let the failure bite). Make these hard to pull off and meaningful. After 8 such triumphs the lie becomes the truth and the engine turns them into a Minor God.\n`;
+    + `Only set it when the con actually LANDS in the story — if they're caught or doubted, do NOT set it (and let the failure bite). Make these hard to pull off and meaningful. After 8 such triumphs the lie becomes the truth and the engine turns them into a Minor God.\n\n`
+    + `## OTHER PATHS TO MINOR GODHOOD (a god OF A DOMAIN, not the Larp path)\n`
+    + `The Larp God is only ONE way to become a Minor God. A mortal can also ascend to a Minor God OF A SPECIFIC DOMAIN through other earned, world-shaking arcs — and you should let it happen when one is truly completed. Paths include: APOTHEOSIS THROUGH DEEDS (become so utterly the embodiment of one thing — war, death, the blade, healing, the harvest, vengeance, the hunt, plague, mercy, the forge — that the world begins to treat you as its god); INHERITING A PORTFOLIO (slay or receive the mantle of an existing god/divine entity of a domain); BEING WORSHIPPED (a domain's faithful pray to YOU long and hard enough that the belief makes it real); a DIVINE BARGAIN or trial that grants a domain at a terrible price; or surviving an apotheosis-tier tribulation aimed at a single domain. These are RARE, earned at enormous cost, and never casual. When the player genuinely completes such an arc, register it with "divineAscension": { "domain": "<their domain, e.g. War / Death / the Forge / Vengeance>", "path": "<how they ascended>" } — the engine makes them a Minor God of that domain (with real divine authority over it). Until the arc is truly earned, do NOT grant it; weak attempts fail, maim, or kill.\n`;
+}
+
+// Elevate the player to a Minor God OF A DOMAIN (any path — not just the Larp God).
+function becomeMinorGodOfDomain(domain, path) {
+  const c = GS.char;
+  domain = (domain || '').toString().trim().replace(/^the\s+/i,'');
+  if(!domain) return;
+  c.godDomain = domain;
+  if(c.race !== 'minor_god') { try { setRace('minor_god'); } catch(e) {} }
+  const tname = `Minor God of ${domain.charAt(0).toUpperCase()+domain.slice(1)}`;
+  if(!(c.traits||[]).some(t => (t.name||'').toLowerCase() === tname.toLowerCase())) {
+    try { addCustomTrait({ name:tname, rarity:'mythic',
+      desc:`You ascended to a Minor God whose portfolio is ${domain}${path?' — '+path:''}. Within your domain your will bends the world toward you; faith and reverence gather, and the divine treats you as one of its own.`,
+      effects:{ willpower:10, charisma:8, perception:6 } }); } catch(e) {}
+  }
+  try { addChronicleEntry(`Ascended to a Minor God of ${domain}.`, 'major'); } catch(e) {}
+  try { addPersonalEvent(`[DIVINE ASCENSION]: You are no longer wholly mortal — you have become a Minor God of ${domain}${path?', through '+path:''}. Your authority over ${domain} is real now.`); } catch(e) {}
+  try { updateCharacterTab(); } catch(e) {}
+  toast(`You have become a Minor God of ${domain}.`, 'gold', 8000);
 }
 
 // ================================================================
@@ -12420,7 +12509,7 @@ window.addEventListener('pagehide', () => { doAutosave(true); });
 // Scheme: MAJOR.MINOR. Big updates bump MAJOR (1.2 -> 2.2). Small updates
 // bump MINOR (2.2 -> 2.3). Each version has a name. The current version is
 // stamped onto every save; older saves can be updated to the latest.
-const GAME_VERSION = { number: '5.6', name: 'Cleanup Crew' };
+const GAME_VERSION = { number: '5.7', name: 'Growing Up' };
 
 // Which model generates the story. Lite Mode swaps to a far cheaper, faster model
 // (Claude Haiku) so long sessions / limited credits cost a fraction per turn.
@@ -12500,6 +12589,7 @@ const VERSION_HISTORY = [
   { number:'5.4', name:'It Counts Now', sys:'Talking to and flirting with people in the story finally counts. Before, you could flirt with someone for weeks and the People tab would still show nothing — now any real interaction with a known NPC nudges the relationship: talking/helping/spending time raises your bond, and flirting builds chemistry and moves the romance along (noticed → interested → flirting) right there in the People tab. The storyteller is also told it MUST register these, so it stops happening only in the prose.', note:'registerNarrativeInteractions(rawMsg): detects social vs romantic interaction (_SOCIAL_RE/_ROMANTIC_RE) with any known relationship named in the player message (full or distinctive first name, word-boundary); bumps bond_level (+2 social/+3 romantic) + trust; romantic also ensureRomance + chemistry+4/attraction+3 and auto-walks early stages none→noticed→interested→flirting by chemistry thresholds (never past flirting — confess/court/together stay AI-owned). Wired into the turn injection pass. Prompt: RELATIONSHIPS & ROMANCE MUST REGISTER rule (trust on interaction, romanceUpdates on any romantic beat). Verified in-browser. Version → 5.4.' },
   { number:'5.5', name:'New Bloodlines', sys:'A batch. NEW RACES: Abyssborn, Bloodkin, Revenant, Shadow Walker (gained through dark arcs); Heavenly Demon, Asura, Nine Hells Saint (apex transformations); and eight DIVINE-BEAST HYBRIDS you can be born as OR transform into and shift to their form at will — True Dragon, Vermilion Bird, White Tiger, Black Tortoise, Golden Roc, Qilin, Heavenly Fox, Divine Ape — plus the Lycanthrope (beast-Qi were-shifter). SECTS ARE NOT PEOPLE: a sect/academy/clan can no longer show up in your People tab as a person — they now register under World → Sects, and old bogus "people" like that are cleared on load; sects you encounter actually get recorded. USABLE DRUGS: a drug you keep for yourself now goes in your inventory (not just the dealing stash) so you can actually use it. SUPPORT: tipping is now Cash App ($MurimChronicles) with a note that it funds more frequent updates, plus a Discord button in the menu corner and in Support.', note:'RACES: 16 new entries in RACES (gained/transformed/8 hybrids born:true+hybridForm/lycanthrope) + RACE_PATHS triggers/risks for all; race-prompt builders fixed — bornNames now born&&!RACE_PATHS, paths lists all RACE_PATHS with "(can also be BORN)" note for born hybrids; setRace verified applies modifiers. SECTS: _looksLikeOrganization/_looksLikeSect guards in addOrUpdateRelationship + consolidated newRelationships (reroute sect-named to addDiscoveredSect); res.newSects handler + addDiscoveredSect() + schema (both blocks) + SECTS-ARE-NOT-PEOPLE prompt; migrate evicts org-named relationships (sects→discoveredSects). DRUGS: prompt rule routes personal-use drugs to newItems(consumable) inventory. SUPPORT: panel→Cash App $MurimChronicles + update note + Discord; menu corner Discord button (discord.gg/8ppee4BQT). Verified in-browser. Version → 5.5.' },
   { number:'5.6', name:'Cleanup Crew', sys:'A batch of fixes. HALL OF THE DEAD: a character who nearly died (but was saved) no longer gets stamped into the graveyard — only real deaths are recorded, and the stacked duplicates from that bug are cleaned up on load. SHOPS: a shop popup no longer fires when you merely mention or plan to visit one ("I tell her I\'m going to the blacksmith later") or talk about a guild — only when you actually go shopping. RELATIONSHIPS: a spouse, lover, sworn friend, or close family will never show as "Just Met" again — the type sets a floor on how close the game shows you. ORGANIZATIONS: you can now draw money OUT of your crew\'s treasury into your own gold (it never reached your purse before), and the storyteller is told a small/weak crew can\'t take over a whole district — scale matches power, and bold moves spike heat. PROPERTY: a maintained property (upkeep paid) now RECOVERS condition instead of only ever decaying. ADMIN: the dev panel is harder to find now (see notes). Plus prompt fixes so disciples\' cultivation updates when they level, and serious crimes (murder, trafficking, kidnapping, theft) register and draw the law.', note:'HALL: handleDeath wrapper now runs orig FIRST and only saveToHallOfDead if isDead (defied/cheated death + repeat calls no longer stack gravestones); saveToHallOfDead dedupe (name|age|deathYear) + stores birthYear; renderHallOfDead one-time cleanup collapses existing dupes. SHOP: detectShopType rejects reported/future/mention phrasing + guild/org words without buy intent. BOND: relationshipBondFloor(type)/effectiveBond used in buildBondDisplay (spouse/lover 78, family 60, friend 52, disciple/mentor 38). CREW: applyCrewUpdate payout/silverToPlayer moves crew.silver→addSilver; live prompt ORGANIZATION rule (payout + scale-vs-influence/tier + heat). ASSET: tickAssets restores condition when upkeep paid (+3/mo to 100); no-upkeep wear floors at 50. ADMIN: removed Settings title hint+5-click instant unlock → 7 title-clicks open code prompt; code 3005→7341; creation-bg trigger 3→9. PROMPT: disciples must report new cultivation on level; CRIMES-SEND-YOU-TO-COURT rule. Verified in-browser. Version → 5.6.' },
+  { number:'5.7', name:'Growing Up', sys:'Three big ones. YOUR BODY AGES NOW: your appearance changes with age — a small child is short and soft-featured and genuinely grows, year by year, into their adult height and build (no more being 5\'6" at age 8), while eyes, skin, hair, and your distinctive features stay yours. The variety pools are much bigger too, and existing characters start aging from their current age. MINOR GOD OF A DOMAIN: the Larp God is no longer the only road to godhood — you can ascend to a Minor God of a specific domain (War, Death, the Forge, Vengeance, the Hunt, healing, the harvest…) through other earned, world-shaking arcs: becoming the utter embodiment of one thing, inheriting a dead god\'s portfolio, being worshipped until belief makes it real, or a divine bargain. The god of that domain commands it. RELATIONSHIPS DEEPEN WITH TIME: someone you actually live and travel alongside now grows closer month by month — a companion you\'ve been inseparable from for over a year will read as a real bond, not "Just Met", and people you keep dealing with graduate from "encountered" to companion/friend on their own.', note:'APPEARANCE: stable blueprint (skin/eyes/hair/feature/heightTier/adultBuild) + appearanceFromBlueprint(bp,age) derives current height (_adultHeightInches×_growthFactor) & age-banded build; generateAppearance(gender,city,age) builds blueprint; refreshAppearanceForAge() re-derives on age change (advanceTime age delta, ageChange handler, load) + synthesises a blueprint for old saves; pools expanded + child/youth/teen build pools; creation callers pass selectedAge/child.age. DOMAIN GODS: becomeMinorGodOfDomain(domain,path) sets race minor_god + godDomain + mythic "Minor God of X" trait (wil+10/cha+8/per+6); res.divineAscension handler + schema; god prompt section branches on godDomain; OTHER PATHS TO MINOR GODHOOD prompt added to larp section. COMPANIONS: registerNarrativeInteractions stamps _lastInteractDay + upgrades generic types (→companion/friend by effectiveBond); tickCompanionBonds(daysElapsed) grows bond toward a type ceiling for recently-active/close rels (wired into advanceTime). Verified in-browser. Version → 5.7.' },
 ];
 
 function cleanSaveData(gs) {
@@ -13270,7 +13360,7 @@ function initCreation() {
 
   function rollAppearance() {
     const city = document.getElementById('inp-city').value;
-    currentAppearance = generateAppearance(selectedGender, city);
+    currentAppearance = generateAppearance(selectedGender, city, selectedAge);
     document.getElementById('appearance-preview').textContent = currentAppearance.full;
     GS.pendingAppearance = currentAppearance;
   }
@@ -13302,7 +13392,9 @@ function initCreation() {
     state.world.month    = 1;
     state.world.day      = 1;
     state.world.location = city;
-    state.char.appearance = currentAppearance.full ? currentAppearance : generateAppearance(selectedGender, city);
+    state.char.appearance = (currentAppearance && currentAppearance.blueprint)
+      ? appearanceFromBlueprint(currentAppearance.blueprint, selectedAge)
+      : generateAppearance(selectedGender, city, selectedAge);
 
     // Random stats — everyone different
     const randomStats = generateRandomStats();
@@ -14620,7 +14712,7 @@ function continueAsOffspring(offspringId) {
     try { newState.char.personalEvents.push(note); } catch(e) {}
   }
 
-  newState.char.appearance = generateAppearance(child.gender, GS.world.location);
+  newState.char.appearance = generateAppearance(child.gender, GS.world.location, child.age);
   newState.settings = GS.settings;
   newState.world.npcRegistry = GS.world.npcRegistry; // carry NPCs forward
   newState.world.worldHistory = GS.world.worldHistory;
@@ -15293,6 +15385,7 @@ The JSON carries ONLY state changes. There is NO "narrative" field in the JSON �
   "newSects": [{ "name": "", "alignment": "", "location": "", "desc": "" }],
   "offspring": [{ "name": "", "gender": "male", "otherParent": "", "otherParentBeast": "(only if the OTHER parent is an Original Qi Beast in human form: dragon|yokai|sanguine|arachnid|giant — makes the child half that race)", "abandoned": false, "age": 0 }],
   "raceChange": null,
+  "divineAscension": null,
   "larpSuccess": null,
   "ancientQiLearned": null,
   "death": false,
@@ -19791,7 +19884,7 @@ advanceTime = function(days=0, months=0, years=0) {
   _withNPCTick(days, months, years);
   const daysAfter = totalDays(GS.world.year, GS.world.month, GS.world.day||1);
   const elapsed = daysAfter - daysBefore;
-  if(elapsed > 0) { tickAllNPCs(elapsed); try { tickReputation(elapsed); } catch(e) {} }
+  if(elapsed > 0) { tickAllNPCs(elapsed); try { tickReputation(elapsed); } catch(e) {} try { tickCompanionBonds(elapsed); } catch(e) {} }
 };
 
 // ================================================================
@@ -30741,7 +30834,9 @@ updateCharacterTab = function() {
     const rem = td % 360;
     w.month = Math.floor(rem / 30) + 1;
     w.day   = (rem % 30) + 1;
+    const _prevAge = GS.char.age;
     GS.char.age = w.year - GS.char.birthYear;
+    if(GS.char.age !== _prevAge) { try { refreshAppearanceForAge(); } catch(e) {} }
     Object.values(w.npcRegistry).forEach(n => { if(n.birthYear) n.age = w.year - n.birthYear; });
     checkScheduledEvents();
     if(w.year !== prevYear) { try { checkZeretSpawn(); } catch(e) {} }
@@ -31243,6 +31338,7 @@ updateCharacterTab = function() {
         GS.char.birthYear -= res.ageChange; // shifting birth year changes computed age
         GS.char._maxAgeReached = Math.max(0, (GS.char._maxAgeReached||0) + res.ageChange);
         GS.char.age = Math.max(0, (GS.char.age||0) + res.ageChange);
+        try { refreshAppearanceForAge(); } catch(e) {}
         updateCharacterTab();
       }
     });
@@ -31416,6 +31512,7 @@ updateCharacterTab = function() {
         beastParent: (o.otherParentBeast && HALF_BEAST_RACE[o.otherParentBeast]) ? o.otherParentBeast : null,
       }); });
       if(res.raceChange) setRace(res.raceChange);
+      if(res.divineAscension && res.divineAscension.domain) becomeMinorGodOfDomain(res.divineAscension.domain, res.divineAscension.path);
       if(res.death) handleDeath(res.deathCause||'unknown');
     });
 
@@ -36231,6 +36328,16 @@ function registerNarrativeInteractions(msg) {
     if(!named) return;
     rel.bond_level = Math.min(100, (rel.bond_level || rel.trust || 10) + (romantic ? 3 : 2));
     rel.trust = (rel.trust || 0) + 1;
+    // Mark that we're actively in each other's lives — feeds time-based deepening.
+    rel._lastInteractDay = totalDays(GS.world.year, GS.world.month, GS.world.day||1);
+    // A generic "encountered/acquaintance" who you keep dealing with becomes a real
+    // tie, so the People tab stops saying "Just Met" about someone you live alongside.
+    const genericType = /^(encountered|acquaintance|known|met|stranger|from the opening|mentioned)$/i.test(rel.type||'');
+    if(genericType) {
+      const eb = effectiveBond(rel);
+      if(eb >= 52) rel.type = 'friend';
+      else if(eb >= 30) rel.type = 'companion';
+    }
     if(romantic) {
       const rom = ensureRomance(rel);
       rom.chemistry  = Math.min(100, (rom.chemistry || 0) + 4);
@@ -36242,6 +36349,30 @@ function registerNarrativeInteractions(msg) {
       if(idx >= 0 && idx < order.length-1 && rom.chemistry >= (idx+1)*18) rom.stage = order[idx+1];
     }
     changed = true;
+  });
+  if(changed) { try { updateRelationsTab(); } catch(e) {} }
+}
+
+// Relationships you are ACTIVELY in deepen with TIME, not just with named interactions.
+// Fixes "we've been inseparable 14 months but it says I just met them": a companion's
+// bond climbs as the months pass, slowing as it nears a natural ceiling.
+function tickCompanionBonds(daysElapsed) {
+  if(!daysElapsed) return;
+  const rels = GS.char.relationships || [];
+  const now = totalDays(GS.world.year, GS.world.month, GS.world.day||1);
+  let changed = false;
+  rels.forEach(rel => {
+    if(rel.alive === false) return;
+    const recent = rel._lastInteractDay != null && (now - rel._lastInteractDay) <= 220;
+    const closeType = /spouse|husband|wife|lover|partner|friend|ally|companion|family|disciple|mentor|sister|brother|mother|father|\bson\b|daughter|comrade|betroth|fianc/i.test(rel.type||'');
+    if(!recent && !closeType) return;
+    const floor = relationshipBondFloor(rel.type);
+    const ceiling = floor ? Math.min(100, Math.max(90, floor + 12)) : 75;
+    const cur = rel.bond_level || rel.trust || 10;
+    if(cur >= ceiling) return;
+    const grow = (daysElapsed / 25) * (1 - cur / ceiling); // ~+1 per 25 days, tapering
+    const next = Math.min(ceiling, cur + grow);
+    if(next - cur >= 0.5) { rel.bond_level = Math.round(next); changed = true; }
   });
   if(changed) { try { updateRelationsTab(); } catch(e) {} }
 }
@@ -39914,6 +40045,7 @@ startGame = function(isLoad=false) {
     if(c.birthYear !== undefined && w.year !== undefined) {
       c.age = w.year - c.birthYear;
     }
+    try { refreshAppearanceForAge(); } catch(e) {}
     updateTopbar();
     updateCharacterTab();
   } catch(e) {}
