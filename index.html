@@ -9872,6 +9872,25 @@ function autoUpdateCrewTier(crew) {
   }
 }
 
+// Passive organization income — the crew's operations bring silver into the TREASURY
+// over time (so there's actually money to collect via payout), scaled by tier, active
+// members, and influence. Heat slowly cools when no fresh crimes are committed.
+const _CREW_TIER_INCOME = { nascent:2, small:7, established:18, powerful:45, feared:95, renowned:160 };
+function tickCrew(daysElapsed) {
+  const crew = GS.char.crew;
+  if(!crew || !daysElapsed) return;
+  const months = daysElapsed / 30;
+  const active = (crew.members || []).filter(m => m.alive !== false).length;
+  const base   = _CREW_TIER_INCOME[crew.tier] || 2;
+  const income = Math.round((base + active * 1.5 + (crew.influence || 0) * 0.4) * months);
+  if(income > 0) {
+    crew.silver = (crew.silver || 0) + income;
+    if(Math.random() < 0.4) crew.log.push(`Year ${GS.world.year}: Operations brought ${formatCoins(income)} into the treasury.`);
+  }
+  if(crew.heat > 0) crew.heat = Math.max(0, crew.heat - Math.round(months * 2)); // cools over time
+  try { updateCrewDisplay(); } catch(e) {}
+}
+
 function createCrew(opts) {
   const c = GS.char;
   c.crew = {
@@ -11711,7 +11730,7 @@ PART 2 — DATA (immediately after the narrative, on its own line):
   "removeConditions": ["condition_id_to_clear"],
   "ageChange": 0, "ageViaTechnique": false,
   "newRelationships": [{ "npcId": "", "name": "", "title": "", "type": "", "summary": "", "alive": true, "isLore": false, "glowColor": null, "cultivation": "their realm if a cultivator, e.g. Qi Condensation I" }],
-  "updateRelationships": [{ "npcId": "", "type": "", "summary": "", "memoryAddition": "", "trust": 0, "alive": null, "imprisoned": null, "prisonLocation": null, "cultivation": "set when their realm should change/correct, e.g. Foundation Building" }],
+  "updateRelationships": [{ "npcId": "", "type": "", "summary": "", "memoryAddition": "", "trust": 0, "alive": null, "imprisoned": null, "prisonLocation": null, "cultivation": "set when their realm should change/correct, e.g. Foundation Building", "newName": "set if this NPC changed their name", "grudge": 0, "fear": 0 }],
   "reputation": [{ "location": "tazar", "renown": 0, "infamy": 0, "eventDesc": "" }],
   "newSects": [{ "name":"", "alignment":"orthodox|demonic|neutral|unknown", "location":"where", "desc":"what they are" }],
   "decisions": ["narrative text"],
@@ -12450,7 +12469,7 @@ window.addEventListener('pagehide', () => { doAutosave(true); });
 // Scheme: MAJOR.MINOR. Big updates bump MAJOR (1.2 -> 2.2). Small updates
 // bump MINOR (2.2 -> 2.3). Each version has a name. The current version is
 // stamped onto every save; older saves can be updated to the latest.
-const GAME_VERSION = { number: '5.7.1', name: 'Growing Up' };
+const GAME_VERSION = { number: '5.8', name: 'In Good Order' };
 
 // Which model generates the story. Lite Mode swaps to a far cheaper, faster model
 // (Claude Haiku) so long sessions / limited credits cost a fraction per turn.
@@ -12532,6 +12551,7 @@ const VERSION_HISTORY = [
   { number:'5.6', name:'Cleanup Crew', sys:'A batch of fixes. HALL OF THE DEAD: a character who nearly died (but was saved) no longer gets stamped into the graveyard — only real deaths are recorded, and the stacked duplicates from that bug are cleaned up on load. SHOPS: a shop popup no longer fires when you merely mention or plan to visit one ("I tell her I\'m going to the blacksmith later") or talk about a guild — only when you actually go shopping. RELATIONSHIPS: a spouse, lover, sworn friend, or close family will never show as "Just Met" again — the type sets a floor on how close the game shows you. ORGANIZATIONS: you can now draw money OUT of your crew\'s treasury into your own gold (it never reached your purse before), and the storyteller is told a small/weak crew can\'t take over a whole district — scale matches power, and bold moves spike heat. PROPERTY: a maintained property (upkeep paid) now RECOVERS condition instead of only ever decaying. ADMIN: the dev panel is harder to find now (see notes). Plus prompt fixes so disciples\' cultivation updates when they level, and serious crimes (murder, trafficking, kidnapping, theft) register and draw the law.', note:'HALL: handleDeath wrapper now runs orig FIRST and only saveToHallOfDead if isDead (defied/cheated death + repeat calls no longer stack gravestones); saveToHallOfDead dedupe (name|age|deathYear) + stores birthYear; renderHallOfDead one-time cleanup collapses existing dupes. SHOP: detectShopType rejects reported/future/mention phrasing + guild/org words without buy intent. BOND: relationshipBondFloor(type)/effectiveBond used in buildBondDisplay (spouse/lover 78, family 60, friend 52, disciple/mentor 38). CREW: applyCrewUpdate payout/silverToPlayer moves crew.silver→addSilver; live prompt ORGANIZATION rule (payout + scale-vs-influence/tier + heat). ASSET: tickAssets restores condition when upkeep paid (+3/mo to 100); no-upkeep wear floors at 50. ADMIN: removed Settings title hint+5-click instant unlock → 7 title-clicks open code prompt; code 3005→7341; creation-bg trigger 3→9. PROMPT: disciples must report new cultivation on level; CRIMES-SEND-YOU-TO-COURT rule. Verified in-browser. Version → 5.6.' },
   { number:'5.7', name:'Growing Up', sys:'Three big ones. YOUR BODY AGES NOW: your appearance changes with age — a small child is short and soft-featured and genuinely grows, year by year, into their adult height and build (no more being 5\'6" at age 8), while eyes, skin, hair, and your distinctive features stay yours. The variety pools are much bigger too, and existing characters start aging from their current age. MINOR GOD OF A DOMAIN: the Larp God is no longer the only road to godhood — you can ascend to a Minor God of a specific domain (War, Death, the Forge, Vengeance, the Hunt, healing, the harvest…) through other earned, world-shaking arcs: becoming the utter embodiment of one thing, inheriting a dead god\'s portfolio, being worshipped until belief makes it real, or a divine bargain. The god of that domain commands it. RELATIONSHIPS DEEPEN WITH TIME: someone you actually live and travel alongside now grows closer month by month — a companion you\'ve been inseparable from for over a year will read as a real bond, not "Just Met", and people you keep dealing with graduate from "encountered" to companion/friend on their own.', note:'APPEARANCE: stable blueprint (skin/eyes/hair/feature/heightTier/adultBuild) + appearanceFromBlueprint(bp,age) derives current height (_adultHeightInches×_growthFactor) & age-banded build; generateAppearance(gender,city,age) builds blueprint; refreshAppearanceForAge() re-derives on age change (advanceTime age delta, ageChange handler, load) + synthesises a blueprint for old saves; pools expanded + child/youth/teen build pools; creation callers pass selectedAge/child.age. DOMAIN GODS: becomeMinorGodOfDomain(domain,path) sets race minor_god + godDomain + mythic "Minor God of X" trait (wil+10/cha+8/per+6); res.divineAscension handler + schema; god prompt section branches on godDomain; OTHER PATHS TO MINOR GODHOOD prompt added to larp section. COMPANIONS: registerNarrativeInteractions stamps _lastInteractDay + upgrades generic types (→companion/friend by effectiveBond); tickCompanionBonds(daysElapsed) grows bond toward a type ceiling for recently-active/close rels (wired into advanceTime). Verified in-browser. Version → 5.7.' },
   { number:'5.7.1', name:'Growing Up (hotfix)', sys:'HOTFIX: the v5.7 appearance change clashed with the game\'s real appearance system and blanked out your height/hair/eyes/skin/face (and made the character sheet look broken). Reverted that and fixed the actual system instead — your appearance grid is back, and height is now genuinely age-appropriate: a child is short and grows toward their adult height by ~18, then stops. Existing/broken saves repair themselves on load. (Your disciples and organization were never deleted — that was the broken sheet failing to draw; they\'re back now.)', note:'Reverted the v5.7 parallel appearance: removed appearanceFromBlueprint/refreshAppearanceForAge + its 3 call sites + the _HEIGHT_TIERS/_adultHeightInches/_growthFactor/_fmtHeight helpers; generateAppearance restored to the simple schema (+ APPEARANCE_POOLS.height key) so startGame still upgrades it to the detailed system; reverted creation/offspring callers. FIXED THE REAL SYSTEM: _heightGrowthFactor(age); generateDetailedAppearance now stores adult_height_cm + age-scaled height_cm; evolveAppearance grows height_cm toward adult_height_cm for ALL categories until ~19 (with reverse-derive fallback for pre-field saves). Broken blueprint-schema appearances regenerate to detailed via startGame upgrade (no height_cm). Verified: age 4→3\'7\", 8→4\'4\", 13→5\'1\", 18→5\'7\" adult; child grows to target. Version → 5.7.1.' },
+  { number:'5.8', name:'In Good Order', sys:'Four fixes. TREASURY ACTUALLY FILLS: your organization now earns silver into its treasury over time (scaled by tier, members, and influence), so there is real money to collect — draw your cut and it lands in your gold; heat also cools when you lay low. CULTIVATION SYNC: an NPC introduced or described at a realm in the story (e.g. "Qi Condensation Stage II") now shows that realm in the People tab instead of "Mortal". NAME CHANGES STICK: when a character takes a new name in the narrative, the People tab updates. GRUDGES FORM: wronging someone an NPC cares about now actually makes them hostile (and the storyteller is told a grudge attaches to the identity they blame — so a secret-identity crime sticks to the persona, not your true face). Also re-draws your org + disciples panels on load so they\'re never left blank.', note:'CREW: tickCrew(daysElapsed) passive treasury income (_CREW_TIER_INCOME[tier] + members*1.5 + influence*0.4)/mo, heat cools 2/mo; wired into advanceTime; prompt: report earnings via silverDelta + payout collects. CULTIVATION SYNC: _STAGE_MATCHERS (tolerant of "Stage" + roman/digit tiers) + syncNpcCultivationFromText(narrative) scans rel.summary/title + name-window → sets npc.qiStageIndex; safe("npcCultivation") in applyAIResponse. RENAME/GRUDGE: updateRelationships handler gains newName (renames rel+npc), grudge/fear (clamped deltas) + schema (both blocks) + WRONGING-SOMEONE prompt (grudge attaches to blamed identity, secret-identity nuance). ORG/DISCIPLES: load path now calls updateWorldTab+updateCrewDisplay+updateFollowersDisplay (render verified working — data is preserved by cleanSaveData deep-clone; nothing deletes crew/disciples). Verified in-browser. Version → 5.8.' },
 ];
 
 function cleanSaveData(gs) {
@@ -15298,7 +15318,7 @@ The JSON carries ONLY state changes. There is NO "narrative" field in the JSON �
   "removeConditions": ["condition_id_to_clear"],
   "ageChange": 0, "ageViaTechnique": false,
   "newRelationships": [{ "npcId": "", "name": "", "title": "", "type": "", "summary": "1 sentence max", "alive": true, "isLore": false, "glowColor": null }],
-  "updateRelationships": [{ "npcId": "", "type": "", "summary": "", "memoryAddition": "full prose paragraph of what happened", "trust": 0, "alive": null, "imprisoned": null, "prisonLocation": null, "cultivation": "set when their realm should change/correct, e.g. Foundation Building" }],
+  "updateRelationships": [{ "npcId": "", "type": "", "summary": "", "memoryAddition": "full prose paragraph of what happened", "trust": 0, "alive": null, "imprisoned": null, "prisonLocation": null, "cultivation": "set when their realm should change/correct, e.g. Foundation Building", "newName": "set if this NPC changed their name", "grudge": 0, "fear": 0 }],
   "reputation": [{ "location": "tazar", "renown": 0, "infamy": 0, "eventDesc": "specific deed", "impact": 10, "renownTitle": null, "infamyTitle": null }],
   "newSects": [{ "name":"", "alignment":"orthodox|demonic|neutral|unknown", "location":"where", "desc":"what they are" }],
   "decisions": ["prose — what the character chose and what it cost or meant"],
@@ -19824,7 +19844,7 @@ advanceTime = function(days=0, months=0, years=0) {
   _withNPCTick(days, months, years);
   const daysAfter = totalDays(GS.world.year, GS.world.month, GS.world.day||1);
   const elapsed = daysAfter - daysBefore;
-  if(elapsed > 0) { tickAllNPCs(elapsed); try { tickReputation(elapsed); } catch(e) {} try { tickCompanionBonds(elapsed); } catch(e) {} }
+  if(elapsed > 0) { tickAllNPCs(elapsed); try { tickReputation(elapsed); } catch(e) {} try { tickCompanionBonds(elapsed); } catch(e) {} try { tickCrew(elapsed); } catch(e) {} }
 };
 
 // ================================================================
@@ -31326,6 +31346,11 @@ updateCharacterTab = function() {
           if(u.memoryAddition) { updateRelationshipMemory(u.npcId, u.memoryAddition); recordNPCMemory(u.npcId, u.memoryAddition.slice(0,200)); }
           if(u.trust != null) rel.trust = (rel.trust||0)+u.trust;
           if(u.cultivation != null) { const npc=GS.world.npcRegistry[u.npcId]; const ci=resolveQiStageIndex(u.cultivation); if(npc && ci!=null) { npc.qiStageIndex=ci; npc.cultivationCap=Math.max(npc.cultivationCap||0, ci); } }
+          // NAME CHANGE — when an NPC takes a new name in the story, rename them here too.
+          if(u.newName && String(u.newName).trim()) { const nn=String(u.newName).trim(); rel.name = nn; const npc=GS.world.npcRegistry[u.npcId]; if(npc) npc.name = nn; }
+          // GRUDGE — wronging someone raises how much they hate the player (0-100).
+          if(u.grudge != null) { const npc=GS.world.npcRegistry[u.npcId]; if(npc) npc.grudgeLevel = clamp((npc.grudgeLevel||0) + u.grudge, 0, 100); }
+          if(u.fear != null)   { const npc=GS.world.npcRegistry[u.npcId]; if(npc) npc.fearLevel   = clamp((npc.fearLevel||0) + u.fear, 0, 100); }
           if(u.alive != null) { rel.alive = u.alive; const npc=GS.world.npcRegistry[u.npcId]; if(npc) npc.alive=u.alive; }
           // Imprisonment — blocks contact until released/freed
           if(u.imprisoned != null) {
@@ -31339,6 +31364,9 @@ updateCharacterTab = function() {
       });
       updateRelationsTab();
     });
+
+    // Keep NPC cultivation realms in sync with how the narrative describes them.
+    safe('npcCultivation', () => syncNpcCultivationFromText(res.narrative));
 
     // Reputation
     safe('reputation', () => {
@@ -36305,6 +36333,47 @@ function registerNarrativeInteractions(msg) {
   if(changed) { try { updateRelationsTab(); } catch(e) {} }
 }
 
+// Build a matcher for each Qi stage that tolerates "Stage" and roman/digit tiers
+// ("Qi Condensation II" / "Qi Condensation Stage 2" both match).
+const _STAGE_MATCHERS = (function() {
+  const roman = { i:'1', ii:'2', iii:'3' };
+  const esc = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return QI_STAGES.map((s, idx) => {
+    if(idx === 0) return null; // skip Mortal
+    const nm = s.name.toLowerCase();
+    const m = nm.match(/^(.*?)\s+(i{1,3})$/);
+    let re;
+    if(m) re = new RegExp(esc(m[1]) + '\\s*(?:stage\\s*)?(?:' + m[2] + '|' + roman[m[2]] + ')\\b', 'i');
+    else  re = new RegExp('\\b' + esc(nm) + '\\b', 'i');
+    return { idx, re, len: nm.length };
+  }).filter(Boolean).sort((a,b) => b.len - a.len); // longest first (avoid partial hits)
+})();
+// Keep an NPC's displayed cultivation realm in sync with how the story describes them
+// — e.g. someone introduced as "Qi Condensation Stage II" no longer shows as Mortal.
+function syncNpcCultivationFromText(narrative) {
+  const rels = GS.char.relationships || [];
+  let changed = false;
+  rels.forEach(rel => {
+    const npc = GS.world.npcRegistry[rel.npcId];
+    if(!npc) return;
+    const full = (rel.name || '').toLowerCase().trim();
+    if(full.length < 2) return;
+    // Look at the NPC's own summary/title (where intros live) + a window around their
+    // name in this turn's narrative.
+    let hay = `${rel.summary||''} ${rel.title||''}`.toLowerCase();
+    const nv = (narrative||'').toLowerCase();
+    const at = nv.indexOf(full);
+    if(at >= 0) hay += ' ' + nv.slice(Math.max(0, at-100), at + full.length + 100).replace(/\bstage\b/g,'');
+    for(const sm of _STAGE_MATCHERS) {
+      if(sm.re.test(hay)) {
+        if((npc.qiStageIndex||0) < sm.idx) { npc.qiStageIndex = sm.idx; npc.cultivationCap = Math.max(npc.cultivationCap||0, sm.idx); changed = true; }
+        break;
+      }
+    }
+  });
+  if(changed) { try { updateRelationsTab(); } catch(e) {} }
+}
+
 // Relationships you are ACTIVELY in deepen with TIME, not just with named interactions.
 // Fixes "we've been inseparable 14 months but it says I just met them": a companion's
 // bond climbs as the months pass, slowing as it nears a natural ceiling.
@@ -39999,6 +40068,11 @@ startGame = function(isLoad=false) {
     }
     updateTopbar();
     updateCharacterTab();
+    // Redraw the org + disciples/bound panels on load so they're never left showing
+    // a stale empty state when the save actually has them.
+    try { updateWorldTab(); } catch(e) {}
+    try { updateCrewDisplay(); } catch(e) {}
+    try { updateFollowersDisplay(); } catch(e) {}
   } catch(e) {}
 };
 
@@ -44579,9 +44653,10 @@ buildSystemPrompt = function() {
       + `ORDINARY PEOPLE ARE ORDINARY: the vast majority of the population are NON-cultivators — farmers, mill workers, clerks, shopkeepers, labourers, an ordinary uncle. They stay MORTAL their whole lives; they do NOT quietly become Foundation Building, Core Formation, or Nascent Soul in the background. Only a real minority cultivate at all, and high realms (Core Formation and beyond) are RARE, powerful, and noteworthy figures. Do not casually describe everyday townsfolk, relatives, or minor NPCs as high-realm cultivators, and do not let a commoner's cultivation drift upward over time. Match an NPC's realm to who they actually are.\n`
       + `KEEP NPC CULTIVATION IN SYNC: the People list shows each known NPC's cultivation realm, and it must match how you treat them in the story. If an NPC is, or advances to, a realm different from what the game shows, set "cultivation" on that NPC in "updateRelationships" (or on "newRelationships" when you introduce them) using the realm's NAME (e.g. "Qi Condensation I", "Foundation Building"). Don't let a character the narrative treats as a Qi Condensation cultivator keep showing as Body Tempering. And do NOT introduce someone the player already knows as a brand-new relationship — update the existing one (reuse their npcId / name) so they don't appear twice.\n`
       + `RELATIONSHIPS & ROMANCE MUST REGISTER: any real interaction with a known NPC this turn has to be reflected in the data, not just the prose. When the player talks with, helps, confides in, spars with, or spends time with someone, report a small positive "trust" on that NPC in "updateRelationships" (bond grows). When there is FLIRTING, attraction, a charged moment, a kiss, courtship, or any romantic beat — even a light first flirt — you MUST also emit "romanceUpdates": [{ "npcId": "<their id>", "stage": "<noticed|interested|flirting|tension|confessed|courting|together|…>", "npcFeelings": "<how they feel>", "chemistry": <0-100 or omit>, "notes": "what shifted" }] so the romance actually moves in the People tab. Do not let weeks of flirting leave a relationship at "none". Match the stage to how far things have genuinely gone.\n`
+      + `WRONGING SOMEONE MAKES THEM HATE YOU: if the player harms, betrays, robs, humiliates, or kills someone an NPC cares about — and that NPC could plausibly know who did it (a face seen, a confession, a SECRET IDENTITY the player openly used to them) — raise that NPC s grudge via updateRelationships ([{ npcId, grudge: 40 }] for a serious wrong, up to 100 for killing their kin); a real grudge must NOT read as a friendly acquaintance. The grudge attaches to the IDENTITY they blame: if the wrong was done under a mask/persona the NPC has not tied to the player s true self, the grudge belongs to that persona — do not have NPCs hate or suspect the player s real identity for something only the disguise did. When an NPC takes or is given a NEW NAME, set newName so the People tab updates.\n`
       + `SECTS ARE NOT PEOPLE: a sect, clan, academy, order, guild, faction, or any organization/building is NOT a person — never put it in newRelationships/People. When the player learns of or encounters a sect or faction, register it in newSects: [{ name, alignment, location, desc }] so it appears under World, Sects. Only actual individuals go in relationships.\n`
       + `DRUGS THE PLAYER CAN USE: the dealing stash is for product they sell. But when the player obtains a narcotic, pill, or drug to KEEP and USE themselves (a dose for the road, a vial they pocket, something a contact slips them), put it in their INVENTORY as a consumable via newItems: [{ "name", "type":"consumable", "rarity", "desc":"what it does / the high and the cost", "value", "effects":{} }] — so it's in their bag and they can actually take it later. Don't shove a personal-use dose into the dealing stash where they can't reach it.\n`
-      + `ORGANIZATION (crewUpdate) — MONEY & SCALE: when the player draws their cut / takes money OUT of their crew's treasury into their own purse, set "payout": <amount> in crewUpdate (it moves silver from the org to the player's gold — narrating it alone does NOT). And SCALE MUST MATCH POWER: an organization's reach is bounded by its tier, "influence" (0-100) and member count. A nascent/small crew with low influence CANNOT take over a district, topple a guild, or run a city from the shadows — those are feats of a powerful/feared org with high influence. Do not narrate a tiny crew pulling off a massive takeover; if the player attempts something beyond their org's weight, it strains, partially fails, or spikes "heat" hard. Big, bold, or violent operations should RAISE heat substantially; only real growth raises influence.\n`
+      + `ORGANIZATION (crewUpdate) — MONEY & SCALE: when the player draws their cut / takes money OUT of their crew's treasury into their own purse, set "payout": <amount> in crewUpdate (it moves silver from the org to the player's gold — narrating it alone does NOT). And SCALE MUST MATCH POWER: an organization's reach is bounded by its tier, "influence" (0-100) and member count. A nascent/small crew with low influence CANNOT take over a district, topple a guild, or run a city from the shadows — those are feats of a powerful/feared org with high influence. Do not narrate a tiny crew pulling off a massive takeover; if the player attempts something beyond their org's weight, it strains, partially fails, or spikes "heat" hard. Big, bold, or violent operations should RAISE heat substantially; only real growth raises influence. When the org EARNS money in the story (a heist, a shipment, protection money), put it in the treasury with crewUpdate silverDelta (positive), and remember the treasury also grows on its own over time from ongoing operations — so there is real silver there to collect with payout.\n`
       + `DUAL WIELDING: a character may fight with a weapon in each hand if it is plausible for them (two one-handed weapons — twin blades, sword-and-dagger, paired axes, dual sabers — and the body/skill to manage it). Honor it when the player wields two weapons: describe both hands working, the added offense and defense, and the real cost (it is harder, splits focus, demands ambidexterity/training, and a two-handed or heavy weapon cannot be paired). Skilled dual-wielding is a genuine martial advantage; clumsy dual-wielding gets someone killed. Let it be learned and earned like any skill.\n`
       + (() => {
           const c = GS.char;
