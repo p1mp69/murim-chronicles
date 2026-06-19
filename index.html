@@ -5923,7 +5923,7 @@ function createDefaultState() {
       slaves:[],       // [{ id, name, since, role, origin, spirit, notes, alive }] — bound/owned people
       _pacts:[],       // [{ kind, with, terms, price, year }] — binding contracts with yokai/gods/entities
       assets:[],       // [{ id, name, type, subtype, location, acquired, condition, upkeepPerMonth, upgrades, staff, incomePerMonth, isHome, isHideout, notes }]
-      race:'human', ascensionPath:null,
+      race:'human', secondRace:null, ascensionPath:null,
       prisonStatus:null, // { location, sentence, crime, since, execYear }
       bounty:0,
       isDead:false, deathCause:null, deathYear:null,
@@ -6721,7 +6721,15 @@ function becomeMinorGodOfDomain(domain, path) {
   domain = (domain || '').toString().trim().replace(/^the\s+/i,'');
   if(!domain) return;
   c.godDomain = domain;
-  if(c.race !== 'minor_god') { try { setRace('minor_god'); } catch(e) {} }
+  // Ascending to a Minor God does NOT erase what you already are — a Black Tortoise
+  // who becomes a god of War is BOTH. Keep a meaningful born/transformed race as the
+  // primary and stack minor_god as a second nature.
+  if(c.race !== 'minor_god' && c.secondRace !== 'minor_god') {
+    try {
+      if(c.race && c.race !== 'human') setSecondRace('minor_god');
+      else setRace('minor_god');
+    } catch(e) {}
+  }
   const tname = `Minor God of ${domain.charAt(0).toUpperCase()+domain.slice(1)}`;
   if(!(c.traits||[]).some(t => (t.name||'').toLowerCase() === tname.toLowerCase())) {
     try { addCustomTrait({ name:tname, rarity:'mythic',
@@ -9566,7 +9574,9 @@ function updateCharacterTab() {
   const raceEl = document.getElementById('char-race');
   if(raceEl) {
     const race = RACES[c.race || 'human'];
-    raceEl.innerHTML = `<span style="cursor:pointer;border-bottom:1px dashed var(--border2)" onclick="showRaceDetail()" title="See what makes you different">${race ? race.name : 'Human'} <span style="font-size:10px;color:var(--dim)">ⓘ</span></span>`;
+    const second = c.secondRace ? RACES[c.secondRace] : null;
+    const names = (race ? race.name : 'Human') + (second ? ` &amp; ${second.name}` : '');
+    raceEl.innerHTML = `<span style="cursor:pointer;border-bottom:1px dashed var(--border2)" onclick="showRaceDetail()" title="See what makes you different">${names} <span style="font-size:10px;color:var(--dim)">ⓘ</span></span>`;
   }
   const genderEl = document.getElementById('char-gender');
   if(genderEl) {
@@ -9888,6 +9898,21 @@ function tickCrew(daysElapsed) {
     if(Math.random() < 0.4) crew.log.push(`Year ${GS.world.year}: Operations brought ${formatCoins(income)} into the treasury.`);
   }
   if(crew.heat > 0) crew.heat = Math.max(0, crew.heat - Math.round(months * 2)); // cools over time
+  // HIGH HEAT DRAWS THE LAW — a hot organization gets raided: silver seized, members
+  // taken, the crackdown relieves some heat. This is what makes heat actually matter.
+  if((crew.heat || 0) >= 60 && Math.random() < Math.min(0.6, ((crew.heat - 50) / 120) * Math.max(1, months) + 0.05)) {
+    const severe = crew.heat >= 85;
+    const seized = Math.round((crew.silver || 0) * (severe ? 0.4 : 0.2));
+    crew.silver = Math.max(0, (crew.silver || 0) - seized);
+    let lost = '';
+    const alive = (crew.members || []).filter(m => m.alive !== false);
+    if(severe && alive.length) { const m = alive[Math.floor(Math.random()*alive.length)]; m.alive = false; lost = ` ${m.name} was taken in the raid.`; }
+    crew.influence = Math.max(0, (crew.influence||0) - (severe ? 8 : 4));
+    crew.heat = Math.max(15, crew.heat - (severe ? 40 : 25));
+    crew.log.push(`Year ${GS.world.year}: A ${severe?'severe':'sharp'} crackdown hit ${crew.name}.${seized?` ${formatCoins(seized)} seized.`:''}${lost}`);
+    try { addPersonalEvent(`[CRACKDOWN]: The authorities moved on ${crew.name} — heat had run too high.${seized?' '+formatCoins(seized)+' seized from the treasury.':''}${lost} Lie low to let the heat cool.`); } catch(e) {}
+    try { autoUpdateCrewTier(crew); } catch(e) {}
+  }
   try { updateCrewDisplay(); } catch(e) {}
 }
 
@@ -12469,7 +12494,7 @@ window.addEventListener('pagehide', () => { doAutosave(true); });
 // Scheme: MAJOR.MINOR. Big updates bump MAJOR (1.2 -> 2.2). Small updates
 // bump MINOR (2.2 -> 2.3). Each version has a name. The current version is
 // stamped onto every save; older saves can be updated to the latest.
-const GAME_VERSION = { number: '5.8', name: 'In Good Order' };
+const GAME_VERSION = { number: '5.9', name: 'Masks & Monarchs' };
 
 // Which model generates the story. Lite Mode swaps to a far cheaper, faster model
 // (Claude Haiku) so long sessions / limited credits cost a fraction per turn.
@@ -12552,6 +12577,7 @@ const VERSION_HISTORY = [
   { number:'5.7', name:'Growing Up', sys:'Three big ones. YOUR BODY AGES NOW: your appearance changes with age — a small child is short and soft-featured and genuinely grows, year by year, into their adult height and build (no more being 5\'6" at age 8), while eyes, skin, hair, and your distinctive features stay yours. The variety pools are much bigger too, and existing characters start aging from their current age. MINOR GOD OF A DOMAIN: the Larp God is no longer the only road to godhood — you can ascend to a Minor God of a specific domain (War, Death, the Forge, Vengeance, the Hunt, healing, the harvest…) through other earned, world-shaking arcs: becoming the utter embodiment of one thing, inheriting a dead god\'s portfolio, being worshipped until belief makes it real, or a divine bargain. The god of that domain commands it. RELATIONSHIPS DEEPEN WITH TIME: someone you actually live and travel alongside now grows closer month by month — a companion you\'ve been inseparable from for over a year will read as a real bond, not "Just Met", and people you keep dealing with graduate from "encountered" to companion/friend on their own.', note:'APPEARANCE: stable blueprint (skin/eyes/hair/feature/heightTier/adultBuild) + appearanceFromBlueprint(bp,age) derives current height (_adultHeightInches×_growthFactor) & age-banded build; generateAppearance(gender,city,age) builds blueprint; refreshAppearanceForAge() re-derives on age change (advanceTime age delta, ageChange handler, load) + synthesises a blueprint for old saves; pools expanded + child/youth/teen build pools; creation callers pass selectedAge/child.age. DOMAIN GODS: becomeMinorGodOfDomain(domain,path) sets race minor_god + godDomain + mythic "Minor God of X" trait (wil+10/cha+8/per+6); res.divineAscension handler + schema; god prompt section branches on godDomain; OTHER PATHS TO MINOR GODHOOD prompt added to larp section. COMPANIONS: registerNarrativeInteractions stamps _lastInteractDay + upgrades generic types (→companion/friend by effectiveBond); tickCompanionBonds(daysElapsed) grows bond toward a type ceiling for recently-active/close rels (wired into advanceTime). Verified in-browser. Version → 5.7.' },
   { number:'5.7.1', name:'Growing Up (hotfix)', sys:'HOTFIX: the v5.7 appearance change clashed with the game\'s real appearance system and blanked out your height/hair/eyes/skin/face (and made the character sheet look broken). Reverted that and fixed the actual system instead — your appearance grid is back, and height is now genuinely age-appropriate: a child is short and grows toward their adult height by ~18, then stops. Existing/broken saves repair themselves on load. (Your disciples and organization were never deleted — that was the broken sheet failing to draw; they\'re back now.)', note:'Reverted the v5.7 parallel appearance: removed appearanceFromBlueprint/refreshAppearanceForAge + its 3 call sites + the _HEIGHT_TIERS/_adultHeightInches/_growthFactor/_fmtHeight helpers; generateAppearance restored to the simple schema (+ APPEARANCE_POOLS.height key) so startGame still upgrades it to the detailed system; reverted creation/offspring callers. FIXED THE REAL SYSTEM: _heightGrowthFactor(age); generateDetailedAppearance now stores adult_height_cm + age-scaled height_cm; evolveAppearance grows height_cm toward adult_height_cm for ALL categories until ~19 (with reverse-derive fallback for pre-field saves). Broken blueprint-schema appearances regenerate to detailed via startGame upgrade (no height_cm). Verified: age 4→3\'7\", 8→4\'4\", 13→5\'1\", 18→5\'7\" adult; child grows to target. Version → 5.7.1.' },
   { number:'5.8', name:'In Good Order', sys:'Four fixes. TREASURY ACTUALLY FILLS: your organization now earns silver into its treasury over time (scaled by tier, members, and influence), so there is real money to collect — draw your cut and it lands in your gold; heat also cools when you lay low. CULTIVATION SYNC: an NPC introduced or described at a realm in the story (e.g. "Qi Condensation Stage II") now shows that realm in the People tab instead of "Mortal". NAME CHANGES STICK: when a character takes a new name in the narrative, the People tab updates. GRUDGES FORM: wronging someone an NPC cares about now actually makes them hostile (and the storyteller is told a grudge attaches to the identity they blame — so a secret-identity crime sticks to the persona, not your true face). Also re-draws your org + disciples panels on load so they\'re never left blank.', note:'CREW: tickCrew(daysElapsed) passive treasury income (_CREW_TIER_INCOME[tier] + members*1.5 + influence*0.4)/mo, heat cools 2/mo; wired into advanceTime; prompt: report earnings via silverDelta + payout collects. CULTIVATION SYNC: _STAGE_MATCHERS (tolerant of "Stage" + roman/digit tiers) + syncNpcCultivationFromText(narrative) scans rel.summary/title + name-window → sets npc.qiStageIndex; safe("npcCultivation") in applyAIResponse. RENAME/GRUDGE: updateRelationships handler gains newName (renames rel+npc), grudge/fear (clamped deltas) + schema (both blocks) + WRONGING-SOMEONE prompt (grudge attaches to blamed identity, secret-identity nuance). ORG/DISCIPLES: load path now calls updateWorldTab+updateCrewDisplay+updateFollowersDisplay (render verified working — data is preserved by cleanSaveData deep-clone; nothing deletes crew/disciples). Verified in-browser. Version → 5.8.' },
+  { number:'5.9', name:'Masks & Monarchs', sys:'Six things. SECRET IDENTITY HOLDS: the storyteller will no longer make you blurt out or confess your secret identity to friends/lovers on its own, and NPCs won\'t magically "already know" about your organization or crimes you never told them — a disguise stays up until YOU drop it or something in the world genuinely exposes it. NO MORE GUILT-TRIPPING: if you play an evil or ruthless character, the world reacts (enemies, fear, the law) but the storyteller will not moralize, shame you, or force a conscience you didn\'t choose — villainy is a valid path. TWO RACES AT ONCE: you can now hold two natures — e.g. a Black Tortoise who ascends to a Minor God is BOTH, with both sets of gifts. CREW HEAT IS REAL: let your organization run too hot and the law raids it — silver seized, members taken, influence lost — so lying low actually matters. SECTS AUTO-REGISTER: a sect or clan named in the story now shows under World → Sects even if the storyteller forgets. SHARED STORY: the "share my story" feature now writes your character\'s WHOLE LIFE in third person, like a novel chapter about them, instead of a short second-person blurb.', note:'PROMPT: DO-NOT-MORALIZE rule (consequences yes, sermons/guilt/forced-redemption no) + SECRET IDENTITY/DISGUISE rule (NPCs don\'t auto-know the face/org behind a mask; never auto-reveal) in progression wrapper. TWO RACES: setSecondRace(raceId) stacks modifiers/qiPath + c.secondRace (default+display "A & B"+prompt race line); becomeMinorGodOfDomain keeps a non-human primary and stacks minor_god as secondRace; res.secondRaceChange handler. CREW HEAT: tickCrew crackdown when heat≥60 (seizes silver, severe≥85 takes a member, drops influence+heat). SECTS: detectSectsInNarrative(text) regex (capitalized name + org suffix, skips own crew + generic hall) → addDiscoveredSect; safe("sectScan") in applyAIResponse. SHARE STORY: generateStory prompt rewritten → third-person whole-life biography (pronouns, full arc, no second person, no moralizing). Verified in-browser. Version → 5.9.' },
 ];
 
 function cleanSaveData(gs) {
@@ -14927,6 +14953,24 @@ function setRace(raceId) {
   toast(`Race changed: ${race.name}`, 'gold', 3000);
 }
 
+// A SECOND, simultaneous race — for hybrids (e.g. a Black Tortoise who also ascends to
+// a Minor God). Keeps the primary race and stacks the second race's modifiers/Qi path.
+function setSecondRace(raceId) {
+  const race = RACES[raceId];
+  if(!race) return;
+  const c = GS.char;
+  if(c.race === raceId || c.secondRace === raceId) return; // already one of theirs
+  // Remove a previous second-race's modifiers before applying the new one.
+  const old = RACES[c.secondRace];
+  if(old?.modifiers) Object.entries(old.modifiers).forEach(([k,v]) => { if(typeof v==='number' && c[k]!==undefined) c[k] -= v; });
+  c.secondRace = raceId;
+  if(race.modifiers) Object.entries(race.modifiers).forEach(([k,v]) => { if(typeof v==='number' && c[k]!==undefined) c[k] = Math.max(1, c[k] + v); });
+  if(race.qiPathForced && !c.qi.path) c.qi.path = race.qiPathForced;
+  try { addChronicleEntry(`Became ${race.name} as well — now of two natures at once.`, 'major'); } catch(e) {}
+  try { updateCharacterTab(); } catch(e) {}
+  toast(`You are now also ${race.name} — two races at once.`, 'gold', 5000);
+}
+
 // ================================================================
 // SECT SYSTEM
 // ================================================================
@@ -15163,7 +15207,7 @@ ${(() => {
 
 ## CURRENT GAME STATE
 **${c.firstName} ${c.lastName}** | Age ${c.age} | Year ${w.year}, Month ${w.month}
-Race: ${raceInfo?.name||'Human'} | Location: ${loc?.name||w.location} (${KINGDOMS[loc?.kingdom]?.name||'unknown'})
+Race: ${raceInfo?.name||'Human'}${c.secondRace && RACES[c.secondRace] ? ' & '+RACES[c.secondRace].name+' (two natures at once)' : ''} | Location: ${loc?.name||w.location} (${KINGDOMS[loc?.kingdom]?.name||'unknown'})
 Cultivation: ${stage.name} (EXACT stage ${c.qi.stageIndex} of ${QI_STAGES.length-1}; the player is EXACTLY this — NOT higher) | ${c.qi.path ? c.qi.path+' Qi' : 'no path yet'} | ${c.qi.current}/${c.qi.max} Qi${c.qi.expression ? ' | Expression: '+c.qi.expression : ''}
 The NEXT realm UP (the ONLY realm a breakthrough can advance into) is: ${QI_STAGES[c.qi.stageIndex+1] ? QI_STAGES[c.qi.stageIndex+1].name+' (stage '+(c.qi.stageIndex+1)+', newQiStageIndex:'+(c.qi.stageIndex+1)+')' : 'NONE — already at the peak realm'}. Do NOT name any other realm as their next step.
 FULL CULTIVATION LADDER (low → high, in THIS world — memorize the order, it is NOT the generic one): ${QI_STAGES.map((s,i)=>`${i}:${s.name}`).join(' → ')}.
@@ -31367,6 +31411,8 @@ updateCharacterTab = function() {
 
     // Keep NPC cultivation realms in sync with how the narrative describes them.
     safe('npcCultivation', () => syncNpcCultivationFromText(res.narrative));
+    // Catch sects named in the narrative even if the AI didn't emit newSects.
+    safe('sectScan', () => detectSectsInNarrative(res.narrative));
 
     // Reputation
     safe('reputation', () => {
@@ -31492,6 +31538,7 @@ updateCharacterTab = function() {
         beastParent: (o.otherParentBeast && HALF_BEAST_RACE[o.otherParentBeast]) ? o.otherParentBeast : null,
       }); });
       if(res.raceChange) setRace(res.raceChange);
+      if(res.secondRaceChange) setSecondRace(res.secondRaceChange);
       if(res.divineAscension && res.divineAscension.domain) becomeMinorGodOfDomain(res.divineAscension.domain, res.divineAscension.path);
       if(res.death) handleDeath(res.deathCause||'unknown');
     });
@@ -36374,6 +36421,27 @@ function syncNpcCultivationFromText(narrative) {
   if(changed) { try { updateRelationsTab(); } catch(e) {} }
 }
 
+// Catch sects/factions named in the narrative and register them under World → Sects,
+// even when the AI forgets to emit "newSects". Matches a capitalized name ending in a
+// recognizable organization word.
+const _SECT_NAME_RE = /\b([A-Z][\w'’]+(?:\s+[A-Z][\w'’]+){0,3}\s+(?:Sect|Clan|Academy|Order|Pavilion|School|Dojo|Monastery|Cult|League|Society|Brotherhood|Hall|Gate|Palace))\b/g;
+function detectSectsInNarrative(text) {
+  if(!text) return;
+  const ownCrew = (GS.char.crew?.name || '').toLowerCase();
+  const seen = new Set();
+  let m;
+  _SECT_NAME_RE.lastIndex = 0;
+  while((m = _SECT_NAME_RE.exec(text)) !== null) {
+    const name = m[1].trim();
+    const low = name.toLowerCase();
+    if(seen.has(low) || low === ownCrew) continue;
+    seen.add(low);
+    // Skip obvious place/hall false positives that are really just buildings if too generic.
+    if(/^(the )?(great|grand|main|north|south|east|west) (hall|gate|palace)$/i.test(name)) continue;
+    try { addDiscoveredSect({ name }); } catch(e) {}
+  }
+}
+
 // Relationships you are ACTIVELY in deepen with TIME, not just with named interactions.
 // Fixes "we've been inseparable 14 months but it says I just met them": a companion's
 // bond climbs as the months pass, slowing as it nears a natural ceiling.
@@ -40211,11 +40279,13 @@ async function generateStory() {
   const narrative = (GS.narrative||[]).filter(n=>n&&n.length>20).slice(-8).join('\n\n---\n\n');
   const worldHist = (w.worldHistory||[]).slice(-5).join('\n');
 
-  const prompt = `You are writing a literary story about a cultivator's journey. This is for SHARING with another person — write it as compelling narrative fiction, not a game log.
+  const pronoun = c.gender === 'female' ? 'she/her' : c.gender === 'male' ? 'he/him' : 'they/them';
+  const prompt = `You are writing a literary BIOGRAPHY of a cultivator's WHOLE LIFE — birth to the present — in THIRD PERSON. This is for SHARING with another person, like a chapter of a wuxia novel about this person. Not a game log.
 
 CHARACTER:
 Name: ${c.firstName} ${c.lastName}
 Age: ${c.age} | Year: ${w.year} | Location: ${LOCATIONS[w.location]?.name || w.location}
+Pronouns: ${pronoun}
 Cultivation: ${stage} (${c.qi?.path || 'no path'} Qi)
 Traits: ${traits}
 Known as: ${Object.entries(c.reputation||{}).filter(([k,v])=>(v.renown||0)>20&&!k.endsWith('_kingdom')).map(([k,v])=>`${LOCATIONS[k]?.name}: renown ${v.renown}`).join(', ') || 'unknown to the world'}
@@ -40236,15 +40306,13 @@ RECENT SCENES (from the game narrative):
 ${narrative}
 
 WRITING INSTRUCTIONS:
-Write a narrative story (800-1200 words) about this character's life so far.
-- Second person: "You are ${c.firstName}..."
-- Present tense for recent events, past tense for history
-- Literary quality — this is fiction, not a summary
-- Include 2-3 specific scenes that feel real
-- Show who this person is through their choices, not just what happened
-- End with where they stand NOW — the weight of it, what's ahead
-- This should read like a chapter from a wuxia novel
-- Do NOT include game mechanics, stats, or system references — pure story`;
+Write the story of ${c.firstName} ${c.lastName}'s WHOLE LIFE so far (1000-1700 words).
+- THIRD PERSON. Refer to them as "${c.firstName}" and by ${pronoun} pronouns. NEVER use "you" or second person — this reads like a novel ABOUT them.
+- Cover the full arc: their birth and childhood, the people and place that shaped them, the turning points, their rise (or fall), the defining choices and deeds, the relationships that mattered, up to where they stand NOW.
+- Mostly past tense (a life being recounted); you may land the final paragraph in the present.
+- Literary wuxia-novel quality — specific scenes, real texture, not a bland summary or a list.
+- Show who this person IS through their choices. If they are ruthless, ambitious, or villainous, write them that way honestly and without judgment — do NOT moralize, apologize for them, or insert a redemptive lesson they didn't earn. Tell their truth.
+- Do NOT include game mechanics, stats, or system references — pure story.`;
 
   try {
     if(!llmConfigured()) throw new Error('No model backend configured (set an API key or custom endpoint in Settings)');
@@ -44657,6 +44725,7 @@ buildSystemPrompt = function() {
       + `SECTS ARE NOT PEOPLE: a sect, clan, academy, order, guild, faction, or any organization/building is NOT a person — never put it in newRelationships/People. When the player learns of or encounters a sect or faction, register it in newSects: [{ name, alignment, location, desc }] so it appears under World, Sects. Only actual individuals go in relationships.\n`
       + `DRUGS THE PLAYER CAN USE: the dealing stash is for product they sell. But when the player obtains a narcotic, pill, or drug to KEEP and USE themselves (a dose for the road, a vial they pocket, something a contact slips them), put it in their INVENTORY as a consumable via newItems: [{ "name", "type":"consumable", "rarity", "desc":"what it does / the high and the cost", "value", "effects":{} }] — so it's in their bag and they can actually take it later. Don't shove a personal-use dose into the dealing stash where they can't reach it.\n`
       + `ORGANIZATION (crewUpdate) — MONEY & SCALE: when the player draws their cut / takes money OUT of their crew's treasury into their own purse, set "payout": <amount> in crewUpdate (it moves silver from the org to the player's gold — narrating it alone does NOT). And SCALE MUST MATCH POWER: an organization's reach is bounded by its tier, "influence" (0-100) and member count. A nascent/small crew with low influence CANNOT take over a district, topple a guild, or run a city from the shadows — those are feats of a powerful/feared org with high influence. Do not narrate a tiny crew pulling off a massive takeover; if the player attempts something beyond their org's weight, it strains, partially fails, or spikes "heat" hard. Big, bold, or violent operations should RAISE heat substantially; only real growth raises influence. When the org EARNS money in the story (a heist, a shipment, protection money), put it in the treasury with crewUpdate silverDelta (positive), and remember the treasury also grows on its own over time from ongoing operations — so there is real silver there to collect with payout.\n`
+      + `DO NOT MORALIZE — let the player be who they choose: this is dark genre fiction. If the player is cruel, evil, ruthless, criminal, or monstrous, narrate the world reacting REALISTICALLY (fear, enemies, grudges, the law, consequences) — but NEVER editorialize, guilt-trip, shame, or try to make the player feel bad for it, never insert a moral lesson or a pang of conscience they did not choose, and never steer them toward redemption they are not seeking. Villainy is a valid path played to the hilt. Consequences yes; sermons, hand-wringing, and authorial disapproval no. The character feels remorse only if the PLAYER plays them that way.\n`      + `SECRET IDENTITY / DISGUISE — protect it unless the player blows it: when the player operates under a false name, mask, or persona, that disguise HOLDS by default. (1) NPCs do NOT magically know the face behind the mask — someone wronged by the persona does not suddenly suspect or accuse the player\u2019s true self, and a new acquaintance does not \u201calready know\u201d about the player\u2019s organization, crimes, or secret deeds unless the player TOLD them, they witnessed it, or a believable channel (a rumor, an informant, evidence) reached them. (2) NEVER force the player to reveal their secret identity — do not have them blurt it out, slip, or confess to friends/lovers/allies on their own. The player decides if and when the mask comes off. If you think exposure should happen, make it the result of a concrete in-world event the player can see coming and respond to, not an automatic slip.\n`
       + `DUAL WIELDING: a character may fight with a weapon in each hand if it is plausible for them (two one-handed weapons — twin blades, sword-and-dagger, paired axes, dual sabers — and the body/skill to manage it). Honor it when the player wields two weapons: describe both hands working, the added offense and defense, and the real cost (it is harder, splits focus, demands ambidexterity/training, and a two-handed or heavy weapon cannot be paired). Skilled dual-wielding is a genuine martial advantage; clumsy dual-wielding gets someone killed. Let it be learned and earned like any skill.\n`
       + (() => {
           const c = GS.char;
